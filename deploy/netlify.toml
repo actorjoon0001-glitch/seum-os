@@ -1,0 +1,6 @@
+# Netlify 배포 설정 (세움OS)
+# 빌드 없이 정적 파일만 배포
+
+[build]
+  publish = "."
+  command = "echo 'No build'"

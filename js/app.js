@@ -1,0 +1,7242 @@
+(function () {
+  'use strict';
+  console.log('app.js loaded');
+
+  var STORAGE_VISITS = 'seum_visits';
+  var STORAGE_CONTRACTS = 'seum_contracts';
+  var STORAGE_EMPLOYEES = 'seum_employees';
+  var STORAGE_LEAVES = 'seum_leaves';
+  var STORAGE_TEAM_EVENTS = 'seum_team_events';
+  var STORAGE_KPI_GOALS = 'seum_kpi_goals';
+  var STORAGE_INCENTIVE_PERCENTS = 'seum_incentive_percents';
+  var STORAGE_CUSTOMERS = 'seum_customers';
+
+  var SHOWROOMS = [
+    { id: 'headquarters', name: '?? ???' },
+    { id: 'showroom1', name: '1???' },
+    { id: 'showroom3', name: '3???' },
+    { id: 'showroom4', name: '4???' }
+  ];
+
+  function getShowroomName(id) {
+    var s = SHOWROOMS.find(function (x) { return x.id === id; });
+    var raw = s ? s.name : (id || '-');
+    if (raw === '??' || raw === '?? ???') return '?? ???';
+    return raw;
+  }
+
+  /** ?????????????? ??? id)??SHOWROOMS id????. ?????'' */
+  function resolveShowroomId(employee) {
+    if (!employee) return '';
+    var raw = String(employee.showroomId || employee.showroom || '').trim();
+    if (!raw) return '';
+    var byId = SHOWROOMS.find(function (s) { return (s.id || '') === raw; });
+    if (byId) return byId.id;
+    var byName = SHOWROOMS.find(function (s) { return (s.name || '') === raw; });
+    if (byName) return byName.id;
+    return raw;
+  }
+
+  var SUPER_ADMIN_EMAIL = 'harold0001@naver.com';
+
+  var TODAY_MESSAGES = [
+    "???? ???????????? ????",
+    "?????????????? ???????????????",
+    "??? ????? ???? ?????????????",
+    "????? ??? ????? ??????????????",
+    "???????? ????? ???????????",
+    "????? ??????? ??????????????.",
+    "???????????? ??????????? ?????.",
+    "?????????????? ????????? ??????.",
+    "?????????????????????",
+    "????????????????????????.",
+    "?????????? ??? ??????????.",
+    "??????? ????????????????? ?????",
+    "????'?????????? ????? ?????.",
+    "??? 1?? ????? 10?????????? ???.",
+    "????? ??????????? ????? ??? ?????.",
+    "?? ????????????? ???????",
+    "???????????????????? ???.",
+    "??????????????? ?????????",
+    "?????? ??????????????? ??????????? ?? ????",
+    "??????? ???? '??? ??' ??? ??? ???.",
+    "??? ???????????? ??????????1??? ???.",
+    "?? ???? ????????????????",
+    "?????????? ??? ??? ?????????????.",
+    "???? ???????? ???????????????",
+    "???? ??????? ??, ?????????",
+    "???? ?????? ???????",
+    "?????????????? ???? ???????? ??.",
+    "???????????? ?????????? ???.",
+    "??? ??? ??????????????? ?????",
+    "??????? ??????? ????? ????????",
+    "?????? ????? ?????? ????? ???? ?????.",
+    "???? ??????, ??? ??????.",
+    "?? ??????????? ??? ???.",
+    "???????? ??, ??? ??????? ?????.",
+    "???? ????????? ???????????????????",
+    "?????????? ??????????????????.",
+    "?????????? ?????????????",
+    "??? ?? ???? ??????????????",
+    "???? ???????? ???????????????????",
+    "???? ????? ???? ???? ?????.",
+    "?? ?????? ??? ????? ?????????.",
+    "?? ????????????????????????????????",
+    "???????? ?????????????? ????",
+    "???????????????? ?????????????",
+    "????? ?????? ??? ????? '??????.",
+    "??? ?????????? ???? ????",
+    "?????????? ??? ???? ?????????????.",
+    "??? ??10?????? ??? 1?????????",
+    "????????? ?? ???? ????????????",
+    "?????? ??????? ?? ?????.",
+    "???? ??????? ??????? ??????? ??.",
+    "????????? ?????????? ?????",
+    "???? ??? ???????? ????",
+    "???????????? ?? ??????????.",
+    "???? ??????? ??? ???? ??????????? ????",
+    "?????????? ??? ????????????.",
+    "???????? ??????????????? ??????? ??.",
+    "???? ?? ????? ??? ??? ??????????",
+    "????????? ????????????????.",
+    "????????????? ??????????????",
+    "????'???'?? '??????'????? ????.",
+    "?? ????????????? ???????????? ????????.",
+    "?????????? ???? ??? ????? ????????.",
+    "????? ????????? ???????",
+    "?????????????????????????? ?????",
+    "??????????? ??????????? ????",
+    "?????????????????????",
+    "???? ????????? ??????????.",
+    "?? ????????????, ??? ???????? ??? ?????",
+    "???? ??? ???? ?? ????? ??????? ???? ?? ?????",
+    "????????? ???? ?????? ??? ??????.",
+    "?????????? ????????? ?????.",
+    "????? ?????? ???, ??? ??????????.",
+    "???????????? ???????????????.",
+    "???? ?????????, ?????????????? ??? ??????.",
+    "?? 1%???????1?????????? ???.",
+    "??????? ?? ??????? ????????????.",
+    "??????????????? ?????? ?????.",
+    "??? ?????????? ?????",
+    "?????????? ???? ??? ??????????",
+    "??? ?????????, ??? ??? ???????????.",
+    "??? ????????????? ????????????.",
+    "???????????????? ?? ???? ?????",
+    "?? ?????????? ????????? ??.",
+    "?????????????????? ???????????.",
+    "??? ???? ?????? ??????? ????????.",
+    "????? ??? ??????? ???????.",
+    "??? ???? ??? ???????? ?????",
+    "?????????? ?????? ???????????.",
+    "??????????????? ???????????????.",
+    "?????????????????????????.",
+    "??? ????????? ??? ??????????????",
+    "??????? ???????????? ??? ???????.",
+    "?? ????????? ??, ?????????? ??? ??????.",
+    "????? ?????????? ??? ?? ??????.",
+    "???????? ??????? ????????? ?????.",
+    "???? ???????? ?????? ?????.",
+    "???????????? ???????.",
+    "?????'??????? ????'???????.",
+    "??????? ?????, ??????? ??????? ??.",
+    "?? ????? 3?? ??????? ?????",
+    "???? ?? ?????? ??????????????.",
+    "????????? ??????????????",
+    "?????????????????????? ?????.",
+    "???? ??? ???????????",
+    "?????? ????? ?? ???? ???????"
+  ];
+
+  function pickTodaysMessage(messages) {
+    if (!messages || !messages.length) return '';
+    var today = new Date();
+    var key = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+    var hash = 0;
+    for (var i = 0; i < key.length; i++) {
+      hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    }
+    var index = hash % messages.length;
+    return messages[index];
+  }
+
+  function renderTodayMessage() {
+    var el = document.getElementById('today-message-text');
+    if (!el) return;
+    el.textContent = pickTodaysMessage(TODAY_MESSAGES) || '';
+  }
+
+  function isAdmin() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    // ??? ?? ???? role=admin ??? ?? permission=admin ??? ???
+    return role === 'admin' || permission === 'admin';
+  }
+
+  function isSuperAdmin() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur || !cur.email) return false;
+    return String(cur.email).toLowerCase() === SUPER_ADMIN_EMAIL;
+  }
+
+  function canSeeManageSection() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    // ????????admin ??? (??? permission=admin)
+    return role === 'admin' || permission === 'admin';
+  }
+
+  function isSalesReadonly() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    if (role === 'admin' || role === 'master' || permission === 'admin' || isSuperAdmin()) return false;
+    var team = (cur.team || '').trim();
+    return team === '???';
+  }
+
+  function canAccessTeamSection(sectionId) {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    if (role === 'admin' || role === 'master' || permission === 'admin' || isSuperAdmin()) return true;
+    var team = (cur.team || '').trim();
+    if (!team) return false;
+    // ?? ??: ???, ????? ???, ???, ???, ??
+    var isSales = team === '??';
+    var isMarketing = team === '???';
+    var isDesign = team === '??';
+    var isConstruction = team === '??';
+    var isSettlement = team === '??';
+
+    // ???????: ?????+ ??? + ??? + ???
+    if (sectionId === 'marketing') return isMarketing;
+
+    // ??? ???: leads/customers/contracts?????? ????????
+    if (sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts') {
+      // ?????????????: ?? ???? ?????/????? ????
+      if ((isDesign || isConstruction || isSettlement) && sectionId !== 'sales-contracts') return false;
+      return isSales || isDesign || isMarketing || isConstruction || isSettlement;
+    }
+
+    // ??? ???: ???, ???, ???, ????? ???
+    if (sectionId === 'design') {
+      return isDesign || isSales || isConstruction || isMarketing || isSettlement;
+    }
+
+    // ??? ???: ???, ???, ????? ??? + ????? ????(????? isSalesReadonly??? ?? ???)
+    if (sectionId === 'construction') {
+      return isConstruction || isDesign || isMarketing || isSettlement || isSales;
+    }
+
+    // ?????: ??? ?? + ???/???/??? ???? ????????
+    if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
+      return isSettlement;
+    }
+    // ????????? ?? ??? ???
+    return true;
+  }
+
+  function updateAdminNavVisibility() {
+    var section = document.getElementById('nav-section-admin');
+    // ??? ????? admin/master/????????? ????? ???.
+    if (section) section.classList.toggle('hidden', !isAdmin() && !isSuperAdmin());
+  }
+
+  function updateManageNavVisibility() {
+    var section = document.getElementById('nav-section-manage');
+    if (section) section.classList.toggle('hidden', !canSeeManageSection());
+  }
+
+  function getFilterShowroom() {
+    var el = document.getElementById('filter-showroom');
+    return el ? (el.value || '') : '';
+  }
+
+  function getFilterYear() {
+    var el = document.getElementById('filter-year');
+    return el ? (el.value || '') : '';
+  }
+
+  function getFilterMonth() {
+    var el = document.getElementById('filter-month');
+    return el ? (el.value || '') : '';
+  }
+
+  function filterByShowroom(list, showroomKey) {
+    var filter = getFilterShowroom();
+    if (!filter) return list;
+    return list.filter(function (item) { return (item[showroomKey] || '') === filter; });
+  }
+
+  function filterByYearMonth(list, dateKey) {
+    var y = getFilterYear();
+    var m = getFilterMonth();
+    if (!y && !m) return list;
+    var mPad = m ? String(m).padStart(2, '0') : '';
+    return list.filter(function (item) {
+      var d = item[dateKey] || '';
+      if (!d || d.length < 7) return false;
+      var itemYear = d.slice(0, 4);
+      var itemMonth = d.slice(5, 7);
+      if (y && itemYear !== y) return false;
+      if (m && itemMonth !== mPad) return false;
+      return true;
+    });
+  }
+
+  function getVisits() {
+    try {
+      var raw = localStorage.getItem(STORAGE_VISITS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveVisits(data) {
+    localStorage.setItem(STORAGE_VISITS, JSON.stringify(data));
+  }
+
+  function getContracts() {
+    try {
+      var raw = localStorage.getItem(STORAGE_CONTRACTS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveContracts(data) {
+    localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(data));
+    // Supabase contracts ????? ?????(?? ID ???)
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa || !Array.isArray(data)) return;
+      var rows = data.map(function (c) {
+        return {
+          local_id: c.id || null,
+          showroom_id: c.showroomId || null,
+          contract_date: c.contractDate || null,
+          contract_amount: c.totalAmount != null && c.totalAmount !== '' ? Number(c.totalAmount) : null,
+          sales_person: c.salesPerson || null,
+          customer_name: c.customerName || null,
+          model_name: c.contractModelName || null,
+          payload: c
+        };
+      });
+      supa.from('contracts').upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) {
+          if (res && res.error) {
+            // ????? ?????UI ????? ??? ???
+            console.error('Supabase contracts sync error:', res.error);
+          }
+        })
+        .catch(function (err) {
+          console.error('Supabase contracts sync failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase contracts sync exception:', e);
+    }
+  }
+
+  /** ?? ???? (?? + Supabase contracts) */
+  function deleteContractById(contractId) {
+    if (!contractId) return;
+    var contracts = getContracts();
+    var beforeLen = contracts.length;
+    contracts = contracts.filter(function (c) { return c.id !== contractId; });
+    if (contracts.length === beforeLen) return;
+    saveContracts(contracts);
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (supa) {
+        supa.from('contracts').delete().eq('local_id', contractId)
+          .then(function (res) {
+            if (res && res.error) {
+              console.error('Supabase contracts delete error:', res.error);
+            }
+          })
+          .catch(function (err) {
+            console.error('Supabase contracts delete failed:', err);
+          });
+      }
+    } catch (e) {
+      console.error('deleteContractById exception', e);
+    }
+    // ?? ??/???/??? ??? UI ??
+    if (typeof renderSales === 'function') renderSales();
+    if (typeof renderConstruction === 'function') renderConstruction();
+    if (typeof renderSettlement === 'function') renderSettlement();
+  }
+
+  // Supabase??????? contracts??localStorage???? (?????? ?????????
+  function syncContractsFromSupabase() {
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa
+        .from('contracts')
+        .select('local_id,payload')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) {
+              console.error('Supabase contracts load error:', res.error);
+            }
+            return;
+          }
+          var remote = res.data
+            .map(function (row) {
+              var c = row.payload || null;
+              if (!c && row.local_id) {
+                c = { id: row.local_id };
+              }
+              if (c && !c.id && row.local_id) {
+                c.id = row.local_id;
+              }
+              return c;
+            })
+            .filter(function (c) { return c && c.id; });
+          // Supabase ?????? ?? (??? PC ??/??? ????????)
+          localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(remote));
+
+          try {
+            renderSales();
+            renderDesign();
+            renderSettlement();
+          } catch (e) {
+            console.error('Render after contracts sync failed:', e);
+          }
+        })
+        .catch(function (err) {
+          console.error('Supabase contracts load failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase contracts sync exception:', e);
+    }
+  }
+
+  function getEmployees() {
+    try {
+      var raw = localStorage.getItem(STORAGE_EMPLOYEES);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveEmployees(data) {
+    localStorage.setItem(STORAGE_EMPLOYEES, JSON.stringify(data));
+  }
+
+  function getLeaves() {
+    try {
+      var raw = localStorage.getItem(STORAGE_LEAVES);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveLeaves(data) {
+    localStorage.setItem(STORAGE_LEAVES, JSON.stringify(data));
+  }
+
+  // ===== ??? ??? ?????? ??? =====
+
+  function parseDrawingUrls(value) {
+    if (!value) return [];
+    return String(value).split(/\r?\n/).map(function (s) { return s.trim(); }).filter(function (s) { return !!s; });
+  }
+
+  function serializeDrawingUrls(urls) {
+    return urls.join('\n');
+  }
+
+  function fileNameFromUrl(url) {
+    if (!url) return '';
+    try {
+      var clean = String(url).split('?')[0].split('#')[0];
+      var parts = clean.split('/');
+      return parts[parts.length - 1] || url;
+    } catch (e) {
+      return url;
+    }
+  }
+
+  function renderDrawingFileList(container, urls) {
+    if (!container) return;
+    if (!urls || !urls.length) {
+      container.innerHTML = '<div class="drawing-file-empty">????????????????.</div>';
+      return;
+    }
+    var items = urls.map(function (url, idx) {
+      var name = fileNameFromUrl(url);
+      return '<li class="drawing-file-item" data-index="' + idx + '">' +
+        '<span class="drawing-file-icon">???</span>' +
+        '<span class="drawing-file-name-text" title="' + escapeAttr(name) + '">' + escapeAttr(name) + '</span>' +
+        '<button type="button" class="btn btn-xs btn-secondary drawing-file-open" data-url="' + escapeAttr(url) + '">???</button>' +
+        '<button type="button" class="btn btn-xs btn-secondary drawing-file-delete">????</button>' +
+        '</li>';
+    }).join('');
+    container.innerHTML = '<ul class="drawing-file-list-inner">' + items + '</ul>';
+  }
+
+  function refreshDrawingFileListForInput(inputEl, listEl) {
+    if (!inputEl || !listEl) return;
+    var urls = parseDrawingUrls(inputEl.value || '');
+    renderDrawingFileList(listEl, urls);
+  }
+
+  function getTeamEvents() {
+    try {
+      var raw = localStorage.getItem(STORAGE_TEAM_EVENTS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveTeamEvents(data) {
+    localStorage.setItem(STORAGE_TEAM_EVENTS, JSON.stringify(data));
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase || !Array.isArray(data)) return;
+      var rows = data.map(function (ev) {
+        return {
+          local_id: ev.id || null,
+          title: ev.title || null,
+          team: ev.team || ev.team_name || null,
+          assignee_name: ev.assignee_name || ev.assignee || ev.manager || null,
+          showroom: ev.showroom || ev.showroomId || null,
+          event_type: ev.event_type || ev.eventType || ev.type || null,
+          status: ev.status || null,
+          priority: ev.priority || null,
+          start_date: ev.start_date || ev.startDate || ev.event_date || ev.date || null,
+          end_date: ev.end_date || ev.endDate || ev.start_date || ev.startDate || ev.event_date || ev.date || null,
+          start_time: ev.start_time || ev.startTime || ev.time || null,
+          end_time: ev.end_time || ev.endTime || null,
+          is_all_day: ev.allDay != null ? !!ev.allDay : null,
+          location: ev.location || null,
+          description: ev.description || ev.content || null,
+          repeat_type: ev.repeat_type || ev.repeat || null,
+          reminder_type: ev.reminder_type || ev.reminder || null,
+          is_private: ev.is_private != null ? !!ev.is_private : null,
+          note: ev.note || null,
+          payload: ev
+        };
+      });
+      supabase
+        .from('team_events')
+        .upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('Supabase team_events sync error:', res.error);
+          }
+        })
+        .catch(function (err) {
+          console.error('Supabase team_events sync failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase team_events sync exception:', e);
+    }
+  }
+
+  function syncTeamEventsFromSupabase() {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      supabase
+        .from('team_events')
+        .select('local_id,payload,title,team,assignee_name,showroom,event_type,status,priority,start_date,end_date,start_time,end_time,is_all_day,location,description,repeat_type,reminder_type,is_private,note')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) {
+              console.error('Supabase team_events load error:', res.error);
+            }
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            var ev = row.payload || {};
+            if (!ev.id && row.local_id) ev.id = row.local_id;
+            if (!ev.title && row.title) ev.title = row.title;
+            if (!ev.team && row.team) ev.team = row.team;
+            if (!ev.assignee_name && row.assignee_name) ev.assignee_name = row.assignee_name;
+            if (row.showroom != null && row.showroom !== '') {
+              ev.showroom = row.showroom;
+              ev.showroomId = row.showroom;
+            }
+            if (row.event_type != null && row.event_type !== '') {
+              ev.event_type = row.event_type;
+              ev.eventType = row.event_type;
+              ev.type = row.event_type;
+            }
+            if (!ev.status && row.status) ev.status = row.status;
+            if (!ev.priority && row.priority) ev.priority = row.priority;
+            if (!ev.startDate && row.start_date) ev.startDate = row.start_date;
+            if (!ev.endDate && row.end_date) ev.endDate = row.end_date;
+            if (!ev.startTime && row.start_time) ev.startTime = row.start_time;
+            if (!ev.endTime && row.end_time) ev.endTime = row.end_time;
+            if (ev.allDay == null && row.is_all_day != null) ev.allDay = row.is_all_day;
+            if (!ev.location && row.location) ev.location = row.location;
+            if (!ev.description && row.description) ev.description = row.description;
+            if (!ev.repeat_type && row.repeat_type) ev.repeat_type = row.repeat_type;
+            if (!ev.reminder_type && row.reminder_type) ev.reminder_type = row.reminder_type;
+            if (ev.is_private == null && row.is_private != null) ev.is_private = row.is_private;
+            if (!ev.note && row.note) ev.note = row.note;
+            return ev;
+          }).filter(function (ev) { return ev && ev.id; });
+          if (remote.length === 0) return;
+          var local = getTeamEvents();
+          var byId = {};
+          local.forEach(function (ev) {
+            if (ev && ev.id) byId[ev.id] = ev;
+          });
+          remote.forEach(function (ev) {
+            if (ev && ev.id) byId[ev.id] = ev;
+          });
+          var merged = [];
+          for (var k in byId) {
+            if (byId.hasOwnProperty(k)) merged.push(byId[k]);
+          }
+          localStorage.setItem(STORAGE_TEAM_EVENTS, JSON.stringify(merged));
+        })
+        .catch(function (err) {
+          console.error('Supabase team_events sync load failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase team_events sync exception:', e);
+    }
+  }
+
+  function getKpiGoals() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KPI_GOALS);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveKpiGoals(data) {
+    localStorage.setItem(STORAGE_KPI_GOALS, JSON.stringify(data));
+  }
+
+  function getIncentivePercents() {
+    try {
+      var raw = localStorage.getItem(STORAGE_INCENTIVE_PERCENTS);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveIncentivePercents(data) {
+    localStorage.setItem(STORAGE_INCENTIVE_PERCENTS, JSON.stringify(data));
+  }
+
+  function getCustomers() {
+    try {
+      var raw = localStorage.getItem(STORAGE_CUSTOMERS);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveCustomers(data) {
+    localStorage.setItem(STORAGE_CUSTOMERS, JSON.stringify(data));
+  }
+
+  function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  // ??? ?????? ????? ??????? ???
+  function ensureSamples() {
+    // intentionally left blank
+  }
+
+  function ensureEmployeesAndKpi() {
+    // ????? ??/?? ???????????? ???,
+    // KPI ???????? ??? ???????
+    var goals = getKpiGoals();
+    var monthPrefix = thisMonth();
+    if (!goals[monthPrefix]) {
+      goals[monthPrefix] = { goalContracts: 10, goalSales: 5 };
+      saveKpiGoals(goals);
+    }
+  }
+
+  function id() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  function formatMoney(n) {
+    if (n == null || n === '') return '-';
+    return Number(n).toLocaleString();
+  }
+
+  /** ?? ???????"??, "??, "," ??? ??????????. ??? ??0 */
+  function parseMoney(val) {
+    if (val == null || val === '') return 0;
+    var s = String(val).replace(/,/g, '').trim();
+    if (s === '') return 0;
+    var n = Number(s);
+    return isNaN(n) ? 0 : Math.max(0, n);
+  }
+
+  /** ?????? ?????????????????? ?????*/
+  function getConfirmedReceivedTotal(c) {
+    if (!c) return 0;
+    var sum = 0;
+    if (c.depositConfirmed) sum += parseMoney(c.depositAmount);
+    if (c.progress1Confirmed) sum += parseMoney(c.progress1Amount);
+    if (c.progress2Confirmed) sum += parseMoney(c.progress2Amount);
+    if (c.progress3Confirmed) sum += parseMoney(c.progress3Amount);
+    if (c.balanceConfirmed) sum += parseMoney(c.balanceAmount);
+    return Math.max(0, sum);
+  }
+
+  /** ?????? ??: { total, received, remaining, receivedPct, remainingPct } ?????? ??? */
+  function getPaymentSummaryNumbers(c) {
+    var total = parseMoney(c && c.totalAmount);
+    if (total <= 0) {
+      return { total: 0, received: 0, remaining: 0, receivedPct: 0, remainingPct: 0 };
+    }
+    var received = getConfirmedReceivedTotal(c);
+    var remaining = Math.max(0, total - received);
+    var receivedPct = Math.round((received / total) * 100);
+    var remainingPct = Math.round((remaining / total) * 100);
+    return { total: total, received: received, remaining: remaining, receivedPct: receivedPct, remainingPct: remainingPct };
+  }
+
+  function formatDate(s) {
+    if (!s) return '-';
+    return s;
+  }
+
+  function thisMonth() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    return y + '-' + m;
+  }
+
+  function getStatsByShowroom() {
+    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+    var myShowroomId = getMyShowroomId();
+    var showroomsToUse = SHOWROOMS;
+    if (myShowroomId) {
+      showroomsToUse = SHOWROOMS.filter(function (s) { return (s.id || '') === myShowroomId; });
+    }
+    var labels = showroomsToUse.map(function (s) { return s.name; });
+    var contractCounts = showroomsToUse.map(function (s) {
+      return contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
+    });
+    var totalSales = showroomsToUse.map(function (s) {
+      var sum = contracts
+        .filter(function (c) { return (c.showroomId || '') === s.id; })
+        .reduce(function (acc, c) { return acc + (Number(c.totalAmount) || 0); }, 0);
+      return sum / 10000; // ?? ????? (??)
+    });
+    return { labels: labels, contractCounts: contractCounts, totalSales: totalSales };
+  }
+
+  var chartContracts = null;
+  var chartSales = null;
+
+  function renderDashboardCharts() {
+    if (typeof Chart === 'undefined') return;
+    var stats = getStatsByShowroom();
+    var opts = {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1.8,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    };
+    var canvasContracts = document.getElementById('chart-contracts');
+    var canvasSales = document.getElementById('chart-sales');
+    if (canvasContracts) {
+      if (chartContracts) chartContracts.destroy();
+      chartContracts = new Chart(canvasContracts, {
+        type: 'bar',
+        data: {
+          labels: stats.labels,
+          datasets: [{
+            label: '????',
+            data: stats.contractCounts,
+            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+            borderColor: 'rgb(59, 130, 246)',
+            borderWidth: 1
+          }]
+        },
+        options: opts
+      });
+    }
+    if (canvasSales) {
+      if (chartSales) chartSales.destroy();
+      chartSales = new Chart(canvasSales, {
+        type: 'bar',
+        data: {
+          labels: stats.labels,
+          datasets: [{
+            label: '????(???)',
+            data: stats.totalSales,
+            backgroundColor: 'rgba(34, 197, 94, 0.6)',
+            borderColor: 'rgb(34, 197, 94)',
+            borderWidth: 1
+          }]
+        },
+        options: opts
+      });
+    }
+  }
+
+  function renderDashboard() {
+    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+    var visits = filterByShowroom(getVisits(), 'showroomId');
+    visits = filterByYearMonth(visits, 'visitDate');
+    var monthContracts = (getFilterYear() || getFilterMonth())
+      ? contracts
+      : contracts.filter(function (c) { return c.contractDate && c.contractDate.slice(0, 7) === thisMonth(); });
+    var totalAmount = monthContracts.reduce(function (sum, c) {
+      return sum + (Number(c.totalAmount) || 0);
+    }, 0);
+    var totalDeposit = contracts.reduce(function (sum, c) {
+      return sum + (Number(c.depositAmount) || 0);
+    }, 0);
+
+    var elCount = document.getElementById('kpi-contract-count');
+    var elAmount = document.getElementById('kpi-total-amount');
+    var elDeposit = document.getElementById('kpi-deposit-received');
+    if (elCount) elCount.textContent = monthContracts.length;
+    if (elAmount) elAmount.textContent = (totalAmount / 10000).toFixed(1);
+    if (elDeposit) elDeposit.textContent = (totalDeposit / 10000).toFixed(1);
+    renderDashboardCharts();
+
+    var leadsWaiting = visits.filter(function (v) { return v.status !== '?????????'; }).length;
+    var designPending = contracts.filter(function (c) {
+      return c.depositReceivedAt && (c.designStatus || 'none') !== 'done';
+    }).length;
+    var constructionActive = contracts.filter(function (c) {
+      var p = c.constructionProgress || '??';
+      return p === '??' || p === '??';
+    }).length;
+    var paymentUnconfirmed = contracts.filter(function (c) {
+      var hasDeposit = !!(c.depositAmount || c.depositReceivedAt);
+      var hasP1 = !!c.progress1Amount; var hasP2 = !!c.progress2Amount; var hasP3 = !!c.progress3Amount; var hasBal = !!c.balanceAmount;
+      if (!hasDeposit && !hasP1 && !hasP2 && !hasP3 && !hasBal) return false;
+      return (hasDeposit && !c.depositConfirmed) || (hasP1 && !c.progress1Confirmed) || (hasP2 && !c.progress2Confirmed) || (hasP3 && !c.progress3Confirmed) || (hasBal && !c.balanceConfirmed);
+    }).length;
+
+    setEl('dashboard-leads-waiting', leadsWaiting);
+    setEl('dashboard-contracts-total', contracts.length);
+    setEl('dashboard-design-pending', designPending);
+    setEl('dashboard-construction-active', constructionActive);
+    setEl('dashboard-payment-unconfirmed', paymentUnconfirmed);
+
+    var today = todayStr();
+    var todayVisits = visits.filter(function (v) { return (v.visitDate || '') === today; });
+    var todayEl = document.getElementById('dashboard-today-visits');
+    if (todayEl) {
+      todayEl.innerHTML = todayVisits.length === 0
+        ? '??? ????? ???'
+        : todayVisits.map(function (v) {
+            return '<div class="widget-item">' + (v.visitTime || '') + ' ' + (v.name || '-') + ' ' + (v.interestType || '') + '</div>';
+          }).join('');
+    }
+
+    var recent = contracts.slice().sort(function (a, b) {
+      return (b.contractDate || '').localeCompare(a.contractDate || '');
+    }).slice(0, 5);
+    var recentEl = document.getElementById('dashboard-recent-contracts');
+    if (recentEl) {
+      recentEl.innerHTML = recent.length === 0
+        ? '?? ???'
+        : recent.map(function (c) {
+            return '<div class="widget-item">' + formatDate(c.contractDate) + ' ' + (c.customerName || '-') + ' ' + formatMoney(c.totalAmount) + '</div>';
+          }).join('');
+    }
+
+    var stages = { '??': 0, '??': 0, '??': 0, '??': 0 };
+    contracts.forEach(function (c) {
+      var p = c.constructionProgress || '??';
+      if (stages[p] !== undefined) stages[p]++;
+    });
+    var stagesEl = document.getElementById('dashboard-construction-stages');
+    if (stagesEl) {
+      stagesEl.innerHTML = ['??', '??', '??', '??'].map(function (key) {
+        return '<div class="widget-item">' + key + ' <strong>' + stages[key] + '</strong></div>';
+      }).join('');
+    }
+
+    renderTodayShowroomStats();
+    renderDashboardAnnouncementBanner();
+    renderDashboardAnnouncements();
+    renderSalesPerformance();
+    renderActivityLogs();
+  }
+
+  /**
+   * ??? ?????? ??? ?????(?? Supabase ??? getVisits/getContracts ?? ????? ??)
+   * @returns {Array<{ showroom: string, showroomName: string, visitCount: number, consultCount: number, contractCount: number }>}
+   */
+  function getTodayShowroomStats() {
+    var today = todayStr();
+    var visits = getVisits().filter(function (v) { return (v.visitDate || '') === today; });
+    var contracts = getContracts().filter(function (c) { return (c.contractDate || '') === today; });
+    return SHOWROOMS.map(function (s) {
+      var visitCount = visits.filter(function (v) { return (v.showroomId || '') === s.id; }).length;
+      var consultCount = visits.filter(function (v) {
+        return (v.showroomId || '') === s.id && (v.status || '') === '?????????';
+      }).length;
+      var contractCount = contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
+      return {
+        showroom: s.id,
+        showroomName: s.name,
+        visitCount: visitCount,
+        consultCount: consultCount,
+        contractCount: contractCount
+      };
+    });
+  }
+
+  /** ??? ???????? ?????id (id ??? ?????? ????? ?????) */
+  function getMyShowroomId() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var raw = cur && (cur.showroom || '').trim();
+    if (!raw) return '';
+    var byId = SHOWROOMS.some(function (s) { return (s.id || '') === raw; });
+    if (byId) return raw;
+    var byName = SHOWROOMS.find(function (s) { return (s.name || '') === raw; });
+    return byName ? (byName.id || '') : raw;
+  }
+
+  /** ??? ???????? ??? ???. ?? ??? ?????? ???(??? ??????? ???? */
+  function renderTodayShowroomStats() {
+    var grid = document.getElementById('today-showroom-stats-grid');
+    if (!grid) return;
+    var todayStats = getTodayShowroomStats();
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var userTeam = (cur && (cur.team || '').trim()) || '';
+    var isConstructionTeam = (userTeam === '???' || userTeam === '?????');
+    var myShowroomId = getMyShowroomId();
+    if (userTeam === '???' || myShowroomId) {
+      if (myShowroomId) {
+        todayStats = todayStats.filter(function (row) { return (row.showroom || '') === myShowroomId; });
+      } else {
+        todayStats = [];
+      }
+    }
+    grid.innerHTML = todayStats.map(function (row) {
+      return '<div class="card today-showroom-card">' +
+        '<h4 class="today-showroom-name">' + escapeHtml(row.showroomName) + '</h4>' +
+        '<dl class="today-showroom-dl">' +
+          '<div class="today-showroom-row"><dt>?????</dt><dd>' + row.visitCount + '</dd></div>' +
+          '<div class="today-showroom-row"><dt>???</dt><dd>' + row.consultCount + '</dd></div>' +
+          '<div class="today-showroom-row"><dt>??</dt><dd>' + row.contractCount + '</dd></div>' +
+        '</dl></div>';
+    }).join('');
+  }
+
+  /** ?? ??? ?? (Supabase activity_logs?? ????? */
+  var activityLogs = [];
+
+  /**
+   * ??? ?? ?????(Supabase activity_logs insert + ????????????????)
+   * @param {Object} payload - { actionType, targetType, targetId?, targetName?, description? }
+   */
+  function logActivity(payload) {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+      if (!supabase || !cur) return;
+      var showroomName = (cur.showroom && typeof getShowroomName === 'function') ? getShowroomName(cur.showroom) : (cur.showroom || '');
+      var row = {
+        user_id: cur.authUserId || null,
+        user_name: (cur.name || '').trim() || null,
+        department: (cur.team || '').trim() || null,
+        showroom: (showroomName || '').trim() || null,
+        action_type: payload.actionType || '',
+        target_type: payload.targetType || '',
+        target_id: payload.targetId || null,
+        target_name: (payload.targetName || '').trim() || null,
+        description: (payload.description || '').trim() || null
+      };
+      supabase.from('activity_logs').insert(row).catch(function (err) { console.error('activity_logs insert failed', err); });
+      var nowStr = new Date().toISOString().replace('T', ' ').slice(0, 16);
+      activityLogs.unshift({
+        user: row.user_name || '',
+        action: (row.action_type || '') + ' ' + (row.target_type || ''),
+        target: row.target_name || '',
+        time: nowStr
+      });
+      if (activityLogs.length > 50) activityLogs.length = 50;
+      renderActivityLogs();
+    } catch (e) {
+      console.error('logActivity exception', e);
+    }
+  }
+
+  /** Supabase??? ?? ??? ?? ???? ??????????????? activityLogs ?? */
+  function syncActivityLogsFromSupabase() {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      supabase.from('activity_logs').select('user_name,action_type,target_type,target_name,created_at').order('created_at', { ascending: false }).limit(50)
+        .then(function (res) {
+          if (res && res.error) return;
+          activityLogs = (res.data || []).map(function (row) {
+            return {
+              user: row.user_name || '',
+              action: (row.action_type || '') + ' ' + (row.target_type || ''),
+              target: row.target_name || '',
+              time: row.created_at ? String(row.created_at).replace('T', ' ').slice(0, 16) : ''
+            };
+          });
+          renderActivityLogs();
+        })
+        .catch(function () {});
+    } catch (e) {}
+  }
+
+  /** ?? ??? ?? ?????????? (?? 10?? */
+  function renderActivityLogs() {
+    var list = document.getElementById('activity-logs-list');
+    if (!list) return;
+    var items = activityLogs.slice(0, 10);
+    list.innerHTML = items.length === 0
+      ? '<li class="activity-logs-empty">?? ???????????.</li>'
+      : items.map(function (log) {
+          var targetText = log.target ? ' ' + escapeHtml(log.target) : '';
+          return '<li class="activity-logs-item">' +
+            '<span class="activity-logs-dot" aria-hidden="true"></span>' +
+            '<div class="activity-logs-content">' +
+              '<span class="activity-logs-user">' + escapeHtml(log.user) + '</span> ' +
+              '<span class="activity-logs-action">' + escapeHtml(log.action) + '</span>' +
+              (targetText ? '<span class="activity-logs-target">' + targetText + '</span>' : '') +
+              '<time class="activity-logs-time">' + escapeHtml(log.time) + '</time>' +
+            '</div></li>';
+        }).join('');
+  }
+
+  function setEl(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  /** ?????? ?????????? (Supabase announcements ????? ????? ????? ???) */
+  /** ??? ??: ?????isNew ????????. ?? ????readBy ??? unreadCount ???????? ???*/
+  var announcementsData = [];
+
+  function getAnnouncements() {
+    return announcementsData.slice();
+  }
+
+  var currentAnnouncementId = null;
+  var selectedNoticeFiles = [];
+  var ALLOWED_NOTICE_EXT = ['pdf', 'jpg', 'jpeg', 'png', 'xlsx', 'docx', 'hwp', 'zip'];
+
+  /** Supabase??? ???????????? ?? ????? UI????. ?? announcements ???????? */
+  function syncAnnouncementsFromSupabase() {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      function applyRows(data) {
+        announcementsData = (data || []).map(function (row) {
+          return {
+            id: String(row.id),
+            title: row.title || '',
+            content: row.content || '',
+            createdAt: (row.created_at || '').slice(0, 10),
+            important: !!row.important,
+            isNew: row.is_new == null ? false : !!row.is_new,
+            authorUserId: row.created_by_id != null ? String(row.created_by_id) : null,
+            authorName: row.created_by_name || '',
+            authorDepartment: row.created_by_team || '',
+            showroom: row.showroom || '',
+            fileCount: 0
+          };
+        });
+        renderAnnouncementsPage();
+        renderDashboardAnnouncementBanner();
+        renderDashboardAnnouncements();
+        renderSidebarAnnouncementBadge();
+        syncAnnouncementFileCounts();
+      }
+      supabase
+        .from('announcements')
+        .select('id,title,content,created_at,important,is_new,created_by_id,created_by_name,created_by_team,showroom')
+        .order('created_at', { ascending: false })
+        .then(function (res) {
+          if (res && res.error) {
+            return supabase.from('announcements').select('id,title,content,created_at,important,is_new').order('created_at', { ascending: false });
+          }
+          if (!res || !Array.isArray(res.data)) return;
+          applyRows(res.data);
+        })
+        .then(function (res2) {
+          if (!res2 || res2.error || !Array.isArray(res2.data)) return;
+          applyRows(res2.data);
+        })
+        .catch(function (err) {
+          console.error('Supabase announcements load failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase announcements sync exception:', e);
+    }
+  }
+
+  /** ???????? ?? ??? (????? ??? ?? + ???? ??? 5??. ?? Supabase ??? ?????????????*/
+  function getRecentAnnouncements() {
+    return getAnnouncementsSorted().slice(0, 5);
+  }
+
+  /** ??????????? ?? ?????(notice_files ???) */
+  function syncAnnouncementFileCounts() {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase || !announcementsData || announcementsData.length === 0) return;
+      var ids = announcementsData.map(function (a) { return a.id; }).filter(Boolean);
+      if (ids.length === 0) return;
+      supabase.from('notice_files')
+        .select('notice_id')
+        .in('notice_id', ids)
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('notice_files count load error', res.error);
+            return;
+          }
+          var counts = {};
+          (res.data || []).forEach(function (row) {
+            var nid = String(row.notice_id);
+            counts[nid] = (counts[nid] || 0) + 1;
+          });
+          announcementsData.forEach(function (a) {
+            a.fileCount = counts[a.id] || 0;
+          });
+          renderAnnouncementsPage();
+          renderDashboardAnnouncements();
+        })
+        .catch(function (err) {
+          console.error('notice_files count load failed', err);
+        });
+    } catch (e) {
+      console.error('syncAnnouncementFileCounts exception', e);
+    }
+  }
+
+  /** ??????? ??(?????isNew ??. ?? ??????? ???? ?????????????) */
+  function getUnreadAnnouncementCount() {
+    return getAnnouncements().filter(function (a) { return a.isNew === true; }).length;
+  }
+
+  /** ????????? ?? ???? (?????? ???? */
+  function hasImportantUnread() {
+    return getAnnouncements().some(function (a) { return a.isNew === true && a.important === true; });
+  }
+
+  /** ??? ??? ?? (?? ??????? ??????Supabase ???) */
+  function markAnnouncementRead(id) {
+    var a = announcementsData.find(function (x) { return x.id === id; });
+    if (a) a.isNew = false;
+    renderSidebarAnnouncementBadge();
+  }
+
+  /**
+   * ??? ??? (Supabase insert + ?????? ?????
+   * @param {Object} announcement - { title, content, important }
+   * @param {File[]} [fileList] - ??? ??? ??
+   * @returns {Promise<void>}
+   */
+  function addAnnouncement(announcement, fileList) {
+    var title = (announcement.title || '').trim();
+    if (!title) return Promise.resolve();
+    var maxId = 0;
+    announcementsData.forEach(function (a) {
+      var n = parseInt(a.id, 10);
+      if (!isNaN(n) && n > maxId) maxId = n;
+    });
+    var newId = String(maxId + 1);
+    var today = new Date();
+    var createdAt = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var authorUserId = cur && cur.authUserId != null ? String(cur.authUserId) : (cur && cur.id != null ? String(cur.id) : null);
+    var authorName = cur && cur.name ? String(cur.name).trim() : '';
+    var authorDepartment = cur && cur.team ? String(cur.team).trim() : '';
+    var showroomCode = cur && cur.showroom ? String(cur.showroom).trim() : '';
+    var showroomLabel = showroomCode ? getShowroomName(showroomCode) : '';
+    var item = {
+      id: newId,
+      title: title,
+      content: (announcement.content || '').trim(),
+      createdAt: createdAt,
+      important: !!announcement.important,
+      isNew: true,
+      authorUserId: authorUserId,
+      authorName: authorName,
+      authorDepartment: authorDepartment,
+      showroom: showroomLabel,
+      fileCount: (fileList && fileList.length) ? fileList.length : 0
+    };
+    announcementsData.unshift(item);
+    var row = {
+      id: item.id,
+      title: item.title,
+      content: item.content,
+      created_at: item.createdAt,
+      important: item.important,
+      is_new: item.isNew,
+      created_by_id: item.authorUserId,
+      created_by_name: item.authorName,
+      created_by_team: item.authorDepartment,
+      showroom: item.showroom || null
+    };
+    var files = (fileList && fileList.length) ? fileList : [];
+    function finish() {
+      if (typeof logActivity === 'function') {
+        logActivity({ actionType: 'create', targetType: 'notice', targetId: item.id, targetName: item.title, description: '??? ???' });
+      }
+      renderAnnouncementsPage();
+      renderDashboardAnnouncementBanner();
+      renderDashboardAnnouncements();
+      renderSidebarAnnouncementBadge();
+    }
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      finish();
+      return Promise.resolve();
+    }
+    return supabase.from('announcements').upsert(row)
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('Supabase announcements upsert error:', res.error);
+        }
+        if (files.length === 0) {
+          finish();
+          return;
+        }
+        return uploadNoticeFiles(item.id, files).then(function (uploaded) {
+          if (uploaded && uploaded.length) {
+            item.fileCount = uploaded.length;
+          }
+          finish();
+        }).catch(function (err) {
+          console.error('uploadNoticeFiles failed', err);
+          finish();
+        });
+      })
+      .catch(function (err) {
+        console.error('Supabase announcements upsert failed:', err);
+        finish();
+      });
+  }
+
+  /** ?????? ???: ????? ???, ??? ????*/
+  function getAnnouncementsSorted() {
+    return getAnnouncements().slice().sort(function (a, b) {
+      if (a.important && !b.important) return -1;
+      if (!a.important && b.important) return 1;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+  }
+
+  /** ?????? 3????????? (createdAt: YYYY-MM-DD) */
+  function isAnnouncementWithin3Days(createdAt) {
+    if (!createdAt) return false;
+    var created = new Date(createdAt);
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    created.setHours(0, 0, 0, 0);
+    var diffMs = today - created;
+    var diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    return diffDays >= 0 && diffDays <= 3;
+  }
+
+  /** ??? ??? HTML (NEW 3?????, ??) */
+  function getAnnouncementBadgesHtml(a) {
+    var parts = [];
+    if (isAnnouncementWithin3Days(a.createdAt)) parts.push('<span class="announcement-badge new">NEW</span>');
+    if (a.important) parts.push('<span class="announcement-badge important">??</span>');
+    return parts.join('');
+  }
+
+  /** ??? ???? (????+ Storage ??? + Supabase announcements, CASCADE??notice_files ????) */
+  function deleteAnnouncement(id) {
+    var target = announcementsData.find(function (a) { return a.id === id; });
+    var title = target && target.title;
+    announcementsData = announcementsData.filter(function (a) { return a.id !== id; });
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (supabase) {
+        supabase.from('notice_files').select('file_path').eq('notice_id', id)
+          .then(function (res) {
+            var paths = (res && res.data) ? res.data.map(function (r) { return r.file_path; }).filter(Boolean) : [];
+            if (paths.length > 0) {
+              return supabase.storage.from('notice_files').remove(paths).then(function () {
+                return supabase.from('announcements').delete().eq('id', id);
+              }).catch(function (err) {
+                console.error('notice_files storage remove failed', err);
+                return supabase.from('announcements').delete().eq('id', id);
+              });
+            }
+            return supabase.from('announcements').delete().eq('id', id);
+          })
+          .then(function (res) {
+            if (res && res.error) console.error('Supabase announcements delete error:', res.error);
+          })
+          .catch(function (err) { console.error('Supabase announcements delete failed:', err); });
+      }
+    } catch (e) {
+      console.error('Supabase announcements delete exception:', e);
+    }
+    if (typeof logActivity === 'function') {
+      logActivity({ actionType: 'delete', targetType: 'notice', targetId: id, targetName: title || '(??? ????)', description: '??? ????' });
+    }
+    renderAnnouncementsPage();
+    renderDashboardAnnouncementBanner();
+    renderDashboardAnnouncements();
+    renderSidebarAnnouncementBadge();
+  }
+
+  /** ??? ??? ????????? */
+  function isAllowedNoticeFile(name) {
+    var ext = (name || '').split('.').pop().toLowerCase();
+    return ALLOWED_NOTICE_EXT.indexOf(ext) !== -1;
+  }
+
+  /** Storage ????????? ??? ??????? (????/????? ???). DB??????????? ????? file.name ???? */
+  function sanitizeNoticeFileName(name) {
+    var s = (name || '').trim();
+    var lastDot = s.lastIndexOf('.');
+    var ext = lastDot >= 0 ? s.slice(lastDot + 1).toLowerCase() : '';
+    var base = lastDot >= 0 ? s.slice(0, lastDot) : s;
+    var safeBase = base.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'file';
+    var safe = ext ? (safeBase.slice(0, 180) + '.' + ext) : safeBase.slice(0, 180);
+    return safe.slice(0, 200);
+  }
+
+  /** ??? ??? ?? ??? ??? ?? */
+  function handleNoticeFileSelect(e) {
+    var input = e && e.target;
+    var files = input && input.files ? Array.prototype.slice.call(input.files) : [];
+    files.forEach(function (file) {
+      if (isAllowedNoticeFile(file.name)) {
+        selectedNoticeFiles.push(file);
+      }
+    });
+    if (input) input.value = '';
+    renderSelectedNoticeFiles();
+  }
+
+  /** ??? ??? ?? ??? ??? ??? */
+  function removeSelectedNoticeFile(index) {
+    selectedNoticeFiles.splice(index, 1);
+    renderSelectedNoticeFiles();
+  }
+
+  /** ??? ??? ?? ???????? ?? UI */
+  function renderSelectedNoticeFiles() {
+    var el = document.getElementById('noticeSelectedFileList');
+    if (!el) return;
+    if (selectedNoticeFiles.length === 0) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = '<p class="notice-file-list-label">????????:</p>' + selectedNoticeFiles.map(function (f, i) {
+      return '<div class="notice-file-item">' +
+        '<span class="notice-file-name">' + escapeHtml(f.name) + '</span> ' +
+        '<button type="button" class="notice-file-remove" data-index="' + i + '" aria-label="????">&times;</button>' +
+        '</div>';
+    }).join('');
+    el.querySelectorAll('.notice-file-remove').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(btn.getAttribute('data-index'), 10);
+        if (!isNaN(idx)) removeSelectedNoticeFile(idx);
+      });
+    });
+  }
+
+  /** Storage????? ??? ???????notice_files ????? insert */
+  function uploadNoticeFiles(noticeId, files) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!supabase || !noticeId || !files || files.length === 0) return Promise.resolve([]);
+    var year = new Date().getFullYear();
+    var uploadedBy = cur && cur.authUserId ? cur.authUserId : null;
+    var uploadedByName = (cur && cur.name ? String(cur.name).trim() : '') || null;
+    var bucket = 'notice_files';
+    var results = [];
+
+    function uploadOne(file) {
+      var baseName = sanitizeNoticeFileName(file.name);
+      var path = year + '/' + noticeId + '/' + Date.now() + '_' + baseName;
+      return supabase.storage.from(bucket).upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: true })
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('notice_files upload error', res.error);
+            return null;
+          }
+          var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+          return {
+            notice_id: noticeId,
+            file_name: file.name,
+            file_path: path,
+            file_url: publicUrl,
+            file_type: (file.type || '').split('/').pop() || null,
+            file_size: file.size != null ? file.size : null,
+            uploaded_by: uploadedBy,
+            uploaded_by_name: uploadedByName
+          };
+        })
+        .catch(function (err) {
+          console.error('notice_files upload failed', err);
+          return null;
+        });
+    }
+
+    var chain = Promise.resolve();
+    files.forEach(function (file) {
+      chain = chain.then(function () { return uploadOne(file); }).then(function (r) {
+        if (r) results.push(r);
+      });
+    });
+    return chain.then(function () {
+      if (results.length === 0) return [];
+      return supabase.from('notice_files').insert(results).then(function (res) {
+        if (res && res.error) console.error('notice_files insert error', res.error);
+        return results;
+      }).catch(function (err) {
+        console.error('notice_files insert failed', err);
+        return results;
+      });
+    });
+  }
+
+  /** ??? ?????? ?? ?? */
+  function loadNoticeFiles(noticeId) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !noticeId) return Promise.resolve([]);
+    return supabase.from('notice_files').select('*').eq('notice_id', noticeId).order('created_at', { ascending: true })
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('notice_files load error', res.error);
+          return [];
+        }
+        return res.data || [];
+      })
+      .catch(function (err) {
+        console.error('notice_files load failed', err);
+        return [];
+      });
+  }
+
+  /** ??? ??? ??: ?????? ?? ??? (??/?????) */
+  function renderNoticeFiles(files) {
+    var section = document.getElementById('noticeDetailFileSection');
+    var listEl = document.getElementById('noticeDetailFileList');
+    if (!section || !listEl) return;
+    section.classList.remove('hidden');
+    if (!files || files.length === 0) {
+      listEl.innerHTML = '<p class="notice-file-empty">?????? ???</p>';
+      return;
+    }
+    var ext = function (name) {
+      return (name || '').split('.').pop().toLowerCase();
+    };
+    listEl.innerHTML = files.map(function (f) {
+      var name = escapeHtml(f.file_name || '');
+      var canPreview = ['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext(f.file_name)) !== -1;
+      var previewBtn = canPreview
+        ? '<button type="button" class="notice-file-preview btn-pill">??</button>'
+        : '';
+      return '<div class="notice-file-item">' +
+        '<span class="notice-file-name">' + name + '</span>' +
+        '<div class="notice-file-actions">' +
+        previewBtn +
+        '<a href="' + escapeHtml(f.file_url || '') + '" target="_blank" rel="noopener" download="' + escapeHtml(f.file_name || '') + '" class="notice-file-download btn-pill">?????</a>' +
+        '</div></div>';
+    }).join('');
+    listEl.querySelectorAll('.notice-file-preview').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var item = btn.closest('.notice-file-item');
+        var link = item && item.querySelector('.notice-file-download');
+        if (link && link.href) window.open(link.href, '_blank');
+      });
+    });
+  }
+
+  /** ?????????? ?????(contract_files ??) */
+  function uploadContractAttachment(contractId, file) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !contractId || !file) return Promise.resolve(null);
+    var year = new Date().getFullYear();
+    var safeName = sanitizeNoticeFileName(file.name || 'contract');
+    var bucket = 'contract_files';
+    var path = 'contracts/' + year + '/' + contractId + '/' + Date.now() + '_' + safeName;
+    return supabase.storage.from(bucket).upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: true
+    }).then(function (res) {
+      if (res && res.error) {
+        console.error('contract_files upload error', res.error);
+        return null;
+      }
+      var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      return {
+        url: publicUrl,
+        path: path,
+        name: file.name || safeName
+      };
+    }).catch(function (err) {
+      console.error('contract_files upload failed', err);
+      return null;
+    });
+  }
+
+  /** ??? ?????? ??? ?????(contract_files ??, design_drawings ??) */
+  function uploadDesignDrawingAttachment(contractId, file) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !contractId || !file) return Promise.resolve(null);
+    var year = new Date().getFullYear();
+    var safeName = sanitizeNoticeFileName(file.name || 'drawing');
+    var bucket = 'contract_files';
+    var path = 'design_drawings/' + year + '/' + contractId + '/' + Date.now() + '_' + safeName;
+    return supabase.storage.from(bucket).upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: true
+    }).then(function (res) {
+      if (res && res.error) {
+        console.error('contract_files design_drawings upload error', res.error);
+        return null;
+      }
+      var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      return { url: publicUrl, path: path, name: file.name || safeName };
+    }).catch(function (err) {
+      console.error('contract_files design_drawings upload failed', err);
+      return null;
+    });
+  }
+
+  /** ??? ?????? ??? ?????(contract_files ??, construction_drawings ??) */
+  function uploadConstructionDrawingAttachment(contractId, file) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !contractId || !file) return Promise.resolve(null);
+    var year = new Date().getFullYear();
+    var safeName = sanitizeNoticeFileName(file.name || 'construction');
+    var bucket = 'contract_files';
+    var path = 'construction_drawings/' + year + '/' + contractId + '/' + Date.now() + '_' + safeName;
+    return supabase.storage.from(bucket).upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: true
+    }).then(function (res) {
+      if (res && res.error) {
+        console.error('contract_files construction_drawings upload error', res.error);
+        return null;
+      }
+      var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      return { url: publicUrl, path: path, name: file.name || safeName };
+    }).catch(function (err) {
+      console.error('contract_files construction_drawings upload failed', err);
+      return null;
+    });
+  }
+
+  /** ??? ???? ?????(notice_comments ??, ??????????) */
+  function renderNoticeComments(comments) {
+    var listEl = document.getElementById('noticeCommentsList');
+    var countEl = document.getElementById('noticeCommentsCount');
+    console.log('noticeCommentsList element', listEl);
+    console.log('render comments count', comments && comments.length);
+    if (!listEl) return;
+    if (!comments || comments.length === 0) {
+      listEl.innerHTML = '<div class="notice-empty-comments">?????????????????.</div>';
+      if (countEl) countEl.textContent = '0';
+      console.log('rendered html (empty)', listEl.innerHTML);
+      return;
+    }
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var curUserId = cur && cur.authUserId ? String(cur.authUserId) : null;
+    var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    if (countEl) countEl.textContent = String(comments.length);
+
+    listEl.innerHTML = '';
+    comments.forEach(function (c) {
+      var name = c.author_name || '-';
+      var dept = c.author_department || '-';
+      var showroom = c.showroom || '-';
+      var date = c.created_at ? String(c.created_at).replace('T', ' ').slice(0, 16) : '';
+      var canDelete = false;
+      if (curUserId && c.author_user_id && String(c.author_user_id) === curUserId) {
+        canDelete = true;
+      }
+      if (isAdminRole) canDelete = true;
+      var safeContent = escapeHtml(c.content || '');
+      var html =
+        '<div class="notice-comment-card" data-comment-id="' + c.id + '">' +
+          '<div class="notice-comment-head">' +
+            '<div class="notice-comment-author-wrap">' +
+              '<div class="notice-comment-author">' + escapeHtml(name) + '</div>' +
+              '<div class="notice-comment-meta">' +
+                escapeHtml(dept) + ' | ' + escapeHtml(showroom) + (date ? ' | ' + escapeHtml(date) : '') +
+              '</div>' +
+            '</div>' +
+            (canDelete
+              ? '<button type="button" class="notice-comment-delete" data-comment-id="' + c.id + '">????</button>'
+              : '') +
+          '</div>' +
+          '<div class="notice-comment-body">' + safeContent + '</div>' +
+        '</div>';
+      listEl.insertAdjacentHTML('beforeend', html);
+    });
+    console.log('rendered html', listEl.innerHTML);
+  }
+
+  /** Supabase??? ??? ????????? ?? (notice_comments) */
+  function loadNoticeComments(noticeId) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !noticeId) return;
+    console.log('[notice_comments] loadNoticeComments noticeId =', noticeId);
+    supabase.from('notice_comments')
+      .select('id, notice_id, content, author_user_id, author_name, author_department, showroom, created_at')
+      .eq('notice_id', noticeId)
+      .order('created_at', { ascending: true })
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('Supabase notice_comments load error:', res.error);
+          return;
+        }
+        console.log('[notice_comments] loadNoticeComments result =', res.data);
+        renderNoticeComments(res.data || []);
+      })
+      .catch(function (err) {
+        console.error('Supabase notice_comments load failed:', err);
+      });
+  }
+
+  /** ???? ??? (notice_comments) */
+  function submitNoticeComment(noticeId) {
+    var input = document.getElementById('noticeCommentInput');
+    if (!input) return;
+    var content = input.value || '';
+    if (!noticeId || !content.trim()) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) return;
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return;
+    var showroomName = (cur.showroom && typeof getShowroomName === 'function') ? getShowroomName(cur.showroom) : (cur.showroom || '');
+    var payload = {
+      notice_id: noticeId,
+      content: content.trim(),
+      author_user_id: cur.authUserId || null,
+      author_name: (cur.name || '').trim() || null,
+      author_department: (cur.team || '').trim() || null,
+      showroom: (showroomName || '').trim() || null
+    };
+    console.log('[notice_comments] submitNoticeComment payload =', payload);
+    supabase.from('notice_comments').insert(payload)
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('Supabase notice_comments insert error:', res.error);
+          return;
+        }
+        console.log('[notice_comments] insert result =', res.data);
+        input.value = '';
+        loadNoticeComments(noticeId);
+      })
+      .catch(function (err) {
+        console.error('Supabase notice_comments insert failed:', err);
+      });
+  }
+
+  /** ???? ???? (notice_comments) */
+  function deleteNoticeComment(commentId) {
+    if (!commentId) return;
+    if (!window.confirm('?????????????????????')) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) return;
+    console.log('[notice_comments] deleteNoticeComment id =', commentId);
+    supabase.from('notice_comments').delete().eq('id', commentId)
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('Supabase notice_comments delete error:', res.error);
+          return;
+        }
+        console.log('[notice_comments] delete result =', res.data);
+        if (typeof loadNoticeComments === 'function' && typeof currentAnnouncementId !== 'undefined' && currentAnnouncementId) {
+          loadNoticeComments(currentAnnouncementId);
+        }
+      })
+      .catch(function (err) {
+        console.error('Supabase notice_comments delete failed:', err);
+      });
+  }
+
+  /** ??? ??? ?? ????(notice_reads upsert) */
+  function recordNoticeRead(noticeId) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!supabase || !cur || !noticeId) return Promise.resolve();
+    var showroomName = (cur.showroom && typeof getShowroomName === 'function') ? getShowroomName(cur.showroom) : (cur.showroom || '');
+    var row = {
+      notice_id: noticeId,
+      user_id: cur.authUserId || null,
+      user_name: (cur.name || '').trim() || null,
+      department: (cur.team || '').trim() || null,
+      showroom: (showroomName || '').trim() || null
+    };
+    return supabase.from('notice_reads').upsert(row, { onConflict: 'notice_id,user_id' })
+      .then(function () {})
+      .catch(function (err) {
+        console.error('notice_reads upsert failed', err);
+      });
+  }
+
+  /** ??? ???? ??? ?? ?? */
+  function fetchNoticeReads(noticeId) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !noticeId) return Promise.resolve([]);
+    return supabase.from('notice_reads')
+      .select('*')
+      .eq('notice_id', noticeId)
+      .order('read_at', { ascending: true })
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('notice_reads load error:', res.error);
+          return [];
+        }
+        return res.data || [];
+      })
+      .catch(function (err) {
+        console.error('notice_reads fetch failed', err);
+        return [];
+      });
+  }
+
+  /** ???? ??? ?? UI ??? */
+  function renderNoticeReads(readers) {
+    var list = document.getElementById('noticeReadList');
+    var count = document.getElementById('noticeReadCount');
+    if (!list || !count) return;
+    count.textContent = (readers && readers.length) ? readers.length : 0;
+    list.innerHTML = (readers && readers.length)
+      ? readers.map(function (r) {
+          var name = (r.user_name || '').trim() || '-';
+          var dept = (r.department || '').trim() || '-';
+          var room = (r.showroom || '').trim() || '-';
+          return '<div class="notice-read-user">' + escapeHtml(name) + ' (' + escapeHtml(dept) + ' | ' + escapeHtml(room) + ')</div>';
+        }).join('')
+      : '';
+  }
+
+  // ?? ??? ????? ???????? ???
+  function renderAnnouncementComments(comments) {
+    renderNoticeComments(comments);
+  }
+
+  function loadAnnouncementComments(announcementId) {
+    loadNoticeComments(announcementId);
+  }
+
+  /** ??? ?? ?? (??? ???? ???, ????????. ?? Supabase ??? ????) */
+  function getMonthContracts() {
+    var contracts = getContracts();
+    var y = getFilterYear();
+    var m = getFilterMonth();
+    var ym = (y && m) ? (y + '-' + String(m).padStart(2, '0')) : thisMonth();
+    return contracts.filter(function (c) {
+      return (c.contractDate || '').slice(0, 7) === ym;
+    });
+  }
+
+  /** ??????????? ?????(?? ??? ???, ??????? ??? ????? */
+  function getShowroomForSalesPerson(name) {
+    var emp = (getEmployees() || []).find(function (e) { return (e.name || '') === name; });
+    if (emp && emp.showroomId) return emp.showroomId;
+    var contracts = getMonthContracts().filter(function (c) { return (c.salesPerson || '') === name; });
+    if (contracts.length === 0) return '';
+    var byShowroom = {};
+    contracts.forEach(function (c) {
+      var sid = c.showroomId || '';
+      byShowroom[sid] = (byShowroom[sid] || 0) + 1;
+    });
+    var max = 0;
+    var out = '';
+    Object.keys(byShowroom).forEach(function (sid) {
+      if (byShowroom[sid] > max) { max = byShowroom[sid]; out = sid; }
+    });
+    return out;
+  }
+
+  /**
+   * ??? ??? TOP 3 (1??? ?? ??, 2??? ??????, ??? ???? ???? ??
+   * ?? Supabase ??? API?????????
+   */
+  function getOverallTopSales() {
+    var monthContracts = getMonthContracts();
+    if (monthContracts.length === 0) return [];
+    var byPerson = {};
+    monthContracts.forEach(function (c) {
+      var name = c.salesPerson || '-';
+      if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
+      byPerson[name].count += 1;
+      byPerson[name].amount += Number(c.totalAmount) || 0;
+    });
+    var list = Object.keys(byPerson).map(function (name) {
+      var row = byPerson[name];
+      return {
+        name: name,
+        showroomId: getShowroomForSalesPerson(name),
+        count: row.count,
+        amount: row.amount
+      };
+    });
+    list.sort(function (a, b) {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.amount - a.amount;
+    });
+    return list.slice(0, 3).map(function (item, i) {
+      return {
+        rank: i + 1,
+        name: item.name,
+        showroomId: item.showroomId,
+        showroomName: getShowroomName(item.showroomId),
+        count: item.count,
+        amount: item.amount
+      };
+    });
+  }
+
+  /**
+   * ?????? ??? TOP 3 (??? ??? ???). ?? Supabase ??? ????
+   */
+  function getShowroomTopSales(showroomId) {
+    var monthContracts = getMonthContracts().filter(function (c) {
+      return (c.showroomId || '') === showroomId;
+    });
+    if (monthContracts.length === 0) return [];
+    var byPerson = {};
+    monthContracts.forEach(function (c) {
+      var name = c.salesPerson || '-';
+      if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
+      byPerson[name].count += 1;
+      byPerson[name].amount += Number(c.totalAmount) || 0;
+    });
+    var list = Object.keys(byPerson).map(function (name) {
+      var row = byPerson[name];
+      return { name: name, count: row.count, amount: row.amount };
+    });
+    list.sort(function (a, b) {
+      if (b.count !== a.count) return b.count - a.count;
+      return b.amount - a.amount;
+    });
+    return list.slice(0, 3).map(function (item, i) {
+      return {
+        rank: i + 1,
+        name: item.name,
+        count: item.count,
+        amount: item.amount
+      };
+    });
+  }
+
+  /** ??? TOP 3 (getOverallTopSales?? ??? ????? API ??? ???) */
+  function getOverallTop3() {
+    return getOverallTopSales();
+  }
+
+  /** ?????? 1??? ??. ?? Supabase ??? ???? */
+  function getTopPerShowroom() {
+    return SHOWROOMS.map(function (s) {
+      var top3 = getShowroomTopSales(s.id);
+      var top = top3.length > 0 ? top3[0] : null;
+      return {
+        showroomId: s.id,
+        showroomName: s.name,
+        top: top ? { name: top.name, count: top.count, amount: top.amount } : null
+      };
+    });
+  }
+
+  /** ??? ??? ??? ??? ??? (???????????? ??, Supabase ??? ?????????) */
+  function renderSalesPerformance() {
+    var overallEl = document.getElementById('sales-performance-overall');
+    var showroomsEl = document.getElementById('sales-performance-showrooms');
+    if (!overallEl || !showroomsEl) return;
+
+    var top3 = getOverallTop3();
+    if (top3.length === 0) {
+      overallEl.innerHTML = '<p class="sales-performance-empty">??? ???? ???????????.</p>';
+    } else {
+      var first = top3[0];
+      var firstHtml = '<div class="sales-performance-first">' +
+        '<span class="sales-performance-medal" aria-hidden="true">???</span>' +
+        '<div class="sales-performance-first-body">' +
+          '<span class="sales-performance-name">' + escapeHtml(first.name || '-') + '</span>' +
+          '<span class="sales-performance-count">' + first.count + '??/span>' +
+          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '??</span>' +
+          '<span class="sales-performance-showroom">' + escapeHtml(first.showroomName || '-') + '</span>' +
+        '</div></div>';
+      var subList = top3.slice(1).map(function (row) {
+        var icon = row.rank === 2 ? '???' : '???';
+        return '<li class="sales-performance-sub-item">' +
+          '<span class="sales-performance-sub-medal" aria-hidden="true">' + icon + '</span>' +
+          '<span class="sales-performance-sub-name">' + escapeHtml(row.name || '-') + '</span>' +
+          '<span class="sales-performance-sub-stats">' + row.count + '??? ' + formatMoney(row.amount) + '??</span>' +
+          '</li>';
+      }).join('');
+      overallEl.innerHTML = firstHtml + '<ul class="sales-performance-sub-list">' + subList + '</ul>';
+    }
+
+    var perShowroom = getTopPerShowroom();
+    showroomsEl.innerHTML = perShowroom.map(function (item) {
+      if (!item.top) {
+        return '<div class="card sales-performance-showroom-card">' +
+          '<span class="sales-performance-showroom-label">' + escapeHtml(item.showroomName) + '</span>' +
+          '<p class="sales-performance-empty-inline">??? ???</p></div>';
+      }
+      var t = item.top;
+      return '<div class="card sales-performance-showroom-card">' +
+        '<span class="sales-performance-showroom-label">' + escapeHtml(item.showroomName) + '</span>' +
+        '<span class="sales-performance-showroom-name">' + escapeHtml(t.name) + '</span>' +
+        '<span class="sales-performance-showroom-count">' + t.count + '??/span>' +
+        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '??</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  /** ?????????? ?? ??? 1???? ?? */
+  function renderDashboardAnnouncementBanner() {
+    var wrap = document.getElementById('dashboard-announcement-banner');
+    if (!wrap) return;
+    var sorted = getAnnouncementsSorted();
+    var a = sorted[0];
+    if (!a) {
+      wrap.innerHTML = '';
+      wrap.classList.add('hidden');
+      return;
+    }
+    wrap.classList.remove('hidden');
+    var badges = getAnnouncementBadgesHtml(a);
+    var preview = (a.content || '').slice(0, 120);
+    if ((a.content || '').length > 120) preview += '?';
+    wrap.innerHTML = '<button type="button" class="dashboard-announcement-banner" data-announcement-id="' + (a.id || '') + '">' +
+      '<div class="dashboard-announcement-banner-badges">' + badges + '</div>' +
+      '<h4 class="dashboard-announcement-banner-title">' + escapeHtml(a.title || '') + '</h4>' +
+      '<p class="dashboard-announcement-banner-meta">' + (a.createdAt || '') + '</p>' +
+      '<p class="dashboard-announcement-banner-preview">' + escapeHtml(preview) + '</p>' +
+      '<span class="dashboard-announcement-banner-cta">???????</span>' +
+      '</button>';
+  }
+
+  /** ??????????: ?? 5?????, ????? ??? ?? (getRecentAnnouncements ???) */
+  function renderDashboardAnnouncements() {
+    var listEl = document.getElementById('dashboard-announcements-list');
+    if (!listEl) return;
+    var items = getRecentAnnouncements();
+    listEl.innerHTML = items.length === 0
+      ? '<li class="announcement-item"><span class="announcement-item-preview">????????? ??????.</span></li>'
+      : items.map(function (a) {
+          var preview = (a.content || '').slice(0, 80);
+          if ((a.content || '').length > 80) preview += '?';
+          var badges = getAnnouncementBadgesHtml(a);
+          var attach = a.fileCount && a.fileCount > 0
+            ? '<span class="announcement-attach-badge">?? ' + a.fileCount + '</span>'
+            : '';
+          return '<li class="announcement-item">' +
+            '<div class="announcement-item-title">' + badges + escapeHtml(a.title || '') + (attach ? ' ' + attach : '') + '</div>' +
+            '<div class="announcement-item-date">' + (a.createdAt || '') + '</div>' +
+            '<div class="announcement-item-preview">' + escapeHtml(preview) + '</div>' +
+            '</li>';
+        }).join('');
+  }
+
+  /** ?????? ?????? ?? ??? ??? (????? ????? ?? ??????) */
+  function renderSidebarAnnouncementBadge() {
+    var badgeEl = document.getElementById('sidebar-announcement-badge');
+    if (!badgeEl) return;
+    var count = getUnreadAnnouncementCount();
+    var importantUnread = hasImportantUnread();
+    badgeEl.classList.remove('hidden', 'nav-item-badge-important');
+    if (count <= 0) {
+      badgeEl.classList.add('hidden');
+      badgeEl.textContent = '';
+      badgeEl.setAttribute('aria-label', '');
+      return;
+    }
+    badgeEl.textContent = count;
+    badgeEl.setAttribute('aria-label', '?? ??? ' + count + '?');
+    if (importantUnread) badgeEl.classList.add('nav-item-badge-important');
+  }
+
+  /** ?????? ??? ???? ??????? (????? ??? ??, ???? NEW/?? ???) */
+  function renderAnnouncementsPage() {
+    var listEl = document.getElementById('announcements-page-list');
+    if (!listEl) return;
+    var items = getAnnouncementsSorted();
+    listEl.innerHTML = items.length === 0
+      ? '<p class="announcements-page-empty">????????? ??????.</p>'
+      : items.map(function (a) {
+          var badges = getAnnouncementBadgesHtml(a);
+          var attach = a.fileCount && a.fileCount > 0
+            ? '<span class="announcement-attach-badge">?? ' + a.fileCount + '</span>'
+            : '';
+          return '<article class="announcement-page-card" role="button" tabindex="0" data-announcement-id="' + (a.id || '') + '">' +
+            '<div class="announcement-page-card-head">' +
+              '<h4 class="announcement-page-card-title">' + badges + escapeHtml(a.title || '') + (attach ? ' ' + attach : '') + '</h4>' +
+              '<div class="announcement-page-card-meta-line">' +
+                '<time class="announcement-page-card-date">' + (a.createdAt || '') + '</time>' +
+                (a.authorName || a.authorDepartment || a.showroom
+                  ? '<span class="announcement-page-card-author"> ? ????? ' + escapeHtml(a.authorName || '-') +
+                    ' | ???: ' + escapeHtml(a.authorDepartment || '-') +
+                    ' | ????? ' + escapeHtml(a.showroom || '-') +
+                    '</span>'
+                  : '') +
+              '</div>' +
+            '</div>' +
+            '<p class="announcement-page-card-preview">' + escapeHtml((a.content || '').slice(0, 100)) + ((a.content || '').length > 100 ? '?' : '') + '</p>' +
+            '</article>';
+        }).join('');
+  }
+
+  /** ??? ??? ?? ??? */
+  function openAnnouncementDetail(id) {
+    var list = getAnnouncements();
+    var a = list.find(function (x) { return x.id === id; });
+    if (!a) return;
+    currentAnnouncementId = id;
+    var modal = document.getElementById('modal-announcement-detail');
+    if (!modal) return;
+    setEl('modal-announcement-title', a.title || '');
+    var meta = '????? ' + (a.createdAt || '');
+    if (a.authorName || a.authorDepartment || a.showroom) {
+      var parts = [];
+      if (a.authorName) parts.push('????? ' + a.authorName);
+      if (a.authorDepartment) parts.push('???: ' + a.authorDepartment);
+      if (a.showroom) parts.push('????? ' + a.showroom);
+      meta += ' ? ' + parts.join(' | ');
+    }
+    setEl('modal-announcement-meta', meta);
+    var bodyEl = document.getElementById('modal-announcement-body');
+    if (bodyEl) bodyEl.innerHTML = escapeHtml(a.content || '').replace(/\n/g, '<br>');
+    // ???? ??
+    if (typeof loadNoticeComments === 'function') {
+      loadNoticeComments(id);
+    } else {
+      loadAnnouncementComments(id);
+    }
+    // ???? ?? ?? ???: ?? ??? ??? ?????
+    var btnDelete = document.getElementById('btn-announcement-delete');
+    if (btnDelete) {
+      var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+      var isOwner = cur && a.authorUserId && cur.authUserId && String(cur.authUserId) === String(a.authorUserId);
+      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      if (isOwner || isAdminRole) {
+        btnDelete.classList.remove('hidden');
+      } else {
+        btnDelete.classList.add('hidden');
+      }
+    }
+    modal.classList.remove('hidden');
+    markAnnouncementRead(id);
+    // ??? ?? ?????????? ??? ?? ???
+    recordNoticeRead(id).then(function () {
+      return fetchNoticeReads(id);
+    }).then(function (readers) {
+      renderNoticeReads(readers || []);
+    });
+    loadNoticeFiles(id).then(renderNoticeFiles);
+  }
+
+  function initAnnouncementDetailModal() {
+    var modal = document.getElementById('modal-announcement-detail');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-announcement-detail"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+    document.getElementById('announcements-page-list').addEventListener('click', function (e) {
+      var card = e.target.closest('.announcement-page-card');
+      if (!card) return;
+      var id = card.getAttribute('data-announcement-id');
+      if (id) openAnnouncementDetail(id);
+    });
+    document.getElementById('announcements-page-list').addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var card = e.target.closest('.announcement-page-card');
+      if (!card) return;
+      e.preventDefault();
+      var id = card.getAttribute('data-announcement-id');
+      if (id) openAnnouncementDetail(id);
+    });
+    // ???? ?? (?? ??? ??? ???)
+    var btnDelete = document.getElementById('btn-announcement-delete');
+    if (btnDelete) {
+      btnDelete.addEventListener('click', function () {
+        if (!currentAnnouncementId) return;
+        if (!window.confirm('????????????????????')) return;
+        deleteAnnouncement(currentAnnouncementId);
+        modal.classList.add('hidden');
+      });
+    }
+
+    // ???? ???
+    var commentBtn = document.getElementById('noticeCommentSubmitBtn');
+    var commentInput = document.getElementById('noticeCommentInput');
+    if (commentBtn && commentInput) {
+      commentBtn.addEventListener('click', function () {
+        if (!currentAnnouncementId) return;
+        submitNoticeComment(currentAnnouncementId);
+      });
+    }
+
+    // ???? ???? (???)
+    var commentsList = document.getElementById('noticeCommentsList');
+    if (commentsList) {
+      commentsList.addEventListener('click', function (e) {
+        var btn = e.target.closest('.notice-comment-delete');
+        if (!btn) return;
+        var cid = btn.getAttribute('data-comment-id');
+        deleteNoticeComment(cid);
+      });
+    }
+  }
+
+  function openAnnouncementFormModal() {
+    var modal = document.getElementById('modal-announcement-form');
+    if (!modal) return;
+    var titleEl = document.getElementById('announcement-form-title');
+    var contentEl = document.getElementById('announcement-form-content');
+    var importantEl = document.getElementById('announcement-form-important');
+    var authorEl = document.getElementById('announcement-form-author-info');
+    if (titleEl) titleEl.value = '';
+    if (contentEl) contentEl.value = '';
+    if (importantEl) importantEl.checked = false;
+    if (authorEl) {
+      var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+      var name = cur && cur.name ? String(cur.name).trim() : '';
+      var team = cur && cur.team ? String(cur.team).trim() : '';
+      var showroomId = cur && cur.showroom ? String(cur.showroom).trim() : '';
+      var showroomName = showroomId ? getShowroomName(showroomId) : '';
+      var parts = [];
+      if (name) parts.push('????? ' + name);
+      if (team) parts.push('???: ' + team);
+      if (showroomName) parts.push('????? ' + showroomName);
+      authorEl.textContent = parts.length ? parts.join(' | ') : '??????????????????????.';
+    }
+    selectedNoticeFiles.length = 0;
+    if (typeof renderSelectedNoticeFiles === 'function') renderSelectedNoticeFiles();
+    modal.classList.remove('hidden');
+    if (titleEl) titleEl.focus();
+  }
+
+  function initAnnouncementFormModal() {
+    var modal = document.getElementById('modal-announcement-form');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-announcement-form"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+    var btnAdd = document.getElementById('btn-announcement-add');
+    if (btnAdd) btnAdd.addEventListener('click', openAnnouncementFormModal);
+    var form = document.getElementById('form-announcement-add');
+    if (form) {
+      // ?? ??? ??? ????
+      var toggleFinalBadge = function (checkboxId, badgeId) {
+        var cb = document.getElementById(checkboxId);
+        var badge = document.getElementById(badgeId);
+        if (!cb || !badge) return;
+        badge.style.display = cb.checked ? 'inline-block' : 'none';
+        cb.addEventListener('change', function () {
+          badge.style.display = cb.checked ? 'inline-block' : 'none';
+        });
+      };
+      toggleFinalBadge('design-drawing-1-final', 'design-drawing-1-final-badge');
+      toggleFinalBadge('design-drawing-2-final', 'design-drawing-2-final-badge');
+      toggleFinalBadge('design-drawing-3-final', 'design-drawing-3-final-badge');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var title = (document.getElementById('announcement-form-title') || {}).value || '';
+        var content = (document.getElementById('announcement-form-content') || {}).value || '';
+        var important = (document.getElementById('announcement-form-important') || {}).checked || false;
+        if (!title.trim()) {
+          alert('??????????????');
+          return;
+        }
+        var fileList = selectedNoticeFiles.slice();
+        addAnnouncement({ title: title, content: content, important: important }, fileList).then(function () {
+          modal.classList.add('hidden');
+          form.reset();
+          selectedNoticeFiles.length = 0;
+          renderSelectedNoticeFiles();
+        });
+      });
+    }
+    var fileInput = document.getElementById('announcement-form-files');
+    var btnFileSelect = document.getElementById('btn-notice-file-select');
+    if (btnFileSelect && fileInput) {
+      btnFileSelect.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', handleNoticeFileSelect);
+    }
+    var fileDropZone = form && form.querySelector('.notice-file-section');
+    if (fileDropZone) {
+      fileDropZone.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); fileDropZone.classList.add('notice-file-dragover'); });
+      fileDropZone.addEventListener('dragleave', function (e) { e.preventDefault(); fileDropZone.classList.remove('notice-file-dragover'); });
+      fileDropZone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        fileDropZone.classList.remove('notice-file-dragover');
+        var files = e.dataTransfer && e.dataTransfer.files ? Array.prototype.slice.call(e.dataTransfer.files) : [];
+        files.forEach(function (file) {
+          if (isAllowedNoticeFile(file.name)) selectedNoticeFiles.push(file);
+        });
+        renderSelectedNoticeFiles();
+      });
+    }
+  }
+
+  function renderSalesKing() {
+    var wrap = document.getElementById('dashboard-sales-king');
+    if (!wrap) return;
+    var king = getSalesKingOfMonth();
+    if (!king) {
+      wrap.innerHTML = '<p class="sales-king-empty">??? ???? ???????????.</p>';
+      return;
+    }
+    wrap.innerHTML =
+      '<div class="sales-king-name">' + escapeHtml(king.name) + '</div>' +
+      '<div class="sales-king-team">' + escapeHtml(king.team || '') + '</div>' +
+      '<div class="sales-king-stats">' +
+      '<div class="sales-king-stat"><span class="sales-king-stat-label">?? ??</span><span class="sales-king-stat-value">' + king.contractCount + '??/span></div>' +
+      '<div class="sales-king-stat"><span class="sales-king-stat-label">??????</span><span class="sales-king-stat-value">' + formatMoney(king.totalAmount) + '??</span></div>' +
+      '</div>';
+  }
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  var TEAM_LABELS = {
+    sales: '?????',
+    design: '?????',
+    construction: '?????',
+    marketing: '???????',
+    settlement: '?????',
+    management: '????'
+  };
+
+  function getCurrentTeamCode() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur || !cur.team) return null;
+    var t = String(cur.team).trim();
+    if (t === '??') return 'sales';
+    if (t === '??') return 'design';
+    if (t === '??') return 'construction';
+    if (t === '???') return 'marketing';
+    if (t === '??') return 'settlement';
+    if (t === '??') return 'management';
+    return null;
+  }
+
+  var teamCalendarYear = null;
+  var teamCalendarMonth = null; // 0 ??
+  var teamCalendarView = 'month'; // month | week | list
+
+  function ensureTeamCalendarMonth() {
+    if (teamCalendarYear === null || teamCalendarMonth === null) {
+      var now = new Date();
+      teamCalendarYear = now.getFullYear();
+      teamCalendarMonth = now.getMonth();
+    }
+  }
+
+  function setTeamCalendarMonth(year, month) {
+    teamCalendarYear = year;
+    teamCalendarMonth = month;
+  }
+
+  function getTeamCalendarMonthLabel() {
+    ensureTeamCalendarMonth();
+    return teamCalendarYear + '? ' + String(teamCalendarMonth + 1) + '?';
+  }
+
+  function getTeamCalendarMonthPrefix() {
+    ensureTeamCalendarMonth();
+    return teamCalendarYear + '-' + String(teamCalendarMonth + 1).padStart(2, '0');
+  }
+
+  function getTeamCalendarFilters() {
+    var ySel = document.getElementById('team-calendar-filter-year');
+    var mSel = document.getElementById('team-calendar-filter-month');
+    var showroomSel = document.getElementById('team-calendar-filter-showroom');
+    var teamSel = document.getElementById('team-calendar-filter-team');
+    var assigneeInput = document.getElementById('team-calendar-filter-assignee');
+    var statusSel = document.getElementById('team-calendar-filter-status');
+    var typeSel = document.getElementById('team-calendar-filter-type');
+    return {
+      year: ySel && ySel.value ? Number(ySel.value) : null,
+      month: mSel && mSel.value ? Number(mSel.value) : null,
+      showroomId: showroomSel && showroomSel.value || '',
+      team: teamSel && teamSel.value || '',
+      assignee: assigneeInput && assigneeInput.value.trim() || '',
+      status: statusSel && statusSel.value || '',
+      type: typeSel && typeSel.value || ''
+    };
+  }
+
+  function filterTeamEvents(events) {
+    var filters = getTeamCalendarFilters();
+    return events.filter(function (ev) {
+      if (!ev) return false;
+      var startStr = ev.startDate || ev.date || '';
+      if (filters.year && (!startStr || String(startStr).slice(0, 4) !== String(filters.year))) return false;
+      if (filters.month && (!startStr || Number(String(startStr).slice(5, 7)) !== filters.month)) return false;
+      if (filters.showroomId && (ev.showroomId || '') !== filters.showroomId) return false;
+      if (filters.team && (ev.team || '') !== filters.team) return false;
+      if (filters.assignee) {
+        var assignee = (ev.assigneeName || ev.assignee || '').toLowerCase();
+        if (!assignee || assignee.indexOf(filters.assignee.toLowerCase()) === -1) return false;
+      }
+      if (filters.status && (ev.status || '') !== filters.status) return false;
+      if (filters.type && (ev.eventType || '') !== filters.type) return false;
+      return true;
+    });
+  }
+
+  function groupEventsByDate(events, monthPrefix) {
+    var byDate = {};
+    events.forEach(function (ev) {
+      var startStr = ev.startDate || ev.start_date || ev.event_date || ev.date;
+      if (!startStr) return;
+      var endStr = ev.endDate || ev.end_date || startStr;
+      var start = new Date(startStr);
+      var end = new Date(endStr);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+      if (end < start) {
+        var tmp = start;
+        start = end;
+        end = tmp;
+      }
+      var d = new Date(start.getTime());
+      while (d.getTime() <= end.getTime()) {
+        var dStr = d.toISOString().slice(0, 10);
+        if (dStr.slice(0, 7) === monthPrefix) {
+          if (!byDate[dStr]) byDate[dStr] = [];
+          byDate[dStr].push(ev);
+        }
+        d.setDate(d.getDate() + 1);
+      }
+    });
+    Object.keys(byDate).forEach(function (d) {
+      byDate[d].sort(function (a, b) {
+        var ta = a.time || '';
+        var tb = b.time || '';
+        if (ta === tb) return (a.title || '').localeCompare(b.title || '');
+        return ta.localeCompare(tb);
+      });
+    });
+    return byDate;
+  }
+
+  function renderTeamCalendarMonth() {
+    var grid = document.getElementById('team-calendar-grid-month');
+    var label = document.getElementById('team-calendar-current-label');
+    if (!grid || !label) return;
+    ensureTeamCalendarMonth();
+    var year = teamCalendarYear;
+    var month = teamCalendarMonth;
+    label.textContent = getTeamCalendarMonthLabel();
+    var first = new Date(year, month, 1);
+    var startDay = first.getDay();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var weekdayNames = ['?', '?', '?', '?', '?', '?', '?'];
+    var events = filterTeamEvents(getTeamEvents());
+    var monthPrefix = getTeamCalendarMonthPrefix();
+    var byDate = groupEventsByDate(events, monthPrefix);
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var html = [];
+    for (var w = 0; w < 7; w++) {
+      var cls = 'team-calendar-weekday';
+      if (w === 0) cls += ' sunday';
+      if (w === 6) cls += ' saturday';
+      html.push('<div class="' + cls + '">' + weekdayNames[w] + '</div>');
+    }
+    for (var i = 0; i < startDay; i++) {
+      html.push('<div class="team-calendar-cell team-calendar-cell-empty"></div>');
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      var dayEvents = byDate[dateStr] || [];
+      var eventsHtml = dayEvents.map(function (ev) {
+        var cls = 'team-calendar-event';
+        if (ev.team && TEAM_LABELS[ev.team]) {
+          cls += ' team-calendar-event-' + ev.team;
+        }
+        var title = ev.title || '(??? ???)';
+        var timeText = ev.startTime || ev.time || '';
+        var timePrefix = timeText ? timeText + ' ' : '';
+        var creator = ev.createdByName || ev.createdBy || '';
+        return '<button type="button" class="' + cls + '" data-team-event-id="' + ev.id + '">' +
+          '<span class="team-calendar-event-title">' + escapeHtml(timePrefix + title) + '</span>' +
+          (creator ? '<span class="team-calendar-event-meta">' + escapeHtml(creator) + '</span>' : '') +
+          '</button>';
+      }).join('');
+      html.push(
+        '<div class="team-calendar-cell' + (dateStr === todayStr ? ' today' : '') + '" data-calendar-date="' + dateStr + '">' +
+        '<div class="team-calendar-date">' + day + '</div>' +
+        '<div class="team-calendar-events">' + eventsHtml + '</div>' +
+        '</div>'
+      );
+    }
+    grid.innerHTML = html.join('');
+  }
+
+  function renderTeamCalendarWeek() {
+    var grid = document.getElementById('team-calendar-grid-week');
+    var label = document.getElementById('team-calendar-current-label');
+    if (!grid || !label) return;
+    ensureTeamCalendarMonth();
+    var year = teamCalendarYear;
+    var month = teamCalendarMonth;
+    var weekdayNames = ['?', '?', '?', '?', '?', '?', '?'];
+    var today = new Date();
+    var base = new Date(year, month, today.getDate());
+    if (base.getMonth() !== month) base = new Date(year, month, 1);
+    var dayOfWeek = base.getDay();
+    var start = new Date(base);
+    start.setDate(base.getDate() - dayOfWeek);
+    var events = filterTeamEvents(getTeamEvents());
+    var monthPrefix = getTeamCalendarMonthPrefix();
+    var byDate = groupEventsByDate(events, monthPrefix);
+    var todayStr = today.toISOString().slice(0, 10);
+    label.textContent = getTeamCalendarMonthLabel() + ' ? ??';
+    var html = [];
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start);
+      d.setDate(start.getDate() + i);
+      var dateStr = d.toISOString().slice(0, 10);
+      var isToday = dateStr === todayStr;
+      var dow = d.getDay();
+      var cls = 'team-calendar-week-day';
+      if (isToday) cls += ' today';
+      if (dow === 0) cls += ' sunday';
+      if (dow === 6) cls += ' saturday';
+      var dayEvents = (byDate[dateStr] || []).slice().sort(function (a, b) {
+        var ta = a.startTime || a.time || '';
+        var tb = b.startTime || b.time || '';
+        return ta.localeCompare(tb);
+      });
+      var eventsHtml = dayEvents.map(function (ev) {
+        var clsEv = 'team-calendar-event';
+        if (ev.team && TEAM_LABELS[ev.team]) clsEv += ' team-calendar-event-' + ev.team;
+        var timeText = ev.startTime || ev.time || '';
+        var timePrefix = timeText ? timeText + ' ' : '';
+        var title = ev.title || '(??? ???)';
+        return '<button type="button" class="' + clsEv + '" data-team-event-id="' + ev.id + '">' +
+          '<span class="team-calendar-event-title">' + escapeHtml(timePrefix + title) + '</span>' +
+          '</button>';
+      }).join('');
+      if (!eventsHtml) {
+        eventsHtml = '<div class="team-calendar-week-empty">??? ???</div>';
+      }
+      html.push(
+        '<div class="' + cls + '" data-calendar-date="' + dateStr + '">' +
+        '<div class="team-calendar-week-day-header">' +
+        '<span class="team-calendar-week-day-name">' + weekdayNames[dow] + '</span>' +
+        '<span class="team-calendar-week-day-date">' + (d.getMonth() + 1) + '/' + d.getDate() + '</span>' +
+        '</div>' +
+        '<div class="team-calendar-week-events">' + eventsHtml + '</div>' +
+        '</div>'
+      );
+    }
+    grid.innerHTML = html.join('');
+  }
+
+  function renderTeamCalendarList() {
+    var tbody = document.getElementById('team-calendar-tbody-list');
+    var label = document.getElementById('team-calendar-current-label');
+    if (!tbody || !label) return;
+    ensureTeamCalendarMonth();
+    label.textContent = getTeamCalendarMonthLabel() + ' ? ???';
+    // ???????????????? ?? ??????????????????? ?????
+    var events = getTeamEvents().slice();
+    if (events.length > 0 && console && console.log) {
+      // ?????: ??????? ?? ???
+      console.log('[TeamCalendar] sample event for list view:', events[0]);
+    }
+    events.sort(function (a, b) {
+      var ad = (a.startDate || a.event_date || a.date || '');
+      var bd = (b.startDate || b.event_date || b.date || '');
+      if (ad === bd) {
+        var at = a.startTime || a.start_time || a.time || '';
+        var bt = b.startTime || b.start_time || b.time || '';
+        return at.localeCompare(bt);
+      }
+      return ad.localeCompare(bd);
+    });
+    if (events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10">??? ???????????????.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = events.map(function (ev) {
+      var dateStr = ev.event_date || ev.startDate || ev.start_date || ev.date || '';
+      var startTime = ev.start_time || ev.startTime || ev.time || '';
+      var endTime = ev.end_time || ev.endTime || '';
+      var isAllDay = !!(ev.is_all_day || ev.allDay);
+      var teamCode = ev.team || ev.team_name || '';
+      var teamLabel = TEAM_LABELS[teamCode] || (teamCode || '');
+      var assignee = ev.assignee_name || ev.assignee || ev.manager || '-';
+      var showroomId = ev.showroom || ev.showroom_name || ev.showroomId || '';
+      var showroomName = showroomId ? getShowroomName(showroomId) : '-';
+      var statusLabel = getTeamEventStatusLabel(ev.status) || '-';
+      var typeRaw = ev.event_type || ev.eventType || ev.type || '';
+      var typeLabel = getTeamEventTypeLabel(typeRaw) || '-';
+
+      var startDisplay = '';
+      var endDisplay = '';
+      if (isAllDay) {
+        startDisplay = '??';
+        endDisplay = '-';
+      } else {
+        startDisplay = startTime || '??? ?????;
+        endDisplay = endTime || '-';
+      }
+      return '<tr data-team-event-id="' + ev.id + '">' +
+        '<td>' + escapeHtml(dateStr) + '</td>' +
+        '<td>' + escapeHtml(startDisplay) + '</td>' +
+        '<td>' + escapeHtml(endDisplay) + '</td>' +
+        '<td>' + escapeHtml(teamLabel) + '</td>' +
+        '<td>' + escapeHtml(assignee) + '</td>' +
+        '<td>' + escapeHtml(showroomName) + '</td>' +
+        '<td>' + escapeHtml(ev.title || '') + '</td>' +
+        '<td>' + escapeHtml(typeLabel) + '</td>' +
+        '<td>' + escapeHtml(statusLabel) + '</td>' +
+        '<td>' + getPriorityBadgeHtml(ev.priority) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderTeamCalendarStats() {
+    var wrap = document.getElementById('team-calendar-stats-grid');
+    if (!wrap) return;
+    var events = filterTeamEvents(getTeamEvents());
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var todayCount = events.filter(function (ev) {
+      var s = ev.startDate || ev.date || '';
+      return s === todayStr;
+    }).length;
+    var total = events.length;
+    var planned = events.filter(function (ev) { return ev.status === 'planned'; }).length;
+    var done = events.filter(function (ev) { return ev.status === 'done'; }).length;
+    var consulting = events.filter(function (ev) { return ev.eventType === 'consulting'; }).length;
+    wrap.innerHTML =
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">??? ???</div><div class="team-calendar-stat-value">' + total + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">??? ???</div><div class="team-calendar-stat-value">' + todayCount + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">???</div><div class="team-calendar-stat-value">' + planned + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">???</div><div class="team-calendar-stat-value">' + done + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">??? ???</div><div class="team-calendar-stat-value">' + consulting + '</div></div>';
+  }
+
+  function renderTeamCalendar() {
+    if (teamCalendarView === 'week') {
+      renderTeamCalendarWeek();
+    } else if (teamCalendarView === 'list') {
+      renderTeamCalendarList();
+    } else {
+      renderTeamCalendarMonth();
+    }
+    renderTeamCalendarStats();
+  }
+
+  function ensureTeamCalendarTimeOptions() {
+    var startSelect = document.getElementById('team-calendar-time-start');
+    var endSelect = document.getElementById('team-calendar-time-end');
+    function fill(select) {
+      if (!select || select.options.length > 0) return;
+      var emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '--:--';
+      select.appendChild(emptyOpt);
+      for (var h = 0; h < 24; h++) {
+        for (var m = 0; m < 60; m += 30) {
+          var hh = String(h).padStart(2, '0');
+          var mm = String(m).padStart(2, '0');
+          var value = hh + ':' + mm;
+          var opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = value;
+          select.appendChild(opt);
+        }
+      }
+    }
+    fill(startSelect);
+    fill(endSelect);
+  }
+
+  function openTeamEventModal(eventIdOrDate) {
+    var modal = document.getElementById('modal-team-calendar');
+    var form = document.getElementById('team-calendar-form');
+    var deleteBtn = document.getElementById('btn-team-calendar-delete');
+    if (!modal || !form) return;
+    ensureTeamCalendarTimeOptions();
+    var idInput = document.getElementById('team-calendar-id');
+    var titleInput = document.getElementById('team-calendar-title');
+    var teamSelect = document.getElementById('team-calendar-team');
+    var assigneeInput = document.getElementById('assignee_name');
+    var showroomSelect = document.getElementById('team-calendar-showroom');
+    var typeSelect = document.getElementById('team-calendar-type');
+    var statusSelect = document.getElementById('team-calendar-status');
+    var prioritySelect = document.getElementById('team-calendar-priority');
+    var dateStartInput = document.getElementById('team-calendar-date-start');
+    var dateEndInput = document.getElementById('team-calendar-date-end');
+    var timeStartInput = document.getElementById('team-calendar-time-start');
+    var timeEndInput = document.getElementById('team-calendar-time-end');
+    var allDayInput = document.getElementById('team-calendar-all-day');
+    var locationInput = document.getElementById('team-calendar-location');
+    var contentInput = document.getElementById('team-calendar-content');
+    var events = getTeamEvents();
+    var ev = events.find(function (x) { return x.id === eventIdOrDate; });
+    if (ev) {
+      idInput.value = ev.id;
+      titleInput.value = ev.title || '';
+      teamSelect.value = ev.team || '';
+      if (assigneeInput) assigneeInput.value = ev.assignee_name || ev.assignee || ev.manager || '';
+      showroomSelect.value = ev.showroomId || '';
+      if (typeSelect) typeSelect.value = ev.eventType || '';
+      if (statusSelect) statusSelect.value = ev.status || 'planned';
+      if (prioritySelect) prioritySelect.value = ev.priority || 'normal';
+      var startStr = ev.startDate || ev.date || '';
+      var endStr = ev.endDate || startStr;
+      dateStartInput.value = startStr;
+      dateEndInput.value = endStr;
+      timeStartInput.value = ev.startTime || ev.time || '';
+      timeEndInput.value = ev.endTime || '';
+      if (allDayInput) allDayInput.checked = !!ev.allDay;
+      if (locationInput) locationInput.value = ev.location || '';
+      contentInput.value = ev.content || '';
+      if (deleteBtn) deleteBtn.classList.remove('hidden');
+    } else {
+      idInput.value = '';
+      titleInput.value = '';
+      var curTeamCode = getCurrentTeamCode();
+      teamSelect.value = curTeamCode || '';
+      if (assigneeInput) assigneeInput.value = '';
+      showroomSelect.value = '';
+      if (typeSelect) typeSelect.value = '';
+      if (statusSelect) statusSelect.value = 'planned';
+      if (prioritySelect) prioritySelect.value = 'normal';
+      var baseDate = eventIdOrDate && eventIdOrDate.indexOf('-') > -1 ? eventIdOrDate : '';
+      dateStartInput.value = baseDate;
+      dateEndInput.value = baseDate;
+      timeStartInput.value = '';
+      timeEndInput.value = '';
+      if (allDayInput) allDayInput.checked = false;
+      if (locationInput) locationInput.value = '';
+      contentInput.value = '';
+      if (deleteBtn) deleteBtn.classList.add('hidden');
+    }
+    modal.classList.remove('hidden');
+  }
+
+  var SOURCE_LABELS = { youtube: '?????, instagram: '?????', naver: '?????, referral: '??????, etc: '???' };
+
+  function getAssignShowroomSelect(visitId, currentShowroomId) {
+    var opts = SHOWROOMS.map(function (s) {
+      var sel = (currentShowroomId || '') === s.id ? ' selected' : '';
+      return '<option value="' + s.id + '"' + sel + '>' + s.name + '</option>';
+    }).join('');
+    return '<select class="visit-assign-showroom" data-visit-id="' + visitId + '" title="????? ??? ?????????????????">' + opts + '</select>';
+  }
+
+  function getAssignShowroomValue(visitId) {
+    var el = document.querySelector('.visit-assign-showroom[data-visit-id="' + visitId + '"]');
+    return el ? el.value : '';
+  }
+
+  function renderMarketing() {
+    var visits = filterByShowroom(getVisits(), 'showroomId');
+    visits = filterByYearMonth(visits, 'visitDate');
+    var tbody = document.getElementById('tbody-visits');
+    if (!tbody) return;
+    tbody.innerHTML = visits.map(function (v) {
+      var statusClass = v.status === '?????????' ? 'badge-done' : 'badge-new';
+      var statusText = v.status || '???';
+      var dateTime = formatDate(v.visitDate) + (v.visitTime ? ' ' + v.visitTime : '');
+      var canAssign = v.status !== '?????????';
+      var checkCell = canAssign ? '<td class="col-check"><input type="checkbox" class="visit-row-check" value="' + v.id + '"></td>' : '<td class="col-check"></td>';
+      var assignShowroomCell = canAssign ? '<td class="col-assign-showroom">' + getAssignShowroomSelect(v.id, v.showroomId) + '</td>' : '<td class="col-assign-showroom">' + getShowroomName(v.showroomId) + '</td>';
+      var assignBtn = canAssign ? '<button type="button" class="btn btn-sm btn-primary" data-assign-visit="' + v.id + '">????? ???</button>' : '';
+      var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-visit-detail="' + v.id + '">???</button>';
+      return '<tr>' + checkCell + '<td>' + getShowroomName(v.showroomId) + '</td>' + assignShowroomCell + '<td>' + formatDate(v.createdAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + dateTime + '</td><td>' + (v.interestType || '-') + '</td><td>' + (v.desiredPyeong ? v.desiredPyeong + '?? : '-') + '</td><td>' + (v.budgetRange || '-') + '</td><td>' + (v.hasLand === 'Y' ? 'O' : v.hasLand === 'N' ? 'X' : '-') + '</td><td><span class="badge ' + statusClass + '">' + statusText + '</span></td><td>' + detailBtn + ' ' + assignBtn + '</td></tr>';
+    }).join('') || '<tr><td colspan="13">?????????????.</td></tr>';
+  }
+
+  function openVisitDetail(visitId) {
+    var visits = getVisits();
+    var v = visits.find(function (x) { return x.id === visitId; });
+    if (!v) return;
+    var html = '<table class="detail-table"><tbody>' +
+      '<tr><th>?????/th><td>' + getShowroomName(v.showroomId) + '</td></tr>' +
+      '<tr><th>???</th><td>' + (v.name || '-') + '</td></tr>' +
+      '<tr><th>?????/th><td>' + (v.phone || '-') + '</td></tr>' +
+      '<tr><th>????/th><td>' + formatDate(v.visitDate) + '</td></tr>' +
+      '<tr><th>?????</th><td>' + (v.visitTime || '-') + '</td></tr>' +
+      '<tr><th>?????</th><td>' + (v.visitCount ? v.visitCount + '?? : '-') + '</td></tr>' +
+      '<tr><th>?????</th><td>' + (SOURCE_LABELS[v.source] || v.source || '-') + '</td></tr>' +
+      '<tr><th>????????????</th><td>' + (v.interestType || '-') + '</td></tr>' +
+      '<tr><th>??????</th><td>' + (v.desiredPyeong ? v.desiredPyeong + '?? : '-') + '</td></tr>' +
+      '<tr><th>??? ??</th><td>' + (v.budgetRange || '-') + '</td></tr>' +
+      '<tr><th>???? ?? ????</th><td>' + (v.hasLand === 'Y' ? '??' : v.hasLand === 'N' ? '???? : '-') + '</td></tr>' +
+      '<tr><th>????(???</th><td>' + (v.landAddress || '-') + '</td></tr>' +
+      '<tr><th>LG????????/th><td>' + (v.lgEvent ? 'Y' : '-') + '</td></tr>' +
+      '<tr><th>3D???</th><td>' + (v.need3d ? 'Y' : '-') + '</td></tr>' +
+      '<tr><th>??</th><td>' + (v.memo || '-') + '</td></tr>' +
+      '<tr><th>???</th><td>' + (v.status || '-') + '</td></tr>' +
+      '</tbody></table>';
+    var el = document.getElementById('visit-detail-body');
+    if (el) el.innerHTML = html;
+    document.getElementById('modal-visit-detail').classList.remove('hidden');
+  }
+
+  function renderSales() {
+    var visitsAll = getVisits().filter(function (v) { return v.status === '?????????'; });
+    var contractsAll = getContracts();
+    if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+      var cur = window.seumAuth.currentEmployee;
+      var team = (cur.team || '').trim();
+      var myShowroomId = resolveShowroomId(cur);
+      // ????? ?????? ??? ?????????? ??????????? ???????
+      if (team === '???' && myShowroomId) {
+        visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
+        contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+      }
+    }
+    var visits = filterByShowroom(visitsAll, 'showroomId');
+    visits = filterByYearMonth(visits, 'visitDate');
+    var contracts = filterByShowroom(contractsAll, 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+    var tbodyLeads = document.getElementById('tbody-leads');
+    var tbodyContracts = document.getElementById('tbody-contracts');
+    if (tbodyLeads) {
+      var allContracts = contractsAll;
+      var alreadyContract = {};
+      allContracts.forEach(function (c) { if (c.visitId) alreadyContract[c.visitId] = true; });
+      var leads = visits.filter(function (v) { return !alreadyContract[v.id]; });
+      tbodyLeads.innerHTML = leads.map(function (v) {
+        return '<tr><td>' + getShowroomName(v.showroomId) + '</td><td>' + formatDate(v.assignedToSalesAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + formatDate(v.visitDate) + '</td><td><button type="button" class="btn btn-sm btn-primary" data-create-contract="' + v.id + '">?? ???</button></td></tr>';
+      }).join('') || '<tr><td colspan="6">?????? ??? ??????.</td></tr>';
+    }
+    if (tbodyContracts) {
+      var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+      var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
+      var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
+      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      // ????? ?????? "?? ????? ???????????
+      if (userTeam === '???' && curUser) {
+        var myShowroomId = resolveShowroomId(curUser);
+        if (myShowroomId) {
+          contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+        }
+      }
+      tbodyContracts.innerHTML = contracts.map(function (c) {
+        function amountCell(amount, date, type) {
+          if (amount != null && String(amount).trim() !== '') {
+            var label = formatMoney(amount) + '??;
+            if (date) label += ' (' + formatDate(date) + ')';
+            return '<span class="payment-label">' + label + '</span> <button type="button" class="btn btn-xs btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">???</button>';
+          }
+          return '<button type="button" class="btn btn-sm btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">???</button>';
+        }
+        var deposit = amountCell(c.depositAmount, c.depositReceivedAt, 'deposit');
+        var p1 = amountCell(c.progress1Amount, c.progress1ReceivedAt, 'progress1');
+        var p2 = amountCell(c.progress2Amount, c.progress2ReceivedAt, 'progress2');
+        var p3 = amountCell(c.progress3Amount, c.progress3ReceivedAt, 'progress3');
+        var balance = amountCell(c.balanceAmount, c.balanceReceivedAt, 'balance');
+        var salesPerson = (c.salesPerson || '-');
+        var houseType = (c.contractModel || '-');
+        var modelName = (c.contractModelName || '-');
+        var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-contract-detail="' + c.id + '">???</button>';
+        var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + c.id + '">????</button>';
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + formatDate(c.contractDate) + '</td><td>' + (c.customerName || '-') + '</td><td>' + salesPerson + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+      }).join('') || '<tr><td colspan="13">??????????.</td></tr>';
+      if (expandedContractId) {
+        var exists = contracts.some(function (c) { return c.id === expandedContractId; });
+        if (exists) {
+          showContractDetailPanel(expandedContractId, true);
+        } else {
+          expandedContractId = null;
+        }
+      }
+    }
+    renderSalesCustomers();
+  }
+
+  function renderSalesCustomers() {
+    var customers = getCustomers();
+    if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+      var cur = window.seumAuth.currentEmployee;
+      var team = (cur.team || '').trim();
+      var myShowroom = (cur.showroom || '').trim();
+      // ????? ?????? ?? ?????? ?? ??????????? ???????
+      if (team === '???' && myShowroom) {
+        customers = customers.filter(function (o) { return (o.showroomId || '') === myShowroom; });
+      }
+    }
+    customers = filterByShowroom(customers, 'showroomId');
+    customers = filterByYearMonth(customers, 'createdAt');
+    var tbody = document.getElementById('tbody-customers');
+    if (!tbody) return;
+    tbody.innerHTML = customers.map(function (o) {
+      return '<tr><td>' + formatDate(o.createdAt) + '</td><td>' + (o.name || '-') + '</td><td>' + (o.phone || '-') + '</td><td>' + formatDate(o.visitDate) + '</td><td>' + (o.salesPerson || '-') + '</td><td>' + getShowroomName(o.showroomId) + '</td><td>' + (o.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-customer="' + o.id + '">???</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-customer="' + o.id + '">????</button></td></tr>';
+    }).join('') || '<tr><td colspan="8">???????????????. + ?? ?????????????</td></tr>';
+  }
+
+  function renderDesign() {
+    var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
+    // ????? ?????? ??? ?????????? ????????????????
+    if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+      var cur = window.seumAuth.currentEmployee;
+      var team = (cur.team || '').trim();
+      var myShowroom = (cur.showroom || '').trim();
+      if (team === '???' && myShowroom) {
+        contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroom; });
+      }
+    }
+    contracts = filterByShowroom(contracts, 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+    var tbody = document.getElementById('tbody-design');
+    if (!tbody) return;
+    var salesReadonly = isSalesReadonly();
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var userTeam = (cur && (cur.team || '').trim()) || '';
+    var designOnlyReview = (userTeam === '???');
+    var constructionOnlyReview = (userTeam === '???');
+    var salesCheckDisabled = designOnlyReview || constructionOnlyReview;
+    var designCheckDisabled = salesReadonly || constructionOnlyReview;
+    var constructionCheckDisabled = salesReadonly || designOnlyReview;
+    var statusMap = {
+      none: '????,
+      in_progress: '??? ??',
+      negotiating: '??? ??,
+      negotiated: '??? ???',
+      done: '??? ???'
+    };
+    tbody.innerHTML = contracts.map(function (c) {
+      var status = c.designStatus || 'none';
+      var statusLabel = statusMap[status] || '??';
+      var select = '<select class="design-status-select design-progress-select" data-id="' + c.id + '"' + (salesReadonly ? ' disabled' : '') + '>' +
+        '<option value="none"' + (status === 'none' ? ' selected' : '') + '>????/option>' +
+        '<option value="in_progress"' + (status === 'in_progress' ? ' selected' : '') + '>??? ??</option>' +
+        '<option value="negotiating"' + (status === 'negotiating' ? ' selected' : '') + '>??? ??/option>' +
+        '<option value="negotiated"' + (status === 'negotiated' ? ' selected' : '') + '>??? ???</option>' +
+        '<option value="done"' + (status === 'done' ? ' selected' : '') + '>??? ???</option>' +
+        '</select>';
+      var designProgressCell = '<div class="design-process-cell"><span class="design-process-label">?????</span>' + select + '</div>';
+      var projectType = c.projectType || '-';
+      var constructionOk = c.constructionStartOk ? 'Y' : '-';
+      var salesC = !!c.salesConfirmed;
+      var designC = !!c.designConfirmed;
+      var constructionC = !!c.constructionConfirmed;
+      var allConfirmed = salesC && designC && constructionC;
+      var reviewCell = '<div class="review-checklist"><span class="review-checklist-title">?????</span>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabled ? ' disabled' : '') + '><span>???????????</span><small class="review-desc review-help">???? ? ??? ? ?? ??????</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>???????????</span><small class="review-desc review-help">??? ? ?? ? ???? ???/small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check construction-check" data-contract-id="' + escapeAttr(c.id) + '"' + (constructionC ? ' checked' : '') + (constructionCheckDisabled ? ' disabled' : '') + '><span>???????????</span><small class="review-desc review-help">??? ??????? ? ?? ?? ? ??? ??</small></label>' +
+        '</div>';
+      var reviewTdClass = 'review-check-cell' + (allConfirmed ? ' review-all-done' : '');
+      var approved = !!c.finalApproved;
+      var canApprove = allConfirmed && !salesReadonly;
+      var approvalBtnDisabled = !canApprove;
+      var approvalBtnText = approved ? '??? ??' : '?? ???';
+      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '??? ???' : '????) + '</span><button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
+      var rowClass = 'design-row' + (allConfirmed ? ' review-complete' : '');
+      var designerName = c.designPermitDesigner || c.designContactName || '-';
+      var houseType = (c.contractModel || '-');
+      var modelName = (c.contractModelName || '-');
+      var contractDateStr = formatDate(c.contractDate) || '-';
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + designerName + '</td><td>' + (c.constructionManager || '-') + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+    }).join('') || '<tr><td colspan="15">??????? ?? ??????.</td></tr>';
+    if (expandedDesignId) {
+      var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
+      if (expandedDesignRow) {
+        insertDesignDetailRowAfter(expandedDesignRow, expandedDesignId);
+        expandedDesignRow.classList.add('design-row-expanded');
+      } else {
+        expandedDesignId = null;
+      }
+    }
+  }
+
+  var expandedDesignId = null;
+
+  function formatOptionsSummary(options) {
+    if (!options) return '';
+    var parts = [];
+    var labels = { porch: '???', deck: '???', sunroom: '???', demolition: '??', repair: '????, interior: '?????' };
+    ['porch', 'deck', 'sunroom', 'demolition', 'repair', 'interior'].forEach(function (key) {
+      var o = options[key] || {};
+      if (o.enabled) {
+        var label = labels[key] || key;
+        if (key === 'demolition' || key === 'repair' || key === 'interior') {
+          parts.push(label);
+        } else {
+          var p = (o.pyeong != null && o.pyeong !== '') ? String(o.pyeong) + '?? : '';
+          parts.push(label + (p ? ' ' + p : ''));
+        }
+      }
+    });
+    return parts.join(', ');
+  }
+
+  function buildInteriorNoteFromMemos(c) {
+    function line(label, value) {
+      if (!value) return '';
+      return label + ': ' + String(value).trim();
+    }
+    var lines = [];
+    var l;
+    l = line('???/??', c.memoBedroom); if (l) lines.push(l);
+    l = line('??', c.memoLiving); if (l) lines.push(l);
+    l = line('??', c.memoKitchen); if (l) lines.push(l);
+    l = line('?????, c.memoBath); if (l) lines.push(l);
+    l = line('????/???/???', c.memoExterior); if (l) lines.push(l);
+    l = line('??? ??????', c.memoEtc); if (l) lines.push(l);
+    return lines.join('\\n');
+  }
+
+  /** ????? ?? ?? ??? ??????? ??? ??? ?? HTML (??? ??? ?? ?? ???) */
+  function buildDesignRequestViewHtml(c) {
+    var esc = function (v) { return escapeAttr(v || ''); };
+    var roomLabel = function (mode, memo) {
+      var isChange = (mode || 'basic') === 'change' || (!mode && memo && String(memo).trim());
+      if (!isChange) return '<span class="design-request-view-badge design-request-view-basic">??</span>';
+      return '<span class="design-request-view-badge design-request-view-change">???/span> ' + (memo ? esc(memo) : '-');
+    };
+    var extLabel = function (type, memo) {
+      if ((type || 'none') === 'none') return '<span class="design-request-view-badge design-request-view-none">???</span>';
+      return '<span class="design-request-view-badge design-request-view-add">???</span> ' + (memo ? esc(memo) : '');
+    };
+    var matLabel = { default: '??', ceramic: '????????', longbrick: '????, smart: '?????????' };
+    var exteriorMat = matLabel[c.exteriorMaterialType || 'default'] || (c.exteriorMaterialType || '??');
+
+    var html = '<div class="design-detail-design-request-block">' +
+      '<h5 class="design-detail-design-request-heading">??? ??? ???</h5>' +
+
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">???? ??</span>' +
+      '<div class="design-detail-design-request-grid">' +
+      '<div class="design-detail-field"><label>???/??</label><div>' + roomLabel(c.bedroomMode, c.memoBedroom) + '</div></div>' +
+      '<div class="design-detail-field"><label>??</label><div>' + roomLabel(c.livingMode, c.memoLiving) + '</div></div>' +
+      '<div class="design-detail-field"><label>??</label><div>' + roomLabel(c.kitchenMode, c.memoKitchen) + '</div></div>' +
+      '<div class="design-detail-field"><label>?????/label><div>' + roomLabel(c.bathMode, c.memoBath) + '</div></div>' +
+      '</div></div>' +
+
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">???? ??</span>' +
+      '<div class="design-detail-design-request-grid design-detail-design-request-external">' +
+      '<div class="design-detail-field"><label>???</label><div>' + extLabel(c.externalDeck, c.externalDeckMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>???</label><div>' + extLabel(c.externalPorch, c.externalPorchMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>??</label><div>' + extLabel(c.externalYard, c.externalYardMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>??</label><div>' + extLabel(c.externalParking, c.externalParkingMemo) + '</div></div>' +
+      '</div>' +
+      (c.memoExterior && !c.externalDeck && !c.externalPorch ? '<div class="design-detail-field design-detail-field-full"><label>????/???/??? (??)</label><div>' + esc(c.memoExterior) + '</div></div>' : '') +
+      '</div>' +
+
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">?? ???/span>' +
+      '<div class="design-detail-design-request-window">' +
+      (c.windowAddMemo ? '<div class="design-detail-field"><label>?????</label><div>' + esc(c.windowAddMemo) + '</div></div>' : '') +
+      (c.windowPositionMemo ? '<div class="design-detail-field"><label>????? ???/label><div>' + esc(c.windowPositionMemo) + '</div></div>' : '') +
+      (c.windowSizeMemo ? '<div class="design-detail-field"><label>????? ???/label><div>' + esc(c.windowSizeMemo) + '</div></div>' : '') +
+      (!c.windowAddMemo && !c.windowPositionMemo && !c.windowSizeMemo ? '<div class="design-detail-field"><div class="design-detail-view-empty">-</div></div>' : '') +
+      '</div></div>' +
+
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">????????/span>' +
+      '<div class="design-detail-field"><div>' + esc(exteriorMat) + '</div></div></div>' +
+
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">??? / ???</span>' +
+      '<div class="design-detail-design-request-grid design-detail-design-request-facility">' +
+      (c.facilityCeilingFan ? '<div class="design-detail-field"><label>?????/label><div>' + esc(c.facilityCeilingFan) + '</div></div>' : '') +
+      (c.facilityAircon ? '<div class="design-detail-field"><label>????????</label><div>' + esc(c.facilityAircon) + '</div></div>' : '') +
+      (c.facilityOutlet ? '<div class="design-detail-field"><label>???????</label><div>' + esc(c.facilityOutlet) + '</div></div>' : '') +
+      (c.facilityLighting ? '<div class="design-detail-field"><label>?? ???/label><div>' + esc(c.facilityLighting) + '</div></div>' : '') +
+      (!c.facilityCeilingFan && !c.facilityAircon && !c.facilityOutlet && !c.facilityLighting ? '<div class="design-detail-field"><div class="design-detail-view-empty">-</div></div>' : '') +
+      '</div></div>' +
+
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">????? ??? ??</span>' +
+      '<div class="design-detail-design-request-grid">' +
+      '<div class="design-detail-field"><label>??? ??????</label><div>' + esc(c.memoEtc) + '</div></div>' +
+      '<div class="design-detail-field"><label>?????/label><div>' + esc(c.exteriorNote) + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ???</label><div>' + esc(c.extraNote) + '</div></div>' +
+      '</div></div>';
+
+    if (c.designHandoverSummary) {
+      html += '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">[????? ??? ??]</span>' +
+        '<div class="design-detail-field design-detail-handover-summary-wrap"><pre class="design-detail-handover-summary">' + esc(c.designHandoverSummary) + '</pre></div></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function buildDesignDetailContent(contractId) {
+    var c = getContracts().find(function (x) { return x.id === contractId; });
+    if (!c) return '';
+    var statusMap = { none: '????, in_progress: '?????, done: '???' };
+    var statusLabel = statusMap[c.designStatus || 'none'] || '??';
+    var projectType = c.projectType || '-';
+    var houseWrapHidden = (c.projectType || '') !== '??' ? ' hidden' : '';
+    var summaryBar = '<div class="design-detail-summary-bar">' +
+      '<span class="design-detail-summary-item"><strong>????/strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
+      '<span class="design-detail-summary-item"><strong>???</strong> ' + escapeAttr(projectType) + '</span>' +
+      '<span class="design-detail-summary-item"><strong>????</strong> ' + escapeAttr(formatMoney(c.totalAmount)) + '??/span>' +
+      '<span class="design-detail-summary-item"><strong>?????????/strong> ' + escapeAttr(formatDate(c.depositReceivedAt)) + '</span>' +
+      '<span class="design-detail-summary-item"><strong>?????? ???</strong> ' + escapeAttr(statusLabel) + '</span>' +
+      '<span class="design-detail-summary-item"><strong>?????????</strong> ' + (c.constructionStartOk ? 'Y' : '-') + '</span>' +
+      '<div class="design-detail-summary-actions">' +
+      '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapeAttr(contractId) + '">?? ??</button>' +
+      '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">????/button>' +
+      '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">???????</button>' +
+      '</div></div>';
+    var cardBasic = '<div class="design-detail-card">' +
+      '<h4 class="design-detail-card-title">?? ?? ??? (????</h4>' +
+      '<div class="design-detail-card-body design-detail-basic-grid">' +
+      '<div class="design-detail-field"><label>?????? ?????/label><div>' + escapeAttr(getShowroomName(c.showroomId || "")) + '</div></div>' +
+      '<div class="design-detail-field"><label>?? ???</label><div>' + escapeAttr(c.contractModel || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>?? ???</label><div>' + escapeAttr(c.contractModelName || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ??????</label><div>' + escapeAttr(c.salesPerson || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ??</label><div>' + escapeAttr(c.siteAddress || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ??</label><div>' + escapeAttr(c.installType || "??????") + '</div></div>' +
+      '<div class="design-detail-field"><label>???(??)</label><div>' + escapeAttr(c.supplyAmount || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>??????)</label><div>' + escapeAttr(c.vatAmount || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>???? ???</label><div>' + escapeAttr(c.foundationPyeong || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>?? ???</label><div>' + escapeAttr(c.housePyeong || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ???</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
+      buildDesignRequestViewHtml(c) +
+      '</div></div>';
+    var cardSalesContract = '<div class="design-detail-card design-detail-sales-contract-view">' +
+      '<h4 class="design-detail-card-title">????? ????(????</h4>' +
+      '<div class="design-detail-card-body"><p class="design-detail-view-only">' + linkOrText(c.contractAttachment) + '</p></div></div>';
+    var d1DesignMemo = c.designDrawing1DesignMemo || '';
+    var d1SalesMemo = c.designDrawing1SalesMemo || '';
+    var d1Final = !!c.designDrawing1Final;
+    var d2Attachment = c.designDrawing2Attachment || '';
+    var d2DesignMemo = c.designDrawing2DesignMemo || '';
+    var d2SalesMemo = c.designDrawing2SalesMemo || '';
+    var d2Final = !!c.designDrawing2Final;
+    var d3Attachment = c.designDrawing3Attachment || '';
+    var d3DesignMemo = c.designDrawing3DesignMemo || '';
+    var d3SalesMemo = c.designDrawing3SalesMemo || '';
+    var d3Final = !!c.designDrawing3Final;
+    var cardDrawing = '<div class="design-detail-card">' +
+      '<h4 class="design-detail-card-title">??? ?????</h4>' +
+      '<div class="design-detail-card-body">' +
+      '<label class="design-detail-field">??? <select class="design-inline-project-type"><option value="">???</option><option value="???????' + (c.projectType === '??????? ? ' selected' : '') + '>???????/option><option value="??"' + (c.projectType === '??' ? ' selected' : '') + '>??</option></select></label>' +
+      '<div class="design-discussion-card">' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">?????? 1??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
+      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-drawing drawing-url-input" placeholder="???????? ?? (??? ?? ?? ????????)" value="' + escapeAttr(c.designDrawingAttachment || '') + '"><input type="file" class="design-inline-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open">???</button></div>' +
+      '<div class="drawing-file-list" data-input-selector=".design-inline-drawing"></div>' +
+      '</div>' +
+      '<div class="design-discussion-card">' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">?????? 2??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-2-final design-inline-drawing-final"' + (d2Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d2Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
+      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(d2Attachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-drawing-2 drawing-url-input" placeholder="???????? ??" value="' + escapeAttr(d2Attachment) + '"><input type="file" class="design-inline-drawing-file-2" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-2">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-2">???</button></div>' +
+      '<div class="drawing-file-list" data-inputSelector=".design-inline-drawing-2"></div>' +
+      '</div>' +
+      '<div class="design-discussion-card">' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">?????? 3??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-3-final design-inline-drawing-final"' + (d3Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d3Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
+      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(d3Attachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-drawing-3 drawing-url-input" placeholder="???????? ??" value="' + escapeAttr(d3Attachment) + '"><input type="file" class="design-inline-drawing-file-3" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-3">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-3">???</button></div>' +
+      '<div class="drawing-file-list" data-input-selector=".design-inline-drawing-3"></div>' +
+      '</div>' +
+      '<div class="design-discussion-card design-construction-card">' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">??????</span></div>' +
+      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(c.constructionDrawingAttachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-construction-drawing drawing-url-input" placeholder="???????? ?? (??? ?? ?? ????????)" value="' + escapeAttr(c.constructionDrawingAttachment || '') + '"><input type="file" class="design-inline-construction-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-construction-drawing-upload">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-construction-drawing-open">???</button></div>' +
+      '<div class="drawing-file-list" data-input-selector=".design-inline-construction-drawing"></div>' +
+      '</div>' +
+      '</div></div>';
+    var cardPermitInfo = '<div class="design-detail-card design-inline-house-wrap' + houseWrapHidden + '">' +
+      '<h4 class="design-detail-card-title">?? ???? ???</h4>' +
+      '<div class="design-detail-card-body">' +
+      '<label class="design-detail-field">???????<input type="text" class="design-inline-architect" placeholder="???/???" value="' + escapeAttr(c.architectInfo || '') + '"></label>' +
+      '<label class="design-detail-field">?????<input type="text" class="design-inline-contact-name" placeholder="????????" value="' + escapeAttr(c.designContactName || '') + '"></label>' +
+      '<label class="design-detail-field">?????<input type="tel" class="design-inline-contact-phone" placeholder="???????" value="' + escapeAttr(c.designContactPhone || '') + '"></label>' +
+      '<label class="design-detail-field">??????? ??? <input type="text" class="design-inline-permit-attachment" placeholder="???????? ??" value="' + escapeAttr(c.permitAttachment || '') + '"></label>' +
+      '<label class="design-detail-field">???????? <input type="text" class="design-inline-completion-attachment" placeholder="???????? ??" value="' + escapeAttr(c.completionCertAttachment || '') + '"></label>' +
+      '</div></div>';
+    var cardStatus = '<div class="design-detail-card permit-status-card">' +
+      '<div class="design-detail-card-body">' +
+      '<h4 class="design-detail-card-title manager-info-title">????????</h4>' +
+      '<div class="design-detail-field"><label>??? ?????/label><div class="design-detail-view-only">' + escapeAttr(c.salesPerson || '-') + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ?????/label><div class="design-detail-view-only">' + escapeAttr(c.designPermitDesigner || c.designContactName || '-') + '</div></div>' +
+      '<div class="design-detail-field"><label>??? ?????/label><div class="design-detail-view-only">' + escapeAttr(c.constructionManager || '-') + '</div></div>' +
+      '<div class="design-detail-field design-detail-designer-field">' +
+      '<label>??? ?????/label>' +
+      '<div class="design-detail-designer-inputs">' +
+      '<input type="text" class="design-inline-designer" placeholder="????????? ?????????????????? value="' + escapeAttr(c.designPermitDesigner || '') + '">' +
+      '</div>' +
+      '</div>' +
+      '<h4 class="design-detail-card-title permit-status-title">???? / ?? ???</h4>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> ??????? ???</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> ????????</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> ???????</label>' +
+      '<div class="start-ready-box">' +
+      '<label class="design-detail-check-item highlight"><input type="checkbox" class="design-inline-construction-start-ok"' + (c.constructionStartOk ? ' checked' : '') + '> ?????? (????? ?? ??? ???</label>' +
+      '</div>' +
+      '<div class="design-detail-memo-grid">' +
+      '<label class="design-detail-field"><span>????? ??</span><textarea class="design-status-memo design-status-memo-design" rows="3" placeholder="?? ???? ?? ???, ??? ?????? ??>' + escapeAttr(c.designStatusMemoDesign || '') + '</textarea></label>' +
+      '<label class="design-detail-field"><span>????? ??</span><textarea class="design-status-memo design-status-memo-sales" rows="3" placeholder="?? ?? ??? ???, ??? ??? ??? ??>' + escapeAttr(c.designStatusMemoSales || '') + '</textarea></label>' +
+      '<label class="design-detail-field"><span>????? ??</span><textarea class="design-status-memo design-status-memo-construction" rows="3" placeholder="?? ?? ??????, ??? ??? ??>' + escapeAttr(c.designStatusMemoConstruction || '') + '</textarea></label>' +
+      '</div>' +
+      '</div></div>';
+    var chatTitle = (c.customerName || '-') + ' ? ' + (c.contractModelName || c.contractModel || '-');
+    var chatSubtitle = (typeof getShowroomName === 'function' ? getShowroomName(c.showroomId || '') : (c.showroomId || '-')) + ' ? ??? ?? ??';
+    var cardChat = '<div class="design-detail-card design-contract-chat-card contract-chat-card">' +
+      '<div class="contract-chat-header">' +
+      '<h4 class="contract-chat-title">' + escapeAttr(chatTitle) + '</h4>' +
+      '<p class="contract-chat-subtitle">' + escapeAttr(chatSubtitle) + '</p>' +
+      '</div>' +
+      '<div class="contract-chat-messages design-contract-chat-messages-wrap">' +
+      '<ul id="design-contract-chat-message-list" class="chat-message-list design-contract-chat-message-list"></ul>' +
+      '</div>' +
+      '<div id="design-contract-chat-form" class="design-contract-chat-form contract-chat-input-wrap">' +
+      '<input type="hidden" id="design-contract-chat-contract-id" value="' + escapeAttr(contractId) + '">' +
+      '<input type="file" id="design-contract-chat-file-input" class="chat-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp" multiple hidden>' +
+      '<div class="chat-input-bar design-contract-chat-input-bar">' +
+      '<div class="chat-input-actions">' +
+      '<button type="button" class="chat-tool-btn design-chat-attach-btn" title="??? ???">???</button>' +
+      '<button type="button" class="chat-tool-btn design-chat-mention-btn" title="??">@</button>' +
+      '<button type="button" class="chat-tool-btn design-chat-emoji-btn" title="??????">???</button>' +
+      '</div>' +
+      '<textarea id="design-contract-chat-input" class="chat-input chat-textarea" placeholder="?????????????.." rows="1" maxlength="2000"></textarea>' +
+      '<button type="button" class="btn btn-primary chat-send-btn design-chat-send-btn">???</button>' +
+      '</div>' +
+      '<div class="design-chat-emoji-popover hidden" id="design-chat-emoji-popover">' +
+      '<span class="chat-emoji-item" data-emoji="??">??</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??">??</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span>' +
+      '<span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '</div>' +
+      '</div></div>';
+    var grid = '<div class="design-detail-grid">' +
+      '<div class="design-detail-col-left">' + cardBasic + cardSalesContract + cardDrawing + cardPermitInfo + '</div>' +
+      '<div class="design-detail-col-right">' + cardStatus + cardChat + '</div>' +
+      '</div>';
+    var form = '<form class="form-design-inline-inline" data-contract-id="' + escapeAttr(contractId) + '">' +
+      '<input type="hidden" class="design-inline-contract-id" value="' + escapeAttr(contractId) + '">' +
+      summaryBar + grid +
+      '<div class="form-actions design-detail-actions"><button type="submit" class="btn btn-primary">????/button></div></form>';
+    return '<div class="design-detail-inner">' + form + '</div>';
+  }
+
+  function initDesignContractChatInCell(td, contractId) {
+    if (!td || !contractId) return;
+    var contracts = typeof getContracts === 'function' ? getContracts() : [];
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (typeof ensureContractChatRoom === 'function') ensureContractChatRoom(contractId);
+    if (c && typeof ensureContractChatSystemMessages === 'function') ensureContractChatSystemMessages(contractId, c);
+    if (typeof renderContractChat === 'function') renderContractChat(contractId, 'design-contract-chat-message-list');
+    var form = td.querySelector('#design-contract-chat-form');
+    var input = td.querySelector('#design-contract-chat-input');
+    var fileInput = td.querySelector('#design-contract-chat-file-input');
+    var attachBtn = td.querySelector('.design-chat-attach-btn');
+    var mentionBtn = td.querySelector('.design-chat-mention-btn');
+    var emojiBtn = td.querySelector('.design-chat-emoji-btn');
+    var emojiPopover = td.querySelector('.design-chat-emoji-popover');
+    if (!form || !input) return;
+    form._designChatPendingFiles = [];
+    if (attachBtn && fileInput) {
+      attachBtn.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files.length) {
+          for (var i = 0; i < fileInput.files.length; i++) form._designChatPendingFiles.push(fileInput.files[i]);
+          var names = [];
+          for (var j = 0; j < fileInput.files.length; j++) names.push(fileInput.files[j].name);
+          input.value = (input.value || '').trim() + (input.value ? '\n' : '') + '[???: ' + names.join(', ') + ']';
+        }
+        fileInput.value = '';
+      });
+    }
+    if (mentionBtn) {
+      mentionBtn.addEventListener('click', function () {
+        var val = input.value || '';
+        input.value = val + (val && !/^\s*$/.test(val) ? ' ' : '') + '@';
+        input.focus();
+      });
+    }
+    if (emojiBtn && emojiPopover) {
+      emojiBtn.addEventListener('click', function () { emojiPopover.classList.toggle('hidden'); });
+      emojiPopover.querySelectorAll('.chat-emoji-item').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var emoji = el.getAttribute('data-emoji') || '';
+          if (emoji) {
+            var start = input.selectionStart;
+            var end = input.selectionEnd;
+            var val = input.value || '';
+            input.value = val.slice(0, start) + emoji + val.slice(end);
+            input.selectionStart = input.selectionEnd = start + emoji.length;
+          }
+          emojiPopover.classList.add('hidden');
+          input.focus();
+        });
+      });
+      document.addEventListener('click', function closeDesignEmoji(e) {
+        if (emojiPopover && emojiPopover.isConnected && !emojiPopover.classList.contains('hidden') && !emojiPopover.contains(e.target) && !emojiBtn.contains(e.target)) {
+          emojiPopover.classList.add('hidden');
+        }
+      });
+    }
+    function doDesignChatSend() {
+      var rawText = (input.value || '').trim();
+      var text = rawText.replace(/\s*\[???:[^\]]*\]\s*$/, '').trim();
+      var pending = form._designChatPendingFiles || [];
+      if (!text && !pending.length) return;
+      var hid = td.querySelector('#design-contract-chat-contract-id');
+      var cid = hid && hid.value;
+      if (!cid) return;
+      if (pending.length && typeof uploadChatFiles === 'function') {
+        uploadChatFiles(pending, 'contract_' + cid).then(function (attachments) {
+          var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '??' };
+          var msg = {
+            id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
+            contract_id: cid,
+            sender_id: me.id,
+            sender_name: me.name,
+            message: text || '(??? ???)',
+            created_at: new Date().toISOString()
+          };
+          if (attachments && attachments.length) msg.attachments = attachments;
+          if (typeof saveContractChatMessage === 'function') saveContractChatMessage(cid, msg);
+          input.value = '';
+          form._designChatPendingFiles = [];
+          if (typeof renderContractChat === 'function') renderContractChat(cid, 'design-contract-chat-message-list');
+        }).catch(function () {
+          var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '??' };
+          if (typeof saveContractChatMessage === 'function') saveContractChatMessage(cid, { id: 'msg_' + Date.now(), contract_id: cid, sender_id: me.id, sender_name: me.name, message: rawText, created_at: new Date().toISOString() });
+          input.value = '';
+          form._designChatPendingFiles = [];
+          if (typeof renderContractChat === 'function') renderContractChat(cid, 'design-contract-chat-message-list');
+        });
+      } else {
+        var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '??' };
+        var msg = {
+          id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
+          contract_id: cid,
+          sender_id: me.id,
+          sender_name: me.name,
+          message: text,
+          created_at: new Date().toISOString()
+        };
+        if (typeof saveContractChatMessage === 'function') saveContractChatMessage(cid, msg);
+        input.value = '';
+        form._designChatPendingFiles = [];
+        if (typeof renderContractChat === 'function') renderContractChat(cid, 'design-contract-chat-message-list');
+      }
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        doDesignChatSend();
+      }
+    });
+    var sendBtn = td.querySelector('.design-chat-send-btn');
+    if (sendBtn) sendBtn.addEventListener('click', function (e) { e.preventDefault(); doDesignChatSend(); });
+  }
+
+  function insertDesignDetailRowAfter(row, contractId) {
+    var tbody = row.parentNode;
+    var next = row.nextElementSibling;
+    if (next && next.classList && next.classList.contains('design-detail-row')) {
+      next.remove();
+    }
+    var tr = document.createElement('tr');
+    tr.className = 'design-detail-row';
+    tr.setAttribute('data-detail-for', contractId);
+    var td = document.createElement('td');
+    // ????? ??????? ????????? ???)?? ??????? colspan??15?????
+    td.colSpan = 15;
+    td.className = 'design-detail-cell';
+    td.innerHTML = buildDesignDetailContent(contractId);
+    initDesignContractChatInCell(td, contractId);
+    // ?????? ??? ?? ??? (???/???/???)
+    if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+      var cur = window.seumAuth.currentEmployee;
+      var team = (cur.team || '').trim();
+      var canDesign = team === '???';
+      var canSales = team === '???';
+      var canConstruction = team === '???';
+      var designMemo = td.querySelector('.design-status-memo-design');
+      var salesMemo = td.querySelector('.design-status-memo-sales');
+      var constructionMemo = td.querySelector('.design-status-memo-construction');
+      if (designMemo && !canDesign) designMemo.readOnly = true;
+      if (salesMemo && !canSales) salesMemo.readOnly = true;
+      if (constructionMemo && !canConstruction) constructionMemo.readOnly = true;
+    }
+    // ???????? ??? ?????? ?????
+    td.querySelectorAll('.drawing-file-list[data-input-selector]').forEach(function (listEl) {
+      var selector = listEl.getAttribute('data-input-selector');
+      if (!selector) return;
+      var inputEl = td.querySelector(selector);
+      if (inputEl) {
+        refreshDrawingFileListForInput(inputEl, listEl);
+      }
+    });
+    // ??????? ??? ???????????????????)
+    if (isSalesReadonly()) {
+      td.querySelectorAll('input, select, textarea, button').forEach(function (el) {
+        if (el.type === 'submit' || el.classList.contains('btn-primary')) {
+          el.disabled = true;
+        } else if (el.tagName === 'BUTTON') {
+          el.disabled = true;
+        } else {
+          el.setAttribute('readonly', 'readonly');
+          if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') {
+            el.disabled = true;
+          }
+        }
+      });
+    }
+    tr.appendChild(td);
+    tbody.insertBefore(tr, row.nextSibling);
+  }
+
+  function showDesignDetailPanel(contractId, forceRefresh) {
+    var tbody = document.getElementById('tbody-design');
+    if (!tbody) return;
+    var row = tbody.querySelector('.design-row[data-contract-id="' + contractId + '"]');
+    if (!row) return;
+    var next = row.nextElementSibling;
+    var isDetailOpen = next && next.classList && next.classList.contains('design-detail-row') && next.getAttribute('data-detail-for') === contractId;
+    if (!forceRefresh && isDetailOpen) {
+      next.remove();
+      row.classList.remove('design-row-expanded');
+      expandedDesignId = null;
+      return;
+    }
+    row.classList.remove('design-row-expanded');
+    tbody.querySelectorAll('.design-detail-row').forEach(function (r) { r.remove(); });
+    tbody.querySelectorAll('.design-row-expanded').forEach(function (r) { r.classList.remove('design-row-expanded'); });
+    insertDesignDetailRowAfter(row, contractId);
+    // ??????? ??? ???????????????????????, "????? ??"????? ??????? ???
+    if (isSalesReadonly()) {
+      var detailRow = tbody.querySelector('.design-detail-row[data-detail-for="' + contractId + '"]');
+      if (detailRow) {
+        detailRow.querySelectorAll('input, select, textarea, button').forEach(function (el) {
+          // ?????????????, ???? ??? ?????readonly/disabled
+          if (el.type === 'submit' || el.classList.contains('btn-primary')) {
+            el.disabled = true;
+          } else if (el.tagName === 'BUTTON') {
+            el.disabled = true;
+          } else {
+            el.setAttribute('readonly', 'readonly');
+            if (el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') {
+              el.disabled = true;
+            }
+          }
+        });
+        // ?? ????? ?????? "????? ??" ??? + ?????????????
+        var curEmp = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
+        if (curEmp && (curEmp.team || '').trim() === '???') {
+          var salesMemo = detailRow.querySelector('.design-status-memo-sales');
+          if (salesMemo) {
+            salesMemo.readOnly = false;
+            salesMemo.removeAttribute('readonly');
+            salesMemo.disabled = false;
+          }
+          detailRow.querySelectorAll('button[type="submit"], .btn-primary.design-detail-save-top-inline').forEach(function (btn) {
+            btn.disabled = false;
+          });
+        }
+      }
+    }
+    row.classList.add('design-row-expanded');
+    expandedDesignId = contractId;
+  }
+
+  function saveDesignInline(contractId) {
+    if (!contractId) contractId = document.getElementById('design-inline-contract-id') && document.getElementById('design-inline-contract-id').value;
+    if (!contractId) return;
+    var form = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form') || document.getElementById('form-design-inline');
+    if (!form) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    var curEmp = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
+    var isSales = curEmp && (curEmp.team || '').trim() === '???';
+    // ?????????? ?????? ?????? ????? ??????
+    if (isSalesReadonly() && isSales) {
+      function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
+      c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
+      saveContracts(contracts);
+      renderDesign();
+      renderConstruction();
+      window.alert('????? ??? ???????????.');
+      return;
+    }
+    if (isSalesReadonly()) return;
+    function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
+    c.projectType = (sel('.design-inline-project-type', 'design-inline-project-type') || {}).value || '';
+    // ?????? 1?? ?? ??? + ??/???
+    var d1Input = sel('.design-inline-drawing', 'design-inline-drawing');
+    c.designDrawingAttachment = d1Input && d1Input.value ? d1Input.value.trim() : '';
+    var d1MemoDesignEl = sel('.design-inline-drawing-1-memo-design');
+    var d1MemoSalesEl = sel('.design-inline-drawing-1-memo-sales');
+    var d1FinalEl = sel('.design-inline-drawing-1-final');
+    c.designDrawing1DesignMemo = d1MemoDesignEl && d1MemoDesignEl.value ? d1MemoDesignEl.value.trim() : '';
+    c.designDrawing1SalesMemo = d1MemoSalesEl && d1MemoSalesEl.value ? d1MemoSalesEl.value.trim() : '';
+    c.designDrawing1Final = !!(d1FinalEl && d1FinalEl.checked);
+    // ?????? 2??
+    var d2Input = sel('.design-inline-drawing-2');
+    var d2MemoDesignEl = sel('.design-inline-drawing-2-memo-design');
+    var d2MemoSalesEl = sel('.design-inline-drawing-2-memo-sales');
+    var d2FinalEl = sel('.design-inline-drawing-2-final');
+    c.designDrawing2Attachment = d2Input && d2Input.value ? d2Input.value.trim() : '';
+    c.designDrawing2DesignMemo = d2MemoDesignEl && d2MemoDesignEl.value ? d2MemoDesignEl.value.trim() : '';
+    c.designDrawing2SalesMemo = d2MemoSalesEl && d2MemoSalesEl.value ? d2MemoSalesEl.value.trim() : '';
+    c.designDrawing2Final = !!(d2FinalEl && d2FinalEl.checked);
+    // ?????? 3??
+    var d3Input = sel('.design-inline-drawing-3');
+    var d3MemoDesignEl = sel('.design-inline-drawing-3-memo-design');
+    var d3MemoSalesEl = sel('.design-inline-drawing-3-memo-sales');
+    var d3FinalEl = sel('.design-inline-drawing-3-final');
+    c.designDrawing3Attachment = d3Input && d3Input.value ? d3Input.value.trim() : '';
+    c.designDrawing3DesignMemo = d3MemoDesignEl && d3MemoDesignEl.value ? d3MemoDesignEl.value.trim() : '';
+    c.designDrawing3SalesMemo = d3MemoSalesEl && d3MemoSalesEl.value ? d3MemoSalesEl.value.trim() : '';
+    c.designDrawing3Final = !!(d3FinalEl && d3FinalEl.checked);
+    c.constructionDrawingAttachment = (sel('.design-inline-construction-drawing', 'design-inline-construction-drawing') || {}).value.trim() || '';
+    c.architectInfo = (sel('.design-inline-architect', 'design-inline-architect') || {}).value.trim() || '';
+    c.designContactName = (sel('.design-inline-contact-name', 'design-inline-contact-name') || {}).value.trim() || '';
+    c.designContactPhone = (sel('.design-inline-contact-phone', 'design-inline-contact-phone') || {}).value.trim() || '';
+    c.designPermitDesigner = (sel('.design-inline-designer', 'design-inline-designer') || {}).value.trim() || '';
+    c.hasPermitCert = (sel('.design-inline-has-permit', 'design-inline-has-permit') || {}).checked || false;
+    c.permitAttachment = (sel('.design-inline-permit-attachment', 'design-inline-permit-attachment') || {}).value.trim() || '';
+    c.completionCertAttachment = (sel('.design-inline-completion-attachment', 'design-inline-completion-attachment') || {}).value.trim() || '';
+    c.hasConstructionStartReport = (sel('.design-inline-has-construction-report', 'design-inline-has-construction-report') || {}).checked || false;
+    c.hasCompletionCert = (sel('.design-inline-has-completion-cert', 'design-inline-has-completion-cert') || {}).checked || false;
+    c.constructionStartOk = (sel('.design-inline-construction-start-ok', 'design-inline-construction-start-ok') || {}).checked || false;
+    // ???????? ?? ????????????, ??? ???????????? ???????? ????? ??????????? ??? ???
+    if (c.constructionStartOk && !c.designPermitDesigner && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+      var curEmp = window.seumAuth.currentEmployee;
+      if (curEmp && (curEmp.team || '').trim() === '???') {
+        c.designPermitDesigner = curEmp.name || c.designPermitDesigner;
+      }
+    }
+    c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
+    c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
+    c.designStatusMemoConstruction = (sel('.design-status-memo-construction') || {}).value ? sel('.design-status-memo-construction').value.trim() : '';
+    saveContracts(contracts);
+    renderDesign();
+    renderConstruction();
+    window.alert('??? ???? ???????????.');
+    if (expandedDesignId === contractId) {
+      var detailRow = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"]');
+      if (detailRow && detailRow.querySelector('td')) {
+        detailRow.querySelector('td').innerHTML = buildDesignDetailContent(contractId);
+      }
+    }
+  }
+
+  function initDesignDetailPanel() {
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
+        var form = e.target.closest('form');
+        var wrap = form && form.querySelector('.design-inline-house-wrap');
+        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '??');
+      }
+      if (e.target.classList.contains('design-inline-drawing-file') ||
+        e.target.classList.contains('design-inline-drawing-file-2') ||
+        e.target.classList.contains('design-inline-drawing-file-3')) {
+        var form = e.target.closest('form');
+        var contractId = form && (form.querySelector('.design-inline-contract-id') || {}).value;
+        var files = Array.prototype.slice.call(e.target.files || []);
+        if (contractId && files.length) {
+          var selector = e.target.classList.contains('design-inline-drawing-file') ? '.design-inline-drawing'
+            : e.target.classList.contains('design-inline-drawing-file-2') ? '.design-inline-drawing-2'
+              : '.design-inline-drawing-3';
+          var inp = form && form.querySelector(selector);
+          var existingUrls = parseDrawingUrls(inp && inp.value ? inp.value : '');
+          Promise.all(files.map(function (file) {
+            return uploadDesignDrawingAttachment(contractId, file);
+          })).then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) {
+              window.alert('?????? ?????? ?????????.');
+              return;
+            }
+            existingUrls = existingUrls.concat(urls);
+            if (inp) {
+              inp.value = serializeDrawingUrls(existingUrls);
+              var listSel = '.drawing-file-list[data-input-selector="' + selector + '"]';
+              var listEl = form && form.querySelector(listSel);
+              if (listEl) {
+                refreshDrawingFileListForInput(inp, listEl);
+              }
+            }
+          }).finally(function () {
+            e.target.value = '';
+          });
+        }
+      }
+      // ?? ??? ??? ???? (?????
+      if (e.target.classList.contains('design-inline-drawing-final')) {
+        var card = e.target.closest('.design-discussion-card');
+        if (card) {
+          var badge = card.querySelector('.design-discussion-final-badge');
+          if (badge) badge.style.display = e.target.checked ? 'inline-block' : 'none';
+        }
+      }
+      if (e.target.classList.contains('design-inline-construction-drawing-file')) {
+        var form = e.target.closest('form');
+        var contractId = form && (form.querySelector('.design-inline-contract-id') || {}).value;
+        var files = Array.prototype.slice.call(e.target.files || []);
+        if (contractId && files.length) {
+          var inp = form && form.querySelector('.design-inline-construction-drawing');
+          var existing = inp && inp.value ? inp.value.trim() : '';
+          Promise.all(files.map(function (file) {
+            return uploadConstructionDrawingAttachment(contractId, file);
+          })).then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) {
+              window.alert('?????? ?????? ?????????.');
+              return;
+            }
+            if (inp) {
+              inp.value = (existing ? existing + '\n' : '') + urls.join('\n');
+            }
+          }).finally(function () {
+            e.target.value = '';
+          });
+        }
+      }
+    });
+    document.addEventListener('submit', function (e) {
+      if (e.target.id === 'form-design-inline' || e.target.classList.contains('form-design-inline-inline')) {
+        e.preventDefault();
+        var contractId = (e.target.querySelector('.design-inline-contract-id') || e.target.querySelector('#design-inline-contract-id') || {}).value;
+        if (contractId) saveDesignInline(contractId);
+      }
+    });
+    document.addEventListener('click', function (e) {
+      var modalBtn = e.target.closest('.design-detail-modal-btn');
+      if (modalBtn) {
+        var id = modalBtn.getAttribute('data-contract-id');
+        if (id) openDesignPermitModal(id);
+      }
+      if (e.target.classList.contains('design-detail-save-top-inline')) {
+        var inlineForm = e.target.closest('form.form-design-inline-inline');
+        if (inlineForm) {
+          inlineForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }
+      }
+      if (e.target.classList.contains('design-inline-drawing-upload') ||
+        e.target.classList.contains('design-inline-drawing-upload-2') ||
+        e.target.classList.contains('design-inline-drawing-upload-3')) {
+        var form = e.target.closest('form');
+        var selector = e.target.classList.contains('design-inline-drawing-upload') ? '.design-inline-drawing-file'
+          : e.target.classList.contains('design-inline-drawing-upload-2') ? '.design-inline-drawing-file-2'
+            : '.design-inline-drawing-file-3';
+        var inputSelector = e.target.classList.contains('design-inline-drawing-upload') ? '.design-inline-drawing'
+          : e.target.classList.contains('design-inline-drawing-upload-2') ? '.design-inline-drawing-2'
+            : '.design-inline-drawing-3';
+        var urlInput = form && form.querySelector(inputSelector);
+        if (urlInput && (urlInput.value || '').trim()) {
+          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          return;
+        }
+        var fileInput = form && form.querySelector(selector);
+        if (fileInput) fileInput.click();
+      }
+      if (e.target.classList.contains('design-inline-construction-drawing-upload')) {
+        var form = e.target.closest('form');
+        var fileInput = form && form.querySelector('.design-inline-construction-drawing-file');
+        if (fileInput) fileInput.click();
+      }
+      if (e.target.classList.contains('design-inline-drawing-open') ||
+        e.target.classList.contains('design-inline-drawing-open-2') ||
+        e.target.classList.contains('design-inline-drawing-open-3')) {
+        var form = e.target.closest('form');
+        var selectorOpen = e.target.classList.contains('design-inline-drawing-open') ? '.design-inline-drawing'
+          : e.target.classList.contains('design-inline-drawing-open-2') ? '.design-inline-drawing-2'
+            : '.design-inline-drawing-3';
+        var inp = form && form.querySelector(selectorOpen);
+        var raw = inp && inp.value ? inp.value.trim() : '';
+        if (raw) {
+          var parts = raw.split(/\s+/);
+          var val = parts[parts.length - 1];
+          if (/^https?:\/\//i.test(val)) window.open(val, '_blank');
+          else window.alert('URL ???????????. ????????????????????? ????');
+        } else window.alert('???????? ??????.');
+      }
+      if (e.target.classList.contains('design-inline-construction-drawing-open')) {
+        var form = e.target.closest('form');
+        var inp = form && form.querySelector('.design-inline-construction-drawing');
+        var raw = inp && inp.value ? inp.value.trim() : '';
+        if (raw) {
+          var parts = raw.split(/\s+/);
+          var val = parts[parts.length - 1];
+          if (/^https?:\/\//i.test(val)) window.open(val, '_blank');
+          else window.alert('URL ???????????. ????????????????????? ????');
+        } else window.alert('???????? ??????.');
+      }
+      // ??? ??? ???? ???/????
+      if (e.target.classList.contains('drawing-file-open')) {
+        var url = e.target.getAttribute('data-url') || '';
+        if (!url) { window.alert('???????? ??????.'); return; }
+        if (!/^https?:\/\//i.test(url)) {
+          window.alert('URL ???????????. ????????????????????? ????');
+          return;
+        }
+        window.open(url, '_blank');
+      }
+      if (e.target.classList.contains('drawing-file-delete')) {
+        var item = e.target.closest('.drawing-file-item');
+        var list = e.target.closest('.drawing-file-list');
+        if (!item || !list) return;
+        var idx = Number(item.getAttribute('data-index') || '0');
+        if (isNaN(idx)) return;
+        // ??(?????????)????????? id????
+        var inputEl = null;
+        if (list.id === 'design-drawing-list-1') inputEl = document.getElementById('design-drawing-attachment');
+        else if (list.id === 'design-drawing-list-2') inputEl = document.getElementById('design-drawing-attachment-2');
+        else if (list.id === 'design-drawing-list-3') inputEl = document.getElementById('design-drawing-attachment-3');
+        else if (list.id === 'design-construction-drawing-list') inputEl = document.getElementById('design-construction-drawing-attachment');
+        // ???????? ????????? data-input-selector ??
+        if (!inputEl && list.hasAttribute('data-input-selector')) {
+          var selector = list.getAttribute('data-input-selector');
+          var container = list.closest('.design-detail-card') || list.closest('form') || document;
+          inputEl = selector && container ? container.querySelector(selector) : null;
+        }
+        if (!inputEl) return;
+        var urls = parseDrawingUrls(inputEl.value || '');
+        if (idx < 0 || idx >= urls.length) return;
+        urls.splice(idx, 1);
+        inputEl.value = serializeDrawingUrls(urls);
+        refreshDrawingFileListForInput(inputEl, list);
+        // ???????? ?????? ????????, ?? ?? ??????????
+        var inlineForm = list.closest('form.form-design-inline-inline');
+        if (inlineForm) {
+          var cidEl = inlineForm.querySelector('.design-inline-contract-id');
+          var contractId = cidEl && cidEl.value;
+          if (contractId) {
+            var contracts = getContracts();
+            var c = contracts.find(function (x) { return x.id === contractId; });
+            if (c) {
+              // ??? ?????????? selector/id????? ??
+              if (inputEl.classList.contains('design-inline-drawing')) {
+                c.designDrawingAttachment = urls.length ? urls[0] : '';
+              } else if (inputEl.classList.contains('design-inline-drawing-2')) {
+                c.designDrawing2Attachment = urls.length ? urls[0] : '';
+              } else if (inputEl.classList.contains('design-inline-drawing-3')) {
+                c.designDrawing3Attachment = urls.length ? urls[0] : '';
+              } else if (inputEl.classList.contains('design-inline-construction-drawing')) {
+                c.constructionDrawingAttachment = urls.length ? urls[0] : '';
+              }
+              saveContracts(contracts);
+            }
+          }
+        }
+      }
+    });
+  }
+
+  var CONSTRUCTION_PROGRESS_OPTIONS = [
+    { value: '????, label: '???? },
+    { value: '??', label: '??' },
+    { value: '????, label: '???? },
+    { value: '???, label: '??? }
+  ];
+
+  function getStageBadgeClass(progress) {
+    var p = progress || '??';
+    if (p === '??') return 'started';
+    if (p === '????) return 'progress';
+    if (p === '???) return 'done';
+    return 'waiting';
+  }
+
+  var expandedConstructionId = null;
+
+  function buildConstructionDetailContent(contractId) {
+    var c = getContracts().find(function (x) { return x.id === contractId; });
+    if (!c) return '';
+    var startStr = formatDate(c.constructionStartDate);
+    var endStr = formatDate(c.constructionEndDate);
+    var stages = getConstructionStages(c);
+    var escapedId = escapeAttr(contractId);
+    var rows = stages.map(function (s) {
+      var stageName = escapeAttr(s.name || '');
+      var hasEnd = (s.endDate || '').trim() !== '';
+      var hasMemo = (s.memo || '').trim() !== '';
+      var rowClass = (hasEnd ? ' stage-row-completed' : '') + (hasMemo ? ' stage-row-has-memo' : '');
+      return '<tr class="construction-stage-row' + rowClass + '" data-stage="' + stageName + '">' +
+        '<td class="stage-name-cell">' + (s.name || '-') + '</td>' +
+        '<td><input type="date" class="stage-start-date" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" value="' + escapeAttr(s.startDate || '') + '"></td>' +
+        '<td><input type="date" class="stage-end-date" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" value="' + escapeAttr(s.endDate || '') + '"></td>' +
+        '<td><input type="text" class="stage-manager" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="???? value="' + escapeAttr(s.responsibleName || '') + '"></td>' +
+        '<td><input type="text" class="stage-worker-list" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????? ???, ????? value="' + escapeAttr(s.workerList || '') + '"></td>' +
+        '<td><input type="text" class="stage-phone" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????? value="' + escapeAttr(s.responsiblePhone || '') + '"></td>' +
+        '<td class="stage-cost-cell"><input type="number" class="stage-labor-cost" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????????" value="' + escapeAttr(s.laborCost || '') + '" min="0" step="1"></td>' +
+        '<td class="stage-cost-cell"><input type="number" class="stage-extra-cost" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????? ???" value="' + escapeAttr(s.extraCost || '') + '" min="0" step="1"></td>' +
+        '<td><textarea class="stage-memo" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="?????? ???" rows="2">' + escapeAttr(s.memo || '') + '</textarea></td>' +
+        '</tr>';
+    }).join('');
+    return '<div class="construction-detail-inner">' +
+      '<div class="construction-detail-header-inline"><strong class="construction-detail-customer-name">' + (c.customerName || '-') + '</strong>' +
+      '<span class="construction-detail-dates-inline">?? ??: ' + startStr + ' ~ ' + endStr + '</span>' +
+      '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapedId + '">?? ??</button>' +
+      '<button type="button" class="btn btn-sm btn-secondary construction-detail-edit-btn" data-contract-id="' + escapedId + '">??? ??? ???</button></div>' +
+      '<div class="construction-detail-table-wrap">' +
+      '<table class="data-table construction-detail-table"><thead><tr><th>??? ???</th><th>?? ?????/th><th>?? ?????/th><th>????/th><th>?????????/th><th>?????/th><th>?????/th><th>?????</th><th>??????</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '</div></div>';
+  }
+
+  function insertConstructionDetailRowAfter(row, contractId) {
+    var tbody = row.parentNode;
+    var next = row.nextElementSibling;
+    if (next && next.classList && next.classList.contains('construction-detail-row')) {
+      next.remove();
+    }
+    var tr = document.createElement('tr');
+    tr.className = 'construction-detail-row';
+    tr.setAttribute('data-detail-for', contractId);
+    var td = document.createElement('td');
+    td.colSpan = 16;
+    td.className = 'construction-detail-cell';
+    td.innerHTML = buildConstructionDetailContent(contractId);
+    tr.appendChild(td);
+    tbody.insertBefore(tr, row.nextSibling);
+  }
+
+  function removeConstructionDetailRow(tbody) {
+    var detail = tbody && tbody.querySelector('.construction-detail-row');
+    if (detail) detail.remove();
+  }
+
+  var CONSTRUCTION_STAGE_NAMES = ['?????', '????', '???? ??', '???? ??', '??????', '???????, '?????', '????', '???/???', '?????, '???];
+
+  function getConstructionStages(contract) {
+    var arr = contract.constructionStages;
+    if (!Array.isArray(arr)) {
+      return CONSTRUCTION_STAGE_NAMES.map(function (name) {
+        return { name: name, startDate: '', endDate: '', responsibleName: '', workerList: '', responsiblePhone: '', laborCost: '', extraCost: '', memo: '' };
+      });
+    }
+    var byName = {};
+    arr.forEach(function (s) { byName[s.name] = s; });
+    return CONSTRUCTION_STAGE_NAMES.map(function (name) {
+      var s = byName[name];
+      return s ? {
+        name: name,
+        startDate: s.startDate || '',
+        endDate: s.endDate || '',
+        responsibleName: s.responsibleName || '',
+        workerList: s.workerList || '',
+        responsiblePhone: s.responsiblePhone || '',
+        laborCost: s.laborCost != null ? String(s.laborCost) : '',
+        extraCost: s.extraCost != null ? String(s.extraCost) : '',
+        memo: s.memo || ''
+      } : { name: name, startDate: '', endDate: '', responsibleName: '', workerList: '', responsiblePhone: '', laborCost: '', extraCost: '', memo: '' };
+    });
+  }
+
+  function updateConstructionStageField(contractId, stageName, field, value) {
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    if (!Array.isArray(c.constructionStages)) c.constructionStages = [];
+    var byName = {};
+    c.constructionStages.forEach(function (s) { byName[s.name] = s; });
+    var stage = byName[stageName];
+    if (!stage) {
+      stage = { name: stageName, startDate: '', endDate: '', responsibleName: '', workerList: '', responsiblePhone: '', laborCost: '', extraCost: '', memo: '' };
+      c.constructionStages.push(stage);
+    }
+    stage[field] = value == null ? '' : String(value).trim();
+    saveContracts(contracts);
+  }
+
+  function renderConstruction() {
+    var contracts = getContracts().filter(function (c) {
+      return !!c.constructionStartOk;
+    });
+    contracts = filterByShowroom(contracts, 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+    var tbody = document.getElementById('tbody-construction');
+    if (!tbody) return;
+    var salesReadonly = isSalesReadonly();
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var userTeam = (cur && (cur.team || '').trim()) || '';
+    var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    tbody.innerHTML = contracts.map(function (c) {
+      var deposit = paymentCellWithConfirm(c, 'deposit');
+      var p1 = paymentCellWithConfirm(c, 'progress1');
+      var p2 = paymentCellWithConfirm(c, 'progress2');
+      var p3 = paymentCellWithConfirm(c, 'progress3');
+      var balance = paymentCellWithConfirm(c, 'balance');
+      var progress = c.constructionProgress || '??';
+      var stageBadgeClass = getStageBadgeClass(progress);
+      var stageLabel = CONSTRUCTION_PROGRESS_OPTIONS.find(function (o) { return o.value === progress; });
+      stageLabel = stageLabel ? stageLabel.label : progress;
+      var progressSelect = '<select class="construction-progress-select stage-select" data-id="' + c.id + '"' + (salesReadonly ? ' disabled' : '') + '>' + CONSTRUCTION_PROGRESS_OPTIONS.map(function (o) {
+        var sel = progress === o.value ? ' selected' : '';
+        return '<option value="' + o.value + '"' + sel + '>' + o.label + '</option>';
+      }).join('') + '</select>';
+      var stageCell = '<div class="construction-stage-inner"><span class="stage-badge ' + stageBadgeClass + '">' + stageLabel + '</span>' + progressSelect + '</div>';
+      var startDate = formatDate(c.constructionStartDate);
+      var endDate = formatDate(c.constructionEndDate);
+      var stagesBtn = salesReadonly ? '' : '<button type="button" class="btn btn-sm btn-secondary" data-construction-stages="' + c.id + '">??? ???</button>';
+      var summary = paymentSummaryHtml(c);
+      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="??????"' + (salesReadonly ? ' disabled' : '') + '>';
+      var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">????</button>';
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + startDate + '</td><td>' + endDate + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+    }).join('') || '<tr><td colspan="16">???????? ?????????????? ??????.</td></tr>';
+    if (expandedConstructionId) {
+      var expandedRow = tbody.querySelector('.construction-row[data-contract-id="' + expandedConstructionId + '"]');
+      if (expandedRow) {
+        insertConstructionDetailRowAfter(expandedRow, expandedConstructionId);
+        expandedRow.classList.add('construction-row-expanded');
+      } else {
+        expandedConstructionId = null;
+      }
+    }
+  }
+
+  function renderSettlement() {
+    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+    var tbody = document.getElementById('tbody-settlement');
+    if (!tbody) return;
+    tbody.innerHTML = contracts.map(function (c) {
+      var deposit = paymentCellWithConfirm(c, 'deposit');
+      var p1 = paymentCellWithConfirm(c, 'progress1');
+      var p2 = paymentCellWithConfirm(c, 'progress2');
+      var p3 = paymentCellWithConfirm(c, 'progress3');
+      var balance = paymentCellWithConfirm(c, 'balance');
+      var summary = paymentSummaryHtml(c);
+      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
+    }).join('') || '<tr><td colspan="10">??????????.</td></tr>';
+    renderSettlementIncentive();
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function renderSettlementIncentive() {
+    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    var periodEl = document.getElementById('incentive-period');
+    var period = periodEl ? periodEl.value : 'this_month';
+    var y = getFilterYear();
+    var m = getFilterMonth();
+    var monthPrefix = (y && m) ? (y + '-' + String(m).padStart(2, '0')) : thisMonth();
+    if (period === 'this_month') {
+      contracts = contracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === monthPrefix; });
+    } else {
+      contracts = filterByYearMonth(contracts, 'contractDate');
+    }
+    var perContract = Number(document.getElementById('incentive-per-contract') && document.getElementById('incentive-per-contract').value) || 0;
+    var percents = getIncentivePercents();
+
+    var bySales = {};
+    contracts.forEach(function (c) {
+      var key = (c.salesPerson && c.salesPerson.trim()) ? c.salesPerson.trim() : '(?????';
+      if (!bySales[key]) bySales[key] = { count: 0, total: 0 };
+      bySales[key].count++;
+      bySales[key].total += Number(c.totalAmount) || 0;
+    });
+
+    var tbody = document.getElementById('tbody-incentive');
+    if (!tbody) return;
+    var totalIncSum = 0;
+    var rows = Object.keys(bySales).sort().map(function (name) {
+      var v = bySales[name];
+      var percent = Number(percents[name]) || 0;
+      var perContractAmount = perContract * v.count;
+      var percentAmount = (v.total * percent) / 100;
+      var totalIncentive = perContractAmount + percentAmount;
+      totalIncSum += totalIncentive;
+      var percentVal = percents[name] !== undefined && percents[name] !== '' ? String(percents[name]) : '';
+      var input = '<input type="number" class="incentive-percent-input" data-salesperson="' + escapeAttr(name) + '" value="' + escapeAttr(percentVal) + '" min="0" max="100" step="0.1" placeholder="%" style="width:4.5rem">';
+      return '<tr><td>' + name + '</td><td>' + v.count + '</td><td>' + formatMoney(String(v.total)) + '</td><td>' + formatMoney(String(perContractAmount)) + '</td><td>' + input + '</td><td>' + formatMoney(String(Math.round(percentAmount))) + '</td><td><strong>' + formatMoney(String(Math.round(totalIncentive))) + '</strong></td></tr>';
+    });
+    var totalRow = '';
+    if (rows.length > 0) {
+      var totalCount = 0, totalAmount = 0, totalPercentSum = 0;
+      Object.keys(bySales).forEach(function (name) {
+        var v = bySales[name];
+        totalCount += v.count;
+        totalAmount += v.total;
+        totalPercentSum += (v.total * (Number(percents[name]) || 0)) / 100;
+      });
+      totalRow = '<tr class="incentive-total-row"><td>???</td><td>' + totalCount + '</td><td>' + formatMoney(String(totalAmount)) + '</td><td>' + formatMoney(String(perContract * totalCount)) + '</td><td></td><td>' + formatMoney(String(Math.round(totalPercentSum))) + '</td><td><strong>' + formatMoney(String(Math.round(totalIncSum))) + '</strong></td></tr>';
+    }
+    tbody.innerHTML = rows.join('') + totalRow || '<tr><td colspan="7">?? ???????????????????????? ???????????.</td></tr>';
+  }
+
+  function renderHR() {
+    var employees = getEmployees();
+    var leaves = getLeaves();
+    var tbodyEmp = document.getElementById('tbody-employees');
+    var tbodyLeaves = document.getElementById('tbody-leaves');
+    var leaveSelect = document.getElementById('leave-employee-id');
+    if (tbodyEmp) {
+      tbodyEmp.innerHTML = employees.map(function (e) {
+        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">???</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">????</button></td></tr>';
+      }).join('') || '<tr><td colspan="7">???????????????.</td></tr>';
+    }
+    if (leaveSelect) {
+      leaveSelect.innerHTML = '<option value="">???</option>' + employees.map(function (e) {
+        return '<option value="' + e.id + '">' + (e.name || '-') + '</option>';
+      }).join('');
+    }
+    var monthPrefix = thisMonth();
+    var thisMonthLeaves = leaves.filter(function (l) {
+      return (l.startDate || '').slice(0, 7) === monthPrefix || (l.endDate || '').slice(0, 7) === monthPrefix;
+    });
+    if (tbodyLeaves) {
+      tbodyLeaves.innerHTML = thisMonthLeaves.map(function (l) {
+        var emp = employees.find(function (e) { return e.id === l.employeeId; });
+        var name = emp ? emp.name : l.employeeId;
+        return '<tr><td>' + (name || '-') + '</td><td>' + formatDate(l.startDate) + '</td><td>' + formatDate(l.endDate) + '</td><td>' + (l.reason || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-delete-leave="' + l.id + '">????</button></td></tr>';
+      }).join('') || '<tr><td colspan="5">??? ?????? ???????????.</td></tr>';
+    }
+  }
+
+  function renderKPI() {
+    var contracts = filterByYearMonth(getContracts(), 'contractDate');
+    var y = getFilterYear();
+    var m = getFilterMonth();
+    var monthPrefix = (y && m) ? (y + '-' + String(m).padStart(2, '0')) : thisMonth();
+    var monthContracts = (y || m) ? contracts : contracts.filter(function (c) { return c.contractDate && c.contractDate.slice(0, 7) === monthPrefix; });
+    var goals = getKpiGoals();
+    var goal = goals[monthPrefix] || {};
+    var goalContracts = Number(goal.goalContracts) || 0;
+    var goalSales = Number(goal.goalSales) || 0;
+    var actualContracts = monthContracts.length;
+    var actualSales = monthContracts.reduce(function (sum, c) { return sum + (Number(c.totalAmount) || 0); }, 0) / 10000;
+    var rateC = goalContracts ? ((actualContracts / goalContracts) * 100).toFixed(1) + '%' : '-';
+    var rateS = goalSales ? ((actualSales / goalSales) * 100).toFixed(1) + '%' : '-';
+
+    var elGoalC = document.getElementById('kpi-goal-contracts');
+    var elGoalS = document.getElementById('kpi-goal-sales');
+    if (elGoalC) elGoalC.value = goalContracts || '';
+    if (elGoalS) elGoalS.value = goalSales || '';
+    setEl('kpi-actual-contracts', actualContracts);
+    setEl('kpi-actual-sales', actualSales.toFixed(1));
+    setEl('kpi-rate-contracts', rateC);
+    setEl('kpi-rate-sales', rateS);
+
+    var bySales = {};
+    contracts.forEach(function (c) {
+      var key = c.salesPerson || '(?????';
+      if (!bySales[key]) bySales[key] = { count: 0, total: 0 };
+      bySales[key].count++;
+      bySales[key].total += Number(c.totalAmount) || 0;
+    });
+    var tbodySales = document.getElementById('tbody-sales-kpi');
+    if (tbodySales) {
+      tbodySales.innerHTML = Object.keys(bySales).sort().map(function (key) {
+        var v = bySales[key];
+        return '<tr><td>' + key + '</td><td>' + v.count + '</td><td>' + formatMoney(String(v.total)) + '</td><td></td></tr>';
+      }).join('') || '<tr><td colspan="4">??????????.</td></tr>';
+    }
+
+    var byShowroom = {};
+    monthContracts.forEach(function (c) {
+      var key = c.showroomId || '';
+      var name = getShowroomName(key);
+      if (!byShowroom[name]) byShowroom[name] = { count: 0, total: 0 };
+      byShowroom[name].count++;
+      byShowroom[name].total += Number(c.totalAmount) || 0;
+    });
+    var tbodyShowroom = document.getElementById('tbody-showroom-kpi');
+    if (tbodyShowroom) {
+      tbodyShowroom.innerHTML = Object.keys(byShowroom).sort().map(function (name) {
+        var v = byShowroom[name];
+        return '<tr><td>' + name + '</td><td>' + v.count + '</td><td>' + formatMoney(String(v.total)) + '</td></tr>';
+      }).join('') || '<tr><td colspan="3">??? ????????????.</td></tr>';
+    }
+  }
+
+  function showConstructionDetailPanel(contractId, forceRefresh) {
+    var tbody = document.getElementById('tbody-construction');
+    if (!tbody) return;
+    var row = tbody.querySelector('.construction-row[data-contract-id="' + contractId + '"]');
+    if (!row) return;
+    var next = row.nextElementSibling;
+    var isDetailOpen = next && next.classList && next.classList.contains('construction-detail-row') && next.getAttribute('data-detail-for') === contractId;
+    if (!forceRefresh && isDetailOpen) {
+      next.remove();
+      row.classList.remove('construction-row-expanded');
+      expandedConstructionId = null;
+      return;
+    }
+    row.classList.remove('construction-row-expanded');
+    tbody.querySelectorAll('.construction-detail-row').forEach(function (r) { r.remove(); });
+    tbody.querySelectorAll('.construction-row-expanded').forEach(function (r) { r.classList.remove('construction-row-expanded'); });
+    insertConstructionDetailRowAfter(row, contractId);
+    row.classList.add('construction-row-expanded');
+    expandedConstructionId = contractId;
+  }
+
+  function updateConstructionDetailPanelIfOpen() {
+    if (!expandedConstructionId) return;
+    var tbody = document.getElementById('tbody-construction');
+    var detail = tbody && tbody.querySelector('.construction-detail-row[data-detail-for="' + expandedConstructionId + '"]');
+    if (detail) {
+      var td = detail.querySelector('td.construction-detail-cell');
+      if (td) td.innerHTML = buildConstructionDetailContent(expandedConstructionId);
+    }
+  }
+
+  function openConstructionStagesModal(contractId) {
+    if (isSalesReadonly()) {
+      // ??????? ??? ??? ??? ??????????? (???????
+      return;
+    }
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    document.getElementById('construction-stages-contract-id').value = c.id;
+    document.getElementById('construction-stages-customer').textContent = c.customerName || '-';
+    document.getElementById('construction-start-date').value = c.constructionStartDate || '';
+    document.getElementById('construction-end-date').value = c.constructionEndDate || '';
+    var stages = getConstructionStages(c);
+    var tbody = document.getElementById('tbody-construction-stages');
+    if (tbody) {
+      tbody.innerHTML = stages.map(function (s) {
+        var stageName = escapeAttr(s.name || '');
+        return '<tr><td>' + (s.name || '-') + '</td>' +
+          '<td><input type="date" class="stage-modal-start" data-stage="' + stageName + '" value="' + escapeAttr(s.startDate || '') + '"></td>' +
+          '<td><input type="date" class="stage-modal-end" data-stage="' + stageName + '" value="' + escapeAttr(s.endDate || '') + '"></td>' +
+          '<td><input type="text" class="stage-responsible-name" data-stage="' + stageName + '" value="' + escapeAttr(s.responsibleName || '') + '" placeholder="????></td>' +
+          '<td><input type="text" class="stage-modal-worker-list" data-stage="' + stageName + '" value="' + escapeAttr(s.workerList || '') + '" placeholder="????? ???, ?????></td>' +
+          '<td><input type="text" class="stage-responsible-phone" data-stage="' + stageName + '" value="' + escapeAttr(s.responsiblePhone || '') + '" placeholder="?????></td>' +
+          '<td><input type="number" class="stage-modal-labor-cost" data-stage="' + stageName + '" value="' + escapeAttr(s.laborCost || '') + '" placeholder="????????" min="0" step="1"></td>' +
+          '<td><input type="number" class="stage-modal-extra-cost" data-stage="' + stageName + '" value="' + escapeAttr(s.extraCost || '') + '" placeholder="????? ???" min="0" step="1"></td>' +
+          '<td><textarea class="stage-modal-memo" data-stage="' + stageName + '" placeholder="??????" rows="2">' + escapeAttr(s.memo || '') + '</textarea></td></tr>';
+      }).join('');
+    }
+    document.getElementById('modal-construction-stages').classList.remove('hidden');
+  }
+
+  function initConstructionStagesModal() {
+    var form = document.getElementById('form-construction-stages');
+    var modal = document.getElementById('modal-construction-stages');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-construction-stages"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('construction-stages-contract-id').value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        c.constructionStartDate = document.getElementById('construction-start-date').value || '';
+        c.constructionEndDate = document.getElementById('construction-end-date').value || '';
+        var stages = CONSTRUCTION_STAGE_NAMES.map(function (name) {
+          var startEl = document.querySelector('.stage-modal-start[data-stage="' + name + '"]');
+          var endEl = document.querySelector('.stage-modal-end[data-stage="' + name + '"]');
+          var nameEl = document.querySelector('.stage-responsible-name[data-stage="' + name + '"]');
+          var workerEl = document.querySelector('.stage-modal-worker-list[data-stage="' + name + '"]');
+          var phoneEl = document.querySelector('.stage-responsible-phone[data-stage="' + name + '"]');
+          var laborEl = document.querySelector('.stage-modal-labor-cost[data-stage="' + name + '"]');
+          var extraEl = document.querySelector('.stage-modal-extra-cost[data-stage="' + name + '"]');
+          var memoEl = document.querySelector('.stage-modal-memo[data-stage="' + name + '"]');
+          return {
+            name: name,
+            startDate: startEl ? (startEl.value || '').trim() : '',
+            endDate: endEl ? (endEl.value || '').trim() : '',
+            responsibleName: nameEl ? nameEl.value.trim() : '',
+            workerList: workerEl ? workerEl.value.trim() : '',
+            responsiblePhone: phoneEl ? phoneEl.value.trim() : '',
+            laborCost: laborEl ? (laborEl.value || '').trim() : '',
+            extraCost: extraEl ? (extraEl.value || '').trim() : '',
+            memo: memoEl ? memoEl.value.trim() : ''
+          };
+        });
+        c.constructionStages = stages;
+        saveContracts(contracts);
+        modal.classList.add('hidden');
+        renderConstruction();
+        updateConstructionDetailPanelIfOpen();
+      });
+    }
+  }
+
+  function openDesignPermitModal(contractId) {
+    if (isSalesReadonly()) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    document.getElementById('design-contract-id').value = c.id;
+    document.getElementById('design-project-type').value = c.projectType || '';
+    document.getElementById('design-drawing-attachment').value = c.designDrawingAttachment || '';
+    document.getElementById('design-construction-drawing-attachment').value = c.constructionDrawingAttachment || '';
+    document.getElementById('design-architect').value = c.architectInfo || '';
+    document.getElementById('design-contact-name').value = c.designContactName || '';
+    document.getElementById('design-contact-phone').value = c.designContactPhone || '';
+    document.getElementById('design-has-permit').checked = !!c.hasPermitCert;
+    document.getElementById('design-permit-attachment').value = c.permitAttachment || '';
+    document.getElementById('design-has-construction-report').checked = !!c.hasConstructionStartReport;
+    document.getElementById('design-has-completion-cert').checked = !!c.hasCompletionCert;
+    document.getElementById('design-construction-start-ok').checked = !!c.constructionStartOk;
+    // ?????? 1??2??3???? ????? ???
+    var memo1DesignEl = document.getElementById('design-drawing-1-memo-design');
+    if (memo1DesignEl) memo1DesignEl.value = c.designDrawing1DesignMemo || '';
+    var memo1SalesEl = document.getElementById('design-drawing-1-memo-sales');
+    if (memo1SalesEl) memo1SalesEl.value = c.designDrawing1SalesMemo || '';
+    var final1El = document.getElementById('design-drawing-1-final');
+    var final1Badge = document.getElementById('design-drawing-1-final-badge');
+    var isFinal1 = !!c.designDrawing1Final;
+    if (final1El) final1El.checked = isFinal1;
+    if (final1Badge) final1Badge.style.display = isFinal1 ? 'inline-block' : 'none';
+    var att2El = document.getElementById('design-drawing-attachment-2');
+    if (att2El) att2El.value = c.designDrawing2Attachment || '';
+    var memo2DesignEl = document.getElementById('design-drawing-2-memo-design');
+    if (memo2DesignEl) memo2DesignEl.value = c.designDrawing2DesignMemo || '';
+    var memo2SalesEl = document.getElementById('design-drawing-2-memo-sales');
+    if (memo2SalesEl) memo2SalesEl.value = c.designDrawing2SalesMemo || '';
+    var final2El = document.getElementById('design-drawing-2-final');
+    var final2Badge = document.getElementById('design-drawing-2-final-badge');
+    var isFinal2 = !!c.designDrawing2Final;
+    if (final2El) final2El.checked = isFinal2;
+    if (final2Badge) final2Badge.style.display = isFinal2 ? 'inline-block' : 'none';
+    var att3El = document.getElementById('design-drawing-attachment-3');
+    if (att3El) att3El.value = c.designDrawing3Attachment || '';
+    var memo3DesignEl = document.getElementById('design-drawing-3-memo-design');
+    if (memo3DesignEl) memo3DesignEl.value = c.designDrawing3DesignMemo || '';
+    var memo3SalesEl = document.getElementById('design-drawing-3-memo-sales');
+    if (memo3SalesEl) memo3SalesEl.value = c.designDrawing3SalesMemo || '';
+    var final3El = document.getElementById('design-drawing-3-final');
+    var final3Badge = document.getElementById('design-drawing-3-final-badge');
+    var isFinal3 = !!c.designDrawing3Final;
+    if (final3El) final3El.checked = isFinal3;
+    if (final3Badge) final3Badge.style.display = isFinal3 ? 'inline-block' : 'none';
+    // ??? ??? ?????????
+    refreshDrawingFileListForInput(
+      document.getElementById('design-drawing-attachment'),
+      document.getElementById('design-drawing-list-1')
+    );
+    refreshDrawingFileListForInput(
+      document.getElementById('design-drawing-attachment-2'),
+      document.getElementById('design-drawing-list-2')
+    );
+    refreshDrawingFileListForInput(
+      document.getElementById('design-drawing-attachment-3'),
+      document.getElementById('design-drawing-list-3')
+    );
+    refreshDrawingFileListForInput(
+      document.getElementById('design-construction-drawing-attachment'),
+      document.getElementById('design-construction-drawing-list')
+    );
+    var houseFields = document.getElementById('design-house-fields');
+    if (houseFields) houseFields.classList.toggle('hidden', (c.projectType || '') !== '??');
+    document.getElementById('modal-design-permit').classList.remove('hidden');
+  }
+
+  function initDesignPermitModal() {
+    var form = document.getElementById('form-design-permit');
+    var modal = document.getElementById('modal-design-permit');
+    var projectTypeEl = document.getElementById('design-project-type');
+    var houseFields = document.getElementById('design-house-fields');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-design-permit"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+    if (projectTypeEl && houseFields) {
+      projectTypeEl.addEventListener('change', function () {
+        houseFields.classList.toggle('hidden', projectTypeEl.value !== '??');
+      });
+    }
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('design-contract-id').value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        c.projectType = document.getElementById('design-project-type').value || '';
+        c.designDrawingAttachment = document.getElementById('design-drawing-attachment').value.trim();
+        // ?????? 1??2??3???? ?????
+        var memo1DesignEl = document.getElementById('design-drawing-1-memo-design');
+        var memo1SalesEl = document.getElementById('design-drawing-1-memo-sales');
+        var final1El = document.getElementById('design-drawing-1-final');
+        c.designDrawing1DesignMemo = memo1DesignEl && memo1DesignEl.value ? memo1DesignEl.value.trim() : '';
+        c.designDrawing1SalesMemo = memo1SalesEl && memo1SalesEl.value ? memo1SalesEl.value.trim() : '';
+        c.designDrawing1Final = !!(final1El && final1El.checked);
+        var att2El = document.getElementById('design-drawing-attachment-2');
+        var memo2DesignEl = document.getElementById('design-drawing-2-memo-design');
+        var memo2SalesEl = document.getElementById('design-drawing-2-memo-sales');
+        var final2El = document.getElementById('design-drawing-2-final');
+        c.designDrawing2Attachment = att2El && att2El.value ? att2El.value.trim() : '';
+        c.designDrawing2DesignMemo = memo2DesignEl && memo2DesignEl.value ? memo2DesignEl.value.trim() : '';
+        c.designDrawing2SalesMemo = memo2SalesEl && memo2SalesEl.value ? memo2SalesEl.value.trim() : '';
+        c.designDrawing2Final = !!(final2El && final2El.checked);
+        var att3El = document.getElementById('design-drawing-attachment-3');
+        var memo3DesignEl = document.getElementById('design-drawing-3-memo-design');
+        var memo3SalesEl = document.getElementById('design-drawing-3-memo-sales');
+        var final3El = document.getElementById('design-drawing-3-final');
+        c.designDrawing3Attachment = att3El && att3El.value ? att3El.value.trim() : '';
+        c.designDrawing3DesignMemo = memo3DesignEl && memo3DesignEl.value ? memo3DesignEl.value.trim() : '';
+        c.designDrawing3SalesMemo = memo3SalesEl && memo3SalesEl.value ? memo3SalesEl.value.trim() : '';
+        c.designDrawing3Final = !!(final3El && final3El.checked);
+        c.constructionDrawingAttachment = document.getElementById('design-construction-drawing-attachment').value.trim();
+        c.architectInfo = document.getElementById('design-architect').value.trim();
+        c.designContactName = document.getElementById('design-contact-name').value.trim();
+        c.designContactPhone = document.getElementById('design-contact-phone').value.trim();
+        c.hasPermitCert = document.getElementById('design-has-permit').checked;
+        c.permitAttachment = document.getElementById('design-permit-attachment').value.trim();
+        c.hasConstructionStartReport = document.getElementById('design-has-construction-report').checked;
+        c.hasCompletionCert = document.getElementById('design-has-completion-cert').checked;
+        c.constructionStartOk = document.getElementById('design-construction-start-ok').checked;
+        saveContracts(contracts);
+        modal.classList.add('hidden');
+        renderDesign();
+        window.alert('??? ????/?? ???? ???????????.');
+      });
+    }
+    var drawingFileEl = document.getElementById('design-drawing-attachment-file');
+    var drawingUploadBtn = document.getElementById('btn-design-drawing-upload');
+    var drawingOpenBtn = document.getElementById('btn-design-drawing-open');
+    if (drawingUploadBtn && drawingFileEl) {
+      drawingUploadBtn.addEventListener('click', function () {
+        var inputEl = document.getElementById('design-drawing-attachment');
+        if (inputEl && (inputEl.value || '').trim()) {
+          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          return;
+        }
+        drawingFileEl.click();
+      });
+      drawingFileEl.addEventListener('change', function () {
+        var contractId = document.getElementById('design-contract-id').value;
+        var files = Array.prototype.slice.call(drawingFileEl.files || []);
+        if (!contractId) { window.alert('??????? ?????????'); drawingFileEl.value = ''; return; }
+        if (!files.length) return;
+        var inputEl = document.getElementById('design-drawing-attachment');
+        var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
+        Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
+          .then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            existingUrls = existingUrls.concat(urls);
+            if (inputEl) {
+              inputEl.value = serializeDrawingUrls(existingUrls);
+              refreshDrawingFileListForInput(inputEl, document.getElementById('design-drawing-list-1'));
+            }
+          })
+          .finally(function () { drawingFileEl.value = ''; });
+      });
+    }
+    if (drawingOpenBtn) {
+      drawingOpenBtn.addEventListener('click', function () {
+        openUrlFromInput('design-drawing-attachment');
+      });
+    }
+    // ?????? 2??????????
+    var drawingFileEl2 = document.getElementById('design-drawing-attachment-file-2');
+    var drawingUploadBtn2 = document.getElementById('btn-design-drawing-upload-2');
+    var drawingOpenBtn2 = document.getElementById('btn-design-drawing-open-2');
+    if (drawingUploadBtn2 && drawingFileEl2) {
+      drawingUploadBtn2.addEventListener('click', function () {
+        var inputEl = document.getElementById('design-drawing-attachment-2');
+        if (inputEl && (inputEl.value || '').trim()) {
+          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          return;
+        }
+        drawingFileEl2.click();
+      });
+      drawingFileEl2.addEventListener('change', function () {
+        var contractId = document.getElementById('design-contract-id').value;
+        var files = Array.prototype.slice.call(drawingFileEl2.files || []);
+        if (!contractId) { window.alert('??????? ?????????'); drawingFileEl2.value = ''; return; }
+        if (!files.length) return;
+        var inputEl = document.getElementById('design-drawing-attachment-2');
+        var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
+        Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
+          .then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            existingUrls = existingUrls.concat(urls);
+            if (inputEl) {
+              inputEl.value = serializeDrawingUrls(existingUrls);
+              refreshDrawingFileListForInput(inputEl, document.getElementById('design-drawing-list-2'));
+            }
+          })
+          .finally(function () { drawingFileEl2.value = ''; });
+      });
+    }
+    if (drawingOpenBtn2) {
+      drawingOpenBtn2.addEventListener('click', function () {
+        openUrlFromInput('design-drawing-attachment-2');
+      });
+    }
+    // ?????? 3??????????
+    var drawingFileEl3 = document.getElementById('design-drawing-attachment-file-3');
+    var drawingUploadBtn3 = document.getElementById('btn-design-drawing-upload-3');
+    var drawingOpenBtn3 = document.getElementById('btn-design-drawing-open-3');
+    if (drawingUploadBtn3 && drawingFileEl3) {
+      drawingUploadBtn3.addEventListener('click', function () {
+        var inputEl = document.getElementById('design-drawing-attachment-3');
+        if (inputEl && (inputEl.value || '').trim()) {
+          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          return;
+        }
+        drawingFileEl3.click();
+      });
+      drawingFileEl3.addEventListener('change', function () {
+        var contractId = document.getElementById('design-contract-id').value;
+        var files = Array.prototype.slice.call(drawingFileEl3.files || []);
+        if (!contractId) { window.alert('??????? ?????????'); drawingFileEl3.value = ''; return; }
+        if (!files.length) return;
+        var inputEl = document.getElementById('design-drawing-attachment-3');
+        var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
+        Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
+          .then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            existingUrls = existingUrls.concat(urls);
+            if (inputEl) {
+              inputEl.value = serializeDrawingUrls(existingUrls);
+              refreshDrawingFileListForInput(inputEl, document.getElementById('design-drawing-list-3'));
+            }
+          })
+          .finally(function () { drawingFileEl3.value = ''; });
+      });
+    }
+    if (drawingOpenBtn3) {
+      drawingOpenBtn3.addEventListener('click', function () {
+        openUrlFromInput('design-drawing-attachment-3');
+      });
+    }
+    var constructionFileEl = document.getElementById('design-construction-drawing-attachment-file');
+    var constructionUploadBtn = document.getElementById('btn-design-construction-drawing-upload');
+    var constructionOpenBtn = document.getElementById('btn-design-construction-drawing-open');
+    if (constructionUploadBtn && constructionFileEl) {
+      constructionUploadBtn.addEventListener('click', function () {
+        var inputEl = document.getElementById('design-construction-drawing-attachment');
+        if (inputEl && (inputEl.value || '').trim()) {
+          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          return;
+        }
+        constructionFileEl.click();
+      });
+      constructionFileEl.addEventListener('change', function () {
+        var contractId = document.getElementById('design-contract-id').value;
+        var files = Array.prototype.slice.call(constructionFileEl.files || []);
+        if (!contractId) { window.alert('??????? ?????????'); constructionFileEl.value = ''; return; }
+        if (!files.length) return;
+        var inputEl = document.getElementById('design-construction-drawing-attachment');
+        var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
+        Promise.all(files.map(function (file) { return uploadConstructionDrawingAttachment(contractId, file); }))
+          .then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            existingUrls = existingUrls.concat(urls);
+            if (inputEl) {
+              inputEl.value = serializeDrawingUrls(existingUrls);
+              refreshDrawingFileListForInput(inputEl, document.getElementById('design-construction-drawing-list'));
+            }
+          })
+          .finally(function () { constructionFileEl.value = ''; });
+      });
+    }
+    if (constructionOpenBtn) {
+      constructionOpenBtn.addEventListener('click', function () {
+        openUrlFromInput('design-construction-drawing-attachment');
+      });
+    }
+  }
+
+  function showSection(sectionId) {
+    // ??? ??? ???: admin/master/??????????? ???
+    if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
+      return;
+    }
+    if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
+      return;
+    }
+    if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
+      sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
+      sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') &&
+      !canAccessTeamSection(sectionId)) {
+      window.alert('??? ???? ?????????? ???????');
+      return;
+    }
+    document.querySelectorAll('.content-section').forEach(function (el) {
+      el.classList.toggle('active', el.id === 'section-' + sectionId);
+    });
+    document.querySelectorAll('.nav-item').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-section') === sectionId);
+    });
+    if (sectionId === 'announcements') renderAnnouncementsPage();
+    if (sectionId === 'admin-approval') renderAdminApproval();
+    if (sectionId === 'admin-employees') renderAdminEmployees();
+    if (sectionId === 'admin-showrooms') renderAdminShowrooms();
+    if (sectionId === 'admin-customers') renderAdminCustomers();
+    if (sectionId === 'admin-contracts') renderAdminContracts();
+    if (sectionId === 'admin-payments') renderAdminPayments();
+    if (sectionId === 'admin-reservations') renderAdminReservations();
+    if (sectionId === 'admin-presence') renderAdminPresence();
+    if (sectionId === 'admin-activity-logs') {
+      fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
+    }
+    if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId && sectionId.indexOf('admin-') === 0) {
+      var adminSub = document.getElementById('nav-admin-sub');
+      var adminGroup = document.getElementById('sidebar-group-admin');
+      var adminBtn = document.getElementById('nav-admin-toggle');
+      if (adminSub && adminGroup) {
+        adminSub.classList.remove('collapsed');
+        adminGroup.classList.add('expanded');
+        if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
+    if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
+      var sub = document.getElementById('nav-settlement-sub');
+      var group = document.getElementById('sidebar-group-settlement');
+      if (sub && group) {
+        sub.classList.remove('collapsed');
+        group.classList.add('expanded');
+        var btn = document.getElementById('nav-settlement-toggle');
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+    if (sectionId === 'sales-leads' || sectionId === 'sales-contracts' || sectionId === 'sales-customers') {
+      var salesSub = document.getElementById('nav-sales-sub');
+      var salesGroup = document.getElementById('sidebar-group-sales');
+      if (salesSub && salesGroup) {
+        salesSub.classList.remove('collapsed');
+        salesGroup.classList.add('expanded');
+        var salesBtn = document.getElementById('nav-sales-toggle');
+        if (salesBtn) salesBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
+  }
+
+  function closeMobileSidebar() {
+    document.body.classList.remove('sidebar-open');
+  }
+
+  function initMobileSidebar() {
+    var btn = document.getElementById('mobile-menu-btn');
+    var overlay = document.getElementById('sidebar-overlay');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        document.body.classList.toggle('sidebar-open');
+      });
+    }
+    if (overlay) {
+      overlay.addEventListener('click', closeMobileSidebar);
+    }
+  }
+
+  function initNav() {
+    document.querySelectorAll('.nav-item').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        var section = el.getAttribute('data-section');
+        if (section) showSection(section);
+        closeMobileSidebar();
+      });
+    });
+    var settlementToggle = document.getElementById('nav-settlement-toggle');
+    var settlementSub = document.getElementById('nav-settlement-sub');
+    var settlementGroup = document.getElementById('sidebar-group-settlement');
+    if (settlementToggle && settlementSub && settlementGroup) {
+      settlementToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        settlementSub.classList.toggle('collapsed');
+        settlementGroup.classList.toggle('expanded');
+        settlementToggle.setAttribute('aria-expanded', settlementSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
+    var salesToggle = document.getElementById('nav-sales-toggle');
+    var salesSub = document.getElementById('nav-sales-sub');
+    var salesGroup = document.getElementById('sidebar-group-sales');
+    if (salesToggle && salesSub && salesGroup) {
+      salesToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        salesSub.classList.toggle('collapsed');
+        salesGroup.classList.toggle('expanded');
+        salesToggle.setAttribute('aria-expanded', salesSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
+    var adminToggle = document.getElementById('nav-admin-toggle');
+    var adminSub = document.getElementById('nav-admin-sub');
+    var adminGroup = document.getElementById('sidebar-group-admin');
+    if (adminToggle && adminSub && adminGroup) {
+      adminToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        adminSub.classList.toggle('collapsed');
+        adminGroup.classList.toggle('expanded');
+        adminToggle.setAttribute('aria-expanded', adminSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
+  }
+
+  function initVisitForm() {
+    var form = document.getElementById('form-visit');
+    var toggle = document.getElementById('btn-toggle-visit-form');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        form.classList.toggle('hidden');
+      });
+    }
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var showroomId = document.getElementById('visit-showroom').value;
+        var name = document.getElementById('visit-name').value.trim();
+        var phone = document.getElementById('visit-phone').value.trim();
+        var visitDate = document.getElementById('visit-date').value;
+        var visitTime = document.getElementById('visit-time').value;
+        var visitCount = document.getElementById('visit-count').value.trim();
+        var source = document.getElementById('visit-source').value;
+        var interestType = document.getElementById('visit-interest').value;
+        var desiredPyeong = document.getElementById('visit-pyeong').value.trim();
+        var budgetRange = document.getElementById('visit-budget').value.trim();
+        var hasLand = document.getElementById('visit-hasland').value;
+        var landAddress = document.getElementById('visit-land').value.trim();
+        var lgEvent = document.getElementById('visit-lgevent').checked;
+        var need3d = document.getElementById('visit-3d').checked;
+        var memo = document.getElementById('visit-memo').value.trim();
+        if (!showroomId) return;
+        var visits = getVisits();
+        visits.push({
+          id: id(),
+          showroomId: showroomId,
+          name: name,
+          phone: phone,
+          visitDate: visitDate,
+          visitTime: visitTime,
+          visitCount: visitCount,
+          source: source,
+          interestType: interestType,
+          desiredPyeong: desiredPyeong,
+          budgetRange: budgetRange,
+          hasLand: hasLand,
+          landAddress: landAddress,
+          lgEvent: lgEvent,
+          need3d: need3d,
+          memo: memo,
+          createdAt: new Date().toISOString().slice(0, 10),
+          status: '???'
+        });
+        saveVisits(visits);
+        form.reset();
+        form.classList.add('hidden');
+        renderMarketing();
+        renderDashboard();
+      });
+    }
+    var btnCancel = document.getElementById('btn-cancel-visit');
+    if (btnCancel) btnCancel.addEventListener('click', function () { form.classList.add('hidden'); });
+  }
+
+  function assignToSales(visitId) {
+    var targetShowroomId = getAssignShowroomValue(visitId);
+    var visits = getVisits();
+    var v = visits.find(function (x) { return x.id === visitId; });
+    if (!v) return;
+    if (targetShowroomId) v.showroomId = targetShowroomId;
+    v.status = '?????????';
+    v.assignedToSalesAt = new Date().toISOString().slice(0, 10);
+    saveVisits(visits);
+    renderMarketing();
+    renderSales();
+  }
+
+  function assignSelectedToSales() {
+    var checked = document.querySelectorAll('.visit-row-check:checked');
+    if (!checked.length) {
+      alert('???????? ??????? ?????????');
+      return;
+    }
+    var visits = getVisits();
+    var updated = 0;
+    checked.forEach(function (el) {
+      var visitId = el.value;
+      var targetShowroomId = getAssignShowroomValue(visitId);
+      var v = visits.find(function (x) { return x.id === visitId; });
+      if (v && v.status !== '?????????') {
+        if (targetShowroomId) v.showroomId = targetShowroomId;
+        v.status = '?????????';
+        v.assignedToSalesAt = new Date().toISOString().slice(0, 10);
+        updated++;
+      }
+    });
+    saveVisits(visits);
+    renderMarketing();
+    renderSales();
+    if (updated) alert(updated + '?? ???????? ?????????.');
+  }
+
+  function initVisitAssign() {
+    var btn = document.getElementById('btn-assign-selected');
+    if (btn) btn.addEventListener('click', assignSelectedToSales);
+    var checkAll = document.getElementById('visit-check-all');
+    if (checkAll) {
+      checkAll.addEventListener('change', function () {
+        var on = checkAll.checked;
+        document.querySelectorAll('.visit-row-check').forEach(function (cb) { cb.checked = on; });
+      });
+    }
+  }
+
+  function getContractModelNameFromForm() {
+    var nameInput = document.getElementById('contract-model-name');
+    return nameInput ? (nameInput.value || '').trim() : '';
+  }
+
+  function updateContractModelNamePreview() {
+    var seriesSel = document.getElementById('contract-model-series');
+    var sizeSel = document.getElementById('contract-model-size');
+    var colorSel = document.getElementById('contract-model-color');
+    var nameInput = document.getElementById('contract-model-name');
+    if (!seriesSel || !sizeSel || !colorSel || !nameInput) return;
+    var series = (seriesSel.value || '').trim();
+    var size = (sizeSel.value || '').trim();
+    var color = (colorSel.value || '').trim();
+    if (!series || !size) {
+      nameInput.value = '';
+      return;
+    }
+    var colorInitial = color ? color.charAt(0).toUpperCase() : '';
+    var code = series + size + colorInitial;
+    nameInput.value = '????' + code;
+  }
+
+  function openContractForm(visitId) {
+    var visits = getVisits();
+    var v = visits.find(function (x) { return x.id === visitId; });
+    var wrap = document.getElementById('contract-form-wrap');
+    var showroomEl = document.getElementById('contract-showroom');
+    document.getElementById('contract-visit-id').value = visitId || '';
+    if (showroomEl) {
+      showroomEl.value = v ? (v.showroomId || '') : '';
+      // ?????????? ???????????? ??????????? ???
+      if (!showroomEl.value && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+        var cur = window.seumAuth.currentEmployee;
+        if ((cur.team || '').trim() === '???' && cur.showroom) {
+          showroomEl.value = cur.showroom;
+        }
+      }
+    }
+    var seriesSel = document.getElementById('contract-model-series');
+    var sizeSel = document.getElementById('contract-model-size');
+    var colorSel = document.getElementById('contract-model-color');
+    var nameInput = document.getElementById('contract-model-name');
+    if (seriesSel) seriesSel.value = '';
+    if (sizeSel) sizeSel.value = '';
+    if (colorSel) colorSel.value = '';
+    if (nameInput) nameInput.value = '';
+    document.getElementById('contract-sales-person').value = '';
+    document.getElementById('contract-name').value = v ? v.name : '';
+    document.getElementById('contract-phone').value = v ? v.phone : '';
+    document.getElementById('contract-total').value = '';
+    document.getElementById('contract-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('contract-deposit-amount').value = '';
+    document.getElementById('contract-deposit-date').value = '';
+    document.getElementById('contract-progress1-amount').value = '';
+    document.getElementById('contract-progress2-amount').value = '';
+    document.getElementById('contract-progress3-amount').value = '';
+    document.getElementById('contract-balance-amount').value = '';
+    if (wrap) wrap.classList.remove('hidden');
+  }
+
+  function linkOrText(val) {
+    if (!val) return '-';
+    var raw = String(val).trim();
+    if (!raw) return '-';
+    var parts = raw.split(/\s+/);
+    var first = parts[0];
+    if (/^https?:\/\//i.test(first)) {
+      var suffix = parts.length > 1 ? ' (??' + (parts.length - 1) + '??' : '';
+      return '<a href="' + first + '" target="_blank" rel="noopener">??' + suffix + '</a>';
+    }
+    return val;
+  }
+
+  function openUrlFromInput(inputId) {
+    var el = document.getElementById(inputId);
+    if (!el) return;
+    var raw = (el.value || '').trim();
+    if (!raw) {
+      window.alert('???????? ??????.');
+      return;
+    }
+    // ?????? ??? URL???????? ??
+    var urls = parseDrawingUrls(raw);
+    var val = urls.length ? urls[urls.length - 1] : raw;
+    if (!/^https?:\/\//i.test(val)) {
+      window.alert('URL ???????????. ????????????????????? ????');
+      return;
+    }
+    window.open(val, '_blank');
+  }
+
+  var expandedContractId = null;
+
+  function syncDesignRequestRoomModes() {
+    ['bedroom', 'living', 'kitchen', 'bath'].forEach(function (room) {
+      var r = document.querySelector('input[name="contract-inline-room-' + room + '"]:checked');
+      var memo = document.getElementById('contract-inline-memo-' + room);
+      if (memo) {
+        memo.disabled = !r || r.value !== 'change';
+      }
+    });
+  }
+
+  function syncDesignRequestExternalModes() {
+    ['deck', 'porch', 'yard', 'parking'].forEach(function (ext) {
+      var r = document.querySelector('input[name="contract-inline-external-' + ext + '"]:checked');
+      var memo = document.getElementById('contract-inline-external-' + ext + '-memo');
+      if (memo) {
+        memo.disabled = !r || r.value !== 'add';
+      }
+    });
+  }
+
+  function updateDesignHandoverSummary() {
+    var summaryEl = document.getElementById('contract-inline-design-handover-summary');
+    if (!summaryEl) return;
+    var lines = [];
+    var roomLabels = { bedroom: '???', living: '??', kitchen: '??', bath: '???' };
+    ['bedroom', 'living', 'kitchen', 'bath'].forEach(function (room) {
+      var r = document.querySelector('input[name="contract-inline-room-' + room + '"]:checked');
+      var memo = document.getElementById('contract-inline-memo-' + room);
+      var txt = memo && memo.value ? (memo.value || '').trim() : '';
+      if (r && r.value === 'change' && txt) {
+        lines.push(roomLabels[room] + ' : ' + txt);
+      }
+    });
+    var extLabels = { deck: '???', porch: '???', yard: '??', parking: '??' };
+    ['deck', 'porch', 'yard', 'parking'].forEach(function (ext) {
+      var r = document.querySelector('input[name="contract-inline-external-' + ext + '"]:checked');
+      var memo = document.getElementById('contract-inline-external-' + ext + '-memo');
+      var txt = memo && memo.value ? (memo.value || '').trim() : '';
+      if (r && r.value === 'add') {
+        lines.push('???? ' + extLabels[ext] + ' : ' + (txt || '???'));
+      }
+    });
+    var winAdd = document.getElementById('contract-inline-window-add-memo');
+    var winPos = document.getElementById('contract-inline-window-position-memo');
+    var winSize = document.getElementById('contract-inline-window-size-memo');
+    var winParts = [];
+    if (winAdd && (winAdd.value || '').trim()) winParts.push('????? ' + (winAdd.value || '').trim());
+    if (winPos && (winPos.value || '').trim()) winParts.push('??????' + (winPos.value || '').trim());
+    if (winSize && (winSize.value || '').trim()) winParts.push('??????' + (winSize.value || '').trim());
+    if (winParts.length) lines.push('?? : ' + winParts.join(', '));
+    var extMatR = document.querySelector('input[name="contract-inline-exterior-material"]:checked');
+    if (extMatR && extMatR.value !== 'default') {
+      var matLabels = { ceramic: '????????', longbrick: '????, smart: '?????????' };
+      lines.push('?????: ' + (matLabels[extMatR.value] || extMatR.value));
+    }
+    var facCf = document.getElementById('contract-inline-facility-ceiling-fan');
+    var facAc = document.getElementById('contract-inline-facility-aircon');
+    var facOut = document.getElementById('contract-inline-facility-outlet');
+    var facLight = document.getElementById('contract-inline-facility-lighting');
+    var facParts = [];
+    if (facCf && (facCf.value || '').trim()) facParts.push('?????' + (facCf.value || '').trim());
+    if (facAc && (facAc.value || '').trim()) facParts.push('?????' + (facAc.value || '').trim());
+    if (facOut && (facOut.value || '').trim()) facParts.push('????' + (facOut.value || '').trim());
+    if (facLight && (facLight.value || '').trim()) facParts.push('?? ' + (facLight.value || '').trim());
+    if (facParts.length) lines.push('???/??? : ' + facParts.join(', '));
+    var etc = document.getElementById('contract-inline-memo-etc');
+    if (etc && (etc.value || '').trim()) lines.push('??? : ' + (etc.value || '').trim());
+    var extNote = document.getElementById('contract-inline-exterior');
+    if (extNote && (extNote.value || '').trim()) lines.push('??????? : ' + (extNote.value || '').trim());
+    var extra = document.getElementById('contract-inline-extra');
+    if (extra && (extra.value || '').trim()) lines.push('??? : ' + (extra.value || '').trim());
+    var header = '[????? ??? ??]\n\n';
+    summaryEl.value = lines.length ? header + lines.join('\n') : '';
+  }
+
+  function showContractDetailPanel(contractId, forceRefresh) {
+    var tbody = document.getElementById('tbody-contracts');
+    var panel = document.getElementById('contract-detail-panel');
+    if (!tbody || !panel) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+
+    var detailRow = tbody.querySelector('.contract-detail-row');
+    var isOpenForSame = detailRow && !detailRow.classList.contains('hidden') && expandedContractId === contractId;
+
+    if (!forceRefresh && isOpenForSame) {
+      detailRow.classList.add('hidden');
+      document.querySelectorAll('.contract-row.selected').forEach(function (r) { r.classList.remove('selected'); });
+      expandedContractId = null;
+      return;
+    }
+
+    if (!detailRow) {
+      detailRow = document.createElement('tr');
+      detailRow.className = 'contract-detail-row';
+      var td = document.createElement('td');
+      td.colSpan = 13;
+      td.className = 'contract-detail-cell';
+      td.appendChild(panel);
+      detailRow.appendChild(td);
+    }
+    var row = tbody.querySelector('.contract-row[data-contract-id="' + contractId + '"]');
+    if (!row) return;
+    tbody.insertBefore(detailRow, row.nextSibling);
+    detailRow.classList.remove('hidden');
+
+    var titleEl = document.getElementById('contract-detail-customer');
+    var subtitleEl = document.getElementById('contract-detail-subtitle');
+    if (titleEl) titleEl.textContent = (c.customerName || '-') + ' ?? ??';
+    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' ? ' + (c.contractModelName || c.contractModel || '-') + ' ? ' + formatMoney(c.totalAmount) + '??';
+    document.getElementById('contract-inline-id').value = c.id;
+    document.getElementById('contract-inline-showroom').value = c.showroomId || '';
+    var inlineModelShowroomEl = document.getElementById('contract-inline-model-showroom');
+    if (inlineModelShowroomEl) inlineModelShowroomEl.value = c.modelShowroomId || '';
+    document.getElementById('contract-inline-model').value = c.contractModel || '';
+    document.getElementById('contract-inline-model-name').value = c.contractModelName || '';
+    document.getElementById('contract-inline-sales-person').value = c.salesPerson || '';
+    document.getElementById('contract-inline-attachment').value = c.contractAttachment || '';
+    if (typeof window.syncContractAttachCard === 'function') window.syncContractAttachCard();
+    document.getElementById('contract-inline-site-address').value = c.siteAddress || '';
+    var inlineInstall = document.querySelector('input[name="contract-inline-install-type"][value="' + (c.installType || '??????') + '"]');
+    if (inlineInstall) inlineInstall.checked = true;
+    document.getElementById('contract-inline-foundation-pyeong').value = c.foundationPyeong != null && c.foundationPyeong !== '' ? c.foundationPyeong : '';
+    document.getElementById('contract-inline-house-pyeong').value = c.housePyeong != null && c.housePyeong !== '' ? c.housePyeong : '';
+    var opt = c.options || {};
+    ['porch', 'deck', 'sunroom', 'demolition', 'repair', 'interior'].forEach(function (key) {
+      var o = opt[key] || {};
+      var optRow = document.querySelector('#form-contract-inline .option-row[data-option="' + key + '"]');
+      if (optRow) {
+        var cb = optRow.querySelector('.option-toggle');
+        var inp = optRow.querySelector('.option-pyeong-input');
+        if (cb) { cb.checked = !!o.enabled; }
+        if (inp) { inp.disabled = !o.enabled; inp.value = (o.pyeong != null && o.pyeong !== '') ? o.pyeong : ''; }
+      }
+    });
+    var memoBedroomEl = document.getElementById('contract-inline-memo-bedroom');
+    if (memoBedroomEl) memoBedroomEl.value = c.memoBedroom || '';
+    var memoLivingEl = document.getElementById('contract-inline-memo-living');
+    if (memoLivingEl) memoLivingEl.value = c.memoLiving || '';
+    var memoKitchenEl = document.getElementById('contract-inline-memo-kitchen');
+    if (memoKitchenEl) memoKitchenEl.value = c.memoKitchen || '';
+    var memoBathEl = document.getElementById('contract-inline-memo-bath');
+    if (memoBathEl) memoBathEl.value = c.memoBath || '';
+    var memoEtcEl = document.getElementById('contract-inline-memo-etc');
+    if (memoEtcEl) memoEtcEl.value = c.memoEtc || '';
+    var exteriorEl = document.getElementById('contract-inline-exterior');
+    if (exteriorEl) exteriorEl.value = c.exteriorNote || '';
+    var extraEl = document.getElementById('contract-inline-extra');
+    if (extraEl) extraEl.value = c.extraNote || '';
+    // ??? ???: ?? ??/???
+    ['bedroom', 'living', 'kitchen', 'bath'].forEach(function (room) {
+      var key = room + 'Mode';
+      var mode = (c[key] || 'basic');
+      var radio = document.querySelector('input[name="contract-inline-room-' + room + '"][value="' + mode + '"]');
+      if (radio) radio.checked = true;
+    });
+    // ????: ???/???/??/??
+    ['deck', 'porch', 'yard', 'parking'].forEach(function (ext) {
+      var key = 'external' + ext.charAt(0).toUpperCase() + ext.slice(1);
+      var val = (c[key] || 'none');
+      var radio = document.querySelector('input[name="contract-inline-external-' + ext + '"][value="' + (val || 'none') + '"]');
+      if (radio) radio.checked = true;
+      var memoEl = document.getElementById('contract-inline-external-' + ext + '-memo');
+      if (memoEl) {
+        memoEl.value = (c[key + 'Memo'] || '');
+        memoEl.disabled = val !== 'add';
+      }
+    });
+    var winAdd = document.getElementById('contract-inline-window-add-memo');
+    if (winAdd) winAdd.value = c.windowAddMemo || '';
+    var winPos = document.getElementById('contract-inline-window-position-memo');
+    if (winPos) winPos.value = c.windowPositionMemo || '';
+    var winSize = document.getElementById('contract-inline-window-size-memo');
+    if (winSize) winSize.value = c.windowSizeMemo || '';
+    var extMat = document.querySelector('input[name="contract-inline-exterior-material"][value="' + (c.exteriorMaterialType || 'default') + '"]');
+    if (extMat) extMat.checked = true;
+    var facCf = document.getElementById('contract-inline-facility-ceiling-fan');
+    if (facCf) facCf.value = c.facilityCeilingFan || '';
+    var facAc = document.getElementById('contract-inline-facility-aircon');
+    if (facAc) facAc.value = c.facilityAircon || '';
+    var facOut = document.getElementById('contract-inline-facility-outlet');
+    if (facOut) facOut.value = c.facilityOutlet || '';
+    var facLight = document.getElementById('contract-inline-facility-lighting');
+    if (facLight) facLight.value = c.facilityLighting || '';
+    var summaryEl = document.getElementById('contract-inline-design-handover-summary');
+    if (summaryEl) summaryEl.value = c.designHandoverSummary || '';
+    syncDesignRequestRoomModes();
+    syncDesignRequestExternalModes();
+    // ??? ???????? ?????? ???? ????(?? ????? ???)
+    panel.setAttribute('data-current-id', contractId);
+    // ??? hidden ???????? (?? ??? ??? ???????????
+    panel.classList.remove('hidden');
+    document.querySelectorAll('.contract-row.selected').forEach(function (r) { r.classList.remove('selected'); });
+    if (row) row.classList.add('selected');
+    expandedContractId = contractId;
+  }
+
+  function saveContractInline() {
+    var contractId = document.getElementById('contract-inline-id').value;
+    if (!contractId) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    c.showroomId = document.getElementById('contract-inline-showroom').value || '';
+    var inlineModelShowroom = document.getElementById('contract-inline-model-showroom');
+    c.modelShowroomId = inlineModelShowroom ? (inlineModelShowroom.value || '') : (c.modelShowroomId || '');
+    c.contractModel = document.getElementById('contract-inline-model').value || '';
+    c.contractModelName = document.getElementById('contract-inline-model-name').value.trim();
+    c.salesPerson = document.getElementById('contract-inline-sales-person').value.trim();
+    c.contractAttachment = document.getElementById('contract-inline-attachment').value.trim();
+    c.siteAddress = document.getElementById('contract-inline-site-address').value.trim();
+    var inlineInstallChecked = document.querySelector('input[name="contract-inline-install-type"]:checked');
+    c.installType = inlineInstallChecked ? inlineInstallChecked.value : '??????';
+    c.foundationPyeong = (document.getElementById('contract-inline-foundation-pyeong').value || '').trim();
+    c.housePyeong = (document.getElementById('contract-inline-house-pyeong').value || '').trim();
+    c.options = c.options || { porch: { enabled: false, pyeong: '' }, deck: { enabled: false, pyeong: '' }, sunroom: { enabled: false, pyeong: '' }, demolition: { enabled: false, pyeong: '' }, repair: { enabled: false, pyeong: '' }, interior: { enabled: false, pyeong: '' } };
+    ['porch', 'deck', 'sunroom', 'demolition', 'repair', 'interior'].forEach(function (key) {
+      var row = document.querySelector('#form-contract-inline .option-row[data-option="' + key + '"]');
+      if (row) {
+        var cb = row.querySelector('.option-toggle');
+        var inp = row.querySelector('.option-pyeong-input');
+        c.options[key] = { enabled: cb ? cb.checked : false, pyeong: (inp && !inp.disabled ? inp.value : '') ? (inp.value || '').trim() : '' };
+      }
+    });
+    var memoBedroomIn = document.getElementById('contract-inline-memo-bedroom');
+    var memoLivingIn = document.getElementById('contract-inline-memo-living');
+    var memoKitchenIn = document.getElementById('contract-inline-memo-kitchen');
+    var memoBathIn = document.getElementById('contract-inline-memo-bath');
+    var memoEtcIn = document.getElementById('contract-inline-memo-etc');
+    c.memoBedroom = memoBedroomIn ? (memoBedroomIn.value || '').trim() : '';
+    c.memoLiving = memoLivingIn ? (memoLivingIn.value || '').trim() : '';
+    c.memoKitchen = memoKitchenIn ? (memoKitchenIn.value || '').trim() : '';
+    c.memoBath = memoBathIn ? (memoBathIn.value || '').trim() : '';
+    c.memoEtc = memoEtcIn ? (memoEtcIn.value || '').trim() : '';
+    var exteriorIn = document.getElementById('contract-inline-exterior');
+    var extraIn = document.getElementById('contract-inline-extra');
+    c.exteriorNote = exteriorIn ? (exteriorIn.value || '').trim() : '';
+    c.extraNote = extraIn ? (extraIn.value || '').trim() : '';
+    ['bedroom', 'living', 'kitchen', 'bath'].forEach(function (room) {
+      var r = document.querySelector('input[name="contract-inline-room-' + room + '"]:checked');
+      c[room + 'Mode'] = r ? r.value : 'basic';
+    });
+    ['deck', 'porch', 'yard', 'parking'].forEach(function (ext) {
+      var r = document.querySelector('input[name="contract-inline-external-' + ext + '"]:checked');
+      var val = r ? r.value : 'none';
+      c['external' + ext.charAt(0).toUpperCase() + ext.slice(1)] = val;
+      var m = document.getElementById('contract-inline-external-' + ext + '-memo');
+      c['external' + ext.charAt(0).toUpperCase() + ext.slice(1) + 'Memo'] = m ? (m.value || '').trim() : '';
+    });
+    var winAdd = document.getElementById('contract-inline-window-add-memo');
+    c.windowAddMemo = winAdd ? (winAdd.value || '').trim() : '';
+    var winPos = document.getElementById('contract-inline-window-position-memo');
+    c.windowPositionMemo = winPos ? (winPos.value || '').trim() : '';
+    var winSize = document.getElementById('contract-inline-window-size-memo');
+    c.windowSizeMemo = winSize ? (winSize.value || '').trim() : '';
+    var extMatR = document.querySelector('input[name="contract-inline-exterior-material"]:checked');
+    c.exteriorMaterialType = extMatR ? extMatR.value : 'default';
+    var facCf = document.getElementById('contract-inline-facility-ceiling-fan');
+    c.facilityCeilingFan = facCf ? (facCf.value || '').trim() : '';
+    var facAc = document.getElementById('contract-inline-facility-aircon');
+    c.facilityAircon = facAc ? (facAc.value || '').trim() : '';
+    var facOut = document.getElementById('contract-inline-facility-outlet');
+    c.facilityOutlet = facOut ? (facOut.value || '').trim() : '';
+    var facLight = document.getElementById('contract-inline-facility-lighting');
+    c.facilityLighting = facLight ? (facLight.value || '').trim() : '';
+    var summaryIn = document.getElementById('contract-inline-design-handover-summary');
+    c.designHandoverSummary = summaryIn ? (summaryIn.value || '').trim() : '';
+    saveContracts(contracts);
+    renderSales();
+    showContractDetailPanel(contractId, true);
+  }
+
+  function initContractDetailPanel() {
+    var form = document.getElementById('form-contract-inline');
+    var panel = document.getElementById('contract-detail-panel');
+    var modalBtn = document.getElementById('contract-detail-modal-btn');
+
+    document.addEventListener('click', function (e) {
+      var header = e.target.closest('.design-request-accordion-header');
+      if (!header) return;
+      e.preventDefault();
+      var item = header.closest('.design-request-accordion-item');
+      var bodyId = header.getAttribute('data-accordion');
+      var body = bodyId ? document.getElementById('accordion-' + bodyId) : item && item.querySelector('.design-request-accordion-body');
+      if (!item || !body) return;
+      var isOpen = item.classList.contains('open');
+      if (isOpen) {
+        item.classList.remove('open');
+        body.setAttribute('hidden', '');
+        header.setAttribute('aria-expanded', 'false');
+        var icon = header.querySelector('.design-request-accordion-icon');
+        if (icon) icon.textContent = '\u25B6';
+      } else {
+        item.classList.add('open');
+        body.removeAttribute('hidden');
+        header.setAttribute('aria-expanded', 'true');
+        var icon = header.querySelector('.design-request-accordion-icon');
+        if (icon) icon.textContent = '\u25BC';
+      }
+    });
+
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        saveContractInline();
+      });
+    }
+    // ??????? ?????(????????)
+    var inlineFileInput = document.getElementById('contract-inline-attachment-file');
+    var inlineUploadBtn = document.getElementById('btn-contract-inline-attach');
+    if (inlineFileInput && inlineUploadBtn) {
+      inlineUploadBtn.addEventListener('click', function () {
+        inlineFileInput.click();
+      });
+      inlineFileInput.addEventListener('change', function () {
+        var file = inlineFileInput.files && inlineFileInput.files[0];
+        if (!file) return;
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (!contractId) {
+          window.alert('??????? ????????????? ????');
+          inlineFileInput.value = '';
+          return;
+        }
+        uploadContractAttachment(contractId, file).then(function (res) {
+          if (!res || !res.url) {
+            window.alert('??????? ?????? ?????????.');
+            return;
+          }
+          var input = document.getElementById('contract-inline-attachment');
+          if (input) input.value = res.url;
+          inlineFileInput.value = '';
+          if (typeof syncContractAttachCard === 'function') syncContractAttachCard();
+        });
+      });
+    }
+    function syncContractAttachCard() {
+      var input = document.getElementById('contract-inline-attachment');
+      var placeholder = document.getElementById('contract-attach-card-placeholder');
+      var fileBlock = document.getElementById('contract-attach-card-file');
+      var filenameEl = document.getElementById('contract-attach-card-filename');
+      var viewLink = document.getElementById('contract-attach-card-view');
+      if (!input || !placeholder || !fileBlock) return;
+      var val = (input.value || '').trim();
+      if (!val) {
+        placeholder.classList.remove('hidden');
+        fileBlock.classList.add('hidden');
+        if (viewLink) viewLink.removeAttribute('href');
+        return;
+      }
+      placeholder.classList.add('hidden');
+      fileBlock.classList.remove('hidden');
+      var displayName = val.indexOf('/') !== -1 ? val.replace(/^.*\//, '') : val;
+      if (filenameEl) filenameEl.textContent = displayName;
+      if (viewLink) {
+        viewLink.href = /^https?:\/\//i.test(val) ? val : '#';
+        viewLink.style.display = /^https?:\/\//i.test(val) ? '' : 'none';
+      }
+    }
+    if (typeof window !== 'undefined') window.syncContractAttachCard = syncContractAttachCard;
+    var attachCard = document.getElementById('contract-attach-card');
+    var attachPlaceholder = document.getElementById('contract-attach-card-placeholder');
+    if (attachCard && attachPlaceholder && inlineFileInput) {
+      attachPlaceholder.addEventListener('click', function () { inlineFileInput.click(); });
+    }
+    var attachViewLink = document.getElementById('contract-attach-card-view');
+    if (attachViewLink) {
+      attachViewLink.addEventListener('click', function (e) {
+        if (this.getAttribute('href') === '#') e.preventDefault();
+      });
+    }
+    if (modalBtn && panel) {
+      modalBtn.addEventListener('click', function () {
+        var id = panel.getAttribute('data-current-id');
+        if (id) openContractDetail(id);
+      });
+    }
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('option-toggle')) {
+        var row = e.target.closest('.option-row');
+        if (!row) return;
+        var opt = e.target.getAttribute('data-option');
+        var inp = row.querySelector('.option-pyeong-input[data-option="' + opt + '"]');
+        if (inp) {
+          inp.disabled = !e.target.checked;
+          if (!e.target.checked) inp.value = '';
+        }
+      }
+      if (e.target.classList.contains('design-request-room-mode')) {
+        syncDesignRequestRoomModes();
+        updateDesignHandoverSummary();
+      }
+      if (e.target.classList.contains('design-request-external-mode')) {
+        syncDesignRequestExternalModes();
+        updateDesignHandoverSummary();
+      }
+      if (e.target.classList.contains('design-request-exterior-material')) {
+        updateDesignHandoverSummary();
+      }
+      if (e.target.closest('.design-request-section')) {
+        if (e.target.id && (e.target.id.indexOf('contract-inline-memo-') === 0 || e.target.id.indexOf('contract-inline-external-') === 0 || e.target.id.indexOf('contract-inline-window-') === 0 || e.target.id.indexOf('contract-inline-facility-') === 0 || e.target.id === 'contract-inline-exterior' || e.target.id === 'contract-inline-extra' || e.target.id === 'contract-inline-design-handover-summary')) {
+          if (e.target.id !== 'contract-inline-design-handover-summary') {
+            updateDesignHandoverSummary();
+          }
+        }
+      }
+    });
+    document.addEventListener('input', function (e) {
+      if (e.target.closest('.design-request-section') && e.target.id !== 'contract-inline-design-handover-summary') {
+        if (e.target.id && (e.target.id.indexOf('contract-inline-memo-') === 0 || e.target.id.indexOf('contract-inline-external-') === 0 || e.target.id.indexOf('contract-inline-window-') === 0 || e.target.id.indexOf('contract-inline-facility-') === 0 || e.target.id === 'contract-inline-exterior' || e.target.id === 'contract-inline-extra')) {
+          updateDesignHandoverSummary();
+        }
+      }
+    });
+  }
+
+  function openContractDetail(contractId) {
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    document.getElementById('detail-contract-id').value = c.id;
+    var designView = document.getElementById('detail-design-full-view');
+    if (designView) {
+      var rows = [
+        ['???', c.projectType || '-'],
+        ['???????', linkOrText(c.contractAttachment)],
+        ['?????? ???', linkOrText(c.designDrawingAttachment)],
+        ['?????? ???', linkOrText(c.constructionDrawingAttachment)]
+      ];
+      if ((c.projectType || '') === '??') {
+        rows.push(['???????, c.architectInfo || '-']);
+        rows.push(['?????, c.designContactName || '-']);
+        rows.push(['?????, c.designContactPhone || '-']);
+        rows.push(['??????? ???', c.hasPermitCert ? '?? : '??]);
+        rows.push(['??????? ???', linkOrText(c.permitAttachment)]);
+        rows.push(['???????', c.hasConstructionStartReport ? '?? : '??]);
+        rows.push(['????????', c.hasCompletionCert ? '?? : '??]);
+        rows.push(['?????? (????? ????? ???', c.constructionStartOk ? 'Y' : '-']);
+      }
+      var html = '<table class="detail-table"><tbody>' + rows.map(function (r) {
+        return '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td></tr>';
+      }).join('') + '</tbody></table>';
+      designView.innerHTML = html;
+    }
+    document.getElementById('detail-showroom').value = c.showroomId || '';
+    var detailModelShowroomEl = document.getElementById('detail-model-showroom');
+    if (detailModelShowroomEl) detailModelShowroomEl.value = c.modelShowroomId || '';
+    document.getElementById('detail-model').value = c.contractModel || '';
+    document.getElementById('detail-model-name').value = c.contractModelName || '';
+    document.getElementById('detail-sales-person').value = c.salesPerson || '';
+    document.getElementById('detail-contract-attachment').value = c.contractAttachment || '';
+    document.getElementById('detail-site-address').value = c.siteAddress || '';
+    var detailInstall = document.querySelector('input[name="detail-install-type"][value="' + (c.installType || '??????') + '"]');
+    if (detailInstall) detailInstall.checked = true;
+    document.getElementById('detail-foundation-pyeong').value = c.foundationPyeong != null && c.foundationPyeong !== '' ? c.foundationPyeong : '';
+    document.getElementById('detail-house-pyeong').value = c.housePyeong != null && c.housePyeong !== '' ? c.housePyeong : '';
+    var opt = c.options || {};
+    ['porch', 'deck', 'sunroom'].forEach(function (key) {
+      var o = opt[key] || {};
+      var row = document.querySelector('#form-contract-detail .option-row[data-option="' + key + '"]');
+      if (row) {
+        var cb = row.querySelector('.option-toggle');
+        var inp = row.querySelector('.option-pyeong-input');
+        if (cb) cb.checked = !!o.enabled;
+        if (inp) { inp.disabled = !o.enabled; inp.value = (o.pyeong != null && o.pyeong !== '') ? o.pyeong : ''; }
+      }
+    });
+    var memoBedroomEl = document.getElementById('detail-memo-bedroom');
+    if (memoBedroomEl) memoBedroomEl.value = c.memoBedroom || '';
+    var memoLivingEl = document.getElementById('detail-memo-living');
+    if (memoLivingEl) memoLivingEl.value = c.memoLiving || '';
+    var memoKitchenEl = document.getElementById('detail-memo-kitchen');
+    if (memoKitchenEl) memoKitchenEl.value = c.memoKitchen || '';
+    var memoBathEl = document.getElementById('detail-memo-bath');
+    if (memoBathEl) memoBathEl.value = c.memoBath || '';
+    var memoExteriorEl = document.getElementById('detail-memo-exterior');
+    if (memoExteriorEl) memoExteriorEl.value = c.memoExterior || '';
+    var memoEtcEl = document.getElementById('detail-memo-etc');
+    if (memoEtcEl) memoEtcEl.value = c.memoEtc || '';
+    document.getElementById('modal-contract-detail').classList.remove('hidden');
+
+    // ??????? ?????(??? ??)
+    var detailFileInput = document.getElementById('detail-contract-attachment-file');
+    var detailBtn = document.getElementById('btn-detail-contract-attach');
+    if (detailFileInput && detailBtn && !detailFileInput._seumBound) {
+      detailFileInput._seumBound = true;
+      detailBtn.addEventListener('click', function () {
+        detailFileInput.click();
+      });
+      detailFileInput.addEventListener('change', function () {
+        var file = detailFileInput.files && detailFileInput.files[0];
+        if (!file) return;
+        var cid = document.getElementById('detail-contract-id') && document.getElementById('detail-contract-id').value;
+        if (!cid) {
+          window.alert('??????? ????????????? ????');
+          detailFileInput.value = '';
+          return;
+        }
+        uploadContractAttachment(cid, file).then(function (res) {
+          if (!res || !res.url) {
+            window.alert('??????? ?????? ?????????.');
+            return;
+          }
+          var input = document.getElementById('detail-contract-attachment');
+          if (input) input.value = res.url;
+          detailFileInput.value = '';
+        });
+      });
+    }
+
+    // ??????? ??? (??? ??)
+    var detailOpenBtn = document.getElementById('btn-detail-contract-open');
+    if (detailOpenBtn && !detailOpenBtn._seumBound) {
+      detailOpenBtn._seumBound = true;
+      detailOpenBtn.addEventListener('click', function () {
+        openUrlFromInput('detail-contract-attachment');
+      });
+    }
+  }
+
+  function initCustomerForm() {
+    var form = document.getElementById('form-customer');
+    var toggleBtn = document.getElementById('btn-toggle-customer-form');
+    var cancelBtn = document.getElementById('btn-cancel-customer');
+    if (toggleBtn && form) {
+      toggleBtn.addEventListener('click', function () {
+        document.getElementById('customer-id').value = '';
+        if (form) form.reset();
+        form.classList.toggle('hidden');
+      });
+    }
+    if (cancelBtn && form) cancelBtn.addEventListener('click', function () { form.classList.add('hidden'); });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var custId = document.getElementById('customer-id').value;
+        var customers = getCustomers();
+        var payload = {
+          name: document.getElementById('customer-name').value.trim(),
+          phone: document.getElementById('customer-phone').value.trim(),
+          visitDate: document.getElementById('customer-visit-date').value || '',
+          salesPerson: document.getElementById('customer-sales-person').value.trim(),
+          showroomId: document.getElementById('customer-showroom').value || '',
+          memo: document.getElementById('customer-memo').value.trim(),
+          createdAt: todayStr()
+        };
+        if (custId) {
+          var idx = customers.findIndex(function (x) { return x.id === custId; });
+          if (idx !== -1) {
+            payload.createdAt = customers[idx].createdAt;
+            customers[idx] = Object.assign({}, customers[idx], payload);
+          }
+        } else {
+          payload.id = id();
+          customers.push(payload);
+        }
+        saveCustomers(customers);
+        if (typeof logActivity === 'function') {
+          logActivity({
+            actionType: custId ? 'update' : 'create',
+            targetType: 'customer',
+            targetId: payload.id,
+            targetName: payload.name,
+            description: custId ? '?? ???' : '?? ???'
+          });
+        }
+        renderSalesCustomers();
+        form.classList.add('hidden');
+      });
+    }
+  }
+
+  function initContractForm() {
+    var form = document.getElementById('form-contract');
+    var wrap = document.getElementById('contract-form-wrap');
+    var btnOpen = document.getElementById('btn-open-contract-form');
+    var seriesSel = document.getElementById('contract-model-series');
+    var sizeSel = document.getElementById('contract-model-size');
+    var colorSel = document.getElementById('contract-model-color');
+    var supplyInput = document.getElementById('contract-supply');
+    var vatInput = document.getElementById('contract-vat');
+    var totalInput = document.getElementById('contract-total');
+    var typeSel = document.getElementById('contract-model');
+    if (seriesSel) seriesSel.addEventListener('change', updateContractModelNamePreview);
+    if (sizeSel) sizeSel.addEventListener('change', updateContractModelNamePreview);
+    if (colorSel) colorSel.addEventListener('change', updateContractModelNamePreview);
+    if (supplyInput && vatInput && totalInput) {
+      var recalcAmounts = function () {
+        var supply = Number(supplyInput.value || 0);
+        if (supply < 0 || !isFinite(supply)) supply = 0;
+        var vat = Math.round(supply * 0.1);
+        vatInput.value = String(vat);
+        totalInput.value = String(supply + vat);
+      };
+      supplyInput.addEventListener('input', recalcAmounts);
+      // ?? ?? ???? ?? ?????????????
+      recalcAmounts();
+    }
+    if (typeSel && seriesSel) {
+      typeSel.addEventListener('change', function () {
+        var v = typeSel.value;
+        if (v === '???????) {
+          seriesSel.value = 'FOREST';
+        } else if (v === '?????' || v === '???????? || v === '??') {
+          seriesSel.value = 'STAY';
+        } else if (v === '??????????) {
+          seriesSel.value = 'CUBE';
+        }
+        updateContractModelNamePreview();
+      });
+    }
+    if (btnOpen) {
+      btnOpen.addEventListener('click', function () {
+        openContractForm(null);
+      });
+    }
+    document.querySelectorAll('.btn-cancel-contract').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (wrap) wrap.classList.add('hidden');
+      });
+    });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var visitId = document.getElementById('contract-visit-id').value.trim() || null;
+        var showroomId = document.getElementById('contract-showroom').value;
+        var modelShowroomId = document.getElementById('contract-model-showroom') ? document.getElementById('contract-model-showroom').value : '';
+        var contractModel = document.getElementById('contract-model') ? document.getElementById('contract-model').value : '';
+        var salesPerson = document.getElementById('contract-sales-person').value.trim();
+        var customerName = document.getElementById('contract-name').value.trim();
+        var phone = document.getElementById('contract-phone').value.trim();
+        var supplyAmount = document.getElementById('contract-supply').value;
+        var vatAmount = document.getElementById('contract-vat').value;
+        var totalAmount = document.getElementById('contract-total').value;
+        var contractDate = document.getElementById('contract-date').value;
+        var depositAmount = document.getElementById('contract-deposit-amount').value.trim() || null;
+        var depositDate = document.getElementById('contract-deposit-date').value || null;
+        var progress1Amount = document.getElementById('contract-progress1-amount').value.trim() || null;
+        var progress2Amount = document.getElementById('contract-progress2-amount').value.trim() || null;
+        var progress3Amount = document.getElementById('contract-progress3-amount').value.trim() || null;
+        var balanceAmount = document.getElementById('contract-balance-amount').value.trim() || null;
+        // ??????? ???? ?? ?????????????????showroom ??
+        if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
+          var cur = window.seumAuth.currentEmployee;
+          if ((cur.team || '').trim() === '???' && cur.showroom) {
+            showroomId = cur.showroom;
+            var showroomSelect = document.getElementById('contract-showroom');
+            if (showroomSelect) showroomSelect.value = showroomId;
+          }
+        }
+        if (!showroomId) return;
+        var contracts = getContracts();
+        contracts.push({
+          id: id(),
+          visitId: visitId,
+          showroomId: showroomId,
+          modelShowroomId: modelShowroomId || '',
+          salesPerson: salesPerson,
+          contractAttachment: '',
+          contractModel: contractModel || '',
+          contractModelName: getContractModelNameFromForm(),
+          siteAddress: '',
+          installType: '??????',
+          foundationPyeong: '',
+          housePyeong: '',
+          options: { porch: { enabled: false, pyeong: '' }, deck: { enabled: false, pyeong: '' }, sunroom: { enabled: false, pyeong: '' } },
+          interiorNote: '',
+          exteriorNote: '',
+          extraNote: '',
+          customerName: customerName,
+          phone: phone,
+          supplyAmount: supplyAmount,
+          vatAmount: vatAmount,
+          totalAmount: totalAmount,
+          contractDate: contractDate,
+          depositAmount: depositAmount,
+          depositReceivedAt: depositAmount ? (depositDate || null) : null,
+          progress1Amount: progress1Amount,
+          progress1ReceivedAt: null,
+          progress2Amount: progress2Amount,
+          progress2ReceivedAt: null,
+          progress3Amount: progress3Amount,
+          progress3ReceivedAt: null,
+          balanceAmount: balanceAmount,
+          balanceReceivedAt: null,
+          designStatus: 'none',
+          projectType: '',
+          architectInfo: '',
+          designContactName: '',
+          designContactPhone: '',
+          hasPermitCert: false,
+          permitAttachment: '',
+          completionCertAttachment: '',
+          hasConstructionStartReport: false,
+          hasCompletionCert: false,
+          constructionStartOk: false,
+          designPermitDesigner: '',
+          designStatusMemoDesign: '',
+          designStatusMemoSales: '',
+          designStatusMemoConstruction: '',
+          // ??? ??? ??? (?? ??, ???????????? ?? ?????????)
+          designDrawingAttachment: '',
+          constructionDrawingAttachment: '',
+          // ?????? 1??2??3???? ????? ???? (?? ???)
+          designDrawing1DesignMemo: '',
+          designDrawing1SalesMemo: '',
+          designDrawing1Final: false,
+          designDrawing2Attachment: '',
+          designDrawing2DesignMemo: '',
+          designDrawing2SalesMemo: '',
+          designDrawing2Final: false,
+          designDrawing3Attachment: '',
+          designDrawing3DesignMemo: '',
+          designDrawing3SalesMemo: '',
+          designDrawing3Final: false,
+          discussionDrawings: [],
+          constructionDrawings: [],
+          constructionProgress: '????,
+          constructionStartDate: '',
+          constructionEndDate: '',
+          constructionManager: '',
+          constructionStages: [],
+          depositConfirmed: false,
+          progress1Confirmed: false,
+          progress2Confirmed: false,
+          progress3Confirmed: false,
+          balanceConfirmed: false,
+          salesConfirmed: false,
+          designConfirmed: false,
+          constructionConfirmed: false,
+          finalApproved: false
+        });
+        saveContracts(contracts);
+        var newContract = contracts[contracts.length - 1];
+        if (newContract && typeof ensureContractChatRoom === 'function') {
+          ensureContractChatRoom(newContract.id);
+        }
+        if (typeof logActivity === 'function') {
+          logActivity({
+            actionType: 'create',
+            targetType: 'contract',
+            targetId: newContract && newContract.id,
+            targetName: customerName,
+            description: '?? ???'
+          });
+        }
+        if (wrap) wrap.classList.add('hidden');
+        form.reset();
+        renderSales();
+        renderDesign();
+        renderConstruction();
+        renderSettlement();
+        renderDashboard();
+      });
+    }
+  }
+
+  function paymentSummaryHtml(c) {
+    var nums = getPaymentSummaryNumbers(c);
+    if (nums.total <= 0) return '<span class="payment-none">-</span>';
+    var pct = Math.min(100, Math.max(0, nums.receivedPct));
+    return '<div class="payment-status">' +
+      '<div class="payment-total">??' + formatMoney(String(nums.total)) + '??/div>' +
+      '<div class="payment-rate"><span class="payment-rate-label">?????/span><div class="payment-rate-bar"><div class="payment-rate-fill" style="width:' + pct + '%"></div></div><span class="payment-rate-pct">' + pct + '%</span></div>' +
+      '<div class="payment-row received"><span>???</span><span class="amount">' + formatMoney(String(nums.received)) + '??/span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
+      '<div class="payment-row remaining"><span>??</span><span class="amount">' + formatMoney(String(nums.remaining)) + '??/span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
+      '</div>';
+  }
+
+  function paymentCellWithConfirm(c, type) {
+    var map = {
+      deposit: { receivedAt: 'depositReceivedAt', amount: 'depositAmount', confirmed: 'depositConfirmed' },
+      progress1: { receivedAt: 'progress1ReceivedAt', amount: 'progress1Amount', confirmed: 'progress1Confirmed' },
+      progress2: { receivedAt: 'progress2ReceivedAt', amount: 'progress2Amount', confirmed: 'progress2Confirmed' },
+      progress3: { receivedAt: 'progress3ReceivedAt', amount: 'progress3Amount', confirmed: 'progress3Confirmed' },
+      balance: { receivedAt: 'balanceReceivedAt', amount: 'balanceAmount', confirmed: 'balanceConfirmed' }
+    };
+    var m = map[type];
+    var receivedAt = c[m.receivedAt];
+    var amount = c[m.amount];
+    var confirmed = !!c[m.confirmed];
+    // ????deposit)?? ?????????? ????????????? ????????? ??
+    if (type === 'deposit') {
+      confirmed = true;
+      c[m.confirmed] = true;
+    }
+    if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
+    var label = '';
+    if (amount != null && String(amount).trim() !== '') {
+      label = formatMoney(amount) + '??;
+    }
+    if (receivedAt) {
+      label += (label ? ' ' : '') + '(' + formatDate(receivedAt) + ')';
+    }
+    var check = '';
+    if (amount != null && String(amount).trim() !== '') {
+      check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> ??????</label>';
+    }
+    return '<span class="payment-amount">' + (label || '-') + '</span>' + check;
+  }
+
+  function togglePaymentConfirmed(contractId, type, checked) {
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    var key = type === 'deposit' ? 'depositConfirmed' : type === 'progress1' ? 'progress1Confirmed' : type === 'progress2' ? 'progress2Confirmed' : type === 'progress3' ? 'progress3Confirmed' : 'balanceConfirmed';
+    c[key] = checked;
+    saveContracts(contracts);
+    renderSales();
+    renderConstruction();
+    renderSettlement();
+    updateConstructionDetailPanelIfOpen();
+  }
+
+  function openPaymentModal(contractId, type) {
+    var labels = { deposit: '????, progress1: '????1??, progress2: '????2??, progress3: '????3??, balance: '???' };
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; }) || null;
+    var map = {
+      deposit: { receivedAt: 'depositReceivedAt', amount: 'depositAmount' },
+      progress1: { receivedAt: 'progress1ReceivedAt', amount: 'progress1Amount' },
+      progress2: { receivedAt: 'progress2ReceivedAt', amount: 'progress2Amount' },
+      progress3: { receivedAt: 'progress3ReceivedAt', amount: 'progress3Amount' },
+      balance: { receivedAt: 'balanceReceivedAt', amount: 'balanceAmount' }
+    };
+    var cfg = map[type] || null;
+    var currentAmount = '';
+    var currentDate = '';
+    if (c && cfg) {
+      if (c[cfg.amount] != null && String(c[cfg.amount]).trim() !== '') {
+        currentAmount = String(c[cfg.amount]);
+      }
+      if (c[cfg.receivedAt]) {
+        currentDate = c[cfg.receivedAt];
+      }
+    }
+    var dateWrap = document.getElementById('payment-date-wrap');
+    var dateInput = document.getElementById('payment-date');
+    var showDate = (type === 'deposit');
+    if (dateWrap) {
+      dateWrap.style.display = showDate ? '' : 'none';
+    }
+    if (!showDate) {
+      currentDate = '';
+    } else if (!currentDate) {
+      currentDate = new Date().toISOString().slice(0, 10);
+    }
+    document.getElementById('payment-contract-id').value = contractId;
+    document.getElementById('payment-type').value = type;
+    document.querySelector('#modal-payment .modal-header h3').textContent = labels[type] + ' ???';
+    document.getElementById('payment-amount').value = currentAmount;
+    if (dateInput) dateInput.value = currentDate;
+    document.getElementById('modal-payment').classList.remove('hidden');
+  }
+
+  function initContractDetailModal() {
+    var form = document.getElementById('form-contract-detail');
+    var modal = document.getElementById('modal-contract-detail');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-contract-detail"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        modal.classList.add('hidden');
+      });
+    });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('detail-contract-id').value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        c.showroomId = document.getElementById('detail-showroom').value || '';
+        var detailModelShowroomSel = document.getElementById('detail-model-showroom');
+        c.modelShowroomId = detailModelShowroomSel ? (detailModelShowroomSel.value || '') : (c.modelShowroomId || '');
+        c.contractModel = document.getElementById('detail-model').value || '';
+        c.contractModelName = document.getElementById('detail-model-name').value.trim();
+        c.salesPerson = document.getElementById('detail-sales-person').value.trim();
+        c.contractAttachment = document.getElementById('detail-contract-attachment').value.trim();
+        c.siteAddress = document.getElementById('detail-site-address').value.trim();
+        var detailInstallChecked = document.querySelector('input[name="detail-install-type"]:checked');
+        c.installType = detailInstallChecked ? detailInstallChecked.value : '??????';
+        c.foundationPyeong = (document.getElementById('detail-foundation-pyeong').value || '').trim();
+        c.housePyeong = (document.getElementById('detail-house-pyeong').value || '').trim();
+        c.options = c.options || { porch: { enabled: false, pyeong: '' }, deck: { enabled: false, pyeong: '' }, sunroom: { enabled: false, pyeong: '' } };
+        ['porch', 'deck', 'sunroom'].forEach(function (key) {
+          var row = document.querySelector('#form-contract-detail .option-row[data-option="' + key + '"]');
+          if (row) {
+            var cb = row.querySelector('.option-toggle');
+            var inp = row.querySelector('.option-pyeong-input');
+            c.options[key] = { enabled: cb ? cb.checked : false, pyeong: (inp && !inp.disabled ? inp.value : '') ? (inp.value || '').trim() : '' };
+          }
+        });
+        c.memoBedroom = (document.getElementById('detail-memo-bedroom').value || '').trim();
+        c.memoLiving = (document.getElementById('detail-memo-living').value || '').trim();
+        c.memoKitchen = (document.getElementById('detail-memo-kitchen').value || '').trim();
+        c.memoBath = (document.getElementById('detail-memo-bath').value || '').trim();
+        c.memoExterior = (document.getElementById('detail-memo-exterior').value || '').trim();
+        c.memoEtc = (document.getElementById('detail-memo-etc').value || '').trim();
+        saveContracts(contracts);
+        if (typeof logActivity === 'function') {
+          logActivity({ actionType: 'update', targetType: 'contract', targetId: contractId, targetName: c.customerName, description: '?? ???' });
+        }
+        modal.classList.add('hidden');
+        renderSales();
+        if (expandedContractId === contractId) showContractDetailPanel(contractId, true);
+      });
+    }
+  }
+
+  function initPaymentModal() {
+    var form = document.getElementById('form-payment');
+    var modal = document.getElementById('modal-payment');
+    document.querySelectorAll('[data-close="modal-payment"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        modal.classList.add('hidden');
+      });
+    });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('payment-contract-id').value;
+        var type = document.getElementById('payment-type').value;
+        var amount = document.getElementById('payment-amount').value;
+        var dateInput = document.getElementById('payment-date');
+        var date = dateInput ? dateInput.value : '';
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        if (type === 'deposit') {
+          c.depositAmount = amount;
+          c.depositReceivedAt = date || null;
+        } else if (type === 'progress1') {
+          c.progress1Amount = amount;
+          c.progress1ReceivedAt = null;
+        } else if (type === 'progress2') {
+          c.progress2Amount = amount;
+          c.progress2ReceivedAt = null;
+        } else if (type === 'progress3') {
+          c.progress3Amount = amount;
+          c.progress3ReceivedAt = null;
+        } else if (type === 'balance') {
+          c.balanceAmount = amount;
+          c.balanceReceivedAt = null;
+        }
+        saveContracts(contracts);
+        modal.classList.add('hidden');
+        renderSales();
+        renderDesign();
+        renderDashboard();
+        renderConstruction();
+        renderSettlement();
+      });
+    }
+  }
+
+  function initDelegation() {
+    document.addEventListener('click', function (e) {
+      var bannerBtn = e.target.closest && e.target.closest('.dashboard-announcement-banner[data-announcement-id]');
+      if (bannerBtn) {
+        var id = bannerBtn.getAttribute('data-announcement-id');
+        if (id) openAnnouncementDetail(id);
+        return;
+      }
+      var goto = e.target.closest && e.target.closest('[data-dashboard-goto]');
+      if (goto) {
+        e.preventDefault();
+        showSection(goto.getAttribute('data-dashboard-goto'));
+        return;
+      }
+      var teamEventBtn = e.target.closest && e.target.closest('.team-calendar-event[data-team-event-id]');
+      if (teamEventBtn) {
+        var evId = teamEventBtn.getAttribute('data-team-event-id');
+        if (evId) openTeamEventModal(evId);
+        return;
+      }
+      var editEmp = e.target.getAttribute('data-edit-employee');
+      if (editEmp) {
+        var employees = getEmployees();
+        var emp = employees.find(function (x) { return x.id === editEmp; });
+        if (emp) {
+          document.getElementById('employee-id').value = emp.id;
+          document.getElementById('employee-name').value = emp.name || '';
+          document.getElementById('employee-team').value = emp.team || '';
+          document.getElementById('employee-showroom').value = emp.showroomId || '';
+          document.getElementById('employee-phone').value = emp.phone || '';
+          document.getElementById('employee-join-date').value = emp.joinDate || '';
+          document.getElementById('employee-memo').value = emp.memo || '';
+          document.getElementById('form-employee').classList.remove('hidden');
+        }
+        return;
+      }
+      var deleteEmp = e.target.getAttribute('data-delete-employee');
+      if (deleteEmp && confirm('???????????????')) {
+        var employees = getEmployees().filter(function (x) { return x.id !== deleteEmp; });
+        saveEmployees(employees);
+        renderHR();
+        return;
+      }
+      var deleteLeave = e.target.getAttribute('data-delete-leave');
+      if (deleteLeave && confirm('?????? ??????????????')) {
+        var leaves = getLeaves().filter(function (x) { return x.id !== deleteLeave; });
+        saveLeaves(leaves);
+        renderHR();
+        return;
+      }
+      var editCust = e.target.getAttribute('data-edit-customer');
+      if (editCust) {
+        var customers = getCustomers();
+        var cust = customers.find(function (x) { return x.id === editCust; });
+        if (cust) {
+          document.getElementById('customer-id').value = cust.id;
+          document.getElementById('customer-name').value = cust.name || '';
+          document.getElementById('customer-phone').value = cust.phone || '';
+          document.getElementById('customer-visit-date').value = cust.visitDate || '';
+          document.getElementById('customer-sales-person').value = cust.salesPerson || '';
+          document.getElementById('customer-showroom').value = cust.showroomId || '';
+          document.getElementById('customer-memo').value = cust.memo || '';
+          document.getElementById('form-customer').classList.remove('hidden');
+          showSection('sales-customers');
+        }
+        return;
+      }
+      var deleteCust = e.target.getAttribute('data-delete-customer');
+      if (deleteCust && confirm('???????????????')) {
+        var customers = getCustomers().filter(function (x) { return x.id !== deleteCust; });
+        saveCustomers(customers);
+        renderSalesCustomers();
+        return;
+      }
+      var assign = e.target.getAttribute('data-assign-visit');
+      if (assign) {
+        assignToSales(assign);
+        return;
+      }
+      var createContract = e.target.getAttribute('data-create-contract');
+      if (createContract) {
+        showSection('sales-contracts');
+        openContractForm(createContract);
+        return;
+      }
+      var paymentType = e.target.getAttribute('data-payment');
+      var paymentId = e.target.getAttribute('data-id');
+      if (paymentType && paymentId) {
+        openPaymentModal(paymentId, paymentType);
+        return;
+      }
+      var detailId = e.target.getAttribute('data-contract-detail');
+      if (detailId) {
+        showContractDetailPanel(detailId, true);
+        return;
+      }
+      var contractDeleteBtn = e.target.closest('.btn-contract-delete');
+      if (contractDeleteBtn) {
+        var delId = contractDeleteBtn.getAttribute('data-contract-id');
+        if (!delId) return;
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var team = (cur && (cur.team || '').trim()) || '';
+        var isConstructionTeam = (team === '???' || team === '?????');
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === delId; });
+        if (!c) return;
+        var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+        var fromConstruction = !!contractDeleteBtn.closest('#tbody-construction');
+        if (fromConstruction) {
+          if (!isAdminRole && !isConstructionTeam) {
+            window.alert('?????????????? ??????????????.');
+            return;
+          }
+        } else {
+          var canSalesDeleteOwn = false;
+          if (cur) {
+            var name = (cur.name || '').trim();
+            if (team === '???' && name && String(c.salesPerson || '').trim() === name) {
+              canSalesDeleteOwn = true;
+            }
+          }
+          if (!isAdminRole && !canSalesDeleteOwn) {
+            window.alert('???????????????????????????.');
+            return;
+          }
+        }
+        if (!window.confirm('???????????????????')) return;
+        deleteContractById(delId);
+        return;
+      }
+      var contractRow = e.target.closest('.contract-row');
+      if (contractRow && !e.target.closest('button')) {
+        var cid = contractRow.getAttribute('data-contract-id');
+        if (cid) showContractDetailPanel(cid, false);
+        return;
+      }
+      var visitDetailId = e.target.getAttribute('data-visit-detail');
+      if (visitDetailId) {
+        openVisitDetail(visitDetailId);
+        return;
+      }
+      var designPermitId = e.target.getAttribute('data-design-permit');
+      if (designPermitId) {
+        if (!isSalesReadonly()) {
+          openDesignPermitModal(designPermitId);
+        }
+        return;
+      }
+      var approveBtn = e.target.closest('.approve-btn');
+      if (approveBtn && !approveBtn.disabled) {
+        if (isSalesReadonly()) return;
+        var approvalContractId = approveBtn.getAttribute('data-contract-id');
+        if (approvalContractId) {
+          var contracts = getContracts();
+          var ac = contracts.find(function (x) { return x.id === approvalContractId; });
+          if (ac) {
+            ac.finalApproved = !ac.finalApproved;
+            saveContracts(contracts);
+            renderDesign();
+          }
+        }
+        return;
+      }
+      var designRow = e.target.closest('.design-row');
+      if (designRow && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('.review-check-cell')) {
+        var designCid = designRow.getAttribute('data-contract-id');
+        if (designCid) showDesignDetailPanel(designCid);
+        return;
+      }
+      var constructionStagesId = e.target.getAttribute('data-construction-stages');
+      if (constructionStagesId) {
+        showConstructionDetailPanel(constructionStagesId);
+        return;
+      }
+      var editBtn = e.target.closest('.construction-detail-edit-btn');
+      if (editBtn) {
+        var editId = editBtn.getAttribute('data-contract-id');
+        if (editId) openConstructionStagesModal(editId);
+        return;
+      }
+      var row = e.target.closest('.construction-row');
+      if (row && !e.target.closest('select') && !e.target.closest('button') && !e.target.closest('input')) {
+        var cid = row.getAttribute('data-contract-id');
+        if (cid) showConstructionDetailPanel(cid);
+        return;
+      }
+    });
+
+    document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('construction-manager-input')) {
+        if (isSalesReadonly()) return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.constructionManager = (e.target.value || '').trim();
+          saveContracts(contracts);
+          renderConstruction();
+        }
+        return;
+      }
+      if (e.target.classList.contains('review-check')) {
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var userTeam = (cur && (cur.team || '').trim()) || '';
+        var isConstructionTeam = (userTeam === '???' || userTeam === '?????');
+        if (isSalesReadonly() && !e.target.classList.contains('sales-check')) {
+          renderDesign();
+          return;
+        }
+        if (userTeam === '???' && !e.target.classList.contains('design-check')) {
+          renderDesign();
+          return;
+        }
+        if (isConstructionTeam && !e.target.classList.contains('construction-check')) {
+          renderDesign();
+          return;
+        }
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          if (e.target.classList.contains('sales-check')) c.salesConfirmed = e.target.checked;
+          else if (e.target.classList.contains('design-check')) c.designConfirmed = e.target.checked;
+          else if (e.target.classList.contains('construction-check')) c.constructionConfirmed = e.target.checked;
+          var allChecked = !!c.salesConfirmed && !!c.designConfirmed && !!c.constructionConfirmed;
+          if (!allChecked) c.finalApproved = false;
+          saveContracts(contracts);
+          renderDesign();
+        }
+        return;
+      }
+      if (e.target.classList.contains('design-status-select')) {
+        if (isSalesReadonly()) {
+          // ??????? ??? ??? ??? ???
+          renderDesign();
+          return;
+        }
+        var contractId = e.target.getAttribute('data-id');
+        var value = e.target.value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.designStatus = value;
+          saveContracts(contracts);
+          renderDesign();
+        }
+        return;
+      }
+      if (e.target.classList.contains('construction-progress-select')) {
+        if (isSalesReadonly()) {
+          renderConstruction();
+          return;
+        }
+        var contractId = e.target.getAttribute('data-id');
+        var value = e.target.value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.constructionProgress = value;
+          saveContracts(contracts);
+          renderConstruction();
+          updateConstructionDetailPanelIfOpen();
+        }
+        return;
+      }
+      if (e.target.classList.contains('payment-confirm-check')) {
+        var contractId = e.target.getAttribute('data-contract-id');
+        var type = e.target.getAttribute('data-type');
+        if (contractId && type) togglePaymentConfirmed(contractId, type, e.target.checked);
+      }
+    });
+
+    function getStageFieldFromClass(className) {
+      if (className.indexOf('stage-start-date') !== -1) return 'startDate';
+      if (className.indexOf('stage-end-date') !== -1) return 'endDate';
+      if (className.indexOf('stage-manager') !== -1) return 'responsibleName';
+      if (className.indexOf('stage-worker-list') !== -1) return 'workerList';
+      if (className.indexOf('stage-phone') !== -1) return 'responsiblePhone';
+      if (className.indexOf('stage-labor-cost') !== -1) return 'laborCost';
+      if (className.indexOf('stage-extra-cost') !== -1) return 'extraCost';
+      if (className.indexOf('stage-memo') !== -1) return 'memo';
+      return null;
+    }
+    document.addEventListener('change', function (e) {
+      if (isSalesReadonly()) return;
+      var contractId = e.target.getAttribute('data-contract-id');
+      var stageName = e.target.getAttribute('data-stage');
+      var field = getStageFieldFromClass(e.target.className || '');
+      if (contractId && stageName && field) {
+        updateConstructionStageField(contractId, stageName, field, e.target.value);
+        updateConstructionDetailPanelIfOpen();
+        return;
+      }
+    });
+    document.addEventListener('input', function (e) {
+      var contractId = e.target.getAttribute('data-contract-id');
+      var stageName = e.target.getAttribute('data-stage');
+      var field = getStageFieldFromClass(e.target.className || '');
+      if (!contractId || !stageName || !field) return;
+      if (e.target.classList.contains('stage-memo') || e.target.classList.contains('stage-manager') || e.target.classList.contains('stage-phone') || e.target.classList.contains('stage-worker-list')) {
+        updateConstructionStageField(contractId, stageName, field, e.target.value);
+      }
+    });
+  }
+
+  function renderAdminApproval() {
+    var tbody = document.getElementById('tbody-pending-approval');
+    var emptyEl = document.getElementById('admin-pending-empty');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="6">Supabase ??????????????</td></tr>';
+      if (emptyEl) emptyEl.classList.add('hidden');
+      return;
+    }
+    supabase.from('employees')
+      .select('id, name, email, team, showroom, created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .then(function (res) {
+        var list = (res.data || []);
+        if (emptyEl) emptyEl.classList.toggle('hidden', list.length > 0);
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">??? ?????? ??????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (emp) {
+          var dateStr = emp.created_at ? new Date(emp.created_at).toLocaleDateString('ko-KR') : '-';
+          var showroomName = getShowroomName(emp.showroom);
+          return '<tr><td>' + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td>' + (emp.team || '-') + '</td><td>' + showroomName + '</td><td>' + dateStr + '</td><td><button type="button" class="btn btn-primary btn-sm btn-approve-employee" data-id="' + emp.id + '">???</button> <button type="button" class="btn btn-secondary btn-sm btn-block-employee" data-id="' + emp.id + '">??</button></td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="6">?????????? ???????</td></tr>';
+        if (emptyEl) emptyEl.classList.add('hidden');
+        console.error('??? ?????? ?? ???:', err);
+      });
+  }
+
+  function initAdminApproval() {
+    var tbody = document.getElementById('tbody-pending-approval');
+    if (!tbody) return;
+    tbody.addEventListener('click', function (e) {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      var btn = e.target && e.target.closest && e.target.closest('.btn-approve-employee');
+      if (btn) {
+        var id = btn.getAttribute('data-id');
+        if (!id) return;
+        btn.disabled = true;
+        supabase.from('employees').update({ status: 'approved' }).eq('id', id)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            renderAdminApproval();
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            alert('??? ?????????????.');
+            console.error(err);
+          });
+        return;
+      }
+      btn = e.target && e.target.closest && e.target.closest('.btn-block-employee');
+      if (btn) {
+        var id = btn.getAttribute('data-id');
+        if (!id) return;
+        if (!confirm('??? ???????????????')) return;
+        btn.disabled = true;
+        supabase.from('employees').update({ status: 'blocked' }).eq('id', id)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            renderAdminApproval();
+          })
+          .catch(function (err) {
+            btn.disabled = false;
+            alert('?? ?????????????.');
+            console.error(err);
+          });
+      }
+    });
+  }
+
+  var TEAM_OPTIONS = ['?????, '???', '???', '???', '???', '??'];
+  var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master'];
+
+  function renderAdminEmployees() {
+    var tbody = document.getElementById('tbody-admin-employees');
+    var countEl = document.getElementById('admin-employees-count');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="7">Supabase ??????????????</td></tr>';
+      return;
+    }
+    supabase.from('employees').select('id, name, email, team, role, showroom, status')
+      .order('id', { ascending: true })
+      .then(function (res) {
+        var list = res.data || [];
+        if (countEl) {
+          var total = list.length || 0;
+          countEl.textContent = total ? '? ??' + total + '?? : '';
+        }
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7">???????????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (emp, idx) {
+          var teamOpts = TEAM_OPTIONS.map(function (t) {
+            return '<option value="' + t + '"' + ((emp.team || '') === t ? ' selected' : '') + '>' + t + '</option>';
+          }).join('');
+          var roleOpts = ROLE_OPTIONS.map(function (r) {
+            return '<option value="' + r + '"' + ((emp.role || '') === r ? ' selected' : '') + '>' + r + '</option>';
+          }).join('');
+          var srOpts = SHOWROOMS.map(function (s) {
+            var val = emp.showroom || '';
+            var isSelected = (val === s.id) || (val === s.name);
+            return '<option value="' + (s.id || '') + '"' + (isSelected ? ' selected' : '') + '>' + (s.name || s.id) + '</option>';
+          }).join('');
+          var numberLabel = (idx + 1) + '. ';
+          return '<tr data-id="' + emp.id + '"><td>' + numberLabel + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td><select class="admin-emp-team">' + teamOpts + '</select></td><td><select class="admin-emp-role">' + roleOpts + '</select></td><td><select class="admin-emp-showroom">' + srOpts + '</select></td><td>' + (emp.status || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + emp.id + '">????/button> <button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + emp.id + '">????</button></td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="7">?????????? ???????</td></tr>';
+        console.error(err);
+      });
+  }
+
+  function formatKoreanDateTime(value) {
+    if (!value) return '-';
+    try {
+      var d = new Date(value);
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleString('ko-KR', { hour12: false });
+    } catch (e) {
+      return String(value);
+    }
+  }
+
+  function computePresenceStatus(row) {
+    var now = Date.now();
+    var lastSeen = row && row.last_seen ? new Date(row.last_seen).getTime() : 0;
+    if (!lastSeen) return 'offline';
+    var diffMs = now - lastSeen;
+    var diffMin = diffMs / 60000;
+    if (diffMin <= 3) return 'online';
+    if (diffMin <= 30) return 'idle';
+    return 'offline';
+  }
+
+  function getPresenceBadgeHtml(row) {
+    var status = computePresenceStatus(row);
+    var label = 'offline';
+    var cls = 'presence-badge presence-offline';
+    if (status === 'online') {
+      label = 'online';
+      cls = 'presence-badge presence-online';
+    } else if (status === 'idle') {
+      label = 'idle';
+      cls = 'presence-badge presence-idle';
+    }
+    return '<span class="' + cls + '">' + label + '</span>';
+  }
+
+  function getTeamEventStatusLabel(status) {
+    if (!status) return '';
+    if (status === 'planned') return '???';
+    if (status === 'in_progress') return '????;
+    if (status === 'done') return '???';
+    if (status === 'canceled') return '??';
+    return status;
+  }
+
+  function getTeamEventPriorityLabel(priority) {
+    if (!priority) return '';
+    if (priority === 'normal') return '???';
+    if (priority === 'important') return '??';
+    if (priority === 'urgent') return '??';
+    return priority;
+  }
+
+  function getTeamEventTypeLabel(type) {
+    if (!type) return '';
+    if (type === 'consulting') return '???';
+    if (type === 'visit') return '??';
+    if (type === 'design') return '???';
+    if (type === 'construction') return '???';
+    if (type === 'meeting') return '???';
+    if (type === 'marketing') return '?????;
+    if (type === 'etc') return '???';
+    return type;
+  }
+
+  function getPriorityBadgeHtml(priority) {
+    if (!priority) return '-';
+    var key = String(priority);
+    var label = getTeamEventPriorityLabel(key);
+    var cls = 'priority-badge priority-normal';
+    if (key === 'important') cls = 'priority-badge priority-important';
+    if (key === 'urgent') cls = 'priority-badge priority-urgent';
+    return '<span class="' + cls + '">' + label + '</span>';
+  }
+
+  function renderAdminPresence() {
+    var tbody = document.getElementById('tbody-admin-presence');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="8">Supabase ??????????????</td></tr>';
+      return;
+    }
+    // employees?? user_presence??????? ?? (user_presence.user_id -> employees.id)
+    supabase.from('user_presence')
+      .select('user_id,status,last_seen,last_login_at,last_logout_at,employees(name,team,showroom,role,permission)')
+      .then(function (res) {
+        if (res.error) {
+          console.error('user_presence ?? ???:', res.error);
+          tbody.innerHTML = '<tr><td colspan="8">?? ??? ??????????? ???????</td></tr>';
+          return;
+        }
+        var rows = res.data || [];
+        // ??? ??? (?? / ?????
+        var teamFilterEl = document.getElementById('admin-presence-filter-team');
+        var showroomFilterEl = document.getElementById('admin-presence-filter-showroom');
+        var teamFilter = teamFilterEl && teamFilterEl.value ? String(teamFilterEl.value).trim() : '';
+        var showroomFilter = showroomFilterEl && showroomFilterEl.value ? String(showroomFilterEl.value).trim() : '';
+        if (teamFilter || showroomFilter) {
+          rows = rows.filter(function (row) {
+            var p = row.employees || {};
+            var t = (p.team || '').trim();
+            var s = (p.showroom || '').trim();
+            if (teamFilter && t !== teamFilter) return false;
+            if (showroomFilter && s !== showroomFilter) return false;
+            return true;
+          });
+        }
+        if (rows.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8">??? ??????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(function (row) {
+          var p = row.employees || {};
+          var name = p.name || '-';
+          var team = p.team || '-';
+          var showroomName = getShowroomName(p.showroom || '');
+          var role = p.role || '-';
+          var statusBadge = getPresenceBadgeHtml(row);
+          var lastSeen = formatKoreanDateTime(row.last_seen);
+          var lastLogin = formatKoreanDateTime(row.last_login_at);
+          var lastLogout = formatKoreanDateTime(row.last_logout_at);
+          return '<tr>' +
+            '<td>' + escapeHtml(name) + '</td>' +
+            '<td>' + escapeHtml(team) + '</td>' +
+            '<td>' + escapeHtml(showroomName) + '</td>' +
+            '<td>' + escapeHtml(role) + '</td>' +
+            '<td>' + statusBadge + '</td>' +
+            '<td>' + escapeHtml(lastSeen) + '</td>' +
+            '<td>' + escapeHtml(lastLogin) + '</td>' +
+            '<td>' + escapeHtml(lastLogout) + '</td>' +
+            '</tr>';
+        }).join('');
+      })
+      .catch(function (err) {
+        console.error(err);
+        tbody.innerHTML = '<tr><td colspan="8">?? ??? ??????????? ???????</td></tr>';
+      });
+  }
+
+  function initAdminEmployees() {
+    var tbody = document.getElementById('tbody-admin-employees');
+    if (!tbody) return;
+    tbody.addEventListener('click', function (e) {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+
+      var saveBtn = e.target && e.target.closest && e.target.closest('.btn-admin-emp-save');
+      if (saveBtn) {
+        var id = saveBtn.getAttribute('data-id');
+        var row = tbody.querySelector('tr[data-id="' + id + '"]');
+        if (!row || !id) return;
+        var team = row.querySelector('.admin-emp-team') && row.querySelector('.admin-emp-team').value;
+        var role = row.querySelector('.admin-emp-role') && row.querySelector('.admin-emp-role').value;
+        var showroom = row.querySelector('.admin-emp-showroom') && row.querySelector('.admin-emp-showroom').value;
+        saveBtn.disabled = true;
+        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null }).eq('id', id)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            renderAdminEmployees();
+            alert('???????????.');
+          })
+          .catch(function (err) {
+            saveBtn.disabled = false;
+            alert('????? ?????????.');
+            console.error(err);
+          });
+        return;
+      }
+
+      var delBtn = e.target && e.target.closest && e.target.closest('.btn-admin-emp-delete');
+      if (delBtn) {
+        var idDel = delBtn.getAttribute('data-id');
+        if (!idDel) return;
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        if (cur && String(cur.id) === String(idDel)) {
+          window.alert('?? ???? ???????????????????.');
+          return;
+        }
+        if (!window.confirm('??? ????????????????? ??????? Supabase employees??????????????')) return;
+        delBtn.disabled = true;
+        supabase.from('employees').delete().eq('id', idDel)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            renderAdminEmployees();
+          })
+          .catch(function (err) {
+            delBtn.disabled = false;
+            alert('???????????????.');
+            console.error(err);
+          });
+      }
+    });
+  }
+
+  function initAdminPresence() {
+    var tbody = document.getElementById('tbody-admin-presence');
+    if (!tbody) return;
+    var teamFilterEl = document.getElementById('admin-presence-filter-team');
+    var showroomFilterEl = document.getElementById('admin-presence-filter-showroom');
+    if (teamFilterEl) {
+      teamFilterEl.addEventListener('change', function () { renderAdminPresence(); });
+    }
+    if (showroomFilterEl) {
+      showroomFilterEl.addEventListener('change', function () { renderAdminPresence(); });
+    }
+    renderAdminPresence();
+  }
+
+  var adminActivityLogsCache = [];
+
+  function fetchActivityLogsForAdmin() {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) return Promise.resolve([]);
+    return supabase.from('activity_logs').select('id,user_id,user_name,department,showroom,action_type,target_type,target_id,target_name,description,created_at').order('created_at', { ascending: false }).limit(500)
+      .then(function (res) {
+        if (res && res.error) return [];
+        adminActivityLogsCache = res.data || [];
+        return adminActivityLogsCache;
+      })
+      .catch(function () { return []; });
+  }
+
+  function renderAdminActivityLogs(rows) {
+    var tbody = document.getElementById('tbody-admin-activity-logs');
+    if (!tbody) return;
+    var data = rows || adminActivityLogsCache;
+    var userFilter = document.getElementById('admin-activity-filter-user');
+    var actionFilter = document.getElementById('admin-activity-filter-action');
+    var dateFromEl = document.getElementById('admin-activity-filter-date-from');
+    var dateToEl = document.getElementById('admin-activity-filter-date-to');
+    var userQ = (userFilter && userFilter.value) ? String(userFilter.value).trim().toLowerCase() : '';
+    var actionQ = (actionFilter && actionFilter.value) ? String(actionFilter.value).trim() : '';
+    var dateFrom = (dateFromEl && dateFromEl.value) ? dateFromEl.value : '';
+    var dateTo = (dateToEl && dateToEl.value) ? dateToEl.value : '';
+    var filtered = data.filter(function (row) {
+      if (userQ && (!row.user_name || String(row.user_name).toLowerCase().indexOf(userQ) === -1)) return false;
+      if (actionQ && (row.action_type || '') !== actionQ) return false;
+      var created = row.created_at ? String(row.created_at).slice(0, 10) : '';
+      if (dateFrom && created < dateFrom) return false;
+      if (dateTo && created > dateTo) return false;
+      return true;
+    });
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7">?????? ??? ??? ??????.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filtered.map(function (row) {
+      var createdAt = row.created_at ? String(row.created_at).replace('T', ' ').slice(0, 16) : '-';
+      var user = escapeHtml(row.user_name || '-');
+      var dept = escapeHtml(row.department || '-');
+      var showroom = escapeHtml(row.showroom || '-');
+      var action = escapeHtml(row.action_type || '-');
+      var target = escapeHtml(row.target_name || '-');
+      var desc = escapeHtml(row.description || '-');
+      return '<tr><td>' + createdAt + '</td><td>' + user + '</td><td>' + dept + '</td><td>' + showroom + '</td><td>' + action + '</td><td>' + target + '</td><td>' + desc + '</td></tr>';
+    }).join('');
+  }
+
+  function initAdminActivityLogs() {
+    var userEl = document.getElementById('admin-activity-filter-user');
+    var actionEl = document.getElementById('admin-activity-filter-action');
+    var dateFromEl = document.getElementById('admin-activity-filter-date-from');
+    var dateToEl = document.getElementById('admin-activity-filter-date-to');
+    var refreshBtn = document.getElementById('admin-activity-btn-refresh');
+    function applyFilters() { renderAdminActivityLogs(); }
+    if (userEl) userEl.addEventListener('input', applyFilters);
+    if (userEl) userEl.addEventListener('change', applyFilters);
+    if (actionEl) actionEl.addEventListener('change', applyFilters);
+    if (dateFromEl) dateFromEl.addEventListener('change', applyFilters);
+    if (dateToEl) dateToEl.addEventListener('change', applyFilters);
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function () {
+        fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
+      });
+    }
+  }
+
+  function renderAdminShowrooms() {
+    var tbody = document.getElementById('tbody-admin-showrooms');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="3">Supabase ??????????????</td></tr>';
+      return;
+    }
+    supabase.from('showrooms').select('id, code, name').order('id', { ascending: true })
+      .then(function (res) {
+        var list = res.data || [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3">?????? ??????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (s) {
+          return '<tr data-id="' + s.id + '"><td>' + (s.code || '-') + '</td><td>' + (s.name || '-') + '</td><td><button type="button" class="btn btn-secondary btn-sm btn-admin-showroom-edit" data-id="' + s.id + '" data-code="' + (s.code || '') + '" data-name="' + (s.name || '') + '">???</button> <button type="button" class="btn btn-secondary btn-sm btn-admin-showroom-del" data-id="' + s.id + '">????</button></td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="3">?????????? ??????? showrooms ????? ???? ????????</td></tr>';
+        console.error(err);
+      });
+  }
+
+  function initAdminShowrooms() {
+    var btnAdd = document.getElementById('btn-admin-showroom-add');
+    var form = document.getElementById('form-admin-showroom');
+    var btnCancel = document.getElementById('btn-admin-showroom-cancel');
+    if (btnAdd && form) {
+      btnAdd.addEventListener('click', function () {
+        document.getElementById('admin-showroom-id').value = '';
+        document.getElementById('admin-showroom-code').value = '';
+        document.getElementById('admin-showroom-code').removeAttribute('readonly');
+        document.getElementById('admin-showroom-name').value = '';
+        form.classList.remove('hidden');
+      });
+    }
+    if (btnCancel && form) btnCancel.addEventListener('click', function () { form.classList.add('hidden'); });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var idEl = document.getElementById('admin-showroom-id');
+        var code = document.getElementById('admin-showroom-code').value.trim();
+        var name = document.getElementById('admin-showroom-name').value.trim();
+        if (!code || !name) return;
+        var supabase = typeof window !== 'undefined' && window.seumSupabase;
+        if (!supabase) return;
+        var id = idEl.value;
+        if (id) {
+          supabase.from('showrooms').update({ code: code, name: name }).eq('id', id)
+            .then(function (res) {
+              if (res.error) throw res.error;
+              form.classList.add('hidden');
+              renderAdminShowrooms();
+            })
+            .catch(function (err) { alert(err.message || '??? ???'); });
+        } else {
+          supabase.from('showrooms').insert({ code: code, name: name })
+            .then(function (res) {
+              if (res.error) throw res.error;
+              form.classList.add('hidden');
+              renderAdminShowrooms();
+            })
+            .catch(function (err) { alert(err.message || '??? ???'); });
+        }
+      });
+    }
+    var tbody = document.getElementById('tbody-admin-showrooms');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var supabase = typeof window !== 'undefined' && window.seumSupabase;
+        if (!supabase) return;
+        var btnEdit = e.target && e.target.closest && e.target.closest('.btn-admin-showroom-edit');
+        if (btnEdit) {
+          var id = btnEdit.getAttribute('data-id');
+          document.getElementById('admin-showroom-id').value = id || '';
+          document.getElementById('admin-showroom-code').value = btnEdit.getAttribute('data-code') || '';
+          document.getElementById('admin-showroom-code').setAttribute('readonly', 'readonly');
+          document.getElementById('admin-showroom-name').value = btnEdit.getAttribute('data-name') || '';
+          form.classList.remove('hidden');
+          return;
+        }
+        var btnDel = e.target && e.target.closest && e.target.closest('.btn-admin-showroom-del');
+        if (btnDel) {
+          if (!confirm('???????? ?????????????')) return;
+          var id = btnDel.getAttribute('data-id');
+          supabase.from('showrooms').delete().eq('id', id)
+            .then(function (res) {
+              if (res.error) throw res.error;
+              renderAdminShowrooms();
+            })
+            .catch(function (err) { alert(err.message || '???? ???'); });
+        }
+      });
+    }
+  }
+
+  function renderAdminCustomers() {
+    var tbody = document.getElementById('tbody-admin-customers');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="7">Supabase ??????????????</td></tr>';
+      return;
+    }
+    supabase.from('customers').select('id, name, phone, address, source, status, sales_person')
+      .order('id', { ascending: false })
+      .then(function (res) {
+        var list = res.data || [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7">??????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (c) {
+          return '<tr data-id="' + c.id + '"><td>' + (c.name || '-') + '</td><td>' + (c.phone || '-') + '</td><td>' + (c.address || '-') + '</td><td>' + (c.source || '-') + '</td><td>' + (c.status || '-') + '</td><td>' + (c.sales_person || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-customer-edit" data-id="' + c.id + '">???</button></td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="7">?????????? ???????</td></tr>';
+        console.error(err);
+      });
+  }
+
+  function initAdminCustomers() {
+    var tbody = document.getElementById('tbody-admin-customers');
+    if (!tbody) return;
+    tbody.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest && e.target.closest('.btn-admin-customer-edit');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var row = tbody.querySelector('tr[data-id="' + id + '"]');
+      if (!row || !id) return;
+      var cells = row.querySelectorAll('td');
+      var name = cells[0] && cells[0].textContent;
+      var phone = cells[1] && cells[1].textContent;
+      var address = cells[2] && cells[2].textContent;
+      var source = cells[3] && cells[3].textContent;
+      var status = cells[4] && cells[4].textContent;
+      var salesPerson = cells[5] && cells[5].textContent;
+      var newName = window.prompt('???', name === '-' ? '' : name);
+      if (newName === null) return;
+      var newPhone = window.prompt('?????, phone === '-' ? '' : phone);
+      if (newPhone === null) return;
+      var newAddress = window.prompt('??', address === '-' ? '' : address);
+      if (newAddress === null) return;
+      var newSource = window.prompt('?????, source === '-' ? '' : source);
+      if (newSource === null) return;
+      var newStatus = window.prompt('???', status === '-' ? '' : status);
+      if (newStatus === null) return;
+      var newSales = window.prompt('?????, salesPerson === '-' ? '' : salesPerson);
+      if (newSales === null) return;
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      supabase.from('customers').update({
+        name: newName || null,
+        phone: newPhone || null,
+        address: newAddress || null,
+        source: newSource || null,
+        status: newStatus || null,
+        sales_person: newSales || null
+      }).eq('id', id)
+        .then(function (res) {
+          if (res.error) throw res.error;
+          renderAdminCustomers();
+        })
+        .catch(function (err) { alert('??? ???: ' + (err.message || err)); });
+    });
+  }
+
+  function renderAdminContracts() {
+    var tbody = document.getElementById('tbody-admin-contracts');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="8">Supabase ??????????????</td></tr>';
+      return;
+    }
+    supabase.from('contracts').select('id, customer_id, sales_person, contract_amount, deposit, middle_payment, balance, status, created_at')
+      .order('id', { ascending: false })
+      .then(function (res) {
+        var list = res.data || [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8">??????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (c) {
+          var dateStr = c.created_at ? new Date(c.created_at).toLocaleDateString('ko-KR') : '-';
+          return '<tr><td>' + (c.id || '-') + '</td><td>' + (c.customer_id || '-') + '</td><td>' + (c.sales_person || '-') + '</td><td>' + (c.contract_amount != null ? Number(c.contract_amount).toLocaleString() : '-') + '</td><td>' + (c.deposit != null ? Number(c.deposit).toLocaleString() : '-') + '</td><td>' + (c.balance != null ? Number(c.balance).toLocaleString() : '-') + '</td><td>' + (c.status || '-') + '</td><td>' + dateStr + '</td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="8">?????????? ???????</td></tr>';
+        console.error(err);
+      });
+  }
+
+  function renderAdminPayments() {
+    var tbody = document.getElementById('tbody-admin-payments');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="5">Supabase ??????????????</td></tr>';
+      return;
+    }
+    supabase.from('payments').select('id, contract_id, type, amount, payment_date')
+      .order('id', { ascending: false })
+      .then(function (res) {
+        var list = res.data || [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5">??? ???????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (p) {
+          var dateStr = p.payment_date || '-';
+          return '<tr><td>' + (p.id || '-') + '</td><td>' + (p.contract_id || '-') + '</td><td>' + (p.type || '-') + '</td><td>' + (p.amount != null ? Number(p.amount).toLocaleString() : '-') + '</td><td>' + dateStr + '</td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="5">?????????? ???????</td></tr>';
+        console.error(err);
+      });
+  }
+
+  function renderAdminReservations() {
+    var tbody = document.getElementById('tbody-admin-reservations');
+    if (!tbody) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      tbody.innerHTML = '<tr><td colspan="6">Supabase ??????????????</td></tr>';
+      return;
+    }
+    supabase.from('reservations').select('id, name, phone, visit_date, showroom, manager, created_at')
+      .order('id', { ascending: false })
+      .then(function (res) {
+        var list = res.data || [];
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">?????????????.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = list.map(function (r) {
+          var visitStr = r.visit_date || '-';
+          var createdStr = r.created_at ? new Date(r.created_at).toLocaleDateString('ko-KR') : '-';
+          return '<tr><td>' + (r.name || '-') + '</td><td>' + (r.phone || '-') + '</td><td>' + visitStr + '</td><td>' + (r.showroom || '-') + '</td><td>' + (r.manager || '-') + '</td><td>' + createdStr + '</td></tr>';
+        });
+      })
+      .catch(function (err) {
+        tbody.innerHTML = '<tr><td colspan="6">?????????? ???????</td></tr>';
+        console.error(err);
+      });
+  }
+
+  function initHR() {
+    var btnAdd = document.getElementById('btn-add-employee');
+    var form = document.getElementById('form-employee');
+    var btnCancel = document.getElementById('btn-cancel-employee');
+    if (btnAdd) {
+      btnAdd.addEventListener('click', function () {
+        document.getElementById('employee-id').value = '';
+        if (form) form.reset();
+        if (form) form.classList.remove('hidden');
+      });
+    }
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var empId = document.getElementById('employee-id').value;
+        var employees = getEmployees();
+        var payload = {
+          name: document.getElementById('employee-name').value.trim(),
+          team: document.getElementById('employee-team').value,
+          showroomId: document.getElementById('employee-showroom').value,
+          phone: document.getElementById('employee-phone').value.trim(),
+          joinDate: document.getElementById('employee-join-date').value,
+          memo: document.getElementById('employee-memo').value.trim()
+        };
+        if (empId) {
+          var idx = employees.findIndex(function (x) { return x.id === empId; });
+          if (idx !== -1) {
+            employees[idx] = Object.assign({}, employees[idx], payload);
+          }
+        } else {
+          payload.id = id();
+          employees.push(payload);
+        }
+        saveEmployees(employees);
+        renderHR();
+        form.classList.add('hidden');
+      });
+    }
+    if (btnCancel && form) btnCancel.addEventListener('click', function () { form.classList.add('hidden'); });
+
+    var btnAddLeave = document.getElementById('btn-add-leave');
+    var formLeave = document.getElementById('form-leave');
+    var btnCancelLeave = document.getElementById('btn-cancel-leave');
+    if (btnAddLeave && formLeave) {
+      btnAddLeave.addEventListener('click', function () {
+        formLeave.reset();
+        formLeave.classList.remove('hidden');
+      });
+    }
+    if (formLeave) {
+      formLeave.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var employeeId = document.getElementById('leave-employee-id').value;
+        if (!employeeId) return;
+        var leaves = getLeaves();
+        leaves.push({
+          id: id(),
+          employeeId: employeeId,
+          startDate: document.getElementById('leave-start').value,
+          endDate: document.getElementById('leave-end').value,
+          reason: document.getElementById('leave-reason').value.trim()
+        });
+        saveLeaves(leaves);
+        renderHR();
+        formLeave.classList.add('hidden');
+      });
+    }
+    if (btnCancelLeave && formLeave) btnCancelLeave.addEventListener('click', function () { formLeave.classList.add('hidden'); });
+  }
+
+  function initTeamCalendar() {
+    var btnAdd = document.getElementById('btn-team-calendar-add');
+    var prevBtn = document.getElementById('team-calendar-prev');
+    var nextBtn = document.getElementById('team-calendar-next');
+    var form = document.getElementById('team-calendar-form');
+    var deleteBtn = document.getElementById('btn-team-calendar-delete');
+    var modal = document.getElementById('modal-team-calendar');
+    ensureTeamCalendarTimeOptions();
+    if (btnAdd && modal) {
+      btnAdd.addEventListener('click', function () {
+        var today = new Date();
+        setTeamCalendarMonth(today.getFullYear(), today.getMonth());
+        openTeamEventModal(today.toISOString().slice(0, 10));
+      });
+    }
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function () {
+        ensureTeamCalendarMonth();
+        var y = teamCalendarYear;
+        var m = teamCalendarMonth - 1;
+        if (m < 0) {
+          m = 11;
+          y -= 1;
+        }
+        setTeamCalendarMonth(y, m);
+        renderTeamCalendar();
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function () {
+        ensureTeamCalendarMonth();
+        var y = teamCalendarYear;
+        var m = teamCalendarMonth + 1;
+        if (m > 11) {
+          m = 0;
+          y += 1;
+        }
+        setTeamCalendarMonth(y, m);
+        renderTeamCalendar();
+      });
+    }
+    ['team-calendar-grid-month', 'team-calendar-grid-week'].forEach(function (id) {
+      var grid = document.getElementById(id);
+      if (grid) {
+        grid.addEventListener('click', function (e) {
+          var cell = e.target.closest('[data-calendar-date]');
+          if (!cell) return;
+          var date = cell.getAttribute('data-calendar-date');
+          openTeamEventModal(date);
+        });
+      }
+    });
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var idInput = document.getElementById('team-calendar-id');
+        var titleInput = document.getElementById('team-calendar-title');
+        var teamSelect = document.getElementById('team-calendar-team');
+        var assigneeInput = document.getElementById('assignee_name');
+        var showroomSelect = document.getElementById('team-calendar-showroom');
+        var typeSelect = document.getElementById('team-calendar-type');
+        var statusSelect = document.getElementById('team-calendar-status');
+        var prioritySelect = document.getElementById('team-calendar-priority');
+        var dateStartInput = document.getElementById('team-calendar-date-start');
+        var dateEndInput = document.getElementById('team-calendar-date-end');
+        var timeStartInput = document.getElementById('team-calendar-time-start');
+        var timeEndInput = document.getElementById('team-calendar-time-end');
+        var allDayInput = document.getElementById('team-calendar-all-day');
+        var locationInput = document.getElementById('team-calendar-location');
+        var contentInput = document.getElementById('team-calendar-content');
+        if (!titleInput.value.trim() || !teamSelect.value || !dateStartInput.value) {
+          return;
+        }
+        var startStr = dateStartInput.value;
+        var endStr = dateEndInput.value || startStr;
+        if (endStr < startStr) {
+          var tmpStr = startStr;
+          startStr = endStr;
+          endStr = tmpStr;
+        }
+        var startTime = timeStartInput.value || '';
+        var endTime = timeEndInput.value || '';
+        var isAllDay = allDayInput ? !!allDayInput.checked : false;
+        if (!isAllDay) {
+          if (!startTime || !endTime) {
+            window.alert('?? ?????????????/?? ??????? ?????????');
+            return;
+          }
+          if (endTime < startTime) {
+            window.alert('?? ???????? ????? ??? ????????.');
+            return;
+          }
+        } else {
+          startTime = '';
+          endTime = '';
+        }
+        var events = getTeamEvents();
+        var existingId = idInput.value;
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var creatorName = cur && cur.name ? String(cur.name).trim() : '';
+        var creatorTeam = cur && cur.team ? String(cur.team).trim() : '';
+        var creatorLabel = creatorName ? (creatorTeam ? (creatorName + ' ? ' + creatorTeam) : creatorName) : '';
+        var payload = {
+          title: titleInput.value.trim(),
+          team: teamSelect.value,
+          assignee_name: assigneeInput ? assigneeInput.value.trim() : '',
+          showroomId: showroomSelect.value,
+          eventType: typeSelect ? typeSelect.value : '',
+          status: statusSelect ? statusSelect.value : 'planned',
+          priority: prioritySelect ? prioritySelect.value : 'normal',
+          startDate: startStr,
+          endDate: endStr,
+          startTime: startTime,
+          endTime: endTime,
+          allDay: isAllDay,
+          location: locationInput ? locationInput.value.trim() : '',
+          content: contentInput.value.trim(),
+          createdByName: creatorName,
+          createdByTeam: creatorTeam,
+          createdBy: creatorLabel
+        };
+        if (console && console.log) {
+          console.log('[TeamCalendar] save payload:', payload);
+        }
+        if (existingId) {
+          var idx = events.findIndex(function (x) { return x.id === existingId; });
+          if (idx !== -1) {
+            events[idx] = Object.assign({}, events[idx], payload);
+          }
+        } else {
+          payload.id = id();
+          events.push(payload);
+        }
+        saveTeamEvents(events);
+        if (typeof logActivity === 'function') {
+          logActivity({
+            actionType: existingId ? 'update' : 'create',
+            targetType: 'calendar',
+            targetId: payload.id,
+            targetName: payload.title,
+            description: existingId ? '??? ???' : '??? ???'
+          });
+        }
+        ensureTeamCalendarMonth();
+        var d = new Date(payload.startDate || payload.date);
+        if (!isNaN(d.getTime())) {
+          setTeamCalendarMonth(d.getFullYear(), d.getMonth());
+        }
+        renderTeamCalendar();
+        if (modal) modal.classList.add('hidden');
+      });
+    }
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', function () {
+        var idInput = document.getElementById('team-calendar-id');
+        var eventId = idInput && idInput.value;
+        if (!eventId) return;
+        var eventsAll = getTeamEvents();
+        var target = eventsAll.find(function (x) { return x.id === eventId; });
+        var curTeam = getCurrentTeamCode();
+        var isAdminRole = isAdmin() || isSuperAdmin();
+        if (target && target.team && curTeam && target.team !== curTeam && !isAdminRole) {
+          window.alert('??? ????? ?????????? ??????????????.');
+          return;
+        }
+        if (!window.confirm('????????????????')) return;
+        var events = eventsAll.filter(function (x) { return x.id !== eventId; });
+        saveTeamEvents(events);
+        // Supabase???????????? ????? ????? ????????
+        try {
+          var supabase = typeof window !== 'undefined' && window.seumSupabase;
+          if (supabase) {
+            supabase.from('team_events').delete().eq('local_id', eventId)
+              .then(function (res) {
+                if (res && res.error) console.error('Supabase team_events delete error:', res.error);
+              })
+              .catch(function (err) { console.error('Supabase team_events delete failed:', err); });
+          }
+        } catch (e) {
+          console.error('Supabase team_events delete exception:', e);
+        }
+        if (typeof logActivity === 'function') {
+          logActivity({ actionType: 'delete', targetType: 'calendar', targetId: eventId, targetName: target && target.title, description: '??? ????' });
+        }
+        renderTeamCalendar();
+        if (modal) modal.classList.add('hidden');
+      });
+    }
+    var yearSel = document.getElementById('team-calendar-filter-year');
+    if (yearSel) {
+      var now = new Date();
+      var curYear = now.getFullYear();
+      var options = '<option value="">???</option>';
+      for (var y = curYear - 1; y <= curYear + 1; y++) {
+        options += '<option value="' + y + '"' + (y === curYear ? ' selected' : '') + '>' + y + '??/option>';
+      }
+      yearSel.innerHTML = options;
+    }
+    var monthSel = document.getElementById('team-calendar-filter-month');
+    if (monthSel) {
+      var curMonth = (new Date()).getMonth() + 1;
+      if (!monthSel.value) monthSel.value = String(curMonth);
+    }
+    var filterControls = [
+      'team-calendar-filter-year',
+      'team-calendar-filter-month',
+      'team-calendar-filter-showroom',
+      'team-calendar-filter-team',
+      'team-calendar-filter-assignee',
+      'team-calendar-filter-status',
+      'team-calendar-filter-type'
+    ];
+    filterControls.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var eventName = el.tagName === 'INPUT' ? 'input' : 'change';
+      el.addEventListener(eventName, function () {
+        renderTeamCalendar();
+      });
+    });
+    var resetBtn = document.getElementById('team-calendar-filter-reset');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        filterControls.forEach(function (id) {
+          var el = document.getElementById(id);
+          if (!el) return;
+          if (el.tagName === 'SELECT') {
+            el.value = '';
+          } else if (el.tagName === 'INPUT') {
+            el.value = '';
+          }
+        });
+        if (yearSel) {
+          var now2 = new Date();
+          var curYear2 = now2.getFullYear();
+          yearSel.value = String(curYear2);
+        }
+        if (monthSel) {
+          monthSel.value = String((new Date()).getMonth() + 1);
+        }
+        renderTeamCalendar();
+      });
+    }
+    var todayBtn = document.getElementById('team-calendar-go-today');
+    if (todayBtn) {
+      todayBtn.addEventListener('click', function () {
+        var now3 = new Date();
+        setTeamCalendarMonth(now3.getFullYear(), now3.getMonth());
+        renderTeamCalendar();
+      });
+    }
+    var clearBtn = document.getElementById('team-calendar-clear-all');
+    if (clearBtn) {
+      // ??????(??????)?????????????? ???
+      if (isSuperAdmin()) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+      clearBtn.addEventListener('click', function () {
+        // ??? ??????????? ??????????
+        if (!isSuperAdmin()) {
+          window.alert('??? ??? ????????????????????????.');
+          return;
+        }
+        if (!window.confirm('??? ????? ?? ??????????????????\n??????? ?????????????.')) return;
+        saveTeamEvents([]);
+        try {
+          var supabase = typeof window !== 'undefined' && window.seumSupabase;
+          if (supabase) {
+            supabase.from('team_events').delete().neq('local_id', null).then(function (res) {
+              if (res && res.error) {
+                console.error('Supabase team_events clear error:', res.error);
+              }
+            }).catch(function (err) {
+              console.error('Supabase team_events clear failed:', err);
+            });
+          }
+        } catch (e) {
+          console.error('Supabase team_events clear exception:', e);
+        }
+        renderTeamCalendar();
+      });
+    }
+    var legendButtons = document.querySelectorAll('.team-calendar-legend-item[data-team-filter]');
+    legendButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var team = btn.getAttribute('data-team-filter');
+        var teamSel = document.getElementById('team-calendar-filter-team');
+        if (!teamSel) return;
+        if (teamSel.value === team) {
+          teamSel.value = '';
+          legendButtons.forEach(function (b) { b.classList.remove('active'); });
+        } else {
+          teamSel.value = team;
+          legendButtons.forEach(function (b) { b.classList.toggle('active', b === btn); });
+        }
+        renderTeamCalendar();
+      });
+    });
+    var viewTabs = document.querySelectorAll('.team-calendar-view-tab');
+    viewTabs.forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var view = tab.getAttribute('data-view') || 'month';
+        teamCalendarView = view;
+        viewTabs.forEach(function (t) { t.classList.toggle('active', t === tab); });
+        document.getElementById('team-calendar-view-month').classList.toggle('hidden', view !== 'month');
+        document.getElementById('team-calendar-view-week').classList.toggle('hidden', view !== 'week');
+        document.getElementById('team-calendar-view-list').classList.toggle('hidden', view !== 'list');
+        renderTeamCalendar();
+      });
+    });
+    var listTable = document.getElementById('team-calendar-table-list');
+    if (listTable) {
+      listTable.addEventListener('click', function (e) {
+        var row = e.target.closest('tr[data-team-event-id]');
+        if (!row) return;
+        var id = row.getAttribute('data-team-event-id');
+        if (id) openTeamEventModal(id);
+      });
+    }
+    if (modal) {
+      document.querySelectorAll('[data-close="modal-team-calendar"]').forEach(function (btn) {
+        btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+      });
+    }
+  }
+
+  function initKPI() {
+    var btnSave = document.getElementById('btn-save-kpi-goal');
+    if (btnSave) {
+      btnSave.addEventListener('click', function () {
+        var monthPrefix = thisMonth();
+        var goals = getKpiGoals();
+        goals[monthPrefix] = {
+          goalContracts: Number(document.getElementById('kpi-goal-contracts').value) || 0,
+          goalSales: Number(document.getElementById('kpi-goal-sales').value) || 0
+        };
+        saveKpiGoals(goals);
+        renderKPI();
+      });
+    }
+  }
+
+  function initSettlementIncentive() {
+    var btnApply = document.getElementById('btn-apply-incentive');
+    if (btnApply) {
+      btnApply.addEventListener('click', function () { renderSettlementIncentive(); });
+    }
+    var periodEl = document.getElementById('incentive-period');
+    if (periodEl) {
+      periodEl.addEventListener('change', function () { renderSettlementIncentive(); });
+    }
+    document.addEventListener('change', function (e) {
+      if (e.target.classList && e.target.classList.contains('incentive-percent-input')) {
+        var name = e.target.getAttribute('data-salesperson');
+        if (!name) return;
+        var val = e.target.value.trim();
+        var percents = getIncentivePercents();
+        percents[name] = val === '' ? '' : val;
+        saveIncentivePercents(percents);
+        renderSettlementIncentive();
+      }
+    });
+  }
+
+  function initFilter() {
+    var yearEl = document.getElementById('filter-year');
+    if (yearEl) {
+      var currentYear = new Date().getFullYear();
+      var start = Math.min(2022, currentYear - 2);
+      var end = currentYear + 1;
+      for (var y = end; y >= start; y--) {
+        var opt = document.createElement('option');
+        opt.value = String(y);
+        opt.textContent = y + '??;
+        yearEl.appendChild(opt);
+      }
+      yearEl.value = String(currentYear);
+      yearEl.addEventListener('change', onFilterChange);
+    }
+    var monthEl = document.getElementById('filter-month');
+    if (monthEl) {
+      monthEl.value = String(new Date().getMonth() + 1);
+      monthEl.addEventListener('change', onFilterChange);
+    }
+    function onFilterChange() {
+      renderDashboard();
+      renderMarketing();
+      renderSales();
+      renderDesign();
+      renderConstruction();
+      renderSettlement();
+    }
+    var el = document.getElementById('filter-showroom');
+    if (el) {
+      el.addEventListener('change', onFilterChange);
+    }
+    var btnReset = document.getElementById('btn-reset-samples');
+    if (btnReset) {
+      // ??? ????????? ????? ??????? ???????????????
+      btnReset.classList.add('hidden');
+    }
+  }
+
+  function initVisitDetailModal() {
+    var modal = document.getElementById('modal-visit-detail');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-visit-detail"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+  }
+
+  function initContractChatModal() {
+    var modal = document.getElementById('modal-contract-chat');
+    if (modal) {
+      document.querySelectorAll('[data-close="modal-contract-chat"]').forEach(function (btn) {
+        btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+      });
+    }
+    var modalForm = document.getElementById('modal-contract-chat-form');
+    var modalInput = document.getElementById('modal-contract-chat-input');
+    if (modalForm && modalInput) {
+      modalInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          modalForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+      });
+      modalForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('modal-contract-chat-contract-id') && document.getElementById('modal-contract-chat-contract-id').value;
+        var text = (modalInput.value || '').trim();
+        if (!contractId || !text) return;
+        var me = typeof window.getCurrentChatUser === 'function' ? window.getCurrentChatUser() : null;
+        if (!me) return;
+        var msg = {
+          id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
+          contract_id: contractId,
+          sender_id: me.id,
+          sender_name: me.name,
+          message: text,
+          created_at: new Date().toISOString()
+        };
+        if (typeof window.saveContractChatMessage === 'function') window.saveContractChatMessage(contractId, msg);
+        modalInput.value = '';
+        if (typeof window.renderContractChat === 'function') window.renderContractChat(contractId, 'modal-contract-chat-message-list');
+      });
+    }
+    var designChatBtn = document.getElementById('design-detail-chat-btn');
+    if (designChatBtn) {
+      designChatBtn.addEventListener('click', function () {
+        var idEl = document.getElementById('design-inline-contract-id');
+        var id = idEl && idEl.value;
+        if (id && typeof openContractChatModal === 'function') openContractChatModal(id);
+      });
+    }
+    var constructionChatBtn = document.getElementById('construction-detail-chat-btn');
+    if (constructionChatBtn) {
+      constructionChatBtn.addEventListener('click', function () {
+        var id = typeof expandedConstructionId !== 'undefined' ? expandedConstructionId : null;
+        if (id && typeof openContractChatModal === 'function') openContractChatModal(id);
+      });
+    }
+    document.addEventListener('click', function (e) {
+      if (e.target.classList.contains('btn-open-contract-chat') || e.target.closest('.btn-open-contract-chat')) {
+        var btn = e.target.classList.contains('btn-open-contract-chat') ? e.target : e.target.closest('.btn-open-contract-chat');
+        var id = btn && btn.getAttribute('data-contract-id');
+        if (id && typeof openContractChatModal === 'function') openContractChatModal(id);
+      }
+    });
+  }
+
+  window.getContracts = getContracts;
+  window.getShowroomName = getShowroomName;
+  window.isAdmin = isAdmin;
+  window.formatDate = formatDate;
+  window.resolveShowroomId = resolveShowroomId;
+  window.sanitizeNoticeFileName = sanitizeNoticeFileName;
+
+  function init() {
+    ensureSamples();
+    ensureEmployeesAndKpi();
+    // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
+    syncContractsFromSupabase();
+    syncTeamEventsFromSupabase();
+    syncAnnouncementsFromSupabase();
+    syncActivityLogsFromSupabase();
+    initMobileSidebar();
+    initNav();
+    initFilter();
+    initVisitDetailModal();
+    initVisitAssign();
+    if (typeof window.initChatPanel === 'function') window.initChatPanel();
+    initDesignPermitModal();
+    initDesignDetailPanel();
+    initContractDetailPanel();
+    initContractChatModal();
+    initConstructionStagesModal();
+    initVisitForm();
+    initCustomerForm();
+    initContractForm();
+    initContractDetailModal();
+    initPaymentModal();
+    initHR();
+    initKPI();
+    initAdminApproval();
+    initAdminEmployees();
+    initAdminShowrooms();
+    initAdminCustomers();
+    initAdminPresence();
+    initAdminActivityLogs();
+    initSettlementIncentive();
+    updateAdminNavVisibility();
+    updateManageNavVisibility();
+    window.seumAuth = window.seumAuth || {};
+    window.seumAuth.onReady = function () {
+      updateAdminNavVisibility();
+      updateManageNavVisibility();
+      if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
+      // ????? ????? ?? ???? ???????? ????????? ????????? ?????
+      if (typeof renderDashboard === 'function') renderDashboard();
+      if (typeof renderSales === 'function') renderSales();
+    };
+    initHR();
+    initTeamCalendar();
+    initDelegation();
+    renderTodayMessage();
+    renderDashboard();
+    renderAnnouncementsPage();
+    renderSidebarAnnouncementBadge();
+    renderMarketing();
+    renderSales();
+    // ?????init?? ??? ???????(???? currentEmployee ???) ??? ??? ???????? ?????????
+    if (window.seumAuth && window.seumAuth.currentEmployee && typeof renderSales === 'function') {
+      renderSales();
+    }
+    renderDesign();
+    renderConstruction();
+    renderSettlement();
+    initAnnouncementDetailModal();
+    initAnnouncementFormModal();
+    renderHR();
+    renderTeamCalendar();
+    renderKPI();
+    console.log('???????? OS ??? ??');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();

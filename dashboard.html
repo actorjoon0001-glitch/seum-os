@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세움디자인하우징 OS - 대시보드</title>
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/seum-os-192.png">
+  <link rel="stylesheet" href="./css/style.css?v=20260312-1">
+  <style>
+    /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
+    .notice-detail-body-box {
+      margin-top: 12px; padding: 16px 18px; border-radius: 14px;
+      line-height: 1.7;
+    }
+    .notice-comments-section { margin-top: 1.25rem; }
+    .notice-comments-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    }
+    .notice-comments-title {
+      font-size: 18px; font-weight: 700;
+    }
+    .notice-comments-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 28px; height: 28px; padding: 0 10px; border-radius: 999px;
+      font-size: 13px; font-weight: 700;
+    }
+    #noticeCommentsList,
+    .notice-comments-list {
+      display: flex; flex-direction: column; gap: 14px;
+      max-height: 340px; overflow-y: auto; padding-right: 6px;
+    }
+    #noticeCommentsList::-webkit-scrollbar { width: 8px; }
+    #noticeCommentsList::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    #noticeCommentsList::-webkit-scrollbar-track { background: transparent; }
+    .notice-comment-card {
+      display: block; border-radius: 14px; padding: 16px 18px;
+    }
+    .notice-comment-head {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    }
+    .notice-comment-author-wrap { flex: 1; min-width: 0; }
+    .notice-comment-author { font-size: 15px; font-weight: 700; }
+    .notice-comment-meta { margin-top: 4px; font-size: 12px; line-height: 1.4; }
+    .notice-comment-body {
+      margin-top: 12px; font-size: 15px; line-height: 1.65;
+      white-space: pre-line; word-break: break-word;
+    }
+    .notice-comment-delete {
+      flex-shrink: 0; height: 32px; padding: 0 12px; border-radius: 10px;
+      border: 1px solid #fecaca; background: #fff1f2; color: #be123c;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .notice-comment-delete:hover { background: #ffe4e6; }
+    .notice-comment-form {
+      margin-top: 18px; padding-top: 16px; border-top: 1px solid #e5e7eb;
+    }
+    .notice-comment-textarea {
+      width: 100%; min-height: 96px; border-radius: 14px;
+      padding: 14px 16px; font-size: 14px; line-height: 1.6; resize: vertical;
+      box-sizing: border-box;
+    }
+    .notice-comment-textarea:focus {
+      outline: none; border-color: #60A5FA; box-shadow: 0 0 0 2px rgba(96,165,250,0.25);
+    }
+    .notice-comment-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+    .notice-comment-submit {
+      min-width: 96px; height: 40px; border: none; border-radius: 12px;
+      background: #3b82f6; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .notice-comment-submit:hover { background: #2563eb; }
+    .notice-empty-comments {
+      padding: 18px; text-align: center; font-size: 13px;
+      border-radius: 12px;
+    }
+    .notice-detail-footer {
+      display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 8px;
+    }
+    .notice-detail-close,
+    .notice-detail-delete {
+      min-width: 84px; height: 40px; border-radius: 12px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1 class="sidebar-logo">세움디자인하우징 OS</h1>
+      <p class="sidebar-logo-sub">직원 전용 내부 운영 시스템</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">공통</div>
+        <a href="#" class="nav-item active" data-section="dashboard">대시보드</a>
+        <a href="#" class="nav-item" data-section="announcements">
+          <span class="nav-item-text">공지사항</span>
+          <span class="nav-item-badge sidebar-announcement-badge hidden" id="sidebar-announcement-badge" aria-live="polite"></span>
+        </a>
+        <a href="#" class="nav-item" data-section="team-calendar">운영 캘린더</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">부서별 업무</div>
+        <a href="#" class="nav-item" data-section="marketing">마케팅팀</a>
+
+        <div class="nav-group sidebar-group" id="sidebar-group-sales">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-sales-toggle" aria-expanded="false">
+            <span>영업팀</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-sales-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-leads">방문예약 고객</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-customers">고객 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-contracts">계약 목록</a>
+          </div>
+        </div>
+
+        <a href="#" class="nav-item" data-section="design">설계팀</a>
+        <a href="#" class="nav-item" data-section="construction">시공팀</a>
+
+        <div class="nav-group sidebar-group" id="sidebar-group-settlement">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-settlement-toggle" aria-expanded="false">
+            <span>정산팀</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-settlement-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="settlement-payment">전체 고객 입금현황</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="settlement-incentive">영업사원별 인센티브</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-section" id="nav-section-manage">
+        <div class="nav-section-title">관리</div>
+        <a href="#" class="nav-item" data-section="hr">인사(HR)</a>
+        <a href="#" class="nav-item" data-section="kpi">KPI</a>
+      </div>
+      <div class="nav-section nav-section-admin hidden" id="nav-section-admin">
+        <div class="nav-section-title">관리자</div>
+        <div class="nav-group sidebar-group" id="sidebar-group-admin">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-admin-toggle" aria-expanded="false">
+            <span>관리자 메뉴</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-admin-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-approval">직원 승인 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-employees">직원 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-showrooms">전시장 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-customers">고객 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-contracts">계약 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-payments">정산 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-reservations">방문예약 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-presence">직원 접속 현황</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-activity-logs">활동 로그</a>
+          </div>
+        </div>
+      </div>
+      <div class="nav-section nav-section-user">
+        <p class="sidebar-current-user" id="sidebar-current-user" aria-live="polite"></p>
+        <button type="button" class="nav-item nav-item-logout" id="btn-logout">로그아웃</button>
+      </div>
+    </nav>
+  </aside>
+  <main class="main">
+    <header class="mobile-header" id="mobile-header">
+      <button type="button" class="mobile-menu-btn" id="mobile-menu-btn" aria-label="메뉴 열기">
+        <span class="mobile-menu-icon"></span>
+      </button>
+      <span class="mobile-header-title">세움디자인하우징 OS</span>
+    </header>
+    <div class="filter-bar dashboard-filter-bar">
+      <div class="filter-item">
+        <label for="filter-year">년도</label>
+        <select id="filter-year">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label for="filter-month">월</label>
+        <select id="filter-month">
+          <option value="">전체</option>
+          <option value="1">1월</option>
+          <option value="2">2월</option>
+          <option value="3">3월</option>
+          <option value="4">4월</option>
+          <option value="5">5월</option>
+          <option value="6">6월</option>
+          <option value="7">7월</option>
+          <option value="8">8월</option>
+          <option value="9">9월</option>
+          <option value="10">10월</option>
+          <option value="11">11월</option>
+          <option value="12">12월</option>
+        </select>
+      </div>
+      <div class="filter-item filter-item-store">
+        <label for="filter-showroom">전시장</label>
+        <select id="filter-showroom">
+          <option value="">전체</option>
+          <option value="headquarters">본사 전시장</option>
+          <option value="showroom1">1전시장</option>
+          <option value="showroom3">3전시장</option>
+          <option value="showroom4">4전시장</option>
+        </select>
+      </div>
+      <span class="filter-help filter-hint">※ 년·월·전시장으로 목록을 필터합니다</span>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-samples">샘플 데이터 다시 불러오기</button>
+    </div>
+    <section id="section-dashboard" class="content-section active">
+      <header class="main-header main-header-dashboard">
+        <h2>대시보드</h2>
+        <p class="main-current-user" id="main-current-user" aria-live="polite"></p>
+      </header>
+      <div class="card today-message-card">
+        <h3 class="today-message-title">오늘의 메시지</h3>
+        <p class="today-message-text" id="today-message-text"></p>
+      </div>
+      <section class="today-showroom-stats" aria-label="오늘 전시장 현황">
+        <h3 class="today-showroom-stats-title">오늘 전시장 현황</h3>
+        <div class="today-showroom-stats-grid" id="today-showroom-stats-grid">
+          <!-- JS renderTodayShowroomStats() -->
+        </div>
+      </section>
+      <div class="kpi-cards">
+        <article class="kpi-card">
+          <h3 class="kpi-title">월 계약건수</h3>
+          <p class="kpi-value" id="kpi-contract-count">0</p>
+          <span class="kpi-unit">건</span>
+        </article>
+        <article class="kpi-card">
+          <h3 class="kpi-title">계약총액</h3>
+          <p class="kpi-value" id="kpi-total-amount">0</p>
+          <span class="kpi-unit">억원</span>
+        </article>
+        <article class="kpi-card">
+          <h3 class="kpi-title">받은 계약금</h3>
+          <p class="kpi-value" id="kpi-deposit-received">0</p>
+          <span class="kpi-unit">억원</span>
+        </article>
+      </div>
+      <div class="dashboard-charts">
+        <div class="card chart-card">
+          <h3>전시장별 계약건수</h3>
+          <div class="chart-wrap">
+            <canvas id="chart-contracts"></canvas>
+          </div>
+        </div>
+        <div class="card chart-card">
+          <h3>전시장별 총 매출</h3>
+          <div class="chart-wrap">
+            <canvas id="chart-sales"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="dashboard-summary">
+        <h3 class="dashboard-subtitle">팀별 현황</h3>
+        <div class="summary-cards">
+          <button type="button" class="summary-card" data-dashboard-goto="marketing" id="dashboard-card-leads">
+            <span class="summary-label">영업 전달 대기</span>
+            <span class="summary-value" id="dashboard-leads-waiting">0</span>
+            <span class="summary-unit">건</span>
+          </button>
+          <button type="button" class="summary-card" data-dashboard-goto="sales-contracts" id="dashboard-card-contracts">
+            <span class="summary-label">전체 계약</span>
+            <span class="summary-value" id="dashboard-contracts-total">0</span>
+            <span class="summary-unit">건</span>
+          </button>
+          <button type="button" class="summary-card" data-dashboard-goto="design" id="dashboard-card-design">
+            <span class="summary-label">설계 미완료</span>
+            <span class="summary-value" id="dashboard-design-pending">0</span>
+            <span class="summary-unit">건</span>
+          </button>
+          <button type="button" class="summary-card" data-dashboard-goto="construction" id="dashboard-card-construction">
+            <span class="summary-label">시공 진행중</span>
+            <span class="summary-value" id="dashboard-construction-active">0</span>
+            <span class="summary-unit">건</span>
+          </button>
+          <button type="button" class="summary-card" data-dashboard-goto="settlement-payment" id="dashboard-card-settlement">
+            <span class="summary-label">입금 미확인</span>
+            <span class="summary-value" id="dashboard-payment-unconfirmed">0</span>
+            <span class="summary-unit">건</span>
+          </button>
+        </div>
+      </div>
+      <div class="dashboard-widgets">
+        <div class="card dashboard-widget">
+          <h3>오늘 방문예약</h3>
+          <div id="dashboard-today-visits" class="widget-list">-</div>
+          <a href="#" class="widget-link" data-dashboard-goto="marketing">마케팅팀으로 이동 →</a>
+        </div>
+        <div class="card dashboard-widget">
+          <h3>최근 계약</h3>
+          <div id="dashboard-recent-contracts" class="widget-list">-</div>
+          <a href="#" class="widget-link" data-dashboard-goto="sales-contracts">영업팀으로 이동 →</a>
+        </div>
+        <div class="card dashboard-widget">
+          <h3>시공 단계별</h3>
+          <div id="dashboard-construction-stages" class="widget-list">-</div>
+          <a href="#" class="widget-link" data-dashboard-goto="construction">시공팀으로 이동 →</a>
+        </div>
+      </div>
+      <div class="dashboard-announcement-banner-wrap hidden" id="dashboard-announcement-banner" aria-label="최신 공지">
+        <!-- JS에서 최신 공지 1개 강조 배너 렌더 -->
+      </div>
+      <div class="dashboard-extra">
+        <div class="card announcements-card">
+          <h3 class="announcements-title">공지사항</h3>
+          <ul class="announcements-list" id="dashboard-announcements-list" aria-label="공지사항 목록">
+            <!-- JS에서 렌더 -->
+          </ul>
+          <a href="#" class="btn btn-secondary btn-sm announcements-more" data-dashboard-goto="announcements">더보기</a>
+        </div>
+        <section class="sales-performance-section" aria-label="월간 영업 성과">
+          <h3 class="sales-performance-title">월간 영업 성과</h3>
+          <div class="sales-performance-grid">
+            <div class="card sales-performance-overall-card" id="sales-performance-overall">
+              <!-- JS: 전체 TOP3 (1위 강조 + 2·3위 리스트) -->
+            </div>
+            <div class="sales-performance-showrooms" id="sales-performance-showrooms">
+              <!-- JS: 전시장별 1위 카드 2x2 -->
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="section-announcements" class="content-section">
+      <header class="main-header main-header-with-action">
+        <div>
+          <h2>공지사항</h2>
+          <p class="section-desc">회사 공지사항을 확인하세요.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-announcement-add">공지 등록</button>
+      </header>
+      <div class="announcements-page-list" id="announcements-page-list">
+        <!-- JS에서 렌더 -->
+      </div>
+    </section>
+
+    <div class="modal hidden" id="modal-announcement-form" aria-hidden="true">
+      <div class="modal-content modal-content-wide">
+        <div class="modal-header">
+          <h3>공지 등록</h3>
+          <button type="button" class="modal-close" data-close="modal-announcement-form" aria-label="닫기">&times;</button>
+        </div>
+        <p class="announcement-form-author" id="announcement-form-author-info" aria-live="polite"></p>
+        <form id="form-announcement-add" class="announcement-form">
+          <div class="form-group">
+            <label for="announcement-form-title">제목</label>
+            <input type="text" id="announcement-form-title" required placeholder="공지 제목을 입력하세요">
+          </div>
+          <div class="form-group">
+            <label for="announcement-form-content">내용</label>
+            <textarea id="announcement-form-content" rows="5" placeholder="공지 내용을 입력하세요"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="announcement-form-important"> 중요공지
+            </label>
+          </div>
+          <div class="form-group notice-file-section">
+            <label>첨부파일</label>
+            <p class="notice-file-hint">PDF, JPG, PNG, JPEG, XLSX, DOCX, HWP, ZIP (드래그 앤 드롭 가능)</p>
+            <input type="file" id="announcement-form-files" class="notice-file-input" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.docx,.hwp,.zip" multiple hidden>
+            <button type="button" class="btn btn-secondary notice-file-select-btn" id="btn-notice-file-select">파일 선택</button>
+            <div class="notice-file-list" id="noticeSelectedFileList"></div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close="modal-announcement-form">취소</button>
+            <button type="submit" class="btn btn-primary">등록</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="modal-announcement-detail" aria-hidden="true">
+      <div class="modal-content modal-content-wide notice-detail-modal">
+        <div class="modal-header notice-detail-header">
+          <h3 class="notice-detail-title" id="modal-announcement-title"></h3>
+          <button type="button" class="modal-close" data-close="modal-announcement-detail" aria-label="닫기">&times;</button>
+        </div>
+
+        <div class="notice-detail-section notice-detail-main">
+          <p class="notice-detail-meta" id="modal-announcement-meta"></p>
+          <div class="notice-detail-body-box">
+            <div class="notice-detail-body announcement-detail-body" id="modal-announcement-body"></div>
+          </div>
+        </div>
+
+        <div class="notice-file-section notice-detail-files hidden" id="noticeDetailFileSection">
+          <h4>첨부파일</h4>
+          <div class="notice-file-list" id="noticeDetailFileList"></div>
+        </div>
+
+        <div class="notice-read-section">
+          <h4>읽음 <span id="noticeReadCount">0</span></h4>
+          <div id="noticeReadList"></div>
+        </div>
+
+        <div class="notice-detail-section notice-comments-section">
+          <div class="notice-comments-header">
+            <h3 class="notice-comments-title">댓글</h3>
+            <span class="notice-comments-count" id="noticeCommentsCount">0</span>
+          </div>
+          <div class="notice-comments-list" id="noticeCommentsList">
+            <!-- JS에서 렌더 -->
+          </div>
+          <div class="notice-comment-form">
+            <textarea id="noticeCommentInput" class="notice-comment-textarea" rows="3" placeholder="댓글을 입력하세요"></textarea>
+            <div class="notice-comment-actions">
+              <button type="button" class="notice-comment-submit" id="noticeCommentSubmitBtn">댓글 등록</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="notice-detail-footer modal-actions">
+          <button type="button" class="btn btn-secondary notice-detail-close" data-close="modal-announcement-detail">닫기</button>
+          <button type="button" class="btn btn-secondary notice-detail-delete hidden" id="btn-announcement-delete">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="section-marketing" class="content-section">
+      <header class="main-header">
+        <h2>마케팅팀</h2>
+        <p class="section-desc">세움디자인하우징 유튜브 채널 방문예약이 여기로 들어옵니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>방문예약 등록</h3>
+          <button type="button" class="btn btn-secondary" id="btn-toggle-visit-form">+ 방문예약 추가</button>
+        </div>
+        <form id="form-visit" class="form-block hidden">
+          <div class="form-grid form-grid-2">
+            <label>전시장 <select id="visit-showroom" required><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+            <label>이름 <input type="text" id="visit-name" required></label>
+            <label>연락처 <input type="tel" id="visit-phone" required></label>
+            <label>방문일 <input type="date" id="visit-date" required></label>
+            <label>방문시간 <input type="time" id="visit-time"></label>
+            <label>방문인원 <input type="number" id="visit-count" min="1" placeholder="명"></label>
+            <label>유입경로 <select id="visit-source"><option value="youtube">유튜브</option><option value="instagram">인스타그램</option><option value="naver">네이버</option><option value="referral">지인소개</option><option value="etc">기타</option></select></label>
+            <label>관심주택/시공유형 <select id="visit-interest"><option value="">선택</option><option value="전원주택">전원주택</option><option value="세컨하우스">세컨하우스</option><option value="체류형쉼터">체류형쉼터</option><option value="이동식주택">이동식주택</option><option value="농막">농막</option><option value="컨테이너하우스">컨테이너하우스</option><option value="시골집수리/리모델링">시골집수리/리모델링</option><option value="미정">미정</option></select></label>
+            <label>희망평수 <input type="text" id="visit-pyeong" placeholder="평"></label>
+            <label>예산 범위(대략) <input type="text" id="visit-budget" placeholder="예: 1~2억"></label>
+            <label>토지 보유 여부 <select id="visit-hasland"><option value="">선택</option><option value="Y">보유</option><option value="N">미보유</option></select></label>
+            <label>토지(지번) <input type="text" id="visit-land" placeholder="지번 주소"></label>
+            <label class="checkbox-label"><input type="checkbox" id="visit-lgevent"> LG가전 이벤트</label>
+            <label class="checkbox-label"><input type="checkbox" id="visit-3d"> 3D도면</label>
+          </div>
+          <label>메모 <textarea id="visit-memo" rows="2" placeholder="기타 메모"></textarea></label>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">등록</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-visit">취소</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>방문예약 목록 (고객 DB)</h3>
+          <div class="visit-actions">
+            <span class="action-hint">고객마다 전달 전시장을 선택한 뒤, 전달할 건을 선택하고 버튼을 누르세요.</span>
+            <button type="button" class="btn btn-primary" id="btn-assign-selected">선택 건 영업팀 전달</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" id="visit-check-all" title="신규 건 전체 선택"></th>
+                <th>전시장</th>
+                <th>전달 전시장</th>
+                <th>등록일</th>
+                <th>이름</th>
+                <th>연락처</th>
+                <th>방문일/시간</th>
+                <th>관심유형</th>
+                <th>희망평수</th>
+                <th>예산</th>
+                <th>토지보유</th>
+                <th>상태</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-visits"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-sales-leads" class="content-section">
+      <header class="main-header">
+        <h2>방문예약 고객</h2>
+        <p class="section-desc">마케팅팀에서 전달받은 방문예약 고객 목록입니다. 계약 작성 시 선택할 수 있습니다.</p>
+      </header>
+      <div class="card">
+        <h3>방문예약 고객</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>전시장</th>
+                <th>전달일</th>
+                <th>예약자</th>
+                <th>연락처</th>
+                <th>방문일</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-leads"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-sales-customers" class="content-section">
+      <header class="main-header">
+        <h2>고객 관리</h2>
+        <p class="section-desc">영업사원이 현장·휴대폰에서 직접 등록하는 고객 DB입니다. 각자 담당 고객을 빠르게 등록하세요.</p>
+      </header>
+      <div class="card customer-form-card">
+        <div class="card-header">
+          <h3>고객 등록</h3>
+          <button type="button" class="btn btn-secondary" id="btn-toggle-customer-form">+ 고객 추가</button>
+        </div>
+        <form id="form-customer" class="form-block hidden">
+          <input type="hidden" id="customer-id">
+          <div class="form-grid form-grid-2 form-touch">
+            <label>이름 <input type="text" id="customer-name" required placeholder="고객명"></label>
+            <label>연락처 <input type="tel" id="customer-phone" required placeholder="010-0000-0000"></label>
+            <label>방문 예정일 <input type="date" id="customer-visit-date" placeholder="방문일"></label>
+            <label>담당 영업사원 <input type="text" id="customer-sales-person" placeholder="본인 성명"></label>
+            <label>전시장 <select id="customer-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+            <label class="form-full">메모 <input type="text" id="customer-memo" placeholder="관심 유형, 예산 등"></label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-customer">취소</button>
+          </div>
+        </form>
+        <div class="table-wrap table-touch">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>등록일</th>
+                <th>이름</th>
+                <th>연락처</th>
+                <th>방문예정일</th>
+                <th>담당</th>
+                <th>전시장</th>
+                <th>메모</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-customers"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-sales-contracts" class="content-section">
+      <header class="main-header">
+        <h2>계약 목록</h2>
+        <p class="section-desc">계약 작성 및 수금·입금 확인 관리</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>계약 목록</h3>
+          <button type="button" class="btn btn-primary" id="btn-open-contract-form">+ 계약 작성</button>
+        </div>
+        <div id="contract-form-wrap" class="hidden">
+          <form id="form-contract" class="form-block">
+            <input type="hidden" id="contract-visit-id">
+            <div class="form-grid">
+              <label>영업사원 전시장 <select id="contract-showroom" required><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+              <label>계약 모델 전시장 <select id="contract-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+              <label>주택 유형 <select id="contract-model"><option value="">선택</option><option value="전원주택">전원주택</option><option value="세컨하우스">세컨하우스</option><option value="체류형쉼터">체류형쉼터</option><option value="농막">농막</option><option value="컨테이너하우스">컨테이너하우스</option><option value="리모델링">리모델링</option><option value="기타">기타</option></select></label>
+              <label>모델 시리즈
+                <select id="contract-model-series">
+                  <option value="">선택</option>
+                  <option value="FOREST">FOREST (체류형쉼터)</option>
+                  <option value="STAY">STAY (주택)</option>
+                  <option value="CUBE">CUBE (컨테이너)</option>
+                </select>
+              </label>
+              <label>모델 평형
+                <select id="contract-model-size">
+                  <option value="">선택</option>
+                  <option value="1">1평</option>
+                  <option value="2">2평</option>
+                  <option value="3">3평</option>
+                  <option value="4">4평</option>
+                  <option value="5">5평</option>
+                  <option value="6">6평</option>
+                  <option value="7">7평</option>
+                  <option value="8">8평</option>
+                  <option value="9">9평</option>
+                  <option value="10">10평</option>
+                  <option value="11">11평</option>
+                  <option value="12">12평</option>
+                  <option value="13">13평</option>
+                  <option value="14">14평</option>
+                  <option value="15">15평</option>
+                  <option value="16">16평</option>
+                  <option value="17">17평</option>
+                  <option value="18">18평</option>
+                  <option value="19">19평</option>
+                  <option value="20">20평</option>
+                  <option value="21">21평</option>
+                  <option value="22">22평</option>
+                  <option value="23">23평</option>
+                  <option value="24">24평</option>
+                  <option value="25">25평</option>
+                  <option value="26">26평</option>
+                  <option value="27">27평</option>
+                  <option value="28">28평</option>
+                  <option value="29">29평</option>
+                  <option value="30">30평</option>
+                </select>
+              </label>
+              <label>모델 색상
+                <select id="contract-model-color">
+                  <option value="">선택</option>
+                  <option value="RED">RED</option>
+                  <option value="BLUE">BLUE</option>
+                  <option value="GREEN">GREEN</option>
+                  <option value="BROWN">BROWN</option>
+                  <option value="WHITE">WHITE</option>
+                  <option value="BLACK">BLACK</option>
+                  <option value="GRAY">GRAY</option>
+                  <option value="BEIGE">BEIGE</option>
+                  <option value="YELLOW">YELLOW</option>
+                </select>
+              </label>
+              <label>모델 이름 (자동 생성) <input type="text" id="contract-model-name" placeholder="예: 세움FOREST15R" readonly></label>
+              <label>담당 영업사원 <input type="text" id="contract-sales-person" placeholder="성명"></label>
+              <label>계약자명 <input type="text" id="contract-name" required></label>
+              <label>연락처 <input type="tel" id="contract-phone" required></label>
+              <label>공급가(만원) <input type="number" id="contract-supply" min="0" step="1" required></label>
+              <label>부가세(만원) <input type="number" id="contract-vat" min="0" step="1" readonly></label>
+              <label>계약총액(만원) <input type="number" id="contract-total" min="0" step="1" readonly></label>
+              <label>계약일 <input type="date" id="contract-date" required></label>
+            </div>
+            <h4 class="sub-title">수금 내역 (계약금 · 중도금 · 잔금)</h4>
+            <div class="form-grid form-grid-2">
+              <label>계약금(만원) <input type="number" id="contract-deposit-amount" min="0" step="1" placeholder="금액"></label>
+              <label>계약금 수령일 <input type="date" id="contract-deposit-date"></label>
+              <label>중도금 1차(만원) <input type="number" id="contract-progress1-amount" min="0" step="1" placeholder="금액"></label>
+              <label>중도금 2차(만원) <input type="number" id="contract-progress2-amount" min="0" step="1" placeholder="금액"></label>
+              <label>중도금 3차(만원) <input type="number" id="contract-progress3-amount" min="0" step="1" placeholder="금액"></label>
+              <label>잔금(만원) <input type="number" id="contract-balance-amount" min="0" step="1" placeholder="금액"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">계약 저장</button>
+              <button type="button" class="btn btn-secondary btn-cancel-contract">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap table-wrapper">
+          <table class="data-table contract-list-table">
+            <thead>
+              <tr>
+                <th>전시장</th>
+                <th>주택유형</th>
+                <th>모델</th>
+                <th>계약일</th>
+                <th>건축주</th>
+                <th>영업담당</th>
+                <th>공사금액</th>
+                <th>계약금</th>
+                <th>중도금1</th>
+                <th>중도금2</th>
+                <th>중도금3</th>
+                <th>잔금</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-contracts"></tbody>
+          </table>
+        </div>
+        <div id="contract-detail-panel" class="construction-detail-panel hidden">
+          <div class="construction-detail-header contract-detail-header-inner">
+            <div class="contract-detail-header-text">
+              <strong id="contract-detail-customer" class="contract-detail-title">-</strong>
+              <span id="contract-detail-subtitle" class="contract-detail-subtitle"></span>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" id="contract-detail-modal-btn">모달로 편집</button>
+          </div>
+          <form id="form-contract-inline">
+            <input type="hidden" id="contract-inline-id">
+            <div class="contract-form-wrapper contract-block">
+              <div class="contract-form-grid contract-section">
+                <div class="form-section contract-form-section contract-form-card contract-card">
+                  <h4 class="form-section-title contract-card-title">기본 계약 정보</h4>
+              <div class="form-grid form-grid-2">
+                <label>영업사원 전시장 <select id="contract-inline-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+                <label>계약 모델 전시장 <select id="contract-inline-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+                <label>주택 유형 <select id="contract-inline-model"><option value="">선택</option><option value="전원주택">전원주택</option><option value="세컨하우스">세컨하우스</option><option value="체류형쉼터">체류형쉼터</option><option value="농막">농막</option><option value="컨테이너하우스">컨테이너하우스</option><option value="리모델링">리모델링</option><option value="기타">기타</option></select></label>
+                <label>모델 이름 <input type="text" id="contract-inline-model-name" placeholder="예: S3500, S6850"></label>
+                <label>담당 영업사원 <input type="text" id="contract-inline-sales-person" placeholder="성명"></label>
+                <label class="contract-attach-label">계약서 첨부</label>
+                <div class="contract-attach-card" id="contract-attach-card">
+                  <div class="contract-attach-card-placeholder" id="contract-attach-card-placeholder">
+                    <span class="contract-attach-card-placeholder-text">계약서 업로드</span>
+                  </div>
+                  <div class="contract-attach-card-file hidden" id="contract-attach-card-file">
+                    <span class="contract-attach-card-filename" id="contract-attach-card-filename"></span>
+                    <a href="#" target="_blank" rel="noopener" class="contract-attach-card-view" id="contract-attach-card-view">보기</a>
+                  </div>
+                  <input type="text" id="contract-inline-attachment" class="contract-attach-value-input" aria-hidden="true" tabindex="-1">
+                  <input type="file" id="contract-inline-attachment-file" class="contract-attach-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.hwp,.zip" hidden>
+                </div>
+              </div>
+                </div>
+                <div class="form-section contract-form-section contract-form-card contract-card">
+                  <h4 class="form-section-title contract-card-title">현장 정보</h4>
+              <label>현장 주소 <input type="text" id="contract-inline-site-address" class="site-address-input" placeholder="공사할 현장 주소 입력"></label>
+              <div class="install-type-group">
+                <span class="install-type-label">시공 방식</span>
+                <label><input type="radio" name="contract-inline-install-type" value="현장시공"> 현장시공</label>
+                <label><input type="radio" name="contract-inline-install-type" value="이동설치"> 이동설치</label>
+              </div>
+              <div class="pyeong-row form-grid form-grid-2">
+                <label>기초공사 평수 <input type="number" id="contract-inline-foundation-pyeong" class="foundation-pyeong-input" placeholder="예) 8" min="0" step="0.1"></label>
+                <label>주택 평수 <input type="number" id="contract-inline-house-pyeong" class="house-pyeong-input" placeholder="예) 12" min="0" step="0.1"></label>
+              </div>
+              <div class="pyeong-unit-hint">단위: 평</div>
+                </div>
+                <div class="form-section contract-form-section contract-form-card contract-card">
+                  <h4 class="form-section-title contract-card-title">옵션 정보</h4>
+              <div class="option-info-layout">
+                <div class="option-info-left">
+                  <span class="option-info-left-title">추가 옵션</span>
+                  <div class="option-row" data-option="porch">
+                    <label><input type="checkbox" class="option-toggle contract-inline-option-toggle" data-option="porch"> 포치</label>
+                    <input type="number" id="contract-inline-option-porch-pyeong" class="option-pyeong-input" data-option="porch" placeholder="포치 평수" min="0" step="0.1" disabled>
+                    <span class="option-unit">평</span>
+                  </div>
+                  <div class="option-row" data-option="deck">
+                    <label><input type="checkbox" class="option-toggle contract-inline-option-toggle" data-option="deck"> 데크</label>
+                    <input type="number" id="contract-inline-option-deck-pyeong" class="option-pyeong-input" data-option="deck" placeholder="데크 평수" min="0" step="0.1" disabled>
+                    <span class="option-unit">평</span>
+                  </div>
+                  <div class="option-row" data-option="sunroom">
+                    <label><input type="checkbox" class="option-toggle contract-inline-option-toggle" data-option="sunroom"> 썬룸</label>
+                    <input type="number" id="contract-inline-option-sunroom-pyeong" class="option-pyeong-input" data-option="sunroom" placeholder="썬룸 평수" min="0" step="0.1" disabled>
+                    <span class="option-unit">평</span>
+                  </div>
+                </div>
+                <div class="option-info-right">
+                  <span class="option-info-right-title">공사 옵션</span>
+                  <div class="option-row option-row-check-only" data-option="demolition">
+                    <label><input type="checkbox" class="option-toggle contract-inline-option-toggle" data-option="demolition"> 철거</label>
+                  </div>
+                  <div class="option-row option-row-check-only" data-option="repair">
+                    <label><input type="checkbox" class="option-toggle contract-inline-option-toggle" data-option="repair"> 집수리</label>
+                  </div>
+                  <div class="option-row option-row-check-only" data-option="interior">
+                    <label><input type="checkbox" class="option-toggle contract-inline-option-toggle" data-option="interior"> 인테리어</label>
+                  </div>
+                </div>
+              </div>
+                </div>
+                <div class="form-section contract-form-section design-request-section contract-design-section contract-form-card contract-card">
+                  <h4 class="form-section-title contract-card-title">설계 요청 사항</h4>
+              <p class="field-hint">설계팀 인계용 메모입니다. 기본 모델 대비 변경사항을 선택 후 입력하세요.</p>
+
+              <div class="design-request-accordion">
+                <div class="design-request-accordion-item">
+                  <button type="button" class="design-request-accordion-header" data-accordion="design-interior" aria-expanded="false"><span class="design-request-accordion-icon">▶</span> 내부 공간</button>
+                  <div class="design-request-accordion-body" id="accordion-design-interior" hidden>
+              <div class="design-request-inner-grid">
+                <div class="design-request-card design-request-card-room">
+                  <h5 class="design-request-title">안방 / 침실</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-room-bedroom" value="basic" class="design-request-room-mode"> 기본 모델 그대로</label>
+                    <label><input type="radio" name="contract-inline-room-bedroom" value="change" class="design-request-room-mode"> 변경</label>
+                  </div>
+                  <label class="design-request-memo-label">변경 내용</label>
+                  <textarea id="contract-inline-memo-bedroom" class="design-request-textarea design-request-memo-field" rows="2" placeholder="예) 붙박이장, 침대 위치 등" disabled></textarea>
+                </div>
+                <div class="design-request-card design-request-card-room">
+                  <h5 class="design-request-title">거실</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-room-living" value="basic" class="design-request-room-mode"> 기본</label>
+                    <label><input type="radio" name="contract-inline-room-living" value="change" class="design-request-room-mode"> 변경</label>
+                  </div>
+                  <label class="design-request-memo-label">변경 내용</label>
+                  <textarea id="contract-inline-memo-living" class="design-request-textarea design-request-memo-field" rows="2" placeholder="예) 아트월, TV벽면 등" disabled></textarea>
+                </div>
+                <div class="design-request-card design-request-card-room">
+                  <h5 class="design-request-title">주방</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-room-kitchen" value="basic" class="design-request-room-mode"> 기본</label>
+                    <label><input type="radio" name="contract-inline-room-kitchen" value="change" class="design-request-room-mode"> 변경</label>
+                  </div>
+                  <label class="design-request-memo-label">변경 내용</label>
+                  <textarea id="contract-inline-memo-kitchen" class="design-request-textarea design-request-memo-field" rows="2" placeholder="예) 아일랜드 식탁, 수납장 배치 등" disabled></textarea>
+                </div>
+                <div class="design-request-card design-request-card-room">
+                  <h5 class="design-request-title">화장실</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-room-bath" value="basic" class="design-request-room-mode"> 기본</label>
+                    <label><input type="radio" name="contract-inline-room-bath" value="change" class="design-request-room-mode"> 변경</label>
+                  </div>
+                  <label class="design-request-memo-label">변경 내용</label>
+                  <textarea id="contract-inline-memo-bath" class="design-request-textarea design-request-memo-field" rows="2" placeholder="예) 욕조/샤워부스, 타일 등" disabled></textarea>
+                </div>
+              </div>
+                  </div>
+                </div>
+                <div class="design-request-accordion-item">
+                  <button type="button" class="design-request-accordion-header" data-accordion="design-external" aria-expanded="false"><span class="design-request-accordion-icon">▶</span> 외부 공간</button>
+                  <div class="design-request-accordion-body" id="accordion-design-external" hidden>
+              <div class="design-request-external-grid">
+                <div class="design-request-card design-request-card-external">
+                  <h5 class="design-request-title">데크</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-external-deck" value="none" class="design-request-external-mode"> 없음</label>
+                    <label><input type="radio" name="contract-inline-external-deck" value="add" class="design-request-external-mode"> 추가</label>
+                  </div>
+                  <input type="text" id="contract-inline-external-deck-memo" class="design-request-inline-input design-request-external-memo" placeholder="메모" disabled>
+                </div>
+                <div class="design-request-card design-request-card-external">
+                  <h5 class="design-request-title">포치</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-external-porch" value="none" class="design-request-external-mode"> 없음</label>
+                    <label><input type="radio" name="contract-inline-external-porch" value="add" class="design-request-external-mode"> 추가</label>
+                  </div>
+                  <input type="text" id="contract-inline-external-porch-memo" class="design-request-inline-input design-request-external-memo" placeholder="메모" disabled>
+                </div>
+                <div class="design-request-card design-request-card-external">
+                  <h5 class="design-request-title">마당</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-external-yard" value="none" class="design-request-external-mode"> 없음</label>
+                    <label><input type="radio" name="contract-inline-external-yard" value="add" class="design-request-external-mode"> 추가</label>
+                  </div>
+                  <input type="text" id="contract-inline-external-yard-memo" class="design-request-inline-input design-request-external-memo" placeholder="메모" disabled>
+                </div>
+                <div class="design-request-card design-request-card-external">
+                  <h5 class="design-request-title">주차</h5>
+                  <div class="design-request-radio-row">
+                    <label><input type="radio" name="contract-inline-external-parking" value="none" class="design-request-external-mode"> 없음</label>
+                    <label><input type="radio" name="contract-inline-external-parking" value="add" class="design-request-external-mode"> 추가</label>
+                  </div>
+                  <input type="text" id="contract-inline-external-parking-memo" class="design-request-inline-input design-request-external-memo" placeholder="메모" disabled>
+                </div>
+              </div>
+                  </div>
+                </div>
+                <div class="design-request-accordion-item">
+                  <button type="button" class="design-request-accordion-header" data-accordion="design-window" aria-expanded="false"><span class="design-request-accordion-icon">▶</span> 창호 변경</button>
+                  <div class="design-request-accordion-body" id="accordion-design-window" hidden>
+              <div class="design-request-card design-request-card-full design-request-window-card">
+                <div class="design-request-window-row">
+                  <span class="design-request-window-label">창 추가</span>
+                  <input type="text" id="contract-inline-window-add-memo" class="design-request-inline-input" placeholder="메모">
+                </div>
+                <div class="design-request-window-row">
+                  <span class="design-request-window-label">창 위치 변경</span>
+                  <input type="text" id="contract-inline-window-position-memo" class="design-request-inline-input" placeholder="메모">
+                </div>
+                <div class="design-request-window-row">
+                  <span class="design-request-window-label">창 크기 변경</span>
+                  <input type="text" id="contract-inline-window-size-memo" class="design-request-inline-input" placeholder="메모">
+                </div>
+              </div>
+                  </div>
+                </div>
+                <div class="design-request-accordion-item">
+                  <button type="button" class="design-request-accordion-header" data-accordion="design-exterior-material" aria-expanded="false"><span class="design-request-accordion-icon">▶</span> 외장재 변경</button>
+                  <div class="design-request-accordion-body" id="accordion-design-exterior-material" hidden>
+              <div class="design-request-card design-request-card-full">
+                <div class="design-request-radio-row design-request-radio-row-wrap">
+                  <label><input type="radio" name="contract-inline-exterior-material" value="default" class="design-request-exterior-material"> 기본</label>
+                  <label><input type="radio" name="contract-inline-exterior-material" value="ceramic" class="design-request-exterior-material"> 세라믹사이딩</label>
+                  <label><input type="radio" name="contract-inline-exterior-material" value="longbrick" class="design-request-exterior-material"> 롱브릭</label>
+                  <label><input type="radio" name="contract-inline-exterior-material" value="smart" class="design-request-exterior-material"> 스마트사이딩</label>
+                </div>
+              </div>
+                  </div>
+                </div>
+                <div class="design-request-accordion-item">
+                  <button type="button" class="design-request-accordion-header" data-accordion="design-facility" aria-expanded="false"><span class="design-request-accordion-icon">▶</span> 설비 / 전기</button>
+                  <div class="design-request-accordion-body" id="accordion-design-facility" hidden>
+              <div class="design-request-facility-grid">
+                <div class="design-request-card design-request-card-facility">
+                  <h5 class="design-request-title">실링팬</h5>
+                  <input type="text" id="contract-inline-facility-ceiling-fan" class="design-request-inline-input" placeholder="메모">
+                </div>
+                <div class="design-request-card design-request-card-facility">
+                  <h5 class="design-request-title">에어컨 위치</h5>
+                  <input type="text" id="contract-inline-facility-aircon" class="design-request-inline-input" placeholder="메모">
+                </div>
+                <div class="design-request-card design-request-card-facility">
+                  <h5 class="design-request-title">콘센트 추가</h5>
+                  <input type="text" id="contract-inline-facility-outlet" class="design-request-inline-input" placeholder="메모">
+                </div>
+                <div class="design-request-card design-request-card-facility">
+                  <h5 class="design-request-title">조명 변경</h5>
+                  <input type="text" id="contract-inline-facility-lighting" class="design-request-inline-input" placeholder="메모">
+                </div>
+              </div>
+                  </div>
+                </div>
+                <div class="design-request-accordion-item">
+                  <button type="button" class="design-request-accordion-header" data-accordion="design-memo" aria-expanded="false"><span class="design-request-accordion-icon">▶</span> 설계 메모</button>
+                  <div class="design-request-accordion-body" id="accordion-design-memo" hidden>
+              <div class="design-request-extra-grid">
+                <div class="design-request-card">
+                  <h5 class="design-request-title">기타 요청사항</h5>
+                  <textarea id="contract-inline-memo-etc" class="design-request-textarea" rows="2" placeholder="예) 특별 요청사항, 추가 옵션 등"></textarea>
+                </div>
+                <div class="design-request-card">
+                  <h5 class="design-request-title">외장재</h5>
+                  <textarea id="contract-inline-exterior" class="design-request-textarea" rows="2" placeholder="외장재 관련"></textarea>
+                </div>
+                <div class="design-request-card">
+                  <h5 class="design-request-title">추가 내용</h5>
+                  <textarea id="contract-inline-extra" class="design-request-textarea" rows="2" placeholder="추가 기입"></textarea>
+                </div>
+              </div>
+              <h5 class="design-request-group-title">[설계팀 인계 메모] (자동 정리)</h5>
+              <div class="design-request-card design-request-card-full">
+                <textarea id="contract-inline-design-handover-summary" class="design-request-summary-textarea" rows="6" placeholder="입력 내용이 자동으로 정리됩니다. 수정 가능하며 저장 시 함께 저장됩니다."></textarea>
+              </div>
+                  </div>
+                </div>
+              </div>
+                </div>
+              </div>
+              <div class="form-actions contract-form-actions">
+                <button type="submit" class="btn btn-primary">저장</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-design" class="content-section">
+      <header class="main-header">
+        <h2>설계팀</h2>
+        <p class="section-desc">계약서 접수 시 체류형쉼터/주택 구분, 주택 시 인허가·착공 관리</p>
+      </header>
+      <div class="card">
+        <h3>협의도면 · 인허가 진행 현황 (계약금 수령 건)</h3>
+        <div class="table-wrap table-wrapper">
+          <table class="data-table design-list-table">
+            <thead>
+              <tr>
+                <th>전시장</th>
+                <th>주택유형</th>
+                <th>모델</th>
+                <th>계약일</th>
+                <th>건축주</th>
+                <th>영업담당</th>
+                <th>설계담당</th>
+                <th>시공담당</th>
+                <th>공사금액</th>
+                <th>계약금 수령일</th>
+                <th>협의도면</th>
+                <th>착공가능</th>
+                <th>설계진행</th>
+                <th>검토자 확인</th>
+                <th>최종 승인</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-design"></tbody>
+          </table>
+        </div>
+        <div id="design-detail-panel" class="construction-detail-panel hidden">
+          <div class="construction-detail-header">
+            <strong id="design-detail-customer">-</strong>
+            <div class="construction-detail-header-actions">
+              <button type="button" class="btn btn-sm btn-secondary" id="design-detail-chat-btn" title="이 계약의 채팅">계약 채팅</button>
+              <button type="button" class="btn btn-sm btn-primary" id="design-detail-save-top">저장</button>
+              <button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" id="design-detail-modal-btn">모달로 편집</button>
+            </div>
+          </div>
+          <form id="form-design-inline">
+            <input type="hidden" id="design-inline-contract-id">
+            <div class="form-actions form-actions-top">
+              <button type="submit" class="btn btn-primary">저장</button>
+            </div>
+            <div class="form-grid form-grid-2">
+              <label>유형 <select id="design-inline-project-type"><option value="">선택</option><option value="체류형쉼터">체류형쉼터</option><option value="주택">주택</option></select></label>
+              <label>협의도면 첨부 <input type="text" id="design-inline-drawing" placeholder="파일명 또는 링크"></label>
+              <label>시공도면 첨부 <input type="text" id="design-inline-construction-drawing" placeholder="파일명 또는 링크"></label>
+            </div>
+            <div id="design-inline-house-wrap" class="form-block hidden">
+              <h4 class="sub-title">주택 인허가 정보</h4>
+              <div class="form-grid form-grid-2">
+                <label>건축설계사 <input type="text" id="design-inline-architect" placeholder="소속/성명"></label>
+                <label>담당자 <input type="text" id="design-inline-contact-name" placeholder="담당자 성명"></label>
+                <label>연락처 <input type="tel" id="design-inline-contact-phone" placeholder="담당자 번호"></label>
+                <label class="checkbox-label"><input type="checkbox" id="design-inline-has-permit"> 허가필증 유무</label>
+                <label>허가필증 첨부 <input type="text" id="design-inline-permit-attachment" placeholder="파일명 또는 링크"></label>
+                <label class="checkbox-label"><input type="checkbox" id="design-inline-has-construction-report"> 착공계 유무</label>
+                <label class="checkbox-label"><input type="checkbox" id="design-inline-has-completion-cert"> 준공필증 유무</label>
+                <label class="checkbox-label highlight"><input type="checkbox" id="design-inline-construction-start-ok"> 착공여부 (시공팀 공사시작 가능)</label>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-construction" class="content-section">
+      <header class="main-header">
+        <h2>시공팀</h2>
+        <p class="section-desc">설계팀에서 착공여부 체크한 건만 명단에 표시됩니다. 계약금·중도금·잔금 확인 및 시공 진행상태를 관리하세요.</p>
+      </header>
+      <div class="card">
+        <h3>계약자 명단 (착공 가능 건)</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>전시장</th>
+                <th>계약자</th>
+                <th>담당 영업사원</th>
+                <th>설계 담당자</th>
+                <th>시공 담당자 (현장소장)</th>
+                <th>공사 시작일</th>
+                <th>공사 완료일</th>
+                <th>계약총액</th>
+                <th>수금 현황</th>
+                <th>계약금</th>
+                <th>중도금1</th>
+                <th>중도금2</th>
+                <th>중도금3</th>
+                <th>잔금</th>
+                <th>시공 진행</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-construction"></tbody>
+          </table>
+        </div>
+        <div id="construction-detail-panel" class="construction-detail-panel hidden">
+          <div class="construction-detail-header">
+            <strong id="construction-detail-customer">-</strong>
+            <span class="construction-detail-dates" id="construction-detail-dates"></span>
+            <button type="button" class="btn btn-sm btn-secondary" id="construction-detail-chat-btn" title="이 계약의 채팅">계약 채팅</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="construction-detail-edit-btn">시공 단계 편집</button>
+          </div>
+          <table class="data-table construction-stages-preview">
+            <thead>
+              <tr><th>시공 단계</th><th>책임자</th><th>연락처</th></tr>
+            </thead>
+            <tbody id="construction-detail-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-settlement-payment" class="content-section">
+      <header class="main-header">
+        <h2>전체 고객 입금현황</h2>
+        <p class="section-desc">모든 고객의 계약금·중도금·잔금 현황 및 입금 확인을 관리합니다. 시공팀에서 체크한 입금 확인과 동일하게 반영됩니다.</p>
+      </header>
+      <div class="card">
+        <h3>전체 고객 입금 현황</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>전시장</th>
+                <th>계약자</th>
+                <th>계약총액</th>
+                <th>수금 현황</th>
+                <th>계약금</th>
+                <th>중도금1</th>
+                <th>중도금2</th>
+                <th>중도금3</th>
+                <th>잔금</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-settlement"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-settlement-incentive" class="content-section">
+      <header class="main-header">
+        <h2>영업사원별 인센티브</h2>
+        <p class="section-desc">기준 기간과 인센티브 규칙을 입력한 뒤 영업사원별 매출 인센티브 %를 적용해 계산합니다.</p>
+      </header>
+      <div class="card">
+        <h3>영업사원별 인센티브 계산</h3>
+        <div class="incentive-settings form-block">
+          <div class="form-grid form-grid-2">
+            <label>기준 기간 <select id="incentive-period"><option value="this_month">이번 달</option><option value="all">전체 기간</option></select></label>
+            <label>건당 인센티브(만원) <input type="number" id="incentive-per-contract" min="0" step="1" placeholder="건당 만원"></label>
+          </div>
+          <p class="field-hint">아래 표에서 영업사원별로 매출 인센티브 %를 입력하세요. 한 명씩 체크하여 적용됩니다.</p>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-apply-incentive">계산 적용</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>담당 영업사원</th>
+                <th>계약 건수</th>
+                <th>계약총액(만원)</th>
+                <th>건당 인센티브</th>
+                <th>인센티브 %</th>
+                <th>매출 인센티브</th>
+                <th>인센티브 합계(만원)</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-incentive"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-approval" class="content-section">
+      <header class="main-header">
+        <h2>직원 승인 관리</h2>
+        <p class="section-desc">회원가입 후 승인 대기 중인 직원을 승인하거나 차단합니다.</p>
+      </header>
+      <div class="card">
+        <h3>승인 대기 목록</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>이름</th><th>이메일</th><th>팀</th><th>전시장</th><th>가입일</th><th>작업</th></tr>
+            </thead>
+            <tbody id="tbody-pending-approval"></tbody>
+          </table>
+        </div>
+        <p class="field-hint" id="admin-pending-empty">승인 대기 중인 직원이 없습니다.</p>
+      </div>
+    </section>
+
+    <section id="section-admin-employees" class="content-section">
+      <header class="main-header">
+        <h2>직원 관리</h2>
+        <p class="section-desc">직원 목록 조회 및 팀·역할·전시장 수정 <span id="admin-employees-count" class="admin-employees-count"></span></p>
+      </header>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>이름</th><th>이메일</th><th>팀</th><th>역할(role)</th><th>전시장</th><th>상태</th><th>작업</th></tr>
+            </thead>
+            <tbody id="tbody-admin-employees"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-presence" class="content-section">
+      <header class="main-header">
+        <h2>직원 접속 현황</h2>
+        <p class="section-desc">전체 직원의 로그인 상태와 마지막 활동 시간을 조회합니다. (관리자 전용)</p>
+      </header>
+      <div class="card">
+        <div class="admin-presence-filters">
+          <label>
+            팀
+            <select id="admin-presence-filter-team">
+              <option value="">전체</option>
+              <option value="마케팅">마케팅</option>
+              <option value="영업">영업</option>
+              <option value="설계">설계</option>
+              <option value="시공">시공</option>
+              <option value="정산">정산</option>
+              <option value="본사">본사</option>
+            </select>
+          </label>
+          <label>
+            전시장
+            <select id="admin-presence-filter-showroom">
+              <option value="">전체</option>
+              <option value="headquarters">본사 전시장</option>
+              <option value="showroom1">1전시장</option>
+              <option value="showroom3">3전시장</option>
+              <option value="showroom4">4전시장</option>
+            </select>
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>팀</th>
+                <th>전시장</th>
+                <th>권한</th>
+                <th>현재 상태</th>
+                <th>마지막 활동 시간</th>
+                <th>마지막 로그인</th>
+                <th>마지막 로그아웃</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-admin-presence"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-activity-logs" class="content-section">
+      <header class="main-header">
+        <h2>활동 로그</h2>
+        <p class="section-desc">직원의 로그인·로그아웃, 공지·일정·고객·계약 등 주요 작업 기록을 조회합니다. (관리자 전용)</p>
+      </header>
+      <div class="card">
+        <div class="admin-activity-filters">
+          <label>
+            사용자명
+            <input type="text" id="admin-activity-filter-user" placeholder="이름 검색">
+          </label>
+          <label>
+            작업 유형
+            <select id="admin-activity-filter-action">
+              <option value="">전체</option>
+              <option value="login">로그인</option>
+              <option value="logout">로그아웃</option>
+              <option value="create">등록</option>
+              <option value="update">수정</option>
+              <option value="delete">삭제</option>
+              <option value="upload">업로드</option>
+            </select>
+          </label>
+          <label>
+            날짜(부터)
+            <input type="date" id="admin-activity-filter-date-from">
+          </label>
+          <label>
+            날짜(까지)
+            <input type="date" id="admin-activity-filter-date-to">
+          </label>
+          <button type="button" class="btn btn-secondary" id="admin-activity-btn-refresh">새로고침</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>일시</th>
+                <th>사용자명</th>
+                <th>소속</th>
+                <th>전시장</th>
+                <th>작업</th>
+                <th>대상</th>
+                <th>상세내용</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-admin-activity-logs"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-showrooms" class="content-section">
+      <header class="main-header">
+        <h2>전시장 관리</h2>
+        <p class="section-desc">전시장 추가·수정·삭제</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>전시장 목록</h3>
+          <button type="button" class="btn btn-primary" id="btn-admin-showroom-add">+ 전시장 추가</button>
+        </div>
+        <form id="form-admin-showroom" class="form-block hidden">
+          <input type="hidden" id="admin-showroom-id">
+          <div class="form-grid form-grid-2">
+            <label>코드 <input type="text" id="admin-showroom-code" placeholder="예: showroom1" required></label>
+            <label>이름 <input type="text" id="admin-showroom-name" placeholder="예: 1전시장" required></label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-admin-showroom-cancel">취소</button>
+          </div>
+        </form>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>코드</th><th>이름</th><th>작업</th></tr>
+            </thead>
+            <tbody id="tbody-admin-showrooms"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-customers" class="content-section">
+      <header class="main-header">
+        <h2>고객 관리</h2>
+        <p class="section-desc">고객 목록 조회 및 수정</p>
+      </header>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>이름</th><th>연락처</th><th>주소</th><th>유입처</th><th>상태</th><th>담당</th><th>작업</th></tr>
+            </thead>
+            <tbody id="tbody-admin-customers"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-contracts" class="content-section">
+      <header class="main-header">
+        <h2>계약 관리</h2>
+        <p class="section-desc">계약 목록 조회</p>
+      </header>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th>고객ID</th><th>담당</th><th>계약금액</th><th>입금</th><th>잔금</th><th>상태</th><th>일자</th></tr>
+            </thead>
+            <tbody id="tbody-admin-contracts"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-payments" class="content-section">
+      <header class="main-header">
+        <h2>정산 관리</h2>
+        <p class="section-desc">입금(payments) 목록 조회</p>
+      </header>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th>계약ID</th><th>유형</th><th>금액</th><th>입금일</th></tr>
+            </thead>
+            <tbody id="tbody-admin-payments"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-admin-reservations" class="content-section">
+      <header class="main-header">
+        <h2>방문예약 관리</h2>
+        <p class="section-desc">방문예약(reservations) 목록 조회</p>
+      </header>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>이름</th><th>연락처</th><th>방문일</th><th>전시장</th><th>담당</th><th>등록일</th></tr>
+            </thead>
+            <tbody id="tbody-admin-reservations"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-hr" class="content-section">
+      <header class="main-header">
+        <h2>인사(HR)</h2>
+        <p class="section-desc">직원 목록 및 휴가·일정을 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>직원 목록</h3>
+          <button type="button" class="btn btn-primary" id="btn-add-employee">+ 직원 추가</button>
+        </div>
+        <form id="form-employee" class="form-block hidden">
+          <input type="hidden" id="employee-id">
+          <div class="form-grid form-grid-2">
+            <label>이름 <input type="text" id="employee-name" required></label>
+            <label>소속 팀 <select id="employee-team"><option value="">선택</option><option value="마케팅">마케팅</option><option value="영업">영업</option><option value="설계">설계</option><option value="시공">시공</option><option value="정산">정산</option><option value="경영">경영</option><option value="본사">본사</option></select></label>
+            <label>전시장 <select id="employee-showroom"><option value="">해당없음</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+            <label>연락처 <input type="tel" id="employee-phone" placeholder="010-0000-0000"></label>
+            <label>입사일 <input type="date" id="employee-join-date"></label>
+            <label>비고 <input type="text" id="employee-memo" placeholder="직급, 담당 업무 등"></label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-employee">취소</button>
+          </div>
+        </form>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>이름</th><th>소속 팀</th><th>전시장</th><th>연락처</th><th>입사일</th><th>비고</th><th>작업</th></tr>
+            </thead>
+            <tbody id="tbody-employees"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>이번 달 휴가·일정</h3>
+          <button type="button" class="btn btn-secondary" id="btn-add-leave">+ 휴가 등록</button>
+        </div>
+        <form id="form-leave" class="form-block hidden">
+          <div class="form-grid form-grid-2">
+            <label>직원 <select id="leave-employee-id"><option value="">선택</option></select></label>
+            <label>시작일 <input type="date" id="leave-start"></label>
+            <label>종료일 <input type="date" id="leave-end"></label>
+            <label>사유 <input type="text" id="leave-reason" placeholder="연차, 병가 등"></label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">등록</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-leave">취소</button>
+          </div>
+        </form>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>직원</th><th>시작일</th><th>종료일</th><th>사유</th><th>작업</th></tr>
+            </thead>
+            <tbody id="tbody-leaves"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-team-calendar" class="content-section">
+      <header class="main-header main-header-with-action">
+        <div>
+          <h2>운영 캘린더</h2>
+          <p class="section-desc">회사 운영 일정을 월간·주간·리스트로 한눈에 관리합니다.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-team-calendar-add">일정 등록</button>
+      </header>
+
+      <div class="team-calendar-filters card">
+        <div class="team-calendar-filters-row">
+          <div class="team-calendar-filter-group">
+            <label>
+              연도
+              <select id="team-calendar-filter-year"></select>
+            </label>
+            <label>
+              월
+              <select id="team-calendar-filter-month">
+                <option value="">전체</option>
+                <option value="1">1월</option>
+                <option value="2">2월</option>
+                <option value="3">3월</option>
+                <option value="4">4월</option>
+                <option value="5">5월</option>
+                <option value="6">6월</option>
+                <option value="7">7월</option>
+                <option value="8">8월</option>
+                <option value="9">9월</option>
+                <option value="10">10월</option>
+                <option value="11">11월</option>
+                <option value="12">12월</option>
+              </select>
+            </label>
+            <label>
+              전시장
+              <select id="team-calendar-filter-showroom">
+                <option value="">전체</option>
+                <option value="headquarters">본사 전시장</option>
+                <option value="showroom1">1전시장</option>
+                <option value="showroom3">3전시장</option>
+                <option value="showroom4">4전시장</option>
+              </select>
+            </label>
+            <label>
+              팀
+              <select id="team-calendar-filter-team">
+                <option value="">전체</option>
+                <option value="sales">영업팀</option>
+                <option value="design">설계팀</option>
+                <option value="construction">시공팀</option>
+                <option value="marketing">마케팅팀</option>
+                <option value="settlement">정산팀</option>
+                <option value="management">경영팀</option>
+              </select>
+            </label>
+            <label>
+              담당자
+              <input type="text" id="team-calendar-filter-assignee" placeholder="이름 검색">
+            </label>
+          </div>
+          <div class="team-calendar-filter-group">
+            <label>
+              상태
+              <select id="team-calendar-filter-status">
+                <option value="">전체</option>
+                <option value="planned">예정</option>
+                <option value="in_progress">진행중</option>
+                <option value="done">완료</option>
+                <option value="canceled">취소</option>
+              </select>
+            </label>
+            <label>
+              일정 유형
+              <select id="team-calendar-filter-type">
+                <option value="">전체</option>
+                <option value="consulting">상담</option>
+                <option value="visit">방문</option>
+                <option value="design">설계</option>
+                <option value="construction">시공</option>
+                <option value="meeting">회의</option>
+                <option value="marketing">마케팅</option>
+                <option value="etc">기타</option>
+              </select>
+            </label>
+          </div>
+          <div class="team-calendar-filter-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="team-calendar-filter-reset">필터 초기화</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="team-calendar-go-today">오늘로 이동</button>
+            <button type="button" class="btn btn-secondary btn-sm hidden" id="team-calendar-clear-all">일정 전체 삭제</button>
+          </div>
+        </div>
+        <div class="team-calendar-legend" aria-label="팀별 색상 안내">
+          <button type="button" class="team-calendar-legend-item team-calendar-legend-sales" data-team-filter="sales">영업팀</button>
+          <button type="button" class="team-calendar-legend-item team-calendar-legend-design" data-team-filter="design">설계팀</button>
+          <button type="button" class="team-calendar-legend-item team-calendar-legend-construction" data-team-filter="construction">시공팀</button>
+          <button type="button" class="team-calendar-legend-item team-calendar-legend-marketing" data-team-filter="marketing">마케팅팀</button>
+          <button type="button" class="team-calendar-legend-item team-calendar-legend-settlement" data-team-filter="settlement">정산팀</button>
+          <button type="button" class="team-calendar-legend-item team-calendar-legend-management" data-team-filter="management">경영팀</button>
+        </div>
+      </div>
+
+      <div class="team-calendar-layout">
+        <div class="team-calendar-main">
+          <div class="team-calendar-header-row">
+            <div class="team-calendar-view-tabs" role="tablist">
+              <button type="button" class="team-calendar-view-tab active" data-view="month">월간 보기</button>
+              <button type="button" class="team-calendar-view-tab" data-view="week">주간 보기</button>
+              <button type="button" class="team-calendar-view-tab" data-view="list">리스트 보기</button>
+            </div>
+            <div class="team-calendar-toolbar">
+              <button type="button" class="btn btn-secondary btn-sm" id="team-calendar-prev">이전</button>
+              <div class="team-calendar-current-label" id="team-calendar-current-label"></div>
+              <button type="button" class="btn btn-secondary btn-sm" id="team-calendar-next">다음</button>
+            </div>
+          </div>
+
+          <div class="card team-calendar-card">
+            <div class="team-calendar-view team-calendar-view-month" id="team-calendar-view-month">
+              <div class="team-calendar team-calendar-month" aria-label="팀 월간 캘린더">
+                <div class="team-calendar-grid" id="team-calendar-grid-month">
+                  <!-- JS renderTeamCalendarMonth() -->
+                </div>
+              </div>
+            </div>
+
+            <div class="team-calendar-view team-calendar-view-week hidden" id="team-calendar-view-week">
+              <div class="team-calendar-week-grid" id="team-calendar-grid-week">
+                <!-- JS renderTeamCalendarWeek() -->
+              </div>
+            </div>
+
+            <div class="team-calendar-view team-calendar-view-list hidden" id="team-calendar-view-list">
+              <div class="table-wrap">
+                <table class="data-table" id="team-calendar-table-list">
+                  <thead>
+                    <tr>
+                      <th>날짜</th>
+                      <th>시작</th>
+                      <th>종료</th>
+                      <th>팀</th>
+                      <th>담당자</th>
+                      <th>전시장</th>
+                      <th>일정 제목</th>
+                      <th>유형</th>
+                      <th>상태</th>
+                      <th>중요도</th>
+                    </tr>
+                  </thead>
+                  <tbody id="team-calendar-tbody-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="team-calendar-sidebar">
+          <div class="card team-calendar-stats-card">
+            <h3>이번 달 요약</h3>
+            <div class="team-calendar-stats-grid" id="team-calendar-stats-grid">
+              <!-- JS renderTeamCalendarStats() -->
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="section-kpi" class="content-section">
+      <header class="main-header">
+        <h2>KPI</h2>
+        <p class="section-desc">월별 목표 설정 및 실적 대비 달성률, 영업사원별 실적을 확인합니다.</p>
+      </header>
+      <div class="card">
+        <h3>이번 달 목표 vs 실적</h3>
+        <div class="kpi-goal-row">
+          <div class="kpi-goal-set">
+            <label>목표 계약건수 <input type="number" id="kpi-goal-contracts" min="0" placeholder="건"></label>
+            <label>목표 매출(억원) <input type="number" id="kpi-goal-sales" min="0" step="0.1" placeholder="억원"></label>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-save-kpi-goal">목표 저장</button>
+          </div>
+          <div class="kpi-goal-result" id="kpi-goal-result">
+            <p>실적: <strong id="kpi-actual-contracts">0</strong>건 / <strong id="kpi-actual-sales">0</strong>억원</p>
+            <p>달성률: 계약건수 <strong id="kpi-rate-contracts">-</strong>, 매출 <strong id="kpi-rate-sales">-</strong></p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>영업사원별 실적</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>담당 영업사원</th><th>계약 건수</th><th>계약총액 합계(만원)</th><th>비고</th></tr>
+            </thead>
+            <tbody id="tbody-sales-kpi"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>전시장별 실적 (이번 달)</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>전시장</th><th>계약 건수</th><th>계약총액(만원)</th></tr>
+            </thead>
+            <tbody id="tbody-showroom-kpi"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 우측 채팅 패널: 왼쪽 대화(메인) | 오른쪽 채팅방 목록(보조) -->
+  <aside id="chat-panel" class="chat-panel chat-panel-two-col">
+    <div class="chat-conversation chat-main">
+      <div class="chat-conversation-header" id="chat-conversation-header">
+        <div class="chat-conversation-header-inner">
+          <div class="chat-conversation-title" id="chat-conversation-title">채팅방을 선택하세요</div>
+          <div class="chat-conversation-meta" id="chat-conversation-meta"></div>
+        </div>
+        <button type="button" class="chat-conversation-close-btn" id="chat-conversation-close-btn" title="채팅창 닫기" aria-label="채팅창 닫기">&times;</button>
+      </div>
+      <div class="chat-messages-wrap">
+        <ul id="chat-message-list" class="chat-message-list"></ul>
+      </div>
+      <div class="chat-panel-footer chat-conversation-footer">
+        <form id="chat-form" class="chat-form">
+          <input type="hidden" id="chat-channel-input" value="all">
+          <input type="hidden" id="chat-room-type-input" value="channel">
+          <input type="hidden" id="chat-contract-id-input" value="">
+          <input type="file" id="chat-file-input" class="chat-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp" multiple hidden>
+          <div class="chat-input-bar chat-input-bar-kakao">
+            <button type="button" class="chat-plus-btn" id="chat-plus-btn" title="기능" aria-label="기능 패널 열기">+</button>
+            <textarea id="chat-input" class="chat-input chat-textarea chat-input-kakao" placeholder="메시지를 입력하세요..." rows="1" maxlength="2000"></textarea>
+            <button type="button" class="chat-tool-btn chat-emoji-btn" id="chat-emoji-btn" title="이모티콘" aria-label="이모티콘">😊</button>
+            <button type="submit" class="btn btn-primary chat-send-btn chat-send-btn-kakao" title="전송">전송</button>
+          </div>
+          <div class="chat-plus-panel hidden" id="chat-plus-panel" aria-hidden="true">
+            <button type="button" class="chat-plus-action" id="chat-plus-action-attach" data-action="attach">📎 파일 첨부</button>
+            <button type="button" class="chat-plus-action" id="chat-plus-action-mention" data-action="mention">@ 멘션</button>
+            <button type="button" class="chat-plus-action" id="chat-plus-action-image" data-action="image">🖼 이미지</button>
+            <button type="button" class="chat-plus-action" id="chat-plus-action-doc" data-action="doc">📄 문서</button>
+          </div>
+          <div class="chat-emoji-popover hidden" id="chat-emoji-popover" role="listbox">
+            <span class="chat-emoji-item" data-emoji="😀" role="option">😀</span><span class="chat-emoji-item" data-emoji="😁" role="option">😁</span><span class="chat-emoji-item" data-emoji="😂" role="option">😂</span><span class="chat-emoji-item" data-emoji="🤣" role="option">🤣</span><span class="chat-emoji-item" data-emoji="😊" role="option">😊</span><span class="chat-emoji-item" data-emoji="😍" role="option">😍</span><span class="chat-emoji-item" data-emoji="😎" role="option">😎</span><span class="chat-emoji-item" data-emoji="🤔" role="option">🤔</span>
+            <span class="chat-emoji-item" data-emoji="👍" role="option">👍</span><span class="chat-emoji-item" data-emoji="👎" role="option">👎</span><span class="chat-emoji-item" data-emoji="👏" role="option">👏</span><span class="chat-emoji-item" data-emoji="🙏" role="option">🙏</span><span class="chat-emoji-item" data-emoji="💪" role="option">💪</span><span class="chat-emoji-item" data-emoji="👌" role="option">👌</span><span class="chat-emoji-item" data-emoji="✌️" role="option">✌️</span><span class="chat-emoji-item" data-emoji="🤝" role="option">🤝</span>
+            <span class="chat-emoji-item" data-emoji="🔥" role="option">🔥</span><span class="chat-emoji-item" data-emoji="⭐" role="option">⭐</span><span class="chat-emoji-item" data-emoji="💯" role="option">💯</span><span class="chat-emoji-item" data-emoji="🎉" role="option">🎉</span><span class="chat-emoji-item" data-emoji="🚀" role="option">🚀</span><span class="chat-emoji-item" data-emoji="📌" role="option">📌</span><span class="chat-emoji-item" data-emoji="📎" role="option">📎</span><span class="chat-emoji-item" data-emoji="📁" role="option">📁</span>
+            <span class="chat-emoji-item" data-emoji="📄" role="option">📄</span><span class="chat-emoji-item" data-emoji="📢" role="option">📢</span><span class="chat-emoji-item" data-emoji="📊" role="option">📊</span><span class="chat-emoji-item" data-emoji="📋" role="option">📋</span><span class="chat-emoji-item" data-emoji="📅" role="option">📅</span><span class="chat-emoji-item" data-emoji="📈" role="option">📈</span><span class="chat-emoji-item" data-emoji="📉" role="option">📉</span><span class="chat-emoji-item" data-emoji="❤️" role="option">❤️</span>
+            <span class="chat-emoji-item" data-emoji="🧡" role="option">🧡</span><span class="chat-emoji-item" data-emoji="💛" role="option">💛</span><span class="chat-emoji-item" data-emoji="💚" role="option">💚</span><span class="chat-emoji-item" data-emoji="💙" role="option">💙</span><span class="chat-emoji-item" data-emoji="💜" role="option">💜</span><span class="chat-emoji-item" data-emoji="🖤" role="option">🖤</span><span class="chat-emoji-item" data-emoji="🤍" role="option">🤍</span><span class="chat-emoji-item" data-emoji="✅" role="option">✅</span>
+            <span class="chat-emoji-item" data-emoji="❌" role="option">❌</span><span class="chat-emoji-item" data-emoji="⚠️" role="option">⚠️</span><span class="chat-emoji-item" data-emoji="⏳" role="option">⏳</span><span class="chat-emoji-item" data-emoji="🔔" role="option">🔔</span><span class="chat-emoji-item" data-emoji="💡" role="option">💡</span><span class="chat-emoji-item" data-emoji="🌟" role="option">🌟</span><span class="chat-emoji-item" data-emoji="✨" role="option">✨</span><span class="chat-emoji-item" data-emoji="🏠" role="option">🏠</span>
+            <span class="chat-emoji-item" data-emoji="💼" role="option">💼</span><span class="chat-emoji-item" data-emoji="📞" role="option">📞</span><span class="chat-emoji-item" data-emoji="📧" role="option">📧</span><span class="chat-emoji-item" data-emoji="🔒" role="option">🔒</span><span class="chat-emoji-item" data-emoji="🔓" role="option">🔓</span><span class="chat-emoji-item" data-emoji="⏰" role="option">⏰</span><span class="chat-emoji-item" data-emoji="📆" role="option">📆</span><span class="chat-emoji-item" data-emoji="🙌" role="option">🙌</span>
+          </div>
+          <div class="chat-input-hint">Enter 전송 · Shift+Enter 줄바꿈</div>
+        </form>
+      </div>
+    </div>
+    <div class="chat-room-list chat-sidebar">
+      <div class="chat-room-list-header">
+        <h2 class="chat-panel-title">업무 협업</h2>
+      </div>
+      <div class="chat-room-search-wrap">
+        <input type="text" id="chat-room-search" class="chat-room-search" placeholder="채팅방 검색" aria-label="채팅방 검색">
+      </div>
+      <div class="chat-room-list-body" id="chat-room-list-body">
+        <div class="chat-room-section">
+          <div class="chat-room-section-title">채널</div>
+          <div id="chat-room-channels" class="chat-room-items"></div>
+        </div>
+        <div class="chat-room-section">
+          <div class="chat-room-section-title">계약 채팅</div>
+          <div id="chat-room-contracts" class="chat-room-items"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 채팅 이미지 크게 보기 모달 -->
+  <div id="chat-image-modal-overlay" class="chat-image-modal-overlay hidden" aria-hidden="true">
+    <div class="chat-image-modal">
+      <img id="chat-image-modal-img" src="" alt="">
+      <div class="chat-image-modal-actions">
+        <a id="chat-image-modal-download" href="" download class="btn btn-primary">다운로드</a>
+        <button type="button" class="btn btn-secondary" id="chat-image-modal-close">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-construction-stages" class="modal hidden">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-header">
+        <h3>시공 단계 · 공사일정 및 단계별 책임자</h3>
+        <button type="button" class="modal-close" data-close="modal-construction-stages">&times;</button>
+      </div>
+      <form id="form-construction-stages">
+        <input type="hidden" id="construction-stages-contract-id">
+        <div class="form-block">
+          <p class="readonly-info" style="margin-bottom:1rem"><strong id="construction-stages-customer">-</strong></p>
+          <label>공사 시작날짜 <input type="date" id="construction-start-date"></label>
+          <label>공사 완료날짜 <input type="date" id="construction-end-date"></label>
+        </div>
+        <h4 class="sub-title">단계별 공사일·책임자·시공자·비용·특이사항</h4>
+        <div class="table-wrap construction-detail-table-wrap">
+          <table class="data-table construction-detail-table">
+            <thead>
+              <tr><th>시공 단계</th><th>공사 시작일</th><th>공사 완료일</th><th>책임자</th><th>시공자 리스트</th><th>연락처</th><th>인건비</th><th>기타경비</th><th>특이사항</th></tr>
+            </thead>
+            <tbody id="tbody-construction-stages"></tbody>
+          </table>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">저장</button>
+          <button type="button" class="btn btn-secondary" data-close="modal-construction-stages">취소</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-visit-detail" class="modal hidden">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-header">
+        <h3>방문예약 상세</h3>
+        <button type="button" class="modal-close" data-close="modal-visit-detail">&times;</button>
+      </div>
+      <div id="visit-detail-body" class="detail-body"></div>
+      <div class="form-actions" style="margin-top:1rem">
+        <button type="button" class="btn btn-secondary" data-close="modal-visit-detail">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-payment" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>수금 입력</h3>
+        <button type="button" class="modal-close" data-close="modal-payment">&times;</button>
+      </div>
+      <form id="form-payment">
+        <input type="hidden" id="payment-contract-id">
+        <input type="hidden" id="payment-type">
+        <div class="form-block">
+          <label>금액(만원) <input type="number" id="payment-amount" min="0" step="1" required></label>
+          <div id="payment-date-wrap">
+            <label>수령일 <input type="date" id="payment-date"></label>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">저장</button>
+          <button type="button" class="btn btn-secondary" data-close="modal-payment">취소</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-design-permit" class="modal hidden">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-header">
+        <h3>설계팀 · 유형 및 인허가·착공 기입</h3>
+        <button type="button" class="modal-close" data-close="modal-design-permit">&times;</button>
+      </div>
+      <form id="form-design-permit">
+        <input type="hidden" id="design-contract-id">
+        <div class="form-block">
+          <label>유형 <select id="design-project-type" required><option value="">선택</option><option value="체류형쉼터">체류형쉼터</option><option value="주택">주택</option></select></label>
+          <p class="field-hint">주택 선택 시 인허가(건축설계사·허가필증 등) 기입이 필요합니다.</p>
+          <p class="field-hint">※ 각 협의도면/시공도면에는 대표 도면 파일 1개만 저장됩니다. 다른 파일로 교체할 때는 기존 파일을 삭제한 뒤 다시 업로드해 주세요.</p>
+          <div class="design-discussion-card">
+            <div class="design-discussion-header">
+              <span>협의도면 1차</span>
+              <span class="design-discussion-final-badge" id="design-drawing-1-final-badge">최종 확정</span>
+            </div>
+            <div class="form-row-upload">
+              <label>파일</label>
+              <input type="text" id="design-drawing-attachment" class="drawing-url-input" placeholder="파일명 또는 링크 (여러 개일 경우 줄바꿈으로 구분)">
+              <input type="file" id="design-drawing-attachment-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-design-drawing-upload">파일 선택</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-design-drawing-open">열기</button>
+            </div>
+            <div class="drawing-file-list" id="design-drawing-list-1"></div>
+            <div class="design-discussion-memos">
+              <label>설계팀 메모
+                <textarea id="design-drawing-1-memo-design" rows="2" placeholder="예) 수정 내용, 검토 사항 등"></textarea>
+              </label>
+              <label>영업팀 메모
+                <textarea id="design-drawing-1-memo-sales" rows="2" placeholder="예) 고객 전달 내용, 협의 결과 등"></textarea>
+              </label>
+            </div>
+            <label class="checkbox-label design-discussion-final">
+              <input type="checkbox" id="design-drawing-1-final"> 최종 확정
+            </label>
+          </div>
+          <div class="design-discussion-card">
+            <div class="design-discussion-header">
+              <span>협의도면 2차</span>
+              <span class="design-discussion-final-badge" id="design-drawing-2-final-badge">최종 확정</span>
+            </div>
+            <div class="form-row-upload">
+              <label>파일</label>
+              <input type="text" id="design-drawing-attachment-2" class="drawing-url-input" placeholder="파일명 또는 링크">
+              <input type="file" id="design-drawing-attachment-file-2" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-design-drawing-upload-2">파일 선택</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-design-drawing-open-2">열기</button>
+            </div>
+            <div class="drawing-file-list" id="design-drawing-list-2"></div>
+            <div class="design-discussion-memos">
+              <label>설계팀 메모
+                <textarea id="design-drawing-2-memo-design" rows="2" placeholder="예) 수정 내용, 검토 사항 등"></textarea>
+              </label>
+              <label>영업팀 메모
+                <textarea id="design-drawing-2-memo-sales" rows="2" placeholder="예) 고객 전달 내용, 협의 결과 등"></textarea>
+              </label>
+            </div>
+            <label class="checkbox-label design-discussion-final">
+              <input type="checkbox" id="design-drawing-2-final"> 최종 확정
+            </label>
+          </div>
+          <div class="design-discussion-card">
+            <div class="design-discussion-header">
+              <span>협의도면 3차</span>
+              <span class="design-discussion-final-badge" id="design-drawing-3-final-badge">최종 확정</span>
+            </div>
+            <div class="form-row-upload">
+              <label>파일</label>
+              <input type="text" id="design-drawing-attachment-3" class="drawing-url-input" placeholder="파일명 또는 링크">
+              <input type="file" id="design-drawing-attachment-file-3" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-design-drawing-upload-3">파일 선택</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-design-drawing-open-3">열기</button>
+            </div>
+            <div class="drawing-file-list" id="design-drawing-list-3"></div>
+            <div class="design-discussion-memos">
+              <label>설계팀 메모
+                <textarea id="design-drawing-3-memo-design" rows="2" placeholder="예) 수정 내용, 검토 사항 등"></textarea>
+              </label>
+              <label>영업팀 메모
+                <textarea id="design-drawing-3-memo-sales" rows="2" placeholder="예) 고객 전달 내용, 협의 결과 등"></textarea>
+              </label>
+            </div>
+            <label class="checkbox-label design-discussion-final">
+              <input type="checkbox" id="design-drawing-3-final"> 최종 확정
+            </label>
+          </div>
+          <div class="form-row-upload">
+            <label>시공도면 첨부</label>
+            <input type="text" id="design-construction-drawing-attachment" class="drawing-url-input" placeholder="파일명 또는 링크 (여러 개일 경우 줄바꿈으로 구분)">
+            <input type="file" id="design-construction-drawing-attachment-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-design-construction-drawing-upload">파일 선택</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-design-construction-drawing-open">열기</button>
+          </div>
+          <div class="drawing-file-list" id="design-construction-drawing-list"></div>
+        </div>
+        <div id="design-house-fields" class="form-block hidden">
+          <h4 class="sub-title">주택 인허가 정보</h4>
+          <label>건축설계사 <input type="text" id="design-architect" placeholder="소속/성명"></label>
+          <label>담당자 <input type="text" id="design-contact-name" placeholder="담당자 성명"></label>
+          <label>연락처 <input type="tel" id="design-contact-phone" placeholder="담당자 번호"></label>
+          <label class="checkbox-label"><input type="checkbox" id="design-has-permit"> 허가필증 유무</label>
+          <label>허가필증 첨부 <input type="text" id="design-permit-attachment" placeholder="파일명 또는 링크"></label>
+          <label class="checkbox-label"><input type="checkbox" id="design-has-construction-report"> 착공계 유무</label>
+          <label class="checkbox-label"><input type="checkbox" id="design-has-completion-cert"> 준공필증 유무</label>
+          <label class="checkbox-label highlight"><input type="checkbox" id="design-construction-start-ok"> 착공여부 (체크 시 시공팀에서 공사 시작 가능)</label>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">저장</button>
+          <button type="button" class="btn btn-secondary" data-close="modal-design-permit">취소</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-contract-detail" class="modal hidden">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-header">
+        <h3>계약 상세 · 담당 영업사원 기입</h3>
+        <button type="button" class="modal-close" data-close="modal-contract-detail">&times;</button>
+      </div>
+      <form id="form-contract-detail">
+        <input type="hidden" id="detail-contract-id">
+            <div class="form-actions form-actions-top">
+              <button type="submit" class="btn btn-primary">저장</button>
+            </div>
+        <div class="form-block readonly-info" id="detail-design-block">
+          <strong>설계팀 정보 (조회용)</strong>
+          <div id="detail-design-full-view" class="detail-body"></div>
+        </div>
+        <div class="form-section contract-form-section">
+          <h4 class="form-section-title">기본 계약 정보</h4>
+          <div class="form-grid form-grid-2">
+            <label>영업사원 전시장 <select id="detail-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+            <label>계약 모델 전시장 <select id="detail-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+            <label>주택 유형 <select id="detail-model"><option value="">선택</option><option value="전원주택">전원주택</option><option value="세컨하우스">세컨하우스</option><option value="체류형쉼터">체류형쉼터</option><option value="농막">농막</option><option value="컨테이너하우스">컨테이너하우스</option><option value="리모델링">리모델링</option><option value="기타">기타</option></select></label>
+            <label>모델 이름 <input type="text" id="detail-model-name" placeholder="예: S3500, S6850"></label>
+            <label>담당 영업사원 <input type="text" id="detail-sales-person" placeholder="성명"></label>
+            <label>계약서 첨부
+              <div class="contract-attach-row">
+                <input type="text" id="detail-contract-attachment" placeholder="파일 URL 또는 파일명">
+                <button type="button" class="btn btn-secondary btn-sm contract-attach-upload-btn" id="btn-detail-contract-attach">파일 선택</button>
+                <button type="button" class="btn btn-secondary btn-sm contract-attach-open-btn" id="btn-detail-contract-open">열기</button>
+                <input type="file" id="detail-contract-attachment-file" class="contract-attach-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.hwp,.zip" hidden>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="form-section contract-form-section">
+          <h4 class="form-section-title">현장 정보</h4>
+          <label>현장 주소 <input type="text" id="detail-site-address" class="site-address-input" placeholder="공사할 현장 주소 입력"></label>
+          <div class="install-type-group">
+            <span class="install-type-label">시공 방식</span>
+            <label><input type="radio" name="detail-install-type" value="현장시공"> 현장시공</label>
+            <label><input type="radio" name="detail-install-type" value="이동설치"> 이동설치</label>
+          </div>
+          <div class="pyeong-row form-grid form-grid-2">
+            <label>기초공사 평수 <input type="number" id="detail-foundation-pyeong" class="foundation-pyeong-input" placeholder="예) 8" min="0" step="0.1"></label>
+            <label>주택 평수 <input type="number" id="detail-house-pyeong" class="house-pyeong-input" placeholder="예) 12" min="0" step="0.1"></label>
+          </div>
+          <div class="pyeong-unit-hint">단위: 평</div>
+        </div>
+        <div class="form-section contract-form-section">
+          <h4 class="form-section-title">옵션 정보</h4>
+          <div class="option-row" data-option="porch">
+            <label><input type="checkbox" class="option-toggle detail-option-toggle" data-option="porch"> 포치</label>
+            <input type="number" id="detail-option-porch-pyeong" class="option-pyeong-input" data-option="porch" placeholder="포치 평수" min="0" step="0.1" disabled>
+            <span class="option-unit">평</span>
+          </div>
+          <div class="option-row" data-option="deck">
+            <label><input type="checkbox" class="option-toggle detail-option-toggle" data-option="deck"> 데크</label>
+            <input type="number" id="detail-option-deck-pyeong" class="option-pyeong-input" data-option="deck" placeholder="데크 평수" min="0" step="0.1" disabled>
+            <span class="option-unit">평</span>
+          </div>
+          <div class="option-row" data-option="sunroom">
+            <label><input type="checkbox" class="option-toggle detail-option-toggle" data-option="sunroom"> 썬룸</label>
+            <input type="number" id="detail-option-sunroom-pyeong" class="option-pyeong-input" data-option="sunroom" placeholder="썬룸 평수" min="0" step="0.1" disabled>
+            <span class="option-unit">평</span>
+          </div>
+        </div>
+        <div class="form-section contract-form-section">
+          <h4 class="form-section-title">설계 요청 사항</h4>
+          <p class="field-hint">섹션별로 설계팀이 참고할 내용을 최대한 구체적으로 적어 주세요. (마감재 이름, 색상 코드, 옵션 위치 등)</p>
+          <div class="design-request-grid">
+            <div class="design-request-card">
+              <h5 class="design-request-title">안방 / 침실</h5>
+              <textarea id="detail-memo-bedroom" rows="4" placeholder="예) 붙박이장, 침대 위치, 간접조명, 콘센트 위치 등"></textarea>
+            </div>
+            <div class="design-request-card">
+              <h5 class="design-request-title">거실</h5>
+              <textarea id="detail-memo-living" rows="4" placeholder="예) 아트월, TV벽면, 간접조명, 창 크기/위치 등"></textarea>
+            </div>
+            <div class="design-request-card">
+              <h5 class="design-request-title">주방</h5>
+              <textarea id="detail-memo-kitchen" rows="4" placeholder="예) 아일랜드 식탁, 수납장 배치, 싱크/쿡탑 위치, 동선 등"></textarea>
+            </div>
+            <div class="design-request-card">
+              <h5 class="design-request-title">화장실</h5>
+              <textarea id="detail-memo-bath" rows="4" placeholder="예) 욕조/샤워부스, 타일 디자인, 위생도기 위치, 수납장 등"></textarea>
+            </div>
+            <div class="design-request-card">
+              <h5 class="design-request-title">외부 / 데크 / 포치</h5>
+              <textarea id="detail-memo-exterior" rows="4" placeholder="예) 데크 평수, 포치 형태, 난간, 외부 조명, 외부 수전 위치 등"></textarea>
+            </div>
+            <div class="design-request-card">
+              <h5 class="design-request-title">기타 요청사항</h5>
+              <textarea id="detail-memo-etc" rows="4" placeholder="예) 특별 요청사항, 추가 옵션, 현장 특이사항 등"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">저장</button>
+          <button type="button" class="btn btn-secondary" data-close="modal-contract-detail">취소</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-contract-chat" class="modal hidden" aria-hidden="true">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="modal-contract-chat-title">- / -</h3>
+        <button type="button" class="modal-close" data-close="modal-contract-chat" aria-label="닫기">&times;</button>
+      </div>
+      <div class="contract-chat-messages-wrap" style="min-height: 240px; max-height: 360px;">
+        <ul id="modal-contract-chat-message-list" class="chat-message-list contract-chat-message-list"></ul>
+      </div>
+      <form id="modal-contract-chat-form" class="contract-chat-form">
+        <input type="hidden" id="modal-contract-chat-contract-id" value="">
+        <div class="chat-input-bar">
+          <textarea id="modal-contract-chat-input" class="chat-input chat-textarea" placeholder="메시지를 입력하세요..." rows="1" maxlength="2000"></textarea>
+          <button type="submit" class="btn btn-primary chat-send-btn">전송</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-team-calendar" class="modal hidden" aria-hidden="true">
+    <div class="modal-content modal-content-wide">
+      <div class="modal-header">
+        <h3>운영 일정</h3>
+        <button type="button" class="modal-close" data-close="modal-team-calendar" aria-label="닫기">&times;</button>
+      </div>
+      <form id="team-calendar-form" class="form-block">
+        <input type="hidden" id="team-calendar-id">
+        <div class="form-grid form-grid-2">
+          <label>일정 제목
+            <input type="text" id="team-calendar-title" required placeholder="예: 영업팀 주간 회의">
+          </label>
+          <label>팀 선택
+            <select id="team-calendar-team" required>
+              <option value="">선택</option>
+              <option value="sales">영업팀</option>
+              <option value="design">설계팀</option>
+              <option value="construction">시공팀</option>
+              <option value="marketing">마케팅팀</option>
+              <option value="settlement">정산팀</option>
+              <option value="management">경영팀</option>
+            </select>
+          </label>
+          <label for="assignee_name">담당자
+            <input type="text" id="assignee_name" name="assignee_name" placeholder="예: 홍길동">
+          </label>
+          <label>전시장
+            <select id="team-calendar-showroom">
+              <option value="">전체 / 공통</option>
+              <option value="headquarters">본사 전시장</option>
+              <option value="showroom1">1전시장</option>
+              <option value="showroom3">3전시장</option>
+              <option value="showroom4">4전시장</option>
+            </select>
+          </label>
+          <label>일정 유형
+            <select id="team-calendar-type">
+              <option value="">선택</option>
+              <option value="consulting">상담</option>
+              <option value="visit">방문</option>
+              <option value="design">설계</option>
+              <option value="construction">시공</option>
+              <option value="meeting">회의</option>
+              <option value="marketing">마케팅</option>
+              <option value="etc">기타</option>
+            </select>
+          </label>
+          <label>일정 상태
+            <select id="team-calendar-status">
+              <option value="planned">예정</option>
+              <option value="in_progress">진행중</option>
+              <option value="done">완료</option>
+              <option value="canceled">취소</option>
+            </select>
+          </label>
+          <label>중요도
+            <select id="team-calendar-priority">
+              <option value="normal">일반</option>
+              <option value="important">중요</option>
+              <option value="urgent">긴급</option>
+            </select>
+          </label>
+          <label>시작일
+            <input type="date" id="team-calendar-date-start" required>
+          </label>
+          <label>종료일
+            <input type="date" id="team-calendar-date-end">
+          </label>
+          <label>시작 시간
+            <select id="team-calendar-time-start"></select>
+          </label>
+          <label>종료 시간
+            <select id="team-calendar-time-end"></select>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="team-calendar-all-day">
+            종일 일정
+          </label>
+          <label>장소
+            <input type="text" id="team-calendar-location" placeholder="회의실 / 현장 주소 등">
+          </label>
+        </div>
+        <label>상세 내용
+          <textarea id="team-calendar-content" rows="4" placeholder="일정 내용을 입력하세요"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close="modal-team-calendar">취소</button>
+          <button type="button" class="btn btn-secondary hidden" id="btn-team-calendar-delete">삭제</button>
+          <button type="submit" class="btn btn-primary">저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      document.body.style.visibility = 'hidden';
+      (window.seumAuth.authReady || Promise.resolve()).then(function () {
+        document.body.style.visibility = '';
+      }).catch(function () {});
+    })();
+  </script>
+  <script src="js/app.js?v=20260313-1"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/chat-ui.js"></script>
+</body>
+</html>

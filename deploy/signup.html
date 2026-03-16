@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세움디자인하우징 OS - 직원 회원가입</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="login-page auth-page">
+  <div class="auth-card signup-card">
+    <div class="auth-header">
+      <div class="auth-brand" aria-hidden="true">S</div>
+      <h1 class="auth-title">세움디자인하우징 OS</h1>
+      <p class="auth-sub">직원 전용 내부 운영 시스템</p>
+    </div>
+    <p class="auth-notice">회원가입 후 관리자 승인 완료 시 로그인할 수 있습니다.</p>
+    <form id="signup-form" class="auth-form signup-form" novalidate>
+      <label for="signup-name" class="auth-label">이름</label>
+      <input type="text" id="signup-name" class="auth-input" placeholder="이름" required autocomplete="name">
+      <label for="signup-phone" class="auth-label">휴대폰 번호</label>
+      <input type="tel" id="signup-phone" class="auth-input" placeholder="010-0000-0000" autocomplete="tel">
+      <label for="signup-email" class="auth-label">이메일</label>
+      <input type="email" id="signup-email" class="auth-input" placeholder="이메일 주소" required autocomplete="email">
+      <label for="signup-password" class="auth-label">비밀번호</label>
+      <input type="password" id="signup-password" class="auth-input" placeholder="비밀번호 (6자 이상)" required autocomplete="new-password" minlength="6">
+      <label for="signup-showroom" class="auth-label">소속 전시장</label>
+      <select id="signup-showroom" class="auth-input auth-select">
+        <option value="">선택</option>
+        <option value="headquarters">본사 전시장</option>
+        <option value="showroom1">1전시장</option>
+        <option value="showroom3">3전시장</option>
+        <option value="showroom4">4전시장</option>
+      </select>
+      <label for="signup-team" class="auth-label">소속 팀</label>
+      <select id="signup-team" class="auth-input auth-select">
+        <option value="">선택</option>
+        <option value="영업">영업팀</option>
+        <option value="설계">설계팀</option>
+        <option value="시공">시공팀</option>
+        <option value="정산">정산팀</option>
+        <option value="마케팅">마케팅팀</option>
+        <option value="경영">경영팀</option>
+      </select>
+      <label for="signup-birth-date" class="auth-label">생년월일</label>
+      <input type="date" id="signup-birth-date" class="auth-input" placeholder="예: 1990-03-10">
+      <p class="auth-help-text">달력에서 선택하거나, 숫자로 직접 입력해 주세요. (예: 1990-03-10)</p>
+      <p id="signup-message" class="auth-error auth-message" aria-live="polite"></p>
+      <button type="submit" class="auth-btn" id="signup-btn">회원가입</button>
+    </form>
+    <p class="auth-footer">
+      <a href="login.html" class="auth-link">이미 계정이 있으신가요? 로그인</a>
+    </p>
+  </div>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      var form = document.getElementById('signup-form');
+      var nameInput = document.getElementById('signup-name');
+      var phoneInput = document.getElementById('signup-phone');
+      var emailInput = document.getElementById('signup-email');
+      var passwordInput = document.getElementById('signup-password');
+      var showroomSelect = document.getElementById('signup-showroom');
+      var teamSelect = document.getElementById('signup-team');
+      var birthDateInput = document.getElementById('signup-birth-date');
+      var messageEl = document.getElementById('signup-message');
+      var btn = document.getElementById('signup-btn');
+
+      function showMessage(text, isError) {
+        messageEl.textContent = text || '';
+        messageEl.classList.toggle('auth-error', isError !== false);
+        messageEl.classList.toggle('auth-message-success', isError === false && text);
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        showMessage('', true);
+        var name = (nameInput.value || '').trim();
+        var phone = (phoneInput.value || '').trim();
+        var email = (emailInput.value || '').trim();
+        var password = passwordInput.value || '';
+        var showroom = (showroomSelect.value || '').trim();
+        var team = (teamSelect.value || '').trim();
+        var birthDate = (birthDateInput.value || '').trim() || null;
+        if (!name) {
+          showMessage('이름을 입력해 주세요.', true);
+          return;
+        }
+        if (!email) {
+          showMessage('이메일을 입력해 주세요.', true);
+          return;
+        }
+        if (!password || password.length < 6) {
+          showMessage('비밀번호는 6자 이상 입력해 주세요.', true);
+          return;
+        }
+        btn.disabled = true;
+        window.seumAuth.signup({
+          name: name,
+          phone: phone || null,
+          email: email,
+          password: password,
+          showroom: showroom || null,
+          team: team || null,
+          birth_date: birthDate
+        }).then(function (result) {
+          btn.disabled = false;
+          if (result.success) {
+            showMessage(result.message || '회원가입이 완료되었습니다. 승인 후 로그인해 주세요.', false);
+          } else {
+            showMessage(result.error || '회원가입에 실패했습니다.', true);
+          }
+        }).catch(function () {
+          btn.disabled = false;
+          showMessage('회원가입 중 오류가 발생했습니다.', true);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

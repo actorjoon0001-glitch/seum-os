@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>세움디자인하우징 OS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./icons/seum-os-192.png">
+  <script>
+    // 최초 진입 시 로그인 페이지로 리다이렉트
+    window.location.replace('login.html');
+  </script>
+  <script>
+    // 서비스 워커 등록 (HTTPS 환경에서만 동작, Netlify 배포 시 사용 가능)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {
+          // 실패하더라도 앱 동작에는 영향 없음
+        });
+      });
+    }
+  </script>
+</head>
+<body>
+</body>
+</html>
