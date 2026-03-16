@@ -1,7 +1,6 @@
 (function () {
   'use strict';
   console.log('app.js loaded');
-  var SHOWROOMS = [
   var STORAGE_VISITS = 'seum_visits';
   var STORAGE_CONTRACTS = 'seum_contracts';
   var STORAGE_EMPLOYEES = 'seum_employees';
@@ -2515,7 +2514,7 @@
         startDisplay = '??';
         endDisplay = '-';
       } else {
-        startDisplay = startTime || '??? ?????;
+        startDisplay = startTime || '??? ?????';
         endDisplay = endTime || '-';
       }
       return '<tr data-team-event-id="' + ev.id + '">' +
@@ -2655,7 +2654,7 @@
     modal.classList.remove('hidden');
   }
 
-  var SOURCE_LABELS = { youtube: '?????, instagram: '?????', naver: '?????, referral: '??????, etc: '???' };
+  var SOURCE_LABELS = { youtube: '?????', instagram: '?????', naver: '?????', referral: '??????', etc: '???' };
 
   function getAssignShowroomSelect(visitId, currentShowroomId) {
     var opts = SHOWROOMS.map(function (s) {
@@ -2684,7 +2683,7 @@
       var assignShowroomCell = canAssign ? '<td class="col-assign-showroom">' + getAssignShowroomSelect(v.id, v.showroomId) + '</td>' : '<td class="col-assign-showroom">' + getShowroomName(v.showroomId) + '</td>';
       var assignBtn = canAssign ? '<button type="button" class="btn btn-sm btn-primary" data-assign-visit="' + v.id + '">????? ???</button>' : '';
       var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-visit-detail="' + v.id + '">???</button>';
-      return '<tr>' + checkCell + '<td>' + getShowroomName(v.showroomId) + '</td>' + assignShowroomCell + '<td>' + formatDate(v.createdAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + dateTime + '</td><td>' + (v.interestType || '-') + '</td><td>' + (v.desiredPyeong ? v.desiredPyeong + '?? : '-') + '</td><td>' + (v.budgetRange || '-') + '</td><td>' + (v.hasLand === 'Y' ? 'O' : v.hasLand === 'N' ? 'X' : '-') + '</td><td><span class="badge ' + statusClass + '">' + statusText + '</span></td><td>' + detailBtn + ' ' + assignBtn + '</td></tr>';
+      return '<tr>' + checkCell + '<td>' + getShowroomName(v.showroomId) + '</td>' + assignShowroomCell + '<td>' + formatDate(v.createdAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + dateTime + '</td><td>' + (v.interestType || '-') + '</td><td>' + (v.desiredPyeong ? v.desiredPyeong + '??' : '-') + '</td><td>' + (v.budgetRange || '-') + '</td><td>' + (v.hasLand === 'Y' ? 'O' : v.hasLand === 'N' ? 'X' : '-') + '</td><td><span class="badge ' + statusClass + '">' + statusText + '</span></td><td>' + detailBtn + ' ' + assignBtn + '</td></tr>';
     }).join('') || '<tr><td colspan="13">?????????????.</td></tr>';
   }
 
@@ -2698,12 +2697,12 @@
       '<tr><th>?????/th><td>' + (v.phone || '-') + '</td></tr>' +
       '<tr><th>????/th><td>' + formatDate(v.visitDate) + '</td></tr>' +
       '<tr><th>?????</th><td>' + (v.visitTime || '-') + '</td></tr>' +
-      '<tr><th>?????</th><td>' + (v.visitCount ? v.visitCount + '?? : '-') + '</td></tr>' +
+      '<tr><th>?????</th><td>' + (v.visitCount ? v.visitCount + '??' : '-') + '</td></tr>' +
       '<tr><th>?????</th><td>' + (SOURCE_LABELS[v.source] || v.source || '-') + '</td></tr>' +
       '<tr><th>????????????</th><td>' + (v.interestType || '-') + '</td></tr>' +
-      '<tr><th>??????</th><td>' + (v.desiredPyeong ? v.desiredPyeong + '?? : '-') + '</td></tr>' +
+      '<tr><th>??????</th><td>' + (v.desiredPyeong ? v.desiredPyeong + '??' : '-') + '</td></tr>' +
       '<tr><th>??? ??</th><td>' + (v.budgetRange || '-') + '</td></tr>' +
-      '<tr><th>???? ?? ????</th><td>' + (v.hasLand === 'Y' ? '??' : v.hasLand === 'N' ? '???? : '-') + '</td></tr>' +
+      '<tr><th>???? ?? ????</th><td>' + (v.hasLand === 'Y' ? '??' : v.hasLand === 'N' ? '????' : '-') + '</td></tr>' +
       '<tr><th>????(???</th><td>' + (v.landAddress || '-') + '</td></tr>' +
       '<tr><th>LG????????/th><td>' + (v.lgEvent ? 'Y' : '-') + '</td></tr>' +
       '<tr><th>3D???</th><td>' + (v.need3d ? 'Y' : '-') + '</td></tr>' +
@@ -2758,7 +2757,7 @@
       tbodyContracts.innerHTML = contracts.map(function (c) {
         function amountCell(amount, date, type) {
           if (amount != null && String(amount).trim() !== '') {
-            var label = formatMoney(amount) + '??;
+            var label = formatMoney(amount) + '??';
             if (date) label += ' (' + formatDate(date) + ')';
             return '<span class="payment-label">' + label + '</span> <button type="button" class="btn btn-xs btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">???</button>';
           }
@@ -2832,9 +2831,9 @@
     var designCheckDisabled = salesReadonly || constructionOnlyReview;
     var constructionCheckDisabled = salesReadonly || designOnlyReview;
     var statusMap = {
-      none: '????,
+      none: '????',
       in_progress: '??? ??',
-      negotiating: '??? ??,
+      negotiating: '??? ??',
       negotiated: '??? ???',
       done: '??? ???'
     };
@@ -2865,7 +2864,7 @@
       var canApprove = allConfirmed && !salesReadonly;
       var approvalBtnDisabled = !canApprove;
       var approvalBtnText = approved ? '??? ??' : '?? ???';
-      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '??? ???' : '????) + '</span><button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
+      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '??? ???' : '????') + '</span><button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
       var rowClass = 'design-row' + (allConfirmed ? ' review-complete' : '');
       var designerName = c.designPermitDesigner || c.designContactName || '-';
       var houseType = (c.contractModel || '-');
@@ -2889,7 +2888,7 @@
   function formatOptionsSummary(options) {
     if (!options) return '';
     var parts = [];
-    var labels = { porch: '???', deck: '???', sunroom: '???', demolition: '??', repair: '????, interior: '?????' };
+    var labels = { porch: '???', deck: '???', sunroom: '???', demolition: '??', repair: '????', interior: '?????' };
     ['porch', 'deck', 'sunroom', 'demolition', 'repair', 'interior'].forEach(function (key) {
       var o = options[key] || {};
       if (o.enabled) {
@@ -2897,7 +2896,7 @@
         if (key === 'demolition' || key === 'repair' || key === 'interior') {
           parts.push(label);
         } else {
-          var p = (o.pyeong != null && o.pyeong !== '') ? String(o.pyeong) + '?? : '';
+          var p = (o.pyeong != null && o.pyeong !== '') ? String(o.pyeong) + '??' : '';
           parts.push(label + (p ? ' ' + p : ''));
         }
       }
@@ -2915,7 +2914,7 @@
     l = line('???/??', c.memoBedroom); if (l) lines.push(l);
     l = line('??', c.memoLiving); if (l) lines.push(l);
     l = line('??', c.memoKitchen); if (l) lines.push(l);
-    l = line('?????, c.memoBath); if (l) lines.push(l);
+    l = line('?????', c.memoBath); if (l) lines.push(l);
     l = line('????/???/???', c.memoExterior); if (l) lines.push(l);
     l = line('??? ??????', c.memoEtc); if (l) lines.push(l);
     return lines.join('\\n');
@@ -2933,7 +2932,7 @@
       if ((type || 'none') === 'none') return '<span class="design-request-view-badge design-request-view-none">???</span>';
       return '<span class="design-request-view-badge design-request-view-add">???</span> ' + (memo ? esc(memo) : '');
     };
-    var matLabel = { default: '??', ceramic: '????????', longbrick: '????, smart: '?????????' };
+    var matLabel = { default: '??', ceramic: '????????', longbrick: '????', smart: '?????????' };
     var exteriorMat = matLabel[c.exteriorMaterialType || 'default'] || (c.exteriorMaterialType || '??');
 
     var html = '<div class="design-detail-design-request-block">' +
@@ -2995,7 +2994,7 @@
   function buildDesignDetailContent(contractId) {
     var c = getContracts().find(function (x) { return x.id === contractId; });
     if (!c) return '';
-    var statusMap = { none: '????, in_progress: '?????, done: '???' };
+    var statusMap = { none: '????', in_progress: '?????', done: '???' };
     var statusLabel = statusMap[c.designStatus || 'none'] || '??';
     var projectType = c.projectType || '-';
     var houseWrapHidden = (c.projectType || '') !== '??' ? ' hidden' : '';
@@ -3044,7 +3043,7 @@
     var cardDrawing = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">??? ?????</h4>' +
       '<div class="design-detail-card-body">' +
-      '<label class="design-detail-field">??? <select class="design-inline-project-type"><option value="">???</option><option value="???????' + (c.projectType === '??????? ? ' selected' : '') + '>???????/option><option value="??"' + (c.projectType === '??' ? ' selected' : '') + '>??</option></select></label>' +
+      '<label class="design-detail-field">??? <select class="design-inline-project-type"><option value="">???</option><option value="???????' + (c.projectType === '???????' ? ' selected' : '') + '>???????/option><option value="??"' + (c.projectType === '??' ? ' selected' : '') + '>??</option></select></label>' +
       '<div class="design-discussion-card">' +
       '<div class="design-discussion-header"><span class="design-discussion-title">?????? 1??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
       '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
@@ -3206,7 +3205,7 @@
     }
     function doDesignChatSend() {
       var rawText = (input.value || '').trim();
-      var text = rawText.replace(/\s*\[???:[^\]]*\]\s*$/, '').trim();
+      var text = rawText.replace(/\s*\[\?\?\?:[^\]]*\]\s*$/, '').trim();
       var pending = form._designChatPendingFiles || [];
       if (!text && !pending.length) return;
       var hid = td.querySelector('#design-contract-chat-contract-id');
@@ -3658,17 +3657,17 @@
   }
 
   var CONSTRUCTION_PROGRESS_OPTIONS = [
-    { value: '????, label: '???? },
+    { value: '????', label: '???? '},
     { value: '??', label: '??' },
-    { value: '????, label: '???? },
-    { value: '???, label: '??? }
+    { value: '????', label: '???? '},
+    { value: '???', label: '??? '}
   ];
 
   function getStageBadgeClass(progress) {
     var p = progress || '??';
     if (p === '??') return 'started';
-    if (p === '????) return 'progress';
-    if (p === '???) return 'done';
+    if (p === '????') return 'progress';
+    if (p === '???') return 'done';
     return 'waiting';
   }
 
@@ -3730,7 +3729,7 @@
     if (detail) detail.remove();
   }
 
-  var CONSTRUCTION_STAGE_NAMES = ['?????', '????', '???? ??', '???? ??', '??????', '???????, '?????', '????', '???/???', '?????, '???];
+  var CONSTRUCTION_STAGE_NAMES = ['?????', '????', '???? ??', '???? ??', '??????', '???????', '?????', '????', '???/???', '?????', '???'];
 
   function getConstructionStages(contract) {
     var arr = contract.constructionStages;
@@ -4753,7 +4752,7 @@
     if (winParts.length) lines.push('?? : ' + winParts.join(', '));
     var extMatR = document.querySelector('input[name="contract-inline-exterior-material"]:checked');
     if (extMatR && extMatR.value !== 'default') {
-      var matLabels = { ceramic: '????????', longbrick: '????, smart: '?????????' };
+      var matLabels = { ceramic: '????????', longbrick: '????', smart: '?????????' };
       lines.push('?????: ' + (matLabels[extMatR.value] || extMatR.value));
     }
     var facCf = document.getElementById('contract-inline-facility-ceiling-fan');
@@ -5131,13 +5130,13 @@
         ['?????? ???', linkOrText(c.constructionDrawingAttachment)]
       ];
       if ((c.projectType || '') === '??') {
-        rows.push(['???????, c.architectInfo || '-']);
-        rows.push(['?????, c.designContactName || '-']);
-        rows.push(['?????, c.designContactPhone || '-']);
-        rows.push(['??????? ???', c.hasPermitCert ? '?? : '??]);
+        rows.push(['???????', c.architectInfo || '-']);
+        rows.push(['?????', c.designContactName || '-']);
+        rows.push(['?????', c.designContactPhone || '-']);
+        rows.push(['??????? ???', c.hasPermitCert ? '??' : '??']);
         rows.push(['??????? ???', linkOrText(c.permitAttachment)]);
-        rows.push(['???????', c.hasConstructionStartReport ? '?? : '??]);
-        rows.push(['????????', c.hasCompletionCert ? '?? : '??]);
+        rows.push(['???????', c.hasConstructionStartReport ? '??' : '??']);
+        rows.push(['????????', c.hasCompletionCert ? '??' : '??']);
         rows.push(['?????? (????? ????? ???', c.constructionStartOk ? 'Y' : '-']);
       }
       var html = '<table class="detail-table"><tbody>' + rows.map(function (r) {
@@ -5302,11 +5301,11 @@
     if (typeSel && seriesSel) {
       typeSel.addEventListener('change', function () {
         var v = typeSel.value;
-        if (v === '???????) {
+        if (v === '???????') {
           seriesSel.value = 'FOREST';
-        } else if (v === '?????' || v === '???????? || v === '??') {
+        } else if (v === '?????' || v === '????????' || v === '??') {
           seriesSel.value = 'STAY';
-        } else if (v === '??????????) {
+        } else if (v === '??????????') {
           seriesSel.value = 'CUBE';
         }
         updateContractModelNamePreview();
@@ -5418,7 +5417,7 @@
           designDrawing3Final: false,
           discussionDrawings: [],
           constructionDrawings: [],
-          constructionProgress: '????,
+          constructionProgress: '????',
           constructionStartDate: '',
           constructionEndDate: '',
           constructionManager: '',
@@ -5490,7 +5489,7 @@
     if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
     var label = '';
     if (amount != null && String(amount).trim() !== '') {
-      label = formatMoney(amount) + '??;
+      label = formatMoney(amount) + '??';
     }
     if (receivedAt) {
       label += (label ? ' ' : '') + '(' + formatDate(receivedAt) + ')';
@@ -5516,7 +5515,7 @@
   }
 
   function openPaymentModal(contractId, type) {
-    var labels = { deposit: '????, progress1: '????1??, progress2: '????2??, progress3: '????3??, balance: '???' };
+    var labels = { deposit: '????', progress1: '????1??', progress2: '????2??', progress3: '????3??', balance: '???' };
     var contracts = getContracts();
     var c = contracts.find(function (x) { return x.id === contractId; }) || null;
     var map = {
@@ -6040,7 +6039,7 @@
     });
   }
 
-  var TEAM_OPTIONS = ['?????, '???', '???', '???', '???', '??'];
+  var TEAM_OPTIONS = ['?????', '???', '???', '???', '???', '??'];
   var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master'];
 
   function renderAdminEmployees() {
@@ -6058,7 +6057,7 @@
         var list = res.data || [];
         if (countEl) {
           var total = list.length || 0;
-          countEl.textContent = total ? '? ??' + total + '?? : '';
+          countEl.textContent = total ? '? ??' + total + '??' : '';
         }
         if (list.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7">???????????????.</td></tr>';
@@ -6125,7 +6124,7 @@
   function getTeamEventStatusLabel(status) {
     if (!status) return '';
     if (status === 'planned') return '???';
-    if (status === 'in_progress') return '????;
+    if (status === 'in_progress') return '????';
     if (status === 'done') return '???';
     if (status === 'canceled') return '??';
     return status;
@@ -6146,7 +6145,7 @@
     if (type === 'design') return '???';
     if (type === 'construction') return '???';
     if (type === 'meeting') return '???';
-    if (type === 'marketing') return '?????;
+    if (type === 'marketing') return '?????';
     if (type === 'etc') return '???';
     return type;
   }
@@ -6506,15 +6505,15 @@
       var salesPerson = cells[5] && cells[5].textContent;
       var newName = window.prompt('???', name === '-' ? '' : name);
       if (newName === null) return;
-      var newPhone = window.prompt('?????, phone === '-' ? '' : phone);
+      var newPhone = window.prompt('?????', phone === '-' ? '' : phone);
       if (newPhone === null) return;
       var newAddress = window.prompt('??', address === '-' ? '' : address);
       if (newAddress === null) return;
-      var newSource = window.prompt('?????, source === '-' ? '' : source);
+      var newSource = window.prompt('?????', source === '-' ? '' : source);
       if (newSource === null) return;
       var newStatus = window.prompt('???', status === '-' ? '' : status);
       if (newStatus === null) return;
-      var newSales = window.prompt('?????, salesPerson === '-' ? '' : salesPerson);
+      var newSales = window.prompt('?????', salesPerson === '-' ? '' : salesPerson);
       if (newSales === null) return;
       var supabase = typeof window !== 'undefined' && window.seumSupabase;
       if (!supabase) return;
@@ -7061,7 +7060,7 @@
       for (var y = end; y >= start; y--) {
         var opt = document.createElement('option');
         opt.value = String(y);
-        opt.textContent = y + '??;
+        opt.textContent = y + '??';
         yearEl.appendChild(opt);
       }
       yearEl.value = String(currentYear);
