@@ -6040,7 +6040,7 @@
     });
   }
 
-  var TEAM_OPTIONS = ['?????, '???', '???', '???', '???', '??'];
+  var TEAM_OPTIONS = ['마케팅', '영업', '설계', '시공', '정산', '경영', '사무'];
   var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master'];
 
   function renderAdminEmployees() {
@@ -6049,7 +6049,7 @@
     if (!tbody) return;
     var supabase = typeof window !== 'undefined' && window.seumSupabase;
     if (!supabase) {
-      tbody.innerHTML = '<tr><td colspan="7">Supabase ??????????????</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">Supabase를 사용할 수 없습니다.</td></tr>';
       return;
     }
     supabase.from('employees').select('id, name, email, team, role, showroom, status')
@@ -6058,10 +6058,10 @@
         var list = res.data || [];
         if (countEl) {
           var total = list.length || 0;
-          countEl.textContent = total ? '? ??' + total + '?? : '';
+          countEl.textContent = total ? '총 ' + total + '명' : '';
         }
         if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7">???????????????.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
           return;
         }
         tbody.innerHTML = list.map(function (emp, idx) {
@@ -6077,11 +6077,11 @@
             return '<option value="' + (s.id || '') + '"' + (isSelected ? ' selected' : '') + '>' + (s.name || s.id) + '</option>';
           }).join('');
           var numberLabel = (idx + 1) + '. ';
-          return '<tr data-id="' + emp.id + '"><td>' + numberLabel + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td><select class="admin-emp-team">' + teamOpts + '</select></td><td><select class="admin-emp-role">' + roleOpts + '</select></td><td><select class="admin-emp-showroom">' + srOpts + '</select></td><td>' + (emp.status || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + emp.id + '">????/button> <button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + emp.id + '">????</button></td></tr>';
+          return '<tr data-id="' + emp.id + '"><td>' + numberLabel + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td><select class="admin-emp-team">' + teamOpts + '</select></td><td><select class="admin-emp-role">' + roleOpts + '</select></td><td><select class="admin-emp-showroom">' + srOpts + '</select></td><td>' + (emp.status || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + emp.id + '">저장</button> <button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + emp.id + '">삭제</button></td></tr>';
         });
       })
       .catch(function (err) {
-        tbody.innerHTML = '<tr><td colspan="7">?????????? ???????</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7">직원 목록을 불러오지 못했습니다.</td></tr>';
         console.error(err);
       });
   }
@@ -6246,11 +6246,11 @@
           .then(function (res) {
             if (res.error) throw res.error;
             renderAdminEmployees();
-            alert('???????????.');
+            alert('저장되었습니다.');
           })
           .catch(function (err) {
             saveBtn.disabled = false;
-            alert('????? ?????????.');
+            alert('저장에 실패했습니다.');
             console.error(err);
           });
         return;
