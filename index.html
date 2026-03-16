@@ -298,7 +298,7 @@
   <script>
     // Redirect if already logged in
     if (Auth.isLoggedIn()) {
-      window.location.replace('dashboard.html');
+      window.location.replace('/dashboard.html');
     }
 
     const form = document.getElementById('loginForm');
@@ -334,7 +334,7 @@
       try {
         const result = Auth.login(email, password);
         if (result.success) {
-          window.location.replace('dashboard.html');
+          window.location.replace('/dashboard.html');
         } else {
           showError(result.message || 'Invalid credentials. Please try again.');
           loginBtn.disabled = false;

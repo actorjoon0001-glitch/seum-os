@@ -16,23 +16,23 @@ const Nav = (() => {
     {
       section: 'Overview',
       links: [
-        { href: 'dashboard.html', label: 'Dashboard', icon: 'grid' },
+        { href: '/dashboard.html', label: 'Dashboard', icon: 'grid' },
       ],
     },
     {
       section: 'Operations',
       links: [
-        { href: 'visits.html',    label: 'Showroom Visits', icon: 'calendar' },
-        { href: 'customers.html', label: 'Customers',       icon: 'users' },
-        { href: 'contracts.html', label: 'Contracts',       icon: 'file-text' },
+        { href: '/visits.html',    label: 'Showroom Visits', icon: 'calendar' },
+        { href: '/customers.html', label: 'Customers',       icon: 'users' },
+        { href: '/contracts.html', label: 'Contracts',       icon: 'file-text' },
       ],
     },
     {
       section: 'Team',
       links: [
-        { href: 'employees.html',     label: 'Employees',     icon: 'user' },
-        { href: 'announcements.html', label: 'Announcements', icon: 'bell' },
-        { href: 'kpi.html',           label: 'KPI',           icon: 'bar-chart' },
+        { href: '/employees.html',     label: 'Employees',     icon: 'user' },
+        { href: '/announcements.html', label: 'Announcements', icon: 'bell' },
+        { href: '/kpi.html',           label: 'KPI',           icon: 'bar-chart' },
       ],
     },
   ];
@@ -60,7 +60,7 @@ const Nav = (() => {
     const session = Auth.getSession();
     if (!session) return;
 
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const currentPage = '/' + (window.location.pathname.split('/').pop() || 'index.html');
     const initials = session.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
     const sectionsHtml = NAV_ITEMS.map(({ section, links }) => `

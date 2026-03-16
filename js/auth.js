@@ -71,7 +71,7 @@ const Auth = (() => {
    */
   function logout() {
     localStorage.removeItem(SESSION_KEY);
-    window.location.replace('index.html');
+    window.location.replace('/index.html');
   }
 
   /**
@@ -88,7 +88,13 @@ const Auth = (() => {
    */
   function getSession() {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
   }
 
   /**
@@ -106,8 +112,10 @@ const Auth = (() => {
    */
   function requireAuth() {
     if (!isLoggedIn()) {
-      window.location.replace('index.html');
+      window.location.replace('/index.html');
+      return false;
     }
+    return true;
   }
 
   /**
