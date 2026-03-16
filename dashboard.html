@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Seum OS</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    .welcome-banner {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: #fff;
+      border-radius: var(--radius-xl);
+      padding: var(--sp-6) var(--sp-8);
+      margin-bottom: var(--sp-6);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--sp-4);
+    }
+    .welcome-banner h2 { font-size: var(--text-xl); font-weight: 700; }
+    .welcome-banner p { font-size: var(--text-sm); opacity: 0.85; margin-top: var(--sp-1); }
+    .welcome-date { font-size: var(--text-sm); opacity: 0.75; text-align: right; }
+
+    .recent-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-5);
+      margin-top: var(--sp-6);
+    }
+
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      padding: var(--sp-3) 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .recent-item:last-child { border-bottom: none; }
+
+    .recent-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .recent-text { flex: 1; min-width: 0; }
+    .recent-name { font-size: var(--text-sm); font-weight: 600; }
+    .recent-sub  { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+    .recent-meta { font-size: var(--text-xs); color: var(--text-faint); }
+
+    .kpi-progress-item { margin-bottom: var(--sp-4); }
+    .kpi-progress-item:last-child { margin-bottom: 0; }
+    .kpi-row { display: flex; justify-content: space-between; margin-bottom: var(--sp-2); }
+    .kpi-label { font-size: var(--text-sm); font-weight: 500; }
+    .kpi-pct { font-size: var(--text-sm); font-weight: 600; }
+
+    .stat-card .stat-icon.blue   { background: var(--accent-soft); color: var(--accent); }
+    .stat-card .stat-icon.green  { background: var(--success-soft); color: var(--success); }
+    .stat-card .stat-icon.orange { background: var(--warning-soft); color: var(--warning); }
+    .stat-card .stat-icon.purple { background: #f3e8ff; color: #9333ea; }
+
+    @media (max-width: 768px) {
+      .recent-grid { grid-template-columns: 1fr; }
+      .welcome-date { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;"></div>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="page-title">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <span class="text-sm text-muted" id="topbarDate"></span>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <!-- Welcome Banner -->
+      <div class="welcome-banner" id="welcomeBanner">
+        <div>
+          <h2 id="welcomeMsg">Good morning!</h2>
+          <p>Here's what's happening at Seum Design Housing today.</p>
+        </div>
+        <div class="welcome-date" id="welcomeDate"></div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stats-grid" id="statsGrid">
+        <!-- Injected by JS -->
+      </div>
+
+      <!-- Recent Activity & KPI -->
+      <div class="recent-grid">
+        <!-- Recent Visits -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Today's Scheduled Visits</span>
+            <a href="visits.html" class="btn btn-ghost btn-sm">View all</a>
+          </div>
+          <div class="card-body" id="recentVisits"></div>
+        </div>
+
+        <!-- KPI Progress -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">This Month's KPI</span>
+            <a href="kpi.html" class="btn btn-ghost btn-sm">Full report</a>
+          </div>
+          <div class="card-body" id="kpiSummary"></div>
+        </div>
+
+        <!-- Recent Customers -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Customers</span>
+            <a href="customers.html" class="btn btn-ghost btn-sm">View all</a>
+          </div>
+          <div class="card-body" id="recentCustomers"></div>
+        </div>
+
+        <!-- Announcements -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Pinned Announcements</span>
+            <a href="announcements.html" class="btn btn-ghost btn-sm">View all</a>
+          </div>
+          <div class="card-body" id="pinnedAnnouncements"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  Nav.init();
+
+  const session = Auth.getSession();
+
+  // Welcome message
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('welcomeMsg').textContent = `${greeting}, ${session.name.split(' ')[0]}!`;
+
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('welcomeDate').textContent = dateStr;
+  document.getElementById('topbarDate').textContent = dateStr;
+
+  // Stats
+  const stats = Storage.getDashboardStats();
+  const statsData = [
+    { label: 'Total Customers', value: stats.totalCustomers,       change: '+2 this week', dir: 'up',   colorClass: 'blue',
+      iconPath: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+    { label: 'Visits This Month', value: stats.totalVisitsThisMonth, change: '+5 vs last month', dir: 'up', colorClass: 'green',
+      iconPath: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+    { label: 'Active Contracts', value: stats.activeContracts,     change: stats.draftContracts + ' pending', dir: 'up', colorClass: 'orange',
+      iconPath: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>' },
+    { label: 'Active Employees', value: stats.totalEmployees,      change: 'All on duty',       dir: 'up', colorClass: 'purple',
+      iconPath: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
+  ];
+
+  document.getElementById('statsGrid').innerHTML = statsData.map(s => `
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <span class="stat-label">${s.label}</span>
+        <div class="stat-icon ${s.colorClass}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.iconPath}</svg>
+        </div>
+      </div>
+      <div class="stat-value">${s.value}</div>
+      <div class="stat-change ${s.dir}">
+        <span>${s.dir === 'up' ? '↑' : '↓'}</span>
+        <span>${s.change}</span>
+      </div>
+    </div>
+  `).join('');
+
+  // Today's visits
+  const today = new Date().toISOString().split('T')[0];
+  const todayVisits = Storage.visits.filter(v => v.date === today && v.status === 'scheduled');
+  const recentVisitsEl = document.getElementById('recentVisits');
+  if (todayVisits.length === 0) {
+    recentVisitsEl.innerHTML = '<div class="empty-state" style="padding:var(--sp-6)"><p>No visits scheduled for today.</p></div>';
+  } else {
+    recentVisitsEl.innerHTML = todayVisits.slice(0, 5).map(v => {
+      const init = v.customerName.slice(0, 1);
+      return `<div class="recent-item">
+        <div class="recent-avatar">${init}</div>
+        <div class="recent-text">
+          <div class="recent-name">${v.customerName}</div>
+          <div class="recent-sub">${v.purpose} · ${v.time}</div>
+        </div>
+        <span class="badge badge-primary">${v.time}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // KPI Summary
+  const thisMonth = today.slice(0, 7);
+  const kpiEntries = Storage.kpi.filter(k => k.month === thisMonth);
+  const kpiEl = document.getElementById('kpiSummary');
+  if (kpiEntries.length === 0) {
+    kpiEl.innerHTML = '<div class="empty-state" style="padding:var(--sp-6)"><p>No KPI data for this month yet.</p></div>';
+  } else {
+    const k = kpiEntries[kpiEntries.length - 1];
+    const revPct = Math.min(100, Math.round((k.revenue / k.target_revenue) * 100));
+    const conPct = Math.min(100, Math.round((k.contracts / k.target_contracts) * 100));
+    const visitPct = Math.min(100, Math.round((k.visits / 40) * 100));
+    const fillClass = pct => pct >= 100 ? 'success' : pct >= 70 ? '' : pct >= 40 ? 'warning' : 'danger';
+    kpiEl.innerHTML = `
+      <div class="kpi-progress-item">
+        <div class="kpi-row"><span class="kpi-label">Revenue</span><span class="kpi-pct">${revPct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill ${fillClass(revPct)}" style="width:${revPct}%"></div></div>
+        <div class="text-xs text-muted mt-1">₩${(k.revenue/1000000).toFixed(1)}M / ₩${(k.target_revenue/1000000).toFixed(1)}M</div>
+      </div>
+      <div class="kpi-progress-item">
+        <div class="kpi-row"><span class="kpi-label">Contracts</span><span class="kpi-pct">${conPct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill ${fillClass(conPct)}" style="width:${conPct}%"></div></div>
+        <div class="text-xs text-muted mt-1">${k.contracts} / ${k.target_contracts} signed</div>
+      </div>
+      <div class="kpi-progress-item">
+        <div class="kpi-row"><span class="kpi-label">Showroom Visits</span><span class="kpi-pct">${visitPct}%</span></div>
+        <div class="progress-bar"><div class="progress-fill ${fillClass(visitPct)}" style="width:${visitPct}%"></div></div>
+        <div class="text-xs text-muted mt-1">${k.visits} / 40 target</div>
+      </div>
+    `;
+  }
+
+  // Recent customers
+  const recentCustomers = Storage.customers.getAll().slice(-5).reverse();
+  const custEl = document.getElementById('recentCustomers');
+  if (recentCustomers.length === 0) {
+    custEl.innerHTML = '<div class="empty-state" style="padding:var(--sp-6)"><p>No customers yet.</p></div>';
+  } else {
+    custEl.innerHTML = recentCustomers.map(c => {
+      const init = c.name.slice(0, 1);
+      return `<div class="recent-item">
+        <div class="recent-avatar">${init}</div>
+        <div class="recent-text">
+          <div class="recent-name">${c.name}</div>
+          <div class="recent-sub">${c.phone} · ${c.source}</div>
+        </div>
+        <span class="badge badge-${c.status === 'active' ? 'success' : 'neutral'}">${c.status}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Pinned announcements
+  const pinned = Storage.announcements.filter(a => a.pinned);
+  const annEl = document.getElementById('pinnedAnnouncements');
+  if (pinned.length === 0) {
+    annEl.innerHTML = '<div class="empty-state" style="padding:var(--sp-6)"><p>No pinned announcements.</p></div>';
+  } else {
+    annEl.innerHTML = pinned.map(a => `
+      <div class="recent-item">
+        <div class="recent-text">
+          <div class="recent-name">${a.title}</div>
+          <div class="recent-sub">${a.content.slice(0, 80)}${a.content.length > 80 ? '…' : ''}</div>
+          <div class="recent-meta mt-1">By ${a.author}</div>
+        </div>
+        <span class="badge badge-${a.priority === 'high' ? 'danger' : 'neutral'}">${a.priority}</span>
+      </div>
+    `).join('');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KPI — Seum OS</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    .kpi-month-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-bottom: var(--sp-5);
+    }
+
+    .kpi-month-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--sp-4) var(--sp-6);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kpi-month-title {
+      font-size: var(--text-base);
+      font-weight: 700;
+    }
+
+    .kpi-month-body {
+      padding: var(--sp-5) var(--sp-6);
+    }
+
+    .kpi-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: var(--sp-4);
+      margin-bottom: var(--sp-5);
+    }
+
+    .kpi-metric {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+    }
+
+    .kpi-metric-label {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .kpi-metric-value {
+      font-size: var(--text-xl);
+      font-weight: 700;
+    }
+
+    .kpi-metric-target {
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+    }
+
+    .kpi-bars {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+    }
+
+    .kpi-bar-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 60px;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .kpi-bar-label { font-size: var(--text-sm); font-weight: 500; }
+    .kpi-bar-pct { font-size: var(--text-sm); font-weight: 600; text-align: right; }
+
+    .achievement-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;"></div>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="page-title">KPI</span>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>KPI Dashboard</h1>
+          <p>Monthly performance tracking for Seum Design Housing.</p>
+        </div>
+        <button class="btn btn-primary" id="addKpiBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Log KPI
+        </button>
+      </div>
+
+      <div id="kpiList"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="kpiModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Log Monthly KPI</span>
+      <button class="modal-close" id="closeModal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="kpiForm" novalidate>
+        <input type="hidden" id="kpiId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="kMonth">Month *</label>
+            <input class="form-control" id="kMonth" type="month" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="kVisits">Showroom Visits</label>
+            <input class="form-control" id="kVisits" type="number" min="0" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="kContracts">Contracts Signed</label>
+            <input class="form-control" id="kContracts" type="number" min="0" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="kTargetContracts">Target Contracts</label>
+            <input class="form-control" id="kTargetContracts" type="number" min="0" placeholder="8" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="kRevenue">Revenue (₩)</label>
+            <input class="form-control" id="kRevenue" type="number" min="0" placeholder="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="kTargetRevenue">Revenue Target (₩)</label>
+            <input class="form-control" id="kTargetRevenue" type="number" min="0" placeholder="50000000" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="kNotes">Notes</label>
+          <textarea class="form-control" id="kNotes" placeholder="Any comments about this month's performance…"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelModal">Cancel</button>
+      <button class="btn btn-primary" id="saveKpi">Save KPI</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/kpi.js"></script>
+</body>
+</html>

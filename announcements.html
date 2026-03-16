@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Announcements — Seum OS</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    .announcement-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5) var(--sp-6);
+      margin-bottom: var(--sp-4);
+      position: relative;
+      transition: box-shadow var(--ease);
+    }
+    .announcement-card:hover { box-shadow: var(--shadow-md); }
+    .announcement-card.pinned { border-left: 4px solid var(--danger); }
+
+    .ann-header { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--sp-3); margin-bottom:var(--sp-3); }
+    .ann-title { font-size:var(--text-base); font-weight:700; }
+    .ann-body { font-size:var(--text-sm); color:var(--text-muted); line-height:1.7; white-space:pre-wrap; }
+    .ann-meta { margin-top:var(--sp-3); display:flex; align-items:center; gap:var(--sp-3); font-size:var(--text-xs); color:var(--text-faint); }
+    .ann-actions { display:flex; gap:var(--sp-2); flex-shrink:0; }
+
+    .pin-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:600; color:var(--danger); text-transform:uppercase; letter-spacing:0.05em; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;"></div>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="page-title">Announcements</span>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Team Announcements</h1>
+          <p>Company news, updates, and notices for the team.</p>
+        </div>
+        <button class="btn btn-primary" id="addAnnBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Announcement
+        </button>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search announcements…" />
+        </div>
+        <select class="form-control" id="priorityFilter" style="width:auto;">
+          <option value="">All Priorities</option>
+          <option value="high">High</option>
+          <option value="normal">Normal</option>
+          <option value="low">Low</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:var(--text-sm);cursor:pointer;">
+          <input type="checkbox" id="pinnedOnly" /> Pinned only
+        </label>
+      </div>
+
+      <div id="announcementList"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="annModal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">New Announcement</span>
+      <button class="modal-close" id="closeModal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="annForm" novalidate>
+        <input type="hidden" id="annId" />
+        <div class="form-group">
+          <label class="form-label" for="aTitle">Title *</label>
+          <input class="form-control" id="aTitle" type="text" placeholder="Announcement title" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="aContent">Content *</label>
+          <textarea class="form-control" id="aContent" placeholder="Write the full announcement here…" style="min-height:140px;" required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="aPriority">Priority</label>
+            <select class="form-control" id="aPriority">
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="form-group" style="justify-content:flex-end;">
+            <label class="form-label">&nbsp;</label>
+            <label style="display:flex;align-items:center;gap:var(--sp-2);font-size:var(--text-sm);cursor:pointer;margin-top:var(--sp-1);">
+              <input type="checkbox" id="aPinned" /> Pin this announcement
+            </label>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelModal">Cancel</button>
+      <button class="btn btn-primary" id="saveAnn">Publish</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/announcements.js"></script>
+</body>
+</html>

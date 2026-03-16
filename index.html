@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seum OS — Sign In</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--primary);
+      background: linear-gradient(135deg, #0f2544 0%, #1e3a5f 60%, #1d4ed8 100%);
+    }
+
+    .login-wrapper {
+      display: flex;
+      width: 100%;
+      max-width: 900px;
+      min-height: 520px;
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+
+    /* Left Brand Panel */
+    .login-brand {
+      flex: 1;
+      background: linear-gradient(160deg, #0f2544 0%, #1e3a5f 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: var(--sp-12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-brand::before {
+      content: '';
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.12);
+    }
+
+    .login-brand::after {
+      content: '';
+      position: absolute;
+      bottom: -40px;
+      left: -40px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.08);
+    }
+
+    .brand-logo-large {
+      width: 56px;
+      height: 56px;
+      background: var(--accent);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.5rem;
+      color: #fff;
+      margin-bottom: var(--sp-6);
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-brand h1 {
+      font-size: var(--text-3xl);
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: var(--sp-2);
+      position: relative;
+      z-index: 1;
+    }
+
+    .login-brand p {
+      color: rgba(148,163,184,0.9);
+      font-size: var(--text-sm);
+      line-height: 1.7;
+      max-width: 260px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-features {
+      margin-top: var(--sp-8);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-feature {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+      color: rgba(148,163,184,0.8);
+      font-size: var(--text-sm);
+    }
+
+    .brand-feature-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* Right Form Panel */
+    .login-form-panel {
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: var(--sp-10) var(--sp-8);
+    }
+
+    .login-form-panel h2 {
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      margin-bottom: var(--sp-2);
+    }
+
+    .login-form-panel .subtitle {
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      margin-bottom: var(--sp-8);
+    }
+
+    .login-error {
+      background: var(--danger-soft);
+      border: 1px solid #fca5a5;
+      color: var(--danger);
+      padding: var(--sp-3) var(--sp-4);
+      border-radius: var(--radius-md);
+      font-size: var(--text-sm);
+      margin-bottom: var(--sp-4);
+      display: none;
+    }
+
+    .login-error.visible { display: block; }
+
+    .btn-login {
+      width: 100%;
+      padding: var(--sp-3);
+      font-size: var(--text-base);
+      font-weight: 600;
+      margin-top: var(--sp-2);
+    }
+
+    .login-footer {
+      margin-top: var(--sp-8);
+      padding-top: var(--sp-5);
+      border-top: 1px solid var(--border);
+      font-size: var(--text-xs);
+      color: var(--text-faint);
+      text-align: center;
+    }
+
+    .input-icon-wrap {
+      position: relative;
+    }
+    .input-icon-wrap svg {
+      position: absolute;
+      left: var(--sp-3);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-faint);
+      pointer-events: none;
+    }
+    .input-icon-wrap .form-control {
+      padding-left: calc(var(--sp-3) + 18px + var(--sp-2));
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: var(--sp-3);
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-faint);
+      padding: 0;
+      display: flex;
+      cursor: pointer;
+    }
+    .toggle-password:hover { color: var(--text-muted); }
+
+    @media (max-width: 700px) {
+      .login-brand { display: none; }
+      .login-wrapper { max-width: 420px; }
+      .login-form-panel { width: 100%; padding: var(--sp-8) var(--sp-6); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <!-- Brand Panel -->
+    <div class="login-brand">
+      <div class="brand-logo-large">S</div>
+      <h1>Seum OS</h1>
+      <p>Internal operating system for Seum Design Housing. Manage your team, customers, and operations in one place.</p>
+      <div class="brand-features">
+        <div class="brand-feature">
+          <div class="brand-feature-dot"></div>
+          <span>Showroom visit tracking</span>
+        </div>
+        <div class="brand-feature">
+          <div class="brand-feature-dot"></div>
+          <span>Customer database &amp; sales contracts</span>
+        </div>
+        <div class="brand-feature">
+          <div class="brand-feature-dot"></div>
+          <span>Employee management &amp; KPI</span>
+        </div>
+        <div class="brand-feature">
+          <div class="brand-feature-dot"></div>
+          <span>Team announcements</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form -->
+    <div class="login-form-panel">
+      <h2>Welcome back</h2>
+      <p class="subtitle">Sign in to your workspace</p>
+
+      <div class="login-error" id="loginError"></div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+            <input
+              type="email"
+              id="email"
+              class="form-control"
+              placeholder="you@seumhousing.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-icon-wrap">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input
+              type="password"
+              id="password"
+              class="form-control"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+            <button type="button" class="toggle-password" id="togglePwd" aria-label="Toggle password visibility">
+              <svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-login" id="loginBtn">
+          Sign In
+        </button>
+      </form>
+
+      <div class="login-footer">
+        &copy; 2026 Seum Design Housing &mdash; Internal Use Only
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (Auth.isLoggedIn()) {
+      window.location.replace('dashboard.html');
+    }
+
+    const form = document.getElementById('loginForm');
+    const errorBox = document.getElementById('loginError');
+    const loginBtn = document.getElementById('loginBtn');
+    const togglePwd = document.getElementById('togglePwd');
+    const pwdInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    // Toggle password visibility
+    togglePwd.addEventListener('click', () => {
+      const isText = pwdInput.type === 'text';
+      pwdInput.type = isText ? 'password' : 'text';
+      eyeIcon.innerHTML = isText
+        ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
+        : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    });
+
+    // Form submit
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        showError('Please enter your email and password.');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Signing in…';
+
+      try {
+        const result = Auth.login(email, password);
+        if (result.success) {
+          window.location.replace('dashboard.html');
+        } else {
+          showError(result.message || 'Invalid credentials. Please try again.');
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Sign In';
+        }
+      } catch (err) {
+        showError('An unexpected error occurred. Please try again.');
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Sign In';
+      }
+    });
+
+    function showError(msg) {
+      errorBox.textContent = msg;
+      errorBox.classList.add('visible');
+    }
+  </script>
+</body>
+</html>

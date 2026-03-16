@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Showroom Visits — Seum OS</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99;"></div>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <span class="page-title">Showroom Visits</span>
+      </div>
+    </header>
+
+    <div class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Showroom Visits</h1>
+          <p>Schedule and track all customer visits to the showroom.</p>
+        </div>
+        <button class="btn btn-primary" id="addVisitBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Visit
+        </button>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Search by customer name…" />
+        </div>
+        <select class="form-control" id="statusFilter" style="width:auto;">
+          <option value="">All Statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select class="form-control" id="dateFilter" style="width:auto;">
+          <option value="">All Dates</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="stats-grid" style="margin-bottom:var(--sp-5);" id="visitStats"></div>
+
+      <!-- Table -->
+      <div class="table-wrapper" id="tableWrap">
+        <table id="visitsTable">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Purpose</th>
+              <th>Staff</th>
+              <th>Status</th>
+              <th>Notes</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="visitsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add/Edit Visit Modal -->
+<div class="modal-backdrop" id="visitModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">New Visit</span>
+      <button class="modal-close" id="closeModal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form id="visitForm" novalidate>
+        <input type="hidden" id="visitId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="vCustomerName">Customer Name *</label>
+            <input class="form-control" id="vCustomerName" type="text" placeholder="Full name" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="vDate">Date *</label>
+            <input class="form-control" id="vDate" type="date" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="vTime">Time *</label>
+            <input class="form-control" id="vTime" type="time" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="vPurpose">Purpose</label>
+            <select class="form-control" id="vPurpose">
+              <option value="consultation">Consultation</option>
+              <option value="purchase">Purchase Discussion</option>
+              <option value="follow-up">Follow-up</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="vStaff">Assigned Staff</label>
+            <input class="form-control" id="vStaff" type="text" placeholder="Staff member name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="vStatus">Status</label>
+            <select class="form-control" id="vStatus">
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="vNotes">Notes</label>
+          <textarea class="form-control" id="vNotes" placeholder="Any additional details…" style="min-height:80px;"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelModal">Cancel</button>
+      <button class="btn btn-primary" id="saveVisit">Save Visit</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/visits.js"></script>
+</body>
+</html>
