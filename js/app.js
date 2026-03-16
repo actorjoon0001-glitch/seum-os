@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   console.log('app.js loaded');
-
+  var SHOWROOMS = [
   var STORAGE_VISITS = 'seum_visits';
   var STORAGE_CONTRACTS = 'seum_contracts';
   var STORAGE_EMPLOYEES = 'seum_employees';
@@ -13,9 +13,9 @@
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '?? ???' },
-    { id: 'showroom1', name: '1???' },
-    { id: 'showroom3', name: '3???' },
-    { id: 'showroom4', name: '4???' }
+    { id: 'showroom1', name: '1전시장' },
+    { id: 'showroom3', name: '3전시장' },
+    { id: 'showroom4', name: '4전시장' },
   ];
 
   function getShowroomName(id) {
@@ -199,7 +199,7 @@
     var permission = (cur.permission || '').toLowerCase();
     if (role === 'admin' || role === 'master' || permission === 'admin' || isSuperAdmin()) return false;
     var team = (cur.team || '').trim();
-    return team === '???';
+    return team === '마케팅';
   }
 
   function canAccessTeamSection(sectionId) {
@@ -211,11 +211,11 @@
     var team = (cur.team || '').trim();
     if (!team) return false;
     // ?? ??: ???, ????? ???, ???, ???, ??
-    var isSales = team === '??';
-    var isMarketing = team === '???';
-    var isDesign = team === '??';
-    var isConstruction = team === '??';
-    var isSettlement = team === '??';
+    var isSales = team === '영업';
+    var isMarketing = team === '마케팅';
+    var isDesign = team === '설계';
+    var isConstruction = team === '시공';
+    var isSettlement = team === '정산';
 
     // ???????: ?????+ ??? + ??? + ???
     if (sectionId === 'marketing') return isMarketing;
@@ -2234,24 +2234,24 @@
   }
 
   var TEAM_LABELS = {
-    sales: '?????',
-    design: '?????',
-    construction: '?????',
-    marketing: '???????',
-    settlement: '?????',
-    management: '????'
+    sales: '영업팀',
+    design: '설계팀',
+    construction: '시공팀',
+    marketing: '마케팅팀',
+    settlement: '정산팀',
+    management: '경영팀'
   };
 
   function getCurrentTeamCode() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur || !cur.team) return null;
     var t = String(cur.team).trim();
-    if (t === '??') return 'sales';
-    if (t === '??') return 'design';
-    if (t === '??') return 'construction';
-    if (t === '???') return 'marketing';
-    if (t === '??') return 'settlement';
-    if (t === '??') return 'management';
+    if (t === '영업') return 'sales';
+    if (t === '설계') return 'design';
+    if (t === '시공') return 'construction';
+    if (t === '마케팅') return 'marketing';
+    if (t === '정산') return 'settlement';
+    if (t === '경영') return 'management';
     return null;
   }
 
