@@ -475,7 +475,10 @@
   function getContractChatRoomList() {
     var me = getCurrentChatUser();
     var myName = (me && me.name) ? String(me.name).trim() : '';
+    var myTeam = (me && me.team) ? String(me.team).trim() : '';
     var isAdminUser = typeof window.isAdmin === 'function' && window.isAdmin();
+    var isDesignTeam = (myTeam === '설계');
+    var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
     var store = getContractChatStore();
     var list = [];
@@ -484,7 +487,7 @@
       var sales = (c.salesPerson || '').trim();
       var design = (c.designContactName || c.designPermitDesigner || '').trim();
       var construction = (c.constructionManager || '').trim();
-      var isAssignee = (sales === myName) || (design === myName) || (construction === myName);
+      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam;
       if (!isAssignee && !isAdminUser) return;
 
       ensureContractChatRoom(c.id);
