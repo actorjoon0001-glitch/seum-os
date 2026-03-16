@@ -116,10 +116,11 @@
 
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var myShowroomId = cur && typeof window.resolveShowroomId === 'function' ? window.resolveShowroomId(cur) : (cur && (cur.showroomId || cur.showroom) || '');
+    var isAdmin = typeof window.isAdmin === 'function' && window.isAdmin();
 
     var channelHtml = '';
     CHAT_CHANNELS.forEach(function (ch) {
-      if (ch !== 'all' && ch !== myShowroomId) return;
+      if (!isAdmin && ch !== 'all' && ch !== myShowroomId) return;
       var label = CHAT_CHANNEL_LABELS[ch] || ch;
       if (searchVal && label.toLowerCase().indexOf(searchVal) === -1) return;
       var unread = typeof window.getChatUnreadCount === 'function' ? window.getChatUnreadCount(ch) : 0;
