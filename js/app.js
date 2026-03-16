@@ -3412,6 +3412,9 @@
     c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
     c.designStatusMemoConstruction = (sel('.design-status-memo-construction') || {}).value ? sel('.design-status-memo-construction').value.trim() : '';
     saveContracts(contracts);
+    if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
+      window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
+    }
     renderDesign();
     renderConstruction();
     window.alert('설계 정보가 저장되었습니다.');
@@ -5407,6 +5410,9 @@
         if (newContract && typeof ensureContractChatRoom === 'function') {
           ensureContractChatRoom(newContract.id);
         }
+        if (newContract && typeof window.openContractChatModal === 'function') {
+          setTimeout(function () { window.openContractChatModal(newContract.id); }, 100);
+        }
         if (typeof logActivity === 'function') {
           logActivity({
             actionType: 'create',
@@ -5823,6 +5829,9 @@
         if (c) {
           c.constructionManager = (e.target.value || '').trim();
           saveContracts(contracts);
+          if (c.constructionManager && typeof window.addContractInviteMessage === 'function') {
+            window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
+          }
           renderConstruction();
         }
         return;

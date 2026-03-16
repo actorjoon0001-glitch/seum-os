@@ -650,6 +650,13 @@ button,
   white-space: nowrap;
 }
 
+.chat-room-item-participants {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
 .chat-room-item-unread {
   flex-shrink: 0;
   min-width: 20px;

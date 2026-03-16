@@ -139,8 +139,10 @@
         if (searchVal && room.label.toLowerCase().indexOf(searchVal) === -1) return;
         var active = isChatOpen && selectedChatRoom.type === 'contract' && selectedChatRoom.id === room.id;
         var unread = typeof window.getContractChatUnreadCount === 'function' ? window.getContractChatUnreadCount(room.id) : 0;
+        var participantBadge = (room.participantCount != null && room.participantCount > 0) ? '<span class="chat-room-item-participants" aria-label="참여 ' + room.participantCount + '명">' + room.participantCount + '명</span>' : '';
         contractHtml += '<button type="button" class="chat-room-item' + (active ? ' active' : '') + '" data-type="contract" data-id="' + window.escapeChatText(room.id) + '">' +
           '<span class="chat-room-item-label">' + window.escapeChatText(room.label) + '</span>' +
+          participantBadge +
           (unread > 0 ? '<span class="unread-badge" aria-live="polite">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
           '</button>';
       });
