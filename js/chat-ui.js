@@ -107,15 +107,19 @@
     }
   }
 
-  /** 채팅방 목록 UI 렌더 (채널 + 계약) */
+  /** 채팅방 목록 UI 렌더 (채널 + 계약). 전체 협업은 항상 표시, 전시장 채널은 본인 소속만 */
   function renderChatRoomList() {
     var channelsEl = document.getElementById('chat-room-channels');
     var contractsEl = document.getElementById('chat-room-contracts');
     if (!channelsEl) return;
     var searchVal = (document.getElementById('chat-room-search') && document.getElementById('chat-room-search').value || '').trim().toLowerCase();
 
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var myShowroomId = cur && typeof window.resolveShowroomId === 'function' ? window.resolveShowroomId(cur) : (cur && (cur.showroomId || cur.showroom) || '');
+
     var channelHtml = '';
     CHAT_CHANNELS.forEach(function (ch) {
+      if (ch !== 'all' && ch !== myShowroomId) return;
       var label = CHAT_CHANNEL_LABELS[ch] || ch;
       if (searchVal && label.toLowerCase().indexOf(searchVal) === -1) return;
       var unread = typeof window.getChatUnreadCount === 'function' ? window.getChatUnreadCount(ch) : 0;
