@@ -3829,7 +3829,7 @@
 
     var bySales = {};
     contracts.forEach(function (c) {
-      var key = (c.salesPerson && c.salesPerson.trim()) ? c.salesPerson.trim() : '(?????';
+      var key = (c.salesPerson && c.salesPerson.trim()) ? c.salesPerson.trim() : '(미배정)';
       if (!bySales[key]) bySales[key] = { count: 0, total: 0 };
       bySales[key].count++;
       bySales[key].total += Number(c.totalAmount) || 0;
@@ -5472,7 +5472,7 @@
     }
     var check = '';
     if (amount != null && String(amount).trim() !== '') {
-      check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> ??????</label>';
+      check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> 입금 확인</label>';
     }
     return '<span class="payment-amount">' + (label || '-') + '</span>' + check;
   }
