@@ -4851,7 +4851,7 @@
 
     var titleEl = document.getElementById('contract-detail-customer');
     var subtitleEl = document.getElementById('contract-detail-subtitle');
-    if (titleEl) titleEl.textContent = (c.customerName || '-') + ' ?? ??';
+    if (titleEl) titleEl.textContent = (c.customerName || '-') + ' 계약 상세';
     if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' | ' + (c.contractModelName || c.contractModel || '-') + ' | ' + formatMoney(c.totalAmount) + '원';
     document.getElementById('contract-inline-id').value = c.id;
     document.getElementById('contract-inline-showroom').value = c.showroomId || '';
