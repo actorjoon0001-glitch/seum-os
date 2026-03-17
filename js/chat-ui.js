@@ -520,6 +520,9 @@
         renderChatRoomList();
         renderChatMessageList(currentChannel);
         if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
+        if (typeof window.loadAllAccessibleContractChatMessages === 'function') {
+          window.loadAllAccessibleContractChatMessages();
+        }
       });
     }
 
