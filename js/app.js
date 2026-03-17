@@ -4992,18 +4992,32 @@
         if (!file) return;
         var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
         if (!contractId) {
-          window.alert('계약 ID를 찾을 수 없습니다.');
+          window.alert('계약을 먼저 선택하거나 저장한 뒤 계약서를 업로드해 주세요.');
           inlineFileInput.value = '';
           return;
         }
+        var placeholder = document.getElementById('contract-attach-card-placeholder');
+        var fileBlock = document.getElementById('contract-attach-card-file');
+        var filenameEl = document.getElementById('contract-attach-card-filename');
+        var viewLink = document.getElementById('contract-attach-card-view');
+        if (placeholder && fileBlock && filenameEl) {
+          placeholder.classList.add('hidden');
+          fileBlock.classList.remove('hidden');
+          filenameEl.textContent = '업로드 중... ' + (file.name || '');
+          if (viewLink) viewLink.style.display = 'none';
+        }
         uploadContractAttachment(contractId, file).then(function (res) {
+          inlineFileInput.value = '';
           if (!res || !res.url) {
+            if (placeholder && fileBlock) {
+              placeholder.classList.remove('hidden');
+              fileBlock.classList.add('hidden');
+            }
             window.alert('파일 업로드에 실패했습니다.');
             return;
           }
           var input = document.getElementById('contract-inline-attachment');
           if (input) input.value = res.url;
-          inlineFileInput.value = '';
           var contracts = getContracts();
           var contract = contracts.find(function (x) { return x.id === contractId; });
           if (contract) {
@@ -5031,7 +5045,8 @@
       placeholder.classList.add('hidden');
       fileBlock.classList.remove('hidden');
       var displayName = val.indexOf('/') !== -1 ? val.replace(/^.*\//, '') : val;
-      if (filenameEl) filenameEl.textContent = displayName;
+      if (displayName && /^\d+_/.test(displayName)) displayName = displayName.replace(/^\d+_/, '');
+      if (filenameEl) filenameEl.textContent = displayName || '첨부됨';
       if (viewLink) {
         viewLink.href = /^https?:\/\//i.test(val) ? val : '#';
         viewLink.style.display = /^https?:\/\//i.test(val) ? '' : 'none';
@@ -5176,14 +5191,16 @@
           detailFileInput.value = '';
           return;
         }
+        var detailInput = document.getElementById('detail-contract-attachment');
+        if (detailInput) detailInput.placeholder = '업로드 중... ' + (file.name || '');
         uploadContractAttachment(cid, file).then(function (res) {
+          detailFileInput.value = '';
+          if (detailInput) detailInput.placeholder = '파일 URL 또는 파일명';
           if (!res || !res.url) {
             window.alert('파일 업로드에 실패했습니다.');
             return;
           }
-          var input = document.getElementById('detail-contract-attachment');
-          if (input) input.value = res.url;
-          detailFileInput.value = '';
+          if (detailInput) detailInput.value = res.url;
           var contracts = getContracts();
           var contract = contracts.find(function (x) { return x.id === cid; });
           if (contract) {
