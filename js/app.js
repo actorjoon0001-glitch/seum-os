@@ -3338,6 +3338,17 @@
             btn.disabled = false;
           });
         }
+        if (curEmp && (curEmp.team || '').trim() === '설계') {
+          var designMemo = detailRow.querySelector('.design-status-memo-design');
+          if (designMemo) {
+            designMemo.readOnly = false;
+            designMemo.removeAttribute('readonly');
+            designMemo.disabled = false;
+          }
+          detailRow.querySelectorAll('button[type="submit"], .btn-primary.design-detail-save-top-inline').forEach(function (btn) {
+            btn.disabled = false;
+          });
+        }
       }
     }
     row.classList.add('design-row-expanded');
@@ -3355,6 +3366,7 @@
     var curEmp = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
     var isSales = curEmp && (curEmp.team || '').trim() === '영업';
     // ?????????? ?????? ?????? ????? ??????
+    var isDesign = curEmp && (curEmp.team || '').trim() === '설계';
     if (isSalesReadonly() && isSales) {
       function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
       c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
@@ -3362,6 +3374,15 @@
       renderDesign();
       renderConstruction();
       window.alert('설계 메모가 저장되었습니다.');
+      return;
+    }
+    if (isSalesReadonly() && isDesign) {
+      function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
+      c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
+      saveContracts(contracts);
+      renderDesign();
+      renderConstruction();
+      window.alert('설계팀 메모가 저장되었습니다.');
       return;
     }
     if (isSalesReadonly()) return;
