@@ -6810,37 +6810,37 @@ table tbody tr.active td {
 }
 
 #modal-announcement-detail .notice-detail-body-heading {
-  color: #F5F5F5 !important;
+  color: #FFFFFF !important;
   font-weight: 700 !important;
   font-size: 1rem !important;
   margin: 0 0 0.5rem 0 !important;
 }
 #modal-announcement-detail .notice-detail-body-box {
-  background: #252525 !important;
-  color: #F0F0F0 !important;
-  border: 1px solid #404040 !important;
+  background: #2D2D2D !important;
+  color: #FFFFFF !important;
+  border: 1px solid #505050 !important;
   border-radius: 14px !important;
   padding: 20px !important;
   min-height: 120px !important;
   box-sizing: border-box !important;
   margin-top: 0.5rem !important;
 }
-
-#modal-announcement-detail .notice-detail-body,
-#modal-announcement-detail .announcement-detail-body,
-#modal-announcement-detail .notice-detail-body-box * {
-  color: #F0F0F0 !important;
-}
-
+#modal-announcement-detail #modal-announcement-body,
 #modal-announcement-detail .notice-detail-body,
 #modal-announcement-detail .announcement-detail-body {
+  color: #FFFFFF !important;
   font-size: 1rem !important;
   line-height: 1.75 !important;
 }
+#modal-announcement-detail .notice-detail-body-box *,
+#modal-announcement-detail #modal-announcement-body * {
+  color: #FFFFFF !important;
+}
 #modal-announcement-detail .notice-detail-body:empty::after,
-#modal-announcement-detail .announcement-detail-body:empty::after {
+#modal-announcement-detail .announcement-detail-body:empty::after,
+#modal-announcement-detail #modal-announcement-body:empty::after {
   content: "내용이 없습니다.";
-  color: #9CA3AF !important;
+  color: #B0B0B0 !important;
   font-style: italic;
 }
 
