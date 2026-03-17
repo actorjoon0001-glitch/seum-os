@@ -5050,6 +5050,13 @@
         saveContractInline();
       });
     }
+    var saveBtn = document.getElementById('btn-contract-inline-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        saveContractInline();
+      });
+    }
     var inlineDeleteBtn = document.getElementById('btn-contract-inline-delete');
     if (inlineDeleteBtn) {
       inlineDeleteBtn.addEventListener('click', function () {
