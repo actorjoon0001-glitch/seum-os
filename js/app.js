@@ -4992,8 +4992,8 @@
         if (!file) return;
         var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
         if (!contractId) {
-          window.alert('계약을 먼저 선택하거나 저장한 뒤 계약서를 업로드해 주세요.');
           inlineFileInput.value = '';
+          window.alert('계약을 먼저 선택하거나 저장한 뒤 계약서를 업로드해 주세요.');
           return;
         }
         var placeholder = document.getElementById('contract-attach-card-placeholder');
@@ -5024,7 +5024,20 @@
             contract.contractAttachment = res.url;
             saveContracts(contracts);
           }
-          if (typeof syncContractAttachCard === 'function') syncContractAttachCard();
+          if (placeholder && fileBlock && filenameEl) {
+            placeholder.classList.add('hidden');
+            fileBlock.classList.remove('hidden');
+            var displayName = (res.name || res.url.replace(/^.*\//, '')).replace(/^\d+_/, '');
+            filenameEl.textContent = displayName || '첨부됨';
+            if (viewLink) {
+              viewLink.href = res.url;
+              viewLink.style.display = '';
+            }
+          }
+          if (typeof syncContractAttachCard === 'function') {
+            syncContractAttachCard();
+            setTimeout(syncContractAttachCard, 50);
+          }
         });
       });
     }
