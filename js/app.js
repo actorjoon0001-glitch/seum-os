@@ -2726,6 +2726,15 @@
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
         }
       }
+      // contract-detail-panel이 tbody 안으로 이동된 경우, innerHTML 초기화로 소멸되는 것을 방지
+      (function () {
+        var _p = document.getElementById('contract-detail-panel');
+        if (_p && tbodyContracts.contains(_p)) {
+          var _tbl = tbodyContracts.closest('table');
+          var _safe = _tbl && _tbl.closest('.table-wrap') && _tbl.closest('.table-wrap').parentNode;
+          if (_safe) _safe.appendChild(_p);
+        }
+      })();
       tbodyContracts.innerHTML = contracts.map(function (c) {
         function amountCell(amount, date, type) {
           if (amount != null && String(amount).trim() !== '') {
@@ -5551,7 +5560,10 @@
         renderDashboard();
         if (newContract && typeof showContractDetailPanel === 'function') {
           expandedContractId = newContract.id;
-          showContractDetailPanel(newContract.id, true);
+          // setTimeout으로 DOM 렌더링 완료 후 상세패널을 열어 패널 소멸 방지
+          setTimeout(function () {
+            showContractDetailPanel(newContract.id, true);
+          }, 0);
         }
       });
     }
