@@ -6767,12 +6767,16 @@ table tbody tr.active td {
 }
 
 /* ========== 공지 상세 모달 — 섹션 카드형 다크 UI ========== */
+#modal-announcement-detail {
+  background: rgba(0, 0, 0, 0.6) !important;
+}
 #modal-announcement-detail .modal-content,
 #modal-announcement-detail .notice-detail-modal {
-  background: #181818 !important;
+  background: #1E1E1E !important;
   color: #E5E7EB !important;
-  border: none !important;
+  border: 1px solid #404040 !important;
   border-radius: 18px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
 }
 
 #modal-announcement-detail .notice-detail-modal * {
@@ -6805,27 +6809,39 @@ table tbody tr.active td {
   border-bottom: none !important;
 }
 
+#modal-announcement-detail .notice-detail-body-heading {
+  color: #F5F5F5 !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  margin: 0 0 0.5rem 0 !important;
+}
 #modal-announcement-detail .notice-detail-body-box {
-  background: #232323 !important;
-  color: #E5E7EB !important;
-  border: 1px solid #343434 !important;
+  background: #252525 !important;
+  color: #F0F0F0 !important;
+  border: 1px solid #404040 !important;
   border-radius: 14px !important;
-  padding: 18px !important;
-  min-height: 88px !important;
+  padding: 20px !important;
+  min-height: 120px !important;
   box-sizing: border-box !important;
-  margin-top: 0.75rem !important;
+  margin-top: 0.5rem !important;
 }
 
 #modal-announcement-detail .notice-detail-body,
 #modal-announcement-detail .announcement-detail-body,
 #modal-announcement-detail .notice-detail-body-box * {
-  color: #E5E7EB !important;
+  color: #F0F0F0 !important;
 }
 
 #modal-announcement-detail .notice-detail-body,
 #modal-announcement-detail .announcement-detail-body {
-  font-size: 0.9375rem !important;
-  line-height: 1.7 !important;
+  font-size: 1rem !important;
+  line-height: 1.75 !important;
+}
+#modal-announcement-detail .notice-detail-body:empty::after,
+#modal-announcement-detail .announcement-detail-body:empty::after {
+  content: "내용이 없습니다.";
+  color: #9CA3AF !important;
+  font-style: italic;
 }
 
 /* ---------- 첨부파일 카드 (다크 통일) ---------- */
