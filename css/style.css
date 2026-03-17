@@ -6767,12 +6767,10 @@ table tbody tr.active td {
 }
 
 /* ========== 공지 상세 모달 — 섹션 카드형 다크 UI ========== */
-#modal-announcement-detail {
-  background: rgba(0, 0, 0, 0.6) !important;
-}
 #modal-announcement-detail .modal-content,
 #modal-announcement-detail .notice-detail-modal {
   background: #1E1E1E !important;
+  overflow-y: auto !important;
   color: #E5E7EB !important;
   border: 1px solid #404040 !important;
   border-radius: 18px !important;
