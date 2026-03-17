@@ -128,8 +128,8 @@
     var messages = teamChatCache[channel] || [];
     var lastRead = getChatLastRead();
     var since = lastRead[channel] || '';
-    if (!since) return 0;
-    return messages.filter(function (m) { return m.at && m.at > since; }).length;
+    if (!since) return messages.filter(function (m) { return !m.is_deleted; }).length;
+    return messages.filter(function (m) { return m.at && m.at > since && !m.is_deleted; }).length;
   }
 
   function updateChatTabBadges() {
@@ -524,6 +524,24 @@
     });
   }
 
+  /** 현재 사용자가 접근 가능한 모든 계약 채팅 메시지를 일괄 로드 (사이드바 안읽음 뱃지용) */
+  function loadAllAccessibleContractChatMessages() {
+    var supabase = getSupabase();
+    if (!supabase) return Promise.resolve();
+    var list = getContractChatRoomList();
+    if (!list || !list.length) return Promise.resolve();
+    var promises = list.map(function (room) {
+      if (contractChatCache[room.id] && contractChatCache[room.id].length > 0) return Promise.resolve();
+      return supabase.from('contract_chat_messages').select('*').eq('contract_id', room.id).order('created_at', { ascending: true })
+        .then(function (res) {
+          contractChatCache[room.id] = (res.data || []).map(rowToUiContract);
+        });
+    });
+    return Promise.all(promises).then(function () {
+      if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
+    });
+  }
+
   /** Supabase에서 계약 채팅 로드. Promise. 메시지 없을 때만 '계약 생성' 시스템 메시지 1회 추가 */
   function loadContractChatMessages(contractId) {
     if (!contractId) return Promise.resolve();
@@ -637,6 +655,7 @@
   window.CHAT_CHANNEL_LABELS = CHAT_CHANNEL_LABELS;
   window.getContractChatRoomList = getContractChatRoomList;
   window.loadAllTeamChatMessages = loadAllTeamChatMessages;
+  window.loadAllAccessibleContractChatMessages = loadAllAccessibleContractChatMessages;
   window.loadContractChatMessages = loadContractChatMessages;
   window.initChatRealtime = initChatRealtime;
 })();
