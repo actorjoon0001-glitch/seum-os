@@ -4288,6 +4288,15 @@ textarea.form-input {
 }
 
 /* 계약 채팅 모달 (시공/설계에서 열 때) */
+.contract-chat-participants {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  padding: 4px 16px 8px;
+  border-bottom: 1px solid var(--border, #374151);
+}
+.contract-chat-participants.hidden {
+  display: none;
+}
 #modal-contract-chat .contract-chat-messages-wrap {
   overflow-y: auto;
   padding: 12px 0;

@@ -81,6 +81,17 @@
     if (wrapScroll) wrapScroll.scrollTop = wrapScroll.scrollHeight;
   }
 
+  function getContractChatParticipantNames(contractId) {
+    var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return [];
+    var sales = (c.salesPerson || '').trim();
+    var design = (c.designContactName || c.designPermitDesigner || '').trim();
+    var construction = (c.constructionManager || '').trim();
+    var names = [sales, design, construction].filter(function (s) { return s; });
+    return names.filter(function (n, i) { return names.indexOf(n) === i; });
+  }
+
   function openContractChatModal(contractId) {
     if (!contractId) return;
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
@@ -88,9 +99,15 @@
     var titleEl = document.getElementById('modal-contract-chat-title');
     var hiddenEl = document.getElementById('modal-contract-chat-contract-id');
     var inputEl = document.getElementById('modal-contract-chat-input');
+    var participantsEl = document.getElementById('modal-contract-chat-participants');
     if (titleEl) titleEl.textContent = (c ? (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-') : contractId);
     if (hiddenEl) hiddenEl.value = contractId;
     if (inputEl) inputEl.value = '';
+    if (participantsEl) {
+      var names = getContractChatParticipantNames(contractId);
+      participantsEl.textContent = names.length ? '참여: ' + names.join(', ') : '';
+      participantsEl.classList.toggle('hidden', !names.length);
+    }
 
     function openModal() {
       if (typeof window.ensureContractChatRoom === 'function') window.ensureContractChatRoom(contractId);
@@ -196,7 +213,8 @@
         msgs.forEach(function (m) { if (m.userId) userIds[m.userId] = true; });
         metaEl.textContent = Object.keys(userIds).length + '명 참여';
       } else {
-        metaEl.textContent = '계약 채팅';
+        var participantNames = getContractChatParticipantNames(id);
+        metaEl.textContent = participantNames.length ? '참여: ' + participantNames.join(', ') : '계약 채팅';
       }
     }
 
