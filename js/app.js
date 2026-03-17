@@ -2797,11 +2797,13 @@
     var salesReadonly = isSalesReadonly();
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var userTeam = (cur && (cur.team || '').trim()) || '';
+    var myName = (cur && (cur.name || '').trim()) || '';
     var designOnlyReview = (userTeam === '설계');
     var constructionOnlyReview = (userTeam === '시공');
+    var salesOnlyReview = (userTeam === '영업' || userTeam === '영업팀');
     var salesCheckDisabled = designOnlyReview || constructionOnlyReview;
-    var designCheckDisabled = salesReadonly || constructionOnlyReview;
-    var constructionCheckDisabled = salesReadonly || designOnlyReview;
+    var designCheckDisabled = salesReadonly || constructionOnlyReview || salesOnlyReview;
+    var constructionCheckDisabled = salesReadonly || designOnlyReview || salesOnlyReview;
     var statusMap = {
       none: '미착수',
       in_progress: '설계 중',
@@ -2826,8 +2828,9 @@
       var designC = !!c.designConfirmed;
       var constructionC = !!c.constructionConfirmed;
       var allConfirmed = salesC && designC && constructionC;
+      var salesCheckDisabledForRow = salesCheckDisabled || (salesOnlyReview && (c.salesPerson || '').trim() !== myName);
       var reviewCell = '<div class="review-checklist"><span class="review-checklist-title">검토 확인</span>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabled ? ' disabled' : '') + '><span>영업팀 확인</span><small class="review-desc review-help">계약 내용 및 고객 요구 사항 확인</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabledForRow ? ' disabled' : '') + '><span>영업팀 확인</span><small class="review-desc review-help">계약 내용 및 고객 요구 사항 확인</small></label>' +
         '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>설계팀 확인</span><small class="review-desc review-help">설계 가능 여부 및 특이사항 검토</small></label>' +
         '<label class="review-check-item"><input type="checkbox" class="review-check construction-check" data-contract-id="' + escapeAttr(c.id) + '"' + (constructionC ? ' checked' : '') + (constructionCheckDisabled ? ' disabled' : '') + '><span>시공팀 확인</span><small class="review-desc review-help">현장 시공 가능 여부 및 일정 확인</small></label>' +
         '</div>';
@@ -5889,6 +5892,7 @@
         var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
         var userTeam = (cur && (cur.team || '').trim()) || '';
         var isConstructionTeam = (userTeam === '시공' || userTeam === '시공팀');
+        var isSalesOnlyTeam = (userTeam === '영업' || userTeam === '영업팀');
         if (isSalesReadonly() && !e.target.classList.contains('sales-check')) {
           renderDesign();
           return;
@@ -5900,6 +5904,19 @@
         if (isConstructionTeam && !e.target.classList.contains('construction-check')) {
           renderDesign();
           return;
+        }
+        if (isSalesOnlyTeam && !e.target.classList.contains('sales-check')) {
+          renderDesign();
+          return;
+        }
+        if (isSalesOnlyTeam && e.target.classList.contains('sales-check')) {
+          var myNameSales = (cur && (cur.name || '').trim()) || '';
+          var allContracts = getContracts();
+          var targetContract = allContracts.find(function (x) { return x.id === contractId; });
+          if (!targetContract || (targetContract.salesPerson || '').trim() !== myNameSales) {
+            renderDesign();
+            return;
+          }
         }
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
