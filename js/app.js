@@ -5004,6 +5004,12 @@
           var input = document.getElementById('contract-inline-attachment');
           if (input) input.value = res.url;
           inlineFileInput.value = '';
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === contractId; });
+          if (contract) {
+            contract.contractAttachment = res.url;
+            saveContracts(contracts);
+          }
           if (typeof syncContractAttachCard === 'function') syncContractAttachCard();
         });
       });
@@ -5178,6 +5184,12 @@
           var input = document.getElementById('detail-contract-attachment');
           if (input) input.value = res.url;
           detailFileInput.value = '';
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === cid; });
+          if (contract) {
+            contract.contractAttachment = res.url;
+            saveContracts(contracts);
+          }
         });
       });
     }
