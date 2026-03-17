@@ -4587,21 +4587,17 @@
     var seriesSel = document.getElementById('contract-model-series');
     var sizeSel = document.getElementById('contract-model-size');
     var colorSel = document.getElementById('contract-model-color');
-    var colorSel2 = document.getElementById('contract-model-color2');
     var nameInput = document.getElementById('contract-model-name');
     if (!seriesSel || !sizeSel || !colorSel || !nameInput) return;
     var series = (seriesSel.value || '').trim();
     var size = (sizeSel.value || '').trim();
-    var color1 = (colorSel.value || '').trim();
-    var color2 = (colorSel2 && colorSel2.value) ? (colorSel2.value || '').trim() : '';
+    var color = (colorSel.value || '').trim();
     if (!series || !size) {
       nameInput.value = '';
       return;
     }
-    var part1 = color1 ? color1.charAt(0).toUpperCase() : '';
-    var part2 = color2 ? color2.charAt(0).toUpperCase() : '';
-    var colorSuffix = part1 + part2;
-    var code = series + size + colorSuffix;
+    var colorInitial = color ? color.charAt(0).toUpperCase() : '';
+    var code = series + size + colorInitial;
     nameInput.value = '세움' + code;
   }
 
@@ -4624,12 +4620,10 @@
     var seriesSel = document.getElementById('contract-model-series');
     var sizeSel = document.getElementById('contract-model-size');
     var colorSel = document.getElementById('contract-model-color');
-    var colorSel2 = document.getElementById('contract-model-color2');
     var nameInput = document.getElementById('contract-model-name');
     if (seriesSel) seriesSel.value = '';
     if (sizeSel) sizeSel.value = '';
     if (colorSel) colorSel.value = '';
-    if (colorSel2) colorSel2.value = '';
     if (nameInput) nameInput.value = '';
     document.getElementById('contract-sales-person').value = '';
     document.getElementById('contract-name').value = v ? v.name : '';
@@ -5304,8 +5298,6 @@
     if (seriesSel) seriesSel.addEventListener('change', updateContractModelNamePreview);
     if (sizeSel) sizeSel.addEventListener('change', updateContractModelNamePreview);
     if (colorSel) colorSel.addEventListener('change', updateContractModelNamePreview);
-    var colorSel2 = document.getElementById('contract-model-color2');
-    if (colorSel2) colorSel2.addEventListener('change', updateContractModelNamePreview);
     if (supplyInput && vatInput && totalInput) {
       var recalcAmounts = function () {
         var supply = Number(supplyInput.value || 0);
