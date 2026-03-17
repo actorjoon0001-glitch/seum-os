@@ -2744,7 +2744,7 @@
         var houseType = (c.contractModel || '-');
         var modelName = (c.contractModelName || '-');
         var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-contract-detail="' + c.id + '">상세</button>';
-        var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + c.id + '">삭제</button>';
+        var deleteBtn = ' <button type="button" class="btn btn-sm btn-danger btn-contract-delete" data-contract-id="' + c.id + '">삭제</button>';
         return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + formatDate(c.contractDate) + '</td><td>' + (c.customerName || '-') + '</td><td>' + salesPerson + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
       }).join('') || '<tr><td colspan="13">계약 데이터가 없습니다.</td></tr>';
       if (expandedContractId) {
@@ -5039,6 +5039,26 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         saveContractInline();
+      });
+    }
+    var inlineDeleteBtn = document.getElementById('btn-contract-inline-delete');
+    if (inlineDeleteBtn) {
+      inlineDeleteBtn.addEventListener('click', function () {
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (!contractId) return;
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
+        var team = cur ? (cur.team || '').trim() : '';
+        var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        var canSalesDeleteOwn = cur && team === '영업' && (cur.name || '').trim() && String(c.salesPerson || '').trim() === (cur.name || '').trim();
+        if (!isAdminRole && !canSalesDeleteOwn) {
+          window.alert('계약 삭제 권한이 없습니다. 관리자에게 문의하세요.');
+          return;
+        }
+        if (!window.confirm('이 계약을 삭제하시겠습니까?')) return;
+        deleteContractById(contractId);
       });
     }
     // 계약서 첨부: 플레이스홀더 클릭으로 파일 선택 (btn-contract-inline-attach 없음)
