@@ -4596,8 +4596,11 @@
       nameInput.value = '';
       return;
     }
-    var colorInitial = color ? color.charAt(0).toUpperCase() : '';
-    var code = series + size + colorInitial;
+    var colorSuffix = '';
+    if (color) {
+      colorSuffix = color.length === 2 ? color.toUpperCase() : color.charAt(0).toUpperCase();
+    }
+    var code = series + size + colorSuffix;
     nameInput.value = '세움' + code;
   }
 
