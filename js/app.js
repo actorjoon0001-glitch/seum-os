@@ -3772,15 +3772,13 @@
         return '<option value="' + o.value + '"' + sel + '>' + o.label + '</option>';
       }).join('') + '</select>';
       var stageCell = '<div class="construction-stage-inner"><span class="stage-badge ' + stageBadgeClass + '">' + stageLabel + '</span>' + progressSelect + '</div>';
-      var startDate = formatDate(c.constructionStartDate);
-      var endDate = formatDate(c.constructionEndDate);
       var stagesBtn = salesReadonly ? '' : '<button type="button" class="btn btn-sm btn-secondary" data-construction-stages="' + c.id + '">단계 관리</button>';
       var summary = paymentSummaryHtml(c);
       var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="담당자명"' + (salesReadonly ? ' disabled' : '') + '>';
       var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">삭제</button>';
       var contractDateStr = formatDate(c.contractDate);
-      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + startDate + '</td><td>' + endDate + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
-    }).join('') || '<tr><td colspan="17">시공 데이터가 없습니다.</td></tr>';
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+    }).join('') || '<tr><td colspan="15">시공 데이터가 없습니다.</td></tr>';
     if (expandedConstructionId) {
       var expandedRow = tbody.querySelector('.construction-row[data-contract-id="' + expandedConstructionId + '"]');
       if (expandedRow) {
