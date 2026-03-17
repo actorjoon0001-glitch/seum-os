@@ -1423,6 +1423,7 @@
     var listEl = document.getElementById('noticeDetailFileList');
     if (!section || !listEl) return;
     section.classList.remove('hidden');
+    section.style.cssText = 'background:#232323!important;border:1px solid #343434!important;border-radius:14px!important;padding:18px!important;box-sizing:border-box!important;margin-bottom:1.25rem!important;';
     if (!files || files.length === 0) {
       listEl.innerHTML = '<p class="notice-file-empty">첨부 파일 없음</p>';
       return;
