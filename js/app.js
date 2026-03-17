@@ -3262,6 +3262,19 @@
       if (designMemo && !canDesign) designMemo.readOnly = true;
       if (salesMemo && !canSales) salesMemo.readOnly = true;
       if (constructionMemo && !canConstruction) constructionMemo.readOnly = true;
+      // 설계팀만 설계 담당자 입력란 및 허가/착공 현황 체크박스 편집 가능
+      if (!canDesign) {
+        var designerInput = td.querySelector('.design-inline-designer');
+        if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
+        var permitCheck = td.querySelector('.design-inline-has-permit');
+        if (permitCheck) permitCheck.disabled = true;
+        var completionCheck = td.querySelector('.design-inline-has-completion-cert');
+        if (completionCheck) completionCheck.disabled = true;
+        var constructionReportCheck = td.querySelector('.design-inline-has-construction-report');
+        if (constructionReportCheck) constructionReportCheck.disabled = true;
+        var constructionStartOkCheck = td.querySelector('.design-inline-construction-start-ok');
+        if (constructionStartOkCheck) constructionStartOkCheck.disabled = true;
+      }
     }
     // ???????? ??? ?????? ?????
     td.querySelectorAll('.drawing-file-list[data-input-selector]').forEach(function (listEl) {
@@ -3345,6 +3358,17 @@
             designMemo.removeAttribute('readonly');
             designMemo.disabled = false;
           }
+          // 설계 담당자 입력란 및 허가/착공 현황 체크박스 활성화
+          var designerInput = detailRow.querySelector('.design-inline-designer');
+          if (designerInput) { designerInput.readOnly = false; designerInput.removeAttribute('readonly'); designerInput.disabled = false; }
+          var permitCheck = detailRow.querySelector('.design-inline-has-permit');
+          if (permitCheck) permitCheck.disabled = false;
+          var completionCheck = detailRow.querySelector('.design-inline-has-completion-cert');
+          if (completionCheck) completionCheck.disabled = false;
+          var constructionReportCheck = detailRow.querySelector('.design-inline-has-construction-report');
+          if (constructionReportCheck) constructionReportCheck.disabled = false;
+          var constructionStartOkCheck = detailRow.querySelector('.design-inline-construction-start-ok');
+          if (constructionStartOkCheck) constructionStartOkCheck.disabled = false;
           detailRow.querySelectorAll('button[type="submit"], .btn-primary.design-detail-save-top-inline').forEach(function (btn) {
             btn.disabled = false;
           });
@@ -3379,6 +3403,15 @@
     if (isSalesReadonly() && isDesign) {
       function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
       c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
+      c.designPermitDesigner = (sel('.design-inline-designer') || {}).value ? sel('.design-inline-designer').value.trim() : '';
+      var permitEl = sel('.design-inline-has-permit');
+      if (permitEl) c.hasPermitCert = permitEl.checked;
+      var completionEl = sel('.design-inline-has-completion-cert');
+      if (completionEl) c.hasCompletionCert = completionEl.checked;
+      var constructionReportEl = sel('.design-inline-has-construction-report');
+      if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
+      var constructionStartOkEl = sel('.design-inline-construction-start-ok');
+      if (constructionStartOkEl) c.constructionStartOk = constructionStartOkEl.checked;
       saveContracts(contracts);
       renderDesign();
       renderConstruction();
