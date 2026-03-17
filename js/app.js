@@ -4980,13 +4980,11 @@
         saveContractInline();
       });
     }
-    // ??????? ?????(????????)
+    // 계약서 첨부: 플레이스홀더 클릭으로 파일 선택 (btn-contract-inline-attach 없음)
     var inlineFileInput = document.getElementById('contract-inline-attachment-file');
     var inlineUploadBtn = document.getElementById('btn-contract-inline-attach');
-    if (inlineFileInput && inlineUploadBtn) {
-      inlineUploadBtn.addEventListener('click', function () {
-        inlineFileInput.click();
-      });
+    if (inlineUploadBtn) inlineUploadBtn.addEventListener('click', function () { inlineFileInput && inlineFileInput.click(); });
+    if (inlineFileInput) {
       inlineFileInput.addEventListener('change', function () {
         var file = inlineFileInput.files && inlineFileInput.files[0];
         if (!file) return;
