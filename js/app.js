@@ -1,6 +1,20 @@
 (function () {
   'use strict';
   console.log('app.js loaded');
+
+  function showToast(msg, type) {
+    var el = document.getElementById('seum-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'seum-toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg || '저장됐습니다.';
+    el.style.background = (type === 'error') ? '#ef4444' : '#22c55e';
+    el.classList.add('show');
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(function () { el.classList.remove('show'); }, 2500);
+  }
   var STORAGE_VISITS = 'seum_visits';
   var STORAGE_CONTRACTS = 'seum_contracts';
   var STORAGE_EMPLOYEES = 'seum_employees';
@@ -5011,6 +5025,7 @@
     var summaryIn = document.getElementById('contract-inline-design-handover-summary');
     c.designHandoverSummary = summaryIn ? (summaryIn.value || '').trim() : '';
     saveContracts(contracts);
+    showToast('계약 상세 정보가 저장됐습니다.');
     renderSales();
     showContractDetailPanel(contractId, true);
   }
