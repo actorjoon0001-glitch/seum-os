@@ -170,7 +170,7 @@
   // Supabase Realtime 구독
   // --------------------------------------------------
   function subscribeNotifications() {
-    var supabase = window.getSupabase ? window.getSupabase() : null;
+    var supabase = window.seumSupabase || null;
     if (!supabase || notifRealtimeSubscribed) return;
     notifRealtimeSubscribed = true;
 
@@ -196,7 +196,7 @@
   // --------------------------------------------------
   function sendContractNotification(opts) {
     // opts: { contractId, customerName, salesPerson, recipientTeam }
-    var supabase = window.getSupabase ? window.getSupabase() : null;
+    var supabase = window.seumSupabase || null;
     if (!supabase) return;
 
     var recipientTeam = opts.recipientTeam || '설계';
