@@ -580,7 +580,13 @@
           if (!teamChatCache[ch]) teamChatCache[ch] = [];
           if (teamChatCache[ch].some(function (m) { return m.id === row.id; })) return;
           teamChatCache[ch].push(rowToUiTeam(row));
-          if (typeof window.renderChatMessageList === 'function') window.renderChatMessageList(ch);
+          // 현재 이 채널을 보고 있을 때만 메시지 목록 업데이트 (다른 채팅방 덮어쓰기 방지)
+          var curRoom = typeof window.getSelectedChatRoom === 'function' ? window.getSelectedChatRoom() : null;
+          if (typeof window.renderChatMessageList === 'function') {
+            if (!curRoom || (curRoom.type === 'channel' && curRoom.id === ch)) {
+              window.renderChatMessageList(ch);
+            }
+          }
           if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
           if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
         }
@@ -608,8 +614,14 @@
           if (!contractChatCache[cid]) contractChatCache[cid] = [];
           if (contractChatCache[cid].some(function (m) { return m.id === row.id; })) return;
           contractChatCache[cid].push(rowToUiContract(row));
-          if (typeof window.renderContractChat === 'function') window.renderContractChat(cid, 'chat-message-list');
-          if (typeof window.renderContractChat === 'function') window.renderContractChat(cid, 'modal-contract-chat-message-list');
+          // 현재 이 계약 채팅을 보고 있을 때만 메시지 목록 업데이트 (다른 채팅방 덮어쓰기 방지)
+          var curRoom = typeof window.getSelectedChatRoom === 'function' ? window.getSelectedChatRoom() : null;
+          if (typeof window.renderContractChat === 'function') {
+            if (!curRoom || (curRoom.type === 'contract' && curRoom.id === cid)) {
+              window.renderContractChat(cid, 'chat-message-list');
+            }
+            window.renderContractChat(cid, 'modal-contract-chat-message-list');
+          }
           if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
         }
       )

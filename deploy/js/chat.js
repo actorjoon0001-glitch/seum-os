@@ -128,8 +128,8 @@
     var messages = teamChatCache[channel] || [];
     var lastRead = getChatLastRead();
     var since = lastRead[channel] || '';
-    if (!since) return 0;
-    return messages.filter(function (m) { return m.at && m.at > since; }).length;
+    if (!since) return messages.filter(function (m) { return !m.is_deleted; }).length;
+    return messages.filter(function (m) { return m.at && m.at > since && !m.is_deleted; }).length;
   }
 
   function updateChatTabBadges() {
@@ -191,6 +191,7 @@
 
   function canPinChatMessage() {
     if (typeof window.isAdmin === 'function' && window.isAdmin()) return true;
+    if (typeof window.isMaster === 'function' && window.isMaster()) return true;
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var role = (cur && cur.role || '').toString().toLowerCase();
     return role === 'leader' || role === '팀장' || role === 'team_lead';
@@ -408,11 +409,23 @@
   }
 
   function ensureContractChatRoom(contractId) {
-    if (!contractId) return;
-    var list = contractChatCache[contractId] || [];
-    if (list.length === 0) {
-      addContractSystemMessage(contractId, '📢 계약 생성');
-    }
+    /* 계약 생성 알림은 loadContractChatMessages에서 메시지 로드 후 없을 때만 1회 추가 */
+  }
+
+  /** 담당설계자/시공담당자 등록 시 채팅에 초대 메시지 추가 (이미 있으면 스킵). role: 'design' | 'construction' */
+  function addContractInviteMessage(contractId, role, personName) {
+    if (!contractId || !personName) return;
+    personName = String(personName).trim();
+    if (!personName) return;
+    var suffix = role === 'design' ? '님이 설계 담당으로 초대되었습니다.' : '님이 시공 담당으로 초대되었습니다.';
+    var searchStr = personName + '님이 ' + (role === 'design' ? '설계' : '시공') + ' 담당으로 초대';
+    loadContractChatMessages(contractId).then(function () {
+      var messages = getContractChatMessages(contractId) || [];
+      var already = messages.some(function (m) {
+        return (m.type === 'system' && (m.message || '').indexOf(searchStr) !== -1);
+      });
+      if (!already) addContractSystemMessage(contractId, '👤 ' + personName + suffix);
+    });
   }
 
   function ensureContractChatSystemMessages(contractId, c) {
@@ -463,7 +476,10 @@
   function getContractChatRoomList() {
     var me = getCurrentChatUser();
     var myName = (me && me.name) ? String(me.name).trim() : '';
-    var isAdminUser = typeof window.isAdmin === 'function' && window.isAdmin();
+    var myTeam = (me && me.team) ? String(me.team).trim() : '';
+    var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster());
+    var isDesignTeam = (myTeam === '설계');
+    var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
     var store = getContractChatStore();
     var list = [];
@@ -472,12 +488,15 @@
       var sales = (c.salesPerson || '').trim();
       var design = (c.designContactName || c.designPermitDesigner || '').trim();
       var construction = (c.constructionManager || '').trim();
-      var isAssignee = (sales === myName) || (design === myName) || (construction === myName);
+      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam;
       if (!isAssignee && !isAdminUser) return;
 
       ensureContractChatRoom(c.id);
+      var names = [sales, design, construction].filter(function (s) { return (s || '').trim(); });
+      var uniqueNames = names.filter(function (n, i) { return names.indexOf(n) === i; });
+      var participantCount = uniqueNames.length;
       var label = (c.customerName || '-') + ' · ' + (c.contractModelName || c.contractModel || '-');
-      list.push({ type: 'contract', id: c.id, label: label });
+      list.push({ type: 'contract', id: c.id, label: label, participantCount: participantCount });
     });
 
     list.sort(function (a, b) {
@@ -506,7 +525,25 @@
     });
   }
 
-  /** Supabase에서 계약 채팅 로드. Promise. */
+  /** 현재 사용자가 접근 가능한 모든 계약 채팅 메시지를 일괄 로드 (사이드바 안읽음 뱃지용) */
+  function loadAllAccessibleContractChatMessages() {
+    var supabase = getSupabase();
+    if (!supabase) return Promise.resolve();
+    var list = getContractChatRoomList();
+    if (!list || !list.length) return Promise.resolve();
+    var promises = list.map(function (room) {
+      if (contractChatCache[room.id] && contractChatCache[room.id].length > 0) return Promise.resolve();
+      return supabase.from('contract_chat_messages').select('*').eq('contract_id', room.id).order('created_at', { ascending: true })
+        .then(function (res) {
+          contractChatCache[room.id] = (res.data || []).map(rowToUiContract);
+        });
+    });
+    return Promise.all(promises).then(function () {
+      if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
+    });
+  }
+
+  /** Supabase에서 계약 채팅 로드. Promise. 메시지 없을 때만 '계약 생성' 시스템 메시지 1회 추가 */
   function loadContractChatMessages(contractId) {
     if (!contractId) return Promise.resolve();
     var supabase = getSupabase();
@@ -514,6 +551,12 @@
     return supabase.from('contract_chat_messages').select('*').eq('contract_id', contractId).order('created_at', { ascending: true })
       .then(function (res) {
         contractChatCache[contractId] = (res.data || []).map(rowToUiContract);
+        var list = contractChatCache[contractId] || [];
+        var hasContractCreated = list.some(function (m) {
+          var msg = (m.message || '').trim();
+          return msg.indexOf('계약 생성') !== -1;
+        });
+        if (!hasContractCreated) addContractSystemMessage(contractId, '📢 계약 생성');
       });
   }
 
@@ -537,7 +580,13 @@
           if (!teamChatCache[ch]) teamChatCache[ch] = [];
           if (teamChatCache[ch].some(function (m) { return m.id === row.id; })) return;
           teamChatCache[ch].push(rowToUiTeam(row));
-          if (typeof window.renderChatMessageList === 'function') window.renderChatMessageList(ch);
+          // 현재 이 채널을 보고 있을 때만 메시지 목록 업데이트 (다른 채팅방 덮어쓰기 방지)
+          var curRoom = typeof window.getSelectedChatRoom === 'function' ? window.getSelectedChatRoom() : null;
+          if (typeof window.renderChatMessageList === 'function') {
+            if (!curRoom || (curRoom.type === 'channel' && curRoom.id === ch)) {
+              window.renderChatMessageList(ch);
+            }
+          }
           if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
           if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
         }
@@ -565,8 +614,14 @@
           if (!contractChatCache[cid]) contractChatCache[cid] = [];
           if (contractChatCache[cid].some(function (m) { return m.id === row.id; })) return;
           contractChatCache[cid].push(rowToUiContract(row));
-          if (typeof window.renderContractChat === 'function') window.renderContractChat(cid, 'chat-message-list');
-          if (typeof window.renderContractChat === 'function') window.renderContractChat(cid, 'modal-contract-chat-message-list');
+          // 현재 이 계약 채팅을 보고 있을 때만 메시지 목록 업데이트 (다른 채팅방 덮어쓰기 방지)
+          var curRoom = typeof window.getSelectedChatRoom === 'function' ? window.getSelectedChatRoom() : null;
+          if (typeof window.renderContractChat === 'function') {
+            if (!curRoom || (curRoom.type === 'contract' && curRoom.id === cid)) {
+              window.renderContractChat(cid, 'chat-message-list');
+            }
+            window.renderContractChat(cid, 'modal-contract-chat-message-list');
+          }
           if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
         }
       )
@@ -601,6 +656,7 @@
   window.pinContractChatMessage = pinContractChatMessage;
   window.deleteContractChatMessage = deleteContractChatMessage;
   window.addContractSystemMessage = addContractSystemMessage;
+  window.addContractInviteMessage = addContractInviteMessage;
   window.ensureContractChatRoom = ensureContractChatRoom;
   window.ensureContractChatSystemMessages = ensureContractChatSystemMessages;
   window.getCurrentChatUser = getCurrentChatUser;
@@ -612,6 +668,7 @@
   window.CHAT_CHANNEL_LABELS = CHAT_CHANNEL_LABELS;
   window.getContractChatRoomList = getContractChatRoomList;
   window.loadAllTeamChatMessages = loadAllTeamChatMessages;
+  window.loadAllAccessibleContractChatMessages = loadAllAccessibleContractChatMessages;
   window.loadContractChatMessages = loadContractChatMessages;
   window.initChatRealtime = initChatRealtime;
 })();

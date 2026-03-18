@@ -523,7 +523,11 @@
     if (typeof window.loadAllTeamChatMessages === 'function') {
       window.loadAllTeamChatMessages().then(function () {
         renderChatRoomList();
-        renderChatMessageList(currentChannel);
+        // 계약 채팅이 열려있으면 채널 메시지로 덮어쓰지 않음
+        if (!isChatOpen || selectedChatRoom.type === 'channel') {
+          var chToRender = selectedChatRoom.type === 'channel' ? selectedChatRoom.id : currentChannel;
+          renderChatMessageList(chToRender);
+        }
         if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
         if (typeof window.loadAllAccessibleContractChatMessages === 'function') {
           window.loadAllAccessibleContractChatMessages();
@@ -873,4 +877,6 @@
   window.renderChatMessageList = renderChatMessageList;
   window.isImageFileName = isImageFileName;
   window.uploadChatFiles = uploadChatFiles;
+  window.getSelectedChatRoom = function () { return selectedChatRoom; };
+  window.isChatPanelOpen = function () { return isChatOpen; };
 })();
