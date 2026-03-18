@@ -5576,6 +5576,15 @@
         if (newContract && typeof window.openContractChatModal === 'function') {
           setTimeout(function () { window.openContractChatModal(newContract.id); }, 100);
         }
+        // 설계팀에 계약 생성 알림 전송
+        if (newContract && window.seumNotifications && typeof window.seumNotifications.send === 'function') {
+          window.seumNotifications.send({
+            contractId: newContract.id,
+            customerName: newContract.customerName || customerName,
+            salesPerson: newContract.salesPerson || salesPerson,
+            recipientTeam: '설계'
+          });
+        }
         if (typeof logActivity === 'function') {
           logActivity({
             actionType: 'create',
