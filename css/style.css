@@ -2744,9 +2744,8 @@ button,
 
 .notice-file-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   font-size: 13px;
   color: #E5E7EB;
   padding: 6px 8px;
@@ -2754,6 +2753,29 @@ button,
   background: var(--bg-card);
   border-radius: 8px;
   border: 1px solid var(--border);
+}
+
+.notice-file-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notice-file-img-wrap {
+  width: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #111;
+}
+
+.notice-file-img-thumb {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .notice-file-name {
@@ -6868,6 +6890,21 @@ table tbody tr.active td {
   padding: 10px 12px !important;
   color: #E5E7EB !important;
   margin-top: 0.5rem !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+#modal-announcement-detail #noticeDetailFileList .notice-file-img-wrap,
+#modal-announcement-detail .notice-detail-files .notice-file-img-wrap {
+  margin-top: 2px;
+  border-radius: 8px !important;
+  overflow: hidden;
+  background: #0d0d0d;
+}
+
+#modal-announcement-detail #noticeDetailFileList .notice-file-img-thumb,
+#modal-announcement-detail .notice-detail-files .notice-file-img-thumb {
+  max-height: 320px !important;
 }
 
 #modal-announcement-detail #noticeDetailFileList .notice-file-item:first-child,
