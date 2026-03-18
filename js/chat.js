@@ -191,6 +191,7 @@
 
   function canPinChatMessage() {
     if (typeof window.isAdmin === 'function' && window.isAdmin()) return true;
+    if (typeof window.isMaster === 'function' && window.isMaster()) return true;
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var role = (cur && cur.role || '').toString().toLowerCase();
     return role === 'leader' || role === '팀장' || role === 'team_lead';
@@ -476,7 +477,7 @@
     var me = getCurrentChatUser();
     var myName = (me && me.name) ? String(me.name).trim() : '';
     var myTeam = (me && me.team) ? String(me.team).trim() : '';
-    var isAdminUser = typeof window.isAdmin === 'function' && window.isAdmin();
+    var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster());
     var isDesignTeam = (myTeam === '설계');
     var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
