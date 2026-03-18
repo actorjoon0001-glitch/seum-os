@@ -90,15 +90,6 @@
       removeNotif(item);
     });
 
-    // 5초 후 자동 닫기
-    var autoClose = setTimeout(function () { removeNotif(item); }, 5000);
-    item._autoClose = autoClose;
-
-    // 진행바 애니메이션
-    var progress = document.createElement('div');
-    progress.className = 'seum-notif-progress';
-    item.appendChild(progress);
-
     // 슬라이드인 애니메이션
     requestAnimationFrame(function () {
       item.classList.add('seum-notif-show');
@@ -108,7 +99,6 @@
   function removeNotif(item) {
     if (!item || item._removing) return;
     item._removing = true;
-    clearTimeout(item._autoClose);
     item.classList.remove('seum-notif-show');
     item.classList.add('seum-notif-hide');
     setTimeout(function () {
@@ -318,21 +308,7 @@
 
       '.seum-notif-close:hover { color: #f1f5f9; }',
 
-      '.seum-notif-progress {',
-      '  position: absolute;',
-      '  bottom: 0;',
-      '  left: 0;',
-      '  height: 3px;',
-      '  background: #6366f1;',
-      '  width: 100%;',
-      '  animation: seum-notif-countdown 5s linear forwards;',
-      '  border-radius: 0 0 14px 14px;',
-      '}',
-
-      '@keyframes seum-notif-countdown {',
-      '  from { width: 100%; }',
-      '  to   { width: 0%; }',
-      '}'
+      '@keyframes seum-notif-fadein { from { opacity: 0; } to { opacity: 1; } }'
     ].join('\n');
     document.head.appendChild(style);
   }
