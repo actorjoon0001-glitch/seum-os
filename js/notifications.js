@@ -108,10 +108,40 @@
 
   // --------------------------------------------------
   // 알림 소리 (Web Audio API)
+  // 브라우저 자동재생 차단 우회: 첫 클릭 시 AudioContext 미리 unlock
   // --------------------------------------------------
+  var _audioCtx = null;
+
+  function getAudioCtx() {
+    if (!_audioCtx) {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') {
+      _audioCtx.resume();
+    }
+    return _audioCtx;
+  }
+
+  function unlockAudio() {
+    try {
+      var ctx = getAudioCtx();
+      // 무음 버퍼 재생으로 unlock
+      var buf = ctx.createBuffer(1, 1, 22050);
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch (e) { /* ignore */ }
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('keydown', unlockAudio);
+  }
+
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+
   function playNotifSound() {
     try {
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var ctx = getAudioCtx();
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.connect(gain);
