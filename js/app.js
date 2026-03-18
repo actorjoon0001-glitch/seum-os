@@ -2778,9 +2778,10 @@
         var salesPerson = (c.salesPerson || '-');
         var houseType = (c.contractModel || '-');
         var modelName = (c.contractModelName || '-');
+        var editFieldBtn = function(field) { return ' <button type="button" class="btn btn-xs btn-secondary" data-contract-field="' + field + '" data-id="' + c.id + '">수정</button>'; };
         var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-contract-detail="' + c.id + '">상세</button>';
         var deleteBtn = ' <button type="button" class="btn btn-sm btn-danger btn-contract-delete" data-contract-id="' + c.id + '">삭제</button>';
-        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + formatDate(c.contractDate) + '</td><td>' + (c.customerName || '-') + '</td><td>' + salesPerson + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
       }).join('') || '<tr><td colspan="13">계약 데이터가 없습니다.</td></tr>';
       if (expandedContractId) {
         var exists = contracts.some(function (c) { return c.id === expandedContractId; });
@@ -5710,6 +5711,68 @@
     document.getElementById('modal-payment').classList.remove('hidden');
   }
 
+  function openContractFieldModal(contractId, field) {
+    var fieldMeta = {
+      showroomId:        { label: '전시장', type: 'select' },
+      contractModel:     { label: '주택유형', type: 'text' },
+      contractModelName: { label: '모델', type: 'text' },
+      contractDate:      { label: '계약일', type: 'date' },
+      customerName:      { label: '건축주', type: 'text' },
+      salesPerson:       { label: '영업담당', type: 'text' },
+      totalAmount:       { label: '공사금액(만원)', type: 'number' }
+    };
+    var meta = fieldMeta[field];
+    if (!meta) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    var currentValue = (c[field] != null) ? String(c[field]) : '';
+    document.getElementById('contract-field-contract-id').value = contractId;
+    document.getElementById('contract-field-name').value = field;
+    document.getElementById('modal-contract-field-title').textContent = meta.label + ' 수정';
+    var wrap = document.getElementById('contract-field-input-wrap');
+    if (meta.type === 'select') {
+      var opts = SHOWROOMS.map(function (s) {
+        return '<option value="' + s.id + '"' + (s.id === currentValue ? ' selected' : '') + '>' + s.name + '</option>';
+      }).join('');
+      wrap.innerHTML = '<label>' + meta.label + '<select id="contract-field-value">' + opts + '</select></label>';
+    } else {
+      var inputType = meta.type;
+      wrap.innerHTML = '<label>' + meta.label + ' <input type="' + inputType + '" id="contract-field-value" value="' + currentValue + '"' + (inputType === 'number' ? ' min="0" step="1"' : '') + ' required></label>';
+    }
+    document.getElementById('modal-contract-field').classList.remove('hidden');
+  }
+
+  function initContractFieldModal() {
+    var modal = document.getElementById('modal-contract-field');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-contract-field"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+    var form = document.getElementById('form-contract-field');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('contract-field-contract-id').value;
+        var field = document.getElementById('contract-field-name').value;
+        var valueEl = document.getElementById('contract-field-value');
+        if (!valueEl) return;
+        var newValue = valueEl.value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        c[field] = newValue;
+        saveContracts(contracts);
+        modal.classList.add('hidden');
+        renderSales();
+        renderDesign();
+        renderDashboard();
+        renderConstruction();
+        renderSettlement();
+      });
+    }
+  }
+
   function initContractDetailModal() {
     var form = document.getElementById('form-contract-detail');
     var modal = document.getElementById('modal-contract-detail');
@@ -5893,6 +5956,12 @@
       if (createContract) {
         showSection('sales-contracts');
         openContractForm(createContract);
+        return;
+      }
+      var contractFieldType = e.target.getAttribute('data-contract-field');
+      var contractFieldId = e.target.getAttribute('data-id');
+      if (contractFieldType && contractFieldId) {
+        openContractFieldModal(contractFieldId, contractFieldType);
         return;
       }
       var paymentType = e.target.getAttribute('data-payment');
@@ -7362,6 +7431,7 @@
     initContractForm();
     initContractDetailModal();
     initPaymentModal();
+    initContractFieldModal();
     initHR();
     initKPI();
     initAdminApproval();

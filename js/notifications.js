@@ -117,23 +117,53 @@
   }
 
   // --------------------------------------------------
+  // 알림 소리 (Web Audio API)
+  // --------------------------------------------------
+  function playNotifSound() {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) { /* ignore */ }
+  }
+
+  // --------------------------------------------------
   // 알림 표시 메인 함수
   // --------------------------------------------------
   function handleIncomingNotification(row) {
     var myTeam = '';
-    // auth.js 의 현재 직원 팀 정보 가져오기
-    if (window.seumAuth && typeof window.seumAuth.getCurrentEmployee === 'function') {
+    var myRole = '';
+    // auth.js 의 현재 직원 팀/역할 정보 가져오기
+    if (window.seumAuth && window.seumAuth.currentEmployee) {
+      var emp = window.seumAuth.currentEmployee;
+      myTeam = emp.team || '';
+      myRole = emp.role || '';
+    } else if (window.seumAuth && typeof window.seumAuth.getCurrentEmployee === 'function') {
       var emp = window.seumAuth.getCurrentEmployee();
       myTeam = emp ? (emp.team || '') : '';
+      myRole = emp ? (emp.role || '') : '';
     }
 
-    if (!myTeam || row.recipient_team !== myTeam) return;
+    var isMasterOrAdmin = (myRole === 'master' || myRole === 'admin');
+    var isRecipientTeam = myTeam && row.recipient_team === myTeam;
+
+    if (!isMasterOrAdmin && !isRecipientTeam) return;
 
     var title = row.title || '새 알림';
     var body = row.body || '';
 
     showInAppPopup(title, body, row.contract_id);
     showBrowserNotification(title, body);
+    playNotifSound();
   }
 
   // --------------------------------------------------
