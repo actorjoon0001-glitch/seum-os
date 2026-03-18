@@ -54,7 +54,7 @@
         return;
       }
       var isMine = msg.sender_id === me.id;
-      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()));
+      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster()));
       var deleted = !!msg.is_deleted;
       var author = window.escapeChatText(msg.sender_name || '알 수 없음');
       var body = deleted ? '삭제된 메시지입니다.' : window.escapeChatText(msg.message || '');
@@ -134,10 +134,12 @@
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var myShowroomId = cur && typeof window.resolveShowroomId === 'function' ? window.resolveShowroomId(cur) : (cur && (cur.showroomId || cur.showroom) || '');
     var isAdmin = typeof window.isAdmin === 'function' && window.isAdmin();
+    var isMaster = typeof window.isMaster === 'function' && window.isMaster();
+    var canSeeAllChannels = isAdmin || isMaster;
 
     var channelHtml = '';
     CHAT_CHANNELS.forEach(function (ch) {
-      if (!isAdmin && ch !== 'all' && ch !== myShowroomId) return;
+      if (!canSeeAllChannels && ch !== 'all' && ch !== myShowroomId) return;
       var label = CHAT_CHANNEL_LABELS[ch] || ch;
       if (searchVal && label.toLowerCase().indexOf(searchVal) === -1) return;
       var unread = typeof window.getChatUnreadCount === 'function' ? window.getChatUnreadCount(ch) : 0;
@@ -372,7 +374,7 @@
         return;
       }
       var isMine = msg.userId === me.id;
-      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()));
+      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster()));
       var deleted = !!msg.is_deleted;
       var authorName = window.escapeChatText(msg.userName || '알 수 없음');
       var teamLabel = (msg.team === '영업' || msg.team === '설계' || msg.team === '시공') ? msg.team + '팀' : (msg.team ? window.escapeChatText(msg.team) : '');
@@ -452,9 +454,12 @@
     if (!panel) return;
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var myShowroomId = cur && typeof window.resolveShowroomId === 'function' ? window.resolveShowroomId(cur) : (cur && (cur.showroomId || cur.showroom) || '');
+    var isAdmin = typeof window.isAdmin === 'function' && window.isAdmin();
+    var isMaster = typeof window.isMaster === 'function' && window.isMaster();
+    var canSeeAllChannels = isAdmin || isMaster;
     panel.querySelectorAll('.chat-tab[data-channel]').forEach(function (btn) {
       var ch = btn.getAttribute('data-channel');
-      var show = ch === 'all' || ch === myShowroomId;
+      var show = canSeeAllChannels || ch === 'all' || ch === myShowroomId;
       btn.classList.toggle('hidden', !show);
     });
     var activeTab = panel.querySelector('.chat-tab.active');

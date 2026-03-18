@@ -161,6 +161,14 @@
     return role === 'admin' || permission === 'admin';
   }
 
+  function isMaster() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    return role === 'master' || permission === 'master';
+  }
+
   function isSuperAdmin() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur || !cur.email) return false;
@@ -720,7 +728,8 @@
     contracts = filterByYearMonth(contracts, 'contractDate');
     var myShowroomId = getMyShowroomId();
     var showroomsToUse = SHOWROOMS;
-    if (myShowroomId) {
+    // admin, master, superAdmin은 전체 전시장 차트 표시
+    if (myShowroomId && !isAdmin() && !isMaster() && !isSuperAdmin()) {
       showroomsToUse = SHOWROOMS.filter(function (s) { return (s.id || '') === myShowroomId; });
     }
     var labels = showroomsToUse.map(function (s) { return s.name; });
@@ -921,11 +930,14 @@
     var userTeam = (cur && (cur.team || '').trim()) || '';
     var isConstructionTeam = (userTeam === '시공' || userTeam === '시공팀');
     var myShowroomId = getMyShowroomId();
-    if (userTeam === '마케팅' || myShowroomId) {
-      if (myShowroomId) {
-        todayStats = todayStats.filter(function (row) { return (row.showroom || '') === myShowroomId; });
-      } else {
-        todayStats = [];
+    // admin, master, superAdmin은 전체 전시장 현황 표시
+    if (!isAdmin() && !isMaster() && !isSuperAdmin()) {
+      if (userTeam === '마케팅' || myShowroomId) {
+        if (myShowroomId) {
+          todayStats = todayStats.filter(function (row) { return (row.showroom || '') === myShowroomId; });
+        } else {
+          todayStats = [];
+        }
       }
     }
     grid.innerHTML = todayStats.map(function (row) {
@@ -7312,6 +7324,7 @@
   window.getContracts = getContracts;
   window.getShowroomName = getShowroomName;
   window.isAdmin = isAdmin;
+  window.isMaster = isMaster;
   window.formatDate = formatDate;
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
