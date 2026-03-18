@@ -54,7 +54,7 @@
         return;
       }
       var isMine = msg.sender_id === me.id;
-      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()));
+      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster()));
       var deleted = !!msg.is_deleted;
       var author = window.escapeChatText(msg.sender_name || '알 수 없음');
       var body = deleted ? '삭제된 메시지입니다.' : window.escapeChatText(msg.message || '');
@@ -81,6 +81,17 @@
     if (wrapScroll) wrapScroll.scrollTop = wrapScroll.scrollHeight;
   }
 
+  function getContractChatParticipantNames(contractId) {
+    var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return [];
+    var sales = (c.salesPerson || '').trim();
+    var design = (c.designContactName || c.designPermitDesigner || '').trim();
+    var construction = (c.constructionManager || '').trim();
+    var names = [sales, design, construction].filter(function (s) { return s; });
+    return names.filter(function (n, i) { return names.indexOf(n) === i; });
+  }
+
   function openContractChatModal(contractId) {
     if (!contractId) return;
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
@@ -88,9 +99,15 @@
     var titleEl = document.getElementById('modal-contract-chat-title');
     var hiddenEl = document.getElementById('modal-contract-chat-contract-id');
     var inputEl = document.getElementById('modal-contract-chat-input');
+    var participantsEl = document.getElementById('modal-contract-chat-participants');
     if (titleEl) titleEl.textContent = (c ? (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-') : contractId);
     if (hiddenEl) hiddenEl.value = contractId;
     if (inputEl) inputEl.value = '';
+    if (participantsEl) {
+      var names = getContractChatParticipantNames(contractId);
+      participantsEl.textContent = names.length ? '참여: ' + names.join(', ') : '';
+      participantsEl.classList.toggle('hidden', !names.length);
+    }
 
     function openModal() {
       if (typeof window.ensureContractChatRoom === 'function') window.ensureContractChatRoom(contractId);
@@ -107,15 +124,22 @@
     }
   }
 
-  /** 채팅방 목록 UI 렌더 (채널 + 계약) */
+  /** 채팅방 목록 UI 렌더 (채널 + 계약). 전체 협업은 항상 표시, 전시장 채널은 본인 소속만 */
   function renderChatRoomList() {
     var channelsEl = document.getElementById('chat-room-channels');
     var contractsEl = document.getElementById('chat-room-contracts');
     if (!channelsEl) return;
     var searchVal = (document.getElementById('chat-room-search') && document.getElementById('chat-room-search').value || '').trim().toLowerCase();
 
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var myShowroomId = cur && typeof window.resolveShowroomId === 'function' ? window.resolveShowroomId(cur) : (cur && (cur.showroomId || cur.showroom) || '');
+    var isAdmin = typeof window.isAdmin === 'function' && window.isAdmin();
+    var isMaster = typeof window.isMaster === 'function' && window.isMaster();
+    var canSeeAllChannels = isAdmin || isMaster;
+
     var channelHtml = '';
     CHAT_CHANNELS.forEach(function (ch) {
+      if (!canSeeAllChannels && ch !== 'all' && ch !== myShowroomId) return;
       var label = CHAT_CHANNEL_LABELS[ch] || ch;
       if (searchVal && label.toLowerCase().indexOf(searchVal) === -1) return;
       var unread = typeof window.getChatUnreadCount === 'function' ? window.getChatUnreadCount(ch) : 0;
@@ -134,8 +158,10 @@
         if (searchVal && room.label.toLowerCase().indexOf(searchVal) === -1) return;
         var active = isChatOpen && selectedChatRoom.type === 'contract' && selectedChatRoom.id === room.id;
         var unread = typeof window.getContractChatUnreadCount === 'function' ? window.getContractChatUnreadCount(room.id) : 0;
+        var participantBadge = (room.participantCount != null && room.participantCount > 0) ? '<span class="chat-room-item-participants" aria-label="참여 ' + room.participantCount + '명">' + room.participantCount + '명</span>' : '';
         contractHtml += '<button type="button" class="chat-room-item' + (active ? ' active' : '') + '" data-type="contract" data-id="' + window.escapeChatText(room.id) + '">' +
           '<span class="chat-room-item-label">' + window.escapeChatText(room.label) + '</span>' +
+          participantBadge +
           (unread > 0 ? '<span class="unread-badge" aria-live="polite">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
           '</button>';
       });
@@ -189,7 +215,8 @@
         msgs.forEach(function (m) { if (m.userId) userIds[m.userId] = true; });
         metaEl.textContent = Object.keys(userIds).length + '명 참여';
       } else {
-        metaEl.textContent = '계약 채팅';
+        var participantNames = getContractChatParticipantNames(id);
+        metaEl.textContent = participantNames.length ? '참여: ' + participantNames.join(', ') : '계약 채팅';
       }
     }
 
@@ -347,7 +374,7 @@
         return;
       }
       var isMine = msg.userId === me.id;
-      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()));
+      var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster()));
       var deleted = !!msg.is_deleted;
       var authorName = window.escapeChatText(msg.userName || '알 수 없음');
       var teamLabel = (msg.team === '영업' || msg.team === '설계' || msg.team === '시공') ? msg.team + '팀' : (msg.team ? window.escapeChatText(msg.team) : '');
@@ -427,9 +454,12 @@
     if (!panel) return;
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var myShowroomId = cur && typeof window.resolveShowroomId === 'function' ? window.resolveShowroomId(cur) : (cur && (cur.showroomId || cur.showroom) || '');
+    var isAdmin = typeof window.isAdmin === 'function' && window.isAdmin();
+    var isMaster = typeof window.isMaster === 'function' && window.isMaster();
+    var canSeeAllChannels = isAdmin || isMaster;
     panel.querySelectorAll('.chat-tab[data-channel]').forEach(function (btn) {
       var ch = btn.getAttribute('data-channel');
-      var show = ch === 'all' || ch === myShowroomId;
+      var show = canSeeAllChannels || ch === 'all' || ch === myShowroomId;
       btn.classList.toggle('hidden', !show);
     });
     var activeTab = panel.querySelector('.chat-tab.active');
@@ -493,8 +523,15 @@
     if (typeof window.loadAllTeamChatMessages === 'function') {
       window.loadAllTeamChatMessages().then(function () {
         renderChatRoomList();
-        renderChatMessageList(currentChannel);
+        // 계약 채팅이 열려있으면 채널 메시지로 덮어쓰지 않음
+        if (!isChatOpen || selectedChatRoom.type === 'channel') {
+          var chToRender = selectedChatRoom.type === 'channel' ? selectedChatRoom.id : currentChannel;
+          renderChatMessageList(chToRender);
+        }
         if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
+        if (typeof window.loadAllAccessibleContractChatMessages === 'function') {
+          window.loadAllAccessibleContractChatMessages();
+        }
       });
     }
 
@@ -840,4 +877,6 @@
   window.renderChatMessageList = renderChatMessageList;
   window.isImageFileName = isImageFileName;
   window.uploadChatFiles = uploadChatFiles;
+  window.getSelectedChatRoom = function () { return selectedChatRoom; };
+  window.isChatPanelOpen = function () { return isChatOpen; };
 })();
