@@ -1459,16 +1459,24 @@
     };
     listEl.innerHTML = files.map(function (f) {
       var name = escapeHtml(f.file_name || '');
-      var canPreview = ['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext(f.file_name)) !== -1;
+      var fileExt = ext(f.file_name);
+      var isImage = ['jpg', 'jpeg', 'png'].indexOf(fileExt) !== -1;
+      var canPreview = ['pdf', 'jpg', 'jpeg', 'png'].indexOf(fileExt) !== -1;
       var previewBtn = canPreview
         ? '<button type="button" class="notice-file-preview btn-pill">미리보기</button>'
         : '';
+      var imgPreview = isImage
+        ? '<div class="notice-file-img-wrap"><img src="' + escapeHtml(f.file_url || '') + '" alt="' + name + '" class="notice-file-img-thumb" loading="lazy"></div>'
+        : '';
       return '<div class="notice-file-item">' +
+        '<div class="notice-file-item-header">' +
         '<span class="notice-file-name">' + name + '</span>' +
         '<div class="notice-file-actions">' +
         previewBtn +
         '<a href="' + escapeHtml(f.file_url || '') + '" target="_blank" rel="noopener" download="' + escapeHtml(f.file_name || '') + '" class="notice-file-download btn-pill">다운로드</a>' +
-        '</div></div>';
+        '</div></div>' +
+        imgPreview +
+        '</div>';
     }).join('');
     listEl.querySelectorAll('.notice-file-preview').forEach(function (btn) {
       btn.addEventListener('click', function () {
