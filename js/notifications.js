@@ -90,15 +90,6 @@
       removeNotif(item);
     });
 
-    // 5초 후 자동 닫기
-    var autoClose = setTimeout(function () { removeNotif(item); }, 5000);
-    item._autoClose = autoClose;
-
-    // 진행바 애니메이션
-    var progress = document.createElement('div');
-    progress.className = 'seum-notif-progress';
-    item.appendChild(progress);
-
     // 슬라이드인 애니메이션
     requestAnimationFrame(function () {
       item.classList.add('seum-notif-show');
@@ -108,7 +99,6 @@
   function removeNotif(item) {
     if (!item || item._removing) return;
     item._removing = true;
-    clearTimeout(item._autoClose);
     item.classList.remove('seum-notif-show');
     item.classList.add('seum-notif-hide');
     setTimeout(function () {
@@ -118,10 +108,40 @@
 
   // --------------------------------------------------
   // 알림 소리 (Web Audio API)
+  // 브라우저 자동재생 차단 우회: 첫 클릭 시 AudioContext 미리 unlock
   // --------------------------------------------------
+  var _audioCtx = null;
+
+  function getAudioCtx() {
+    if (!_audioCtx) {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') {
+      _audioCtx.resume();
+    }
+    return _audioCtx;
+  }
+
+  function unlockAudio() {
+    try {
+      var ctx = getAudioCtx();
+      // 무음 버퍼 재생으로 unlock
+      var buf = ctx.createBuffer(1, 1, 22050);
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch (e) { /* ignore */ }
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('keydown', unlockAudio);
+  }
+
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+
   function playNotifSound() {
     try {
-      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      var ctx = getAudioCtx();
       var osc = ctx.createOscillator();
       var gain = ctx.createGain();
       osc.connect(gain);
@@ -170,7 +190,7 @@
   // Supabase Realtime 구독
   // --------------------------------------------------
   function subscribeNotifications() {
-    var supabase = window.getSupabase ? window.getSupabase() : null;
+    var supabase = window.seumSupabase || null;
     if (!supabase || notifRealtimeSubscribed) return;
     notifRealtimeSubscribed = true;
 
@@ -196,7 +216,7 @@
   // --------------------------------------------------
   function sendContractNotification(opts) {
     // opts: { contractId, customerName, salesPerson, recipientTeam }
-    var supabase = window.getSupabase ? window.getSupabase() : null;
+    var supabase = window.seumSupabase || null;
     if (!supabase) return;
 
     var recipientTeam = opts.recipientTeam || '설계';
@@ -318,21 +338,7 @@
 
       '.seum-notif-close:hover { color: #f1f5f9; }',
 
-      '.seum-notif-progress {',
-      '  position: absolute;',
-      '  bottom: 0;',
-      '  left: 0;',
-      '  height: 3px;',
-      '  background: #6366f1;',
-      '  width: 100%;',
-      '  animation: seum-notif-countdown 5s linear forwards;',
-      '  border-radius: 0 0 14px 14px;',
-      '}',
-
-      '@keyframes seum-notif-countdown {',
-      '  from { width: 100%; }',
-      '  to   { width: 0%; }',
-      '}'
+      '@keyframes seum-notif-fadein { from { opacity: 0; } to { opacity: 1; } }'
     ].join('\n');
     document.head.appendChild(style);
   }
