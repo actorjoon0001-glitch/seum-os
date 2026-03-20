@@ -2816,8 +2816,14 @@
         var editFieldBtn = function(field) { return ' <button type="button" class="btn btn-xs btn-secondary" data-contract-field="' + field + '" data-id="' + c.id + '">수정</button>'; };
         var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-contract-detail="' + c.id + '">상세</button>';
         var deleteBtn = ' <button type="button" class="btn btn-sm btn-danger btn-contract-delete" data-contract-id="' + c.id + '">삭제</button>';
-        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
-      }).join('') || '<tr><td colspan="13">계약 데이터가 없습니다.</td></tr>';
+        var shortAddr = (function() {
+          var addr = c.siteAddress || '';
+          if (!addr) return '-';
+          var parts = addr.trim().split(/\s+/);
+          return parts.slice(0, 2).join(' ');
+        })();
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+      }).join('') || '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>';
       if (expandedContractId) {
         var exists = contracts.some(function (c) { return c.id === expandedContractId; });
         if (exists) {
