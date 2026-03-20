@@ -3571,6 +3571,84 @@ textarea.form-input {
 .contract-attach-card-view:hover {
   text-decoration: underline;
 }
+
+.contract-extra-attach-card {
+  border: 2px dashed rgba(79, 140, 255, 0.5);
+  border-radius: 10px;
+  background: rgba(79, 140, 255, 0.08);
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.contract-extra-attach-card:hover {
+  border-color: var(--accent);
+  background: rgba(79, 140, 255, 0.14);
+  box-shadow: 0 0 0 1px rgba(79, 140, 255, 0.2);
+}
+
+.contract-extra-attach-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  font-weight: 500;
+}
+
+.contract-extra-attach-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.contract-extra-attach-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #e5e7eb;
+}
+
+.contract-extra-attach-list li + li {
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.contract-extra-attach-list .extra-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-extra-attach-list .extra-file-view {
+  font-size: 0.875rem;
+  color: var(--accent);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.contract-extra-attach-list .extra-file-view:hover {
+  text-decoration: underline;
+}
+
+.contract-extra-attach-list .extra-file-remove {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.contract-extra-attach-list .extra-file-remove:hover {
+  color: #ef4444;
+}
+
 .install-type-label {
   font-size: 0.875rem;
   color: #E6E6E6;

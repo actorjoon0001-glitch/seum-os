@@ -1515,6 +1515,33 @@
     });
   }
 
+  function uploadContractExtraFile(contractId, file) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !contractId || !file) return Promise.resolve(null);
+    var year = new Date().getFullYear();
+    var safeName = sanitizeNoticeFileName(file.name || 'extra');
+    var bucket = 'contract_files';
+    var path = 'contracts/' + year + '/' + contractId + '/extras/' + Date.now() + '_' + safeName;
+    return supabase.storage.from(bucket).upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: true
+    }).then(function (res) {
+      if (res && res.error) {
+        console.error('contract_files extra upload error', res.error);
+        return null;
+      }
+      var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      return {
+        url: publicUrl,
+        path: path,
+        name: file.name || safeName
+      };
+    }).catch(function (err) {
+      console.error('contract_files extra upload failed', err);
+      return null;
+    });
+  }
+
   /** ??? ?????? ??? ?????(contract_files ??, design_drawings ??) */
   function uploadDesignDrawingAttachment(contractId, file) {
     var supabase = typeof window !== 'undefined' && window.seumSupabase;
@@ -4897,6 +4924,7 @@
     document.getElementById('contract-inline-sales-person').value = c.salesPerson || '';
     document.getElementById('contract-inline-attachment').value = c.contractAttachment || '';
     if (typeof window.syncContractAttachCard === 'function') window.syncContractAttachCard();
+    if (typeof window.syncExtraAttachList === 'function') window.syncExtraAttachList();
     document.getElementById('contract-inline-site-address').value = c.siteAddress || '';
     var inlineInstall = document.querySelector('input[name="contract-inline-install-type"][value="' + (c.installType || '현장시공') + '"]');
     if (inlineInstall) inlineInstall.checked = true;
@@ -5208,6 +5236,108 @@
         if (this.getAttribute('href') === '#') e.preventDefault();
       });
     }
+
+    // 추가 자료 첨부 핸들러
+    var extraFileInput = document.getElementById('contract-extra-attachment-file');
+    var extraCard = document.getElementById('contract-extra-attach-card');
+    var extraPlaceholder = document.getElementById('contract-extra-attach-placeholder');
+    var extraList = document.getElementById('contract-extra-attach-list');
+
+    function renderExtraAttachList(attachments) {
+      if (!extraList) return;
+      extraList.innerHTML = '';
+      if (!attachments || !attachments.length) {
+        if (extraPlaceholder) extraPlaceholder.style.display = '';
+        return;
+      }
+      if (extraPlaceholder) extraPlaceholder.style.display = 'none';
+      attachments.forEach(function (item, idx) {
+        var li = document.createElement('li');
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'extra-file-name';
+        var displayName = (item.name || item.url.replace(/^.*\//, '')).replace(/^\d+_/, '');
+        nameSpan.textContent = displayName || '첨부됨';
+        var viewA = document.createElement('a');
+        viewA.className = 'extra-file-view';
+        viewA.href = item.url;
+        viewA.target = '_blank';
+        viewA.rel = 'noopener';
+        viewA.textContent = '보기';
+        var removeBtn = document.createElement('button');
+        removeBtn.className = 'extra-file-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.title = '삭제';
+        removeBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+          if (!contractId) return;
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === contractId; });
+          if (contract && Array.isArray(contract.extraAttachments)) {
+            contract.extraAttachments.splice(idx, 1);
+            saveContracts(contracts);
+            renderExtraAttachList(contract.extraAttachments);
+          }
+        });
+        li.appendChild(nameSpan);
+        li.appendChild(viewA);
+        li.appendChild(removeBtn);
+        extraList.appendChild(li);
+      });
+      // 추가 업로드 버튼 (목록 있을 때도 클릭 가능하게)
+      if (extraPlaceholder) extraPlaceholder.style.display = '';
+      if (extraPlaceholder) {
+        extraPlaceholder.querySelector('.contract-attach-card-placeholder-text').textContent = '+ 추가 자료 업로드';
+      }
+    }
+
+    function syncExtraAttachList() {
+      var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+      if (!contractId) { renderExtraAttachList([]); return; }
+      var contracts = getContracts();
+      var contract = contracts.find(function (x) { return x.id === contractId; });
+      renderExtraAttachList(contract && contract.extraAttachments || []);
+    }
+    if (typeof window !== 'undefined') window.syncExtraAttachList = syncExtraAttachList;
+
+    if (extraCard && extraPlaceholder && extraFileInput) {
+      extraPlaceholder.addEventListener('click', function () { extraFileInput.click(); });
+    }
+
+    if (extraFileInput) {
+      extraFileInput.addEventListener('change', function () {
+        var files = extraFileInput.files;
+        if (!files || !files.length) return;
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (!contractId) {
+          extraFileInput.value = '';
+          window.alert('계약을 먼저 선택하거나 저장한 뒤 추가 자료를 업로드해 주세요.');
+          return;
+        }
+        var uploads = Array.prototype.slice.call(files).map(function (file) {
+          return uploadContractExtraFile(contractId, file);
+        });
+        Promise.all(uploads).then(function (results) {
+          extraFileInput.value = '';
+          var succeeded = results.filter(Boolean);
+          if (!succeeded.length) {
+            window.alert('파일 업로드에 실패했습니다.');
+            return;
+          }
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === contractId; });
+          if (contract) {
+            if (!Array.isArray(contract.extraAttachments)) contract.extraAttachments = [];
+            succeeded.forEach(function (res) {
+              contract.extraAttachments.push({ url: res.url, name: res.name });
+            });
+            saveContracts(contracts);
+            renderExtraAttachList(contract.extraAttachments);
+          }
+        });
+      });
+    }
+
     if (modalBtn && panel) {
       modalBtn.addEventListener('click', function () {
         var id = panel.getAttribute('data-current-id');
