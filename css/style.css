@@ -5745,6 +5745,22 @@ textarea.form-input {
   font-size: 0.875rem;
 }
 
+.design-manager-cell,
+.design-construction-manager-cell {
+  min-width: 100px;
+  vertical-align: middle;
+}
+.design-manager-cell .design-designer-input,
+.design-construction-manager-cell .design-construction-manager-input {
+  width: 100%;
+  min-width: 80px;
+  max-width: 140px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
 .construction-stage-cell {
   min-width: 160px;
   vertical-align: middle;
