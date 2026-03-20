@@ -2923,7 +2923,13 @@
       var modelName = (c.contractModelName || '-');
       var contractDateStr = formatDate(c.contractDate) || '-';
       var shortAddr = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + designerName + '</td><td>' + (c.constructionManager || '-') + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+      var designerCell = designOnlyReview
+        ? '<input type="text" class="design-designer-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.designPermitDesigner || c.designContactName || '') + '" placeholder="설계담당">'
+        : designerName;
+      var constructionMgrCell = constructionOnlyReview
+        ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
+        : (c.constructionManager || '-');
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>';
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
@@ -6214,6 +6220,42 @@
     });
 
     document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('design-designer-input')) {
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var userTeam = (cur && (cur.team || '').trim()) || '';
+        if (userTeam !== '설계') return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.designPermitDesigner = (e.target.value || '').trim();
+          saveContracts(contracts);
+          if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
+            window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
+          }
+          renderDesign();
+        }
+        return;
+      }
+      if (e.target.classList.contains('design-construction-manager-input')) {
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var userTeam = (cur && (cur.team || '').trim()) || '';
+        if (userTeam !== '시공') return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.constructionManager = (e.target.value || '').trim();
+          saveContracts(contracts);
+          if (c.constructionManager && typeof window.addContractInviteMessage === 'function') {
+            window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
+          }
+          renderDesign();
+        }
+        return;
+      }
       if (e.target.classList.contains('construction-manager-input')) {
         if (isSalesReadonly()) return;
         var contractId = e.target.getAttribute('data-contract-id');
