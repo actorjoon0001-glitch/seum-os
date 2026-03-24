@@ -2,6 +2,19 @@
   'use strict';
   console.log('app.js loaded');
 
+  function showToast(msg, type) {
+    var el = document.getElementById('seum-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'seum-toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg || '저장됐습니다.';
+    el.style.background = (type === 'error') ? '#ef4444' : '#22c55e';
+    el.classList.add('show');
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(function () { el.classList.remove('show'); }, 2500);
+  }
   var STORAGE_VISITS = 'seum_visits';
   var STORAGE_CONTRACTS = 'seum_contracts';
   var STORAGE_EMPLOYEES = 'seum_employees';
@@ -10,19 +23,19 @@
   var STORAGE_KPI_GOALS = 'seum_kpi_goals';
   var STORAGE_INCENTIVE_PERCENTS = 'seum_incentive_percents';
   var STORAGE_CUSTOMERS = 'seum_customers';
+  var STORAGE_CEO_REPORTS = 'seum_ceo_reports';
 
   var SHOWROOMS = [
-    { id: 'headquarters', name: '?? ????? },
-    { id: 'showroom1', name: '1????? },
-    { id: 'showroom3', name: '3????? },
-    { id: 'showroom4', name: '4????? }
+    { id: 'headquarters', name: '본사 전시장' },
+    { id: 'showroom1', name: '1전시장' },
+    { id: 'showroom3', name: '3전시장' },
+    { id: 'showroom4', name: '4전시장' },
   ];
 
   function getShowroomName(id) {
     var s = SHOWROOMS.find(function (x) { return x.id === id; });
     var raw = s ? s.name : (id || '-');
-    // ?? ????????'??'??? ????? ??? '?? ???????? ???
-    if (raw === '??' || raw === '?? ?????) return '?? ?????;
+    if (raw === '본사' || raw === '본사 전시장') return '본사 전시장';
     return raw;
   }
 
@@ -41,112 +54,83 @@
   var SUPER_ADMIN_EMAIL = 'harold0001@naver.com';
 
   var TODAY_MESSAGES = [
-    "???? ???????????? ????",
-    "?????????????? ???????????????",
-    "??? ????? ???? ?????????????",
-    "????? ??? ????? ??????????????",
-    "???????? ????? ???????????",
-    "????? ??????? ??????????????.",
-    "???????????? ??????????? ?????.",
-    "?????????????? ????????? ??????.",
-    "?????????????????????",
-    "????????????????????????.",
-    "?????????? ??? ??????????.",
-    "??????? ????????????????? ?????",
-    "????'?????????? ????? ?????.",
-    "??? 1?? ????? 10?????????? ???.",
-    "????? ??????????? ????? ??? ?????.",
-    "?? ????????????? ???????",
-    "???????????????????? ???.",
-    "??????????????? ?????????",
-    "?????? ??????????????? ??????????? ?? ????",
-    "??????? ???? '??? ??' ??? ??? ???.",
-    "??? ???????????? ??????????1??? ???.",
-    "?? ???? ????????????????",
-    "?????????? ??? ??? ?????????????.",
-    "???? ???????? ???????????????",
-    "???? ??????? ??, ?????????",
-    "???? ?????? ???????",
-    "?????????????? ???? ???????? ??.",
-    "???????????? ?????????? ???.",
-    "??? ??? ??????????????? ?????",
-    "??????? ??????? ????? ????????",
-    "?????? ????? ?????? ????? ???? ?????.",
-    "???? ??????, ??? ??????.",
-    "?? ??????????? ??? ???.",
-    "???????? ??, ??? ??????? ?????.",
-    "???? ????????? ???????????????????",
-    "?????????? ??????????????????.",
-    "?????????? ?????????????",
-    "??? ?? ???? ??????????????",
-    "???? ???????? ???????????????????",
-    "???? ????? ???? ???? ?????.",
-    "?? ?????? ??? ????? ?????????.",
-    "?? ????????????????????????????????",
-    "???????? ?????????????? ????",
-    "???????????????? ?????????????",
-    "????? ?????? ??? ????? '??????.",
-    "??? ?????????? ???? ????",
-    "?????????? ??? ???? ?????????????.",
-    "??? ??10?????? ??? 1?????????",
-    "????????? ?? ???? ????????????",
-    "?????? ??????? ?? ?????.",
-    "???? ??????? ??????? ??????? ??.",
-    "????????? ?????????? ?????",
-    "???? ??? ???????? ????",
-    "???????????? ?? ??????????.",
-    "???? ??????? ??? ???? ??????????? ????",
-    "?????????? ??? ????????????.",
-    "???????? ??????????????? ??????? ??.",
-    "???? ?? ????? ??? ??? ??????????",
-    "????????? ????????????????.",
-    "????????????? ??????????????",
-    "????'???'?? '??????'????? ????.",
-    "?? ????????????? ???????????? ????????.",
-    "?????????? ???? ??? ????? ????????.",
-    "????? ????????? ???????",
-    "?????????????????????????? ?????",
-    "??????????? ??????????? ????",
-    "?????????????????????",
-    "???? ????????? ??????????.",
-    "?? ????????????, ??? ???????? ??? ?????",
-    "???? ??? ???? ?? ????? ??????? ???? ?? ?????",
-    "????????? ???? ?????? ??? ??????.",
-    "?????????? ????????? ?????.",
-    "????? ?????? ???, ??? ??????????.",
-    "???????????? ???????????????.",
-    "???? ?????????, ?????????????? ??? ??????.",
-    "?? 1%???????1?????????? ???.",
-    "??????? ?? ??????? ????????????.",
-    "??????????????? ?????? ?????.",
-    "??? ?????????? ?????",
-    "?????????? ???? ??? ??????????",
-    "??? ?????????, ??? ??? ???????????.",
-    "??? ????????????? ????????????.",
-    "???????????????? ?? ???? ?????",
-    "?? ?????????? ????????? ??.",
-    "?????????????????? ???????????.",
-    "??? ???? ?????? ??????? ????????.",
-    "????? ??? ??????? ???????.",
-    "??? ???? ??? ???????? ?????",
-    "?????????? ?????? ???????????.",
-    "??????????????? ???????????????.",
-    "?????????????????????????.",
-    "??? ????????? ??? ??????????????",
-    "??????? ???????????? ??? ???????.",
-    "?? ????????? ??, ?????????? ??? ??????.",
-    "????? ?????????? ??? ?? ??????.",
-    "???????? ??????? ????????? ?????.",
-    "???? ???????? ?????? ?????.",
-    "???????????? ???????.",
-    "?????'??????? ????'???????.",
-    "??????? ?????, ??????? ??????? ??.",
-    "?? ????? 3?? ??????? ?????",
-    "???? ?? ?????? ??????????????.",
-    "????????? ??????????????",
-    "?????????????????????? ?????.",
-    "???? ??? ???????????",
-    "?????? ????? ?? ???? ???????"
+    "오늘도 최선을 다하는 당신이 자랑스럽습니다.",
+    "작은 노력이 쌓여 큰 결과를 만들어냅니다.",
+    "매일 한 걸음씩 앞으로 나아가면 반드시 목표에 닿습니다.",
+    "고객의 미소가 우리의 가장 큰 보람입니다.",
+    "오늘의 도전이 내일의 성장을 만듭니다.",
+    "팀원들과 함께라면 어떤 어려움도 이겨낼 수 있습니다.",
+    "진심 어린 상담 한 번이 평생 고객을 만듭니다.",
+    "꾸준함이 결국 최고의 성과를 만들어냅니다.",
+    "오늘 하루도 긍정적인 에너지로 가득 채워보세요.",
+    "고객에게 최고의 경험을 선물하는 것이 우리의 목표입니다.",
+    "포기하지 않는 사람이 결국 성공합니다.",
+    "매 상담을 최선을 다해 임하면 결과가 따라옵니다.",
+    "당신의 노력은 반드시 빛을 발합니다.",
+    "하루 1건의 계약이 10건의 경험을 만들어줍니다.",
+    "작은 친절이 고객의 마음을 움직이는 첫걸음입니다.",
+    "우리가 함께 만드는 집은 고객의 꿈입니다.",
+    "성실함과 열정이 최고의 영업 무기입니다.",
+    "오늘도 활기차게 하루를 시작해보세요.",
+    "고객의 신뢰를 쌓는 것이 장기적인 성공의 비결입니다.",
+    "처음 만나는 고객에게 '최고의 첫인상'을 남겨보세요.",
+    "매달 목표를 달성하는 것이 성취감의 원천입니다.",
+    "우리 팀의 협력이 더 나은 결과를 만들어냅니다.",
+    "고객의 입장에서 생각하면 해답이 보입니다.",
+    "열심히 일하는 오늘이 더 나은 내일을 만듭니다.",
+    "오늘의 노력은 절대 배신하지 않습니다.",
+    "한 명 한 명의 고객이 소중한 인연입니다.",
+    "긍정적인 마음가짐이 좋은 결과를 이끌어냅니다.",
+    "오늘도 당신의 최선을 믿어보세요.",
+    "작은 것에도 감사하는 마음이 행복의 시작입니다.",
+    "고객의 꿈을 현실로 만드는 일, 참 보람 있습니다.",
+    "팀원을 믿고 함께 나아가는 오늘이 되길 바랍니다.",
+    "지금 이 순간 최선을 다하면 결과는 따라옵니다.",
+    "우리가 만드는 공간이 누군가의 행복한 보금자리입니다.",
+    "어려운 상황에서도 웃으며 일하는 당신이 대단합니다.",
+    "고객의 기대 이상을 전달하는 것이 우리의 목표입니다.",
+    "오늘 하루도 활기차고 즐거운 업무 되세요.",
+    "매일 조금씩 성장하는 것이 가장 강한 경쟁력입니다.",
+    "좋은 에너지로 하루를 시작하면 좋은 일이 생깁니다.",
+    "고객의 불편함을 먼저 헤아리는 센스가 차별점입니다.",
+    "오늘 계획한 일을 하나씩 완성해 나가는 하루 되세요.",
+    "우리 브랜드의 가치를 높이는 것은 바로 여러분입니다.",
+    "팀의 성공이 곧 나의 성공임을 잊지 마세요.",
+    "진심으로 임하는 상담이 최고의 결과를 낳습니다.",
+    "오늘도 최고의 컨디션으로 고객을 만나보세요.",
+    "좋은 하루의 시작은 좋은 첫인사에서 비롯됩니다.",
+    "포기하지 않는 끈기가 성공의 열쇠입니다.",
+    "고객의 고민을 해결해주는 것이 진정한 영업입니다.",
+    "하루하루 쌓이는 경험이 여러분을 전문가로 만듭니다.",
+    "오늘도 밝은 미소로 고객을 맞이해보세요.",
+    "작은 목표부터 달성하다 보면 큰 꿈이 이루어집니다.",
+    "최고의 서비스는 마음에서 우러나오는 것입니다.",
+    "우리 팀의 열정이 모여 놀라운 성과를 만들어냅니다.",
+    "매 순간 성실하게 임하면 반드시 인정받습니다.",
+    "고객에게 정직하게 다가가는 것이 신뢰의 시작입니다.",
+    "오늘 하루도 의미 있는 대화를 나눠보세요.",
+    "노력은 언제나 결실을 맺습니다. 오늘도 화이팅!",
+    "팀워크가 개인의 한계를 뛰어넘게 해줍니다.",
+    "작은 성취에도 스스로를 칭찬해 주세요.",
+    "오늘의 땀이 내일의 자신감이 됩니다.",
+    "긍정적인 태도가 주변을 밝게 만듭니다.",
+    "한 번의 친절이 평생의 고객을 만들 수 있습니다.",
+    "어제보다 오늘 조금 더 성장한 당신을 응원합니다.",
+    "우리가 파는 것은 집이 아니라 고객의 꿈입니다.",
+    "오늘도 즐겁고 보람 있는 하루 만들어 가세요.",
+    "성공은 작은 습관의 꾸준한 실천에서 나옵니다.",
+    "팀이 함께할 때 가장 빛나는 결과가 나옵니다.",
+    "오늘 새로운 도전에 두려움 없이 임해보세요.",
+    "최선을 다한 후에는 편안한 마음으로 결과를 기다리세요.",
+    "당신의 노력이 우리 회사를 빛나게 합니다.",
+    "오늘 하루 고객에게 잊지 못할 경험을 선물해보세요.",
+    "꿈꾸는 사람이 결국 꿈을 이루게 됩니다.",
+    "매 순간 집중하면 기회는 반드시 찾아옵니다.",
+    "긍정의 에너지가 넘치는 하루 보내세요.",
+    "우리 모두의 노력이 세움을 더욱 성장시킵니다.",
+    "오늘도 당신의 전문성을 마음껏 발휘해보세요.",
+    "고객과의 인연은 오래도록 소중히 간직하세요.",
+    "작은 배려가 큰 감동을 만듭니다."
   ];
 
   function pickTodaysMessage(messages) {
@@ -178,6 +162,14 @@
     return role === 'admin' || permission === 'admin';
   }
 
+  function isMaster() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    return role === 'master' || permission === 'master';
+  }
+
   function isSuperAdmin() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur || !cur.email) return false;
@@ -200,7 +192,7 @@
     var permission = (cur.permission || '').toLowerCase();
     if (role === 'admin' || role === 'master' || permission === 'admin' || isSuperAdmin()) return false;
     var team = (cur.team || '').trim();
-    return team === '???';
+    return team === '마케팅';
   }
 
   function canAccessTeamSection(sectionId) {
@@ -212,11 +204,11 @@
     var team = (cur.team || '').trim();
     if (!team) return false;
     // ?? ??: ???, ????? ???, ???, ???, ??
-    var isSales = team === '???';
-    var isMarketing = team === '?????;
-    var isDesign = team === '???';
-    var isConstruction = team === '???';
-    var isSettlement = team === '???';
+    var isSales = team === '영업';
+    var isMarketing = team === '마케팅';
+    var isDesign = team === '설계';
+    var isConstruction = team === '시공';
+    var isSettlement = team === '정산';
 
     // ???????: ?????+ ??? + ??? + ???
     if (sectionId === 'marketing') return isMarketing;
@@ -257,6 +249,15 @@
     if (section) section.classList.toggle('hidden', !canSeeManageSection());
   }
 
+  function canSeeCeoSection() {
+    return isAdmin() || isMaster() || isSuperAdmin();
+  }
+
+  function updateCeoNavVisibility() {
+    var section = document.getElementById('nav-section-ceo');
+    if (section) section.classList.toggle('hidden', !canSeeCeoSection());
+  }
+
   function getFilterShowroom() {
     var el = document.getElementById('filter-showroom');
     return el ? (el.value || '') : '';
@@ -292,6 +293,72 @@
       if (m && itemMonth !== mPad) return false;
       return true;
     });
+  }
+
+  // ────────────────────────────────────────────────────────────
+  //  계약 목록 검색 필터 헬퍼
+  // ────────────────────────────────────────────────────────────
+
+  /** 검색 입력창에서 키워드를 가져옴 */
+  function getContractSearchKeyword() {
+    var el = document.getElementById('contract-search-input');
+    return el ? el.value.trim() : '';
+  }
+
+  /**
+   * 계약 1건이 키워드에 매칭되는지 확인
+   * 현재 검색 대상: 건축주명, 주소(siteAddress)
+   * 향후 확장: 담당자(salesPerson), 상태 등 fields 배열에 추가
+   */
+  function matchesKeyword(contract, keyword) {
+    if (!keyword) return true;
+    var kw = keyword.toLowerCase();
+    var fields = [
+      contract.customerName || '',
+      contract.siteAddress  || ''
+    ];
+    return fields.some(function (f) {
+      return f.toLowerCase().indexOf(kw) !== -1;
+    });
+  }
+
+  /**
+   * 연/월/전시장 필터 이후에 키워드 필터를 추가로 적용
+   * 향후 필드별 검색(건축주명 전용, 지역 전용 등)으로 쉽게 확장 가능
+   */
+  function getFilteredContracts(contracts) {
+    var keyword = getContractSearchKeyword();
+    if (!keyword) return contracts;
+    return contracts.filter(function (c) {
+      return matchesKeyword(c, keyword);
+    });
+  }
+
+  /** 계약 검색 결과 요약 문구 업데이트 */
+  function updateContractFilterResult(filteredContracts, allAfterBaseFilter) {
+    var el = document.getElementById('contract-filter-result');
+    if (!el) return;
+    var keyword  = getContractSearchKeyword();
+    var showroom = getFilterShowroom();
+    var year     = getFilterYear();
+    var month    = getFilterMonth();
+    var parts    = [];
+    if (showroom) {
+      var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+      parts.push(names[showroom] || showroom);
+    }
+    if (year)  parts.push(year + '년');
+    if (month) parts.push(month + '월');
+    if (keyword) parts.push('"' + keyword + '"');
+    var count = filteredContracts.length;
+    if (parts.length > 0) {
+      el.textContent = parts.join(' / ') + ' · 총 ' + count + '건';
+    } else {
+      el.textContent = '총 ' + count + '건';
+    }
+    // X 버튼 표시 제어
+    var clearBtn = document.getElementById('contract-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
   }
 
   function getVisits() {
@@ -476,16 +543,16 @@
   function renderDrawingFileList(container, urls) {
     if (!container) return;
     if (!urls || !urls.length) {
-      container.innerHTML = '<div class="drawing-file-empty">????????????????.</div>';
+      container.innerHTML = '<div class="drawing-file-empty">첨부된 파일이 없습니다.</div>';
       return;
     }
     var items = urls.map(function (url, idx) {
       var name = fileNameFromUrl(url);
       return '<li class="drawing-file-item" data-index="' + idx + '">' +
-        '<span class="drawing-file-icon">???</span>' +
+        '<span class="drawing-file-icon">📄</span>' +
         '<span class="drawing-file-name-text" title="' + escapeAttr(name) + '">' + escapeAttr(name) + '</span>' +
-        '<button type="button" class="btn btn-xs btn-secondary drawing-file-open" data-url="' + escapeAttr(url) + '">???</button>' +
-        '<button type="button" class="btn btn-xs btn-secondary drawing-file-delete">????</button>' +
+        '<button type="button" class="btn btn-xs btn-secondary drawing-file-open" data-url="' + escapeAttr(url) + '">열기</button>' +
+        '<button type="button" class="btn btn-xs btn-secondary drawing-file-delete">삭제</button>' +
         '</li>';
     }).join('');
     container.innerHTML = '<ul class="drawing-file-list-inner">' + items + '</ul>';
@@ -689,7 +756,7 @@
   /** ?? ???????"??, "??, "," ??? ??????????. ??? ??0 */
   function parseMoney(val) {
     if (val == null || val === '') return 0;
-    var s = String(val).replace(/????,/g, '').trim();
+    var s = String(val).replace(/,/g, '').trim();
     if (s === '') return 0;
     var n = Number(s);
     return isNaN(n) ? 0 : Math.max(0, n);
@@ -737,7 +804,8 @@
     contracts = filterByYearMonth(contracts, 'contractDate');
     var myShowroomId = getMyShowroomId();
     var showroomsToUse = SHOWROOMS;
-    if (myShowroomId) {
+    // admin, master, superAdmin은 전체 전시장 차트 표시
+    if (myShowroomId && !isAdmin() && !isMaster() && !isSuperAdmin()) {
       showroomsToUse = SHOWROOMS.filter(function (s) { return (s.id || '') === myShowroomId; });
     }
     var labels = showroomsToUse.map(function (s) { return s.name; });
@@ -779,7 +847,7 @@
         data: {
           labels: stats.labels,
           datasets: [{
-            label: '????',
+            label: '계약',
             data: stats.contractCounts,
             backgroundColor: 'rgba(59, 130, 246, 0.6)',
             borderColor: 'rgb(59, 130, 246)',
@@ -796,7 +864,7 @@
         data: {
           labels: stats.labels,
           datasets: [{
-            label: '????(???)',
+            label: '매출(만원)',
             data: stats.totalSales,
             backgroundColor: 'rgba(34, 197, 94, 0.6)',
             borderColor: 'rgb(34, 197, 94)',
@@ -831,13 +899,13 @@
     if (elDeposit) elDeposit.textContent = (totalDeposit / 10000).toFixed(1);
     renderDashboardCharts();
 
-    var leadsWaiting = visits.filter(function (v) { return v.status !== '?????????'; }).length;
+    var leadsWaiting = visits.filter(function (v) { return v.status !== '영업배정'; }).length;
     var designPending = contracts.filter(function (c) {
       return c.depositReceivedAt && (c.designStatus || 'none') !== 'done';
     }).length;
     var constructionActive = contracts.filter(function (c) {
-      var p = c.constructionProgress || '????;
-      return p === '??' || p === '????;
+      var p = c.constructionProgress || '착공전';
+      return p === '착공' || p === '진행중';
     }).length;
     var paymentUnconfirmed = contracts.filter(function (c) {
       var hasDeposit = !!(c.depositAmount || c.depositReceivedAt);
@@ -857,7 +925,7 @@
     var todayEl = document.getElementById('dashboard-today-visits');
     if (todayEl) {
       todayEl.innerHTML = todayVisits.length === 0
-        ? '??? ????? ???'
+        ? '오늘 방문이 없습니다'
         : todayVisits.map(function (v) {
             return '<div class="widget-item">' + (v.visitTime || '') + ' ' + (v.name || '-') + ' ' + (v.interestType || '') + '</div>';
           }).join('');
@@ -869,21 +937,21 @@
     var recentEl = document.getElementById('dashboard-recent-contracts');
     if (recentEl) {
       recentEl.innerHTML = recent.length === 0
-        ? '?? ???'
+        ? '계약 없음'
         : recent.map(function (c) {
-            return '<div class="widget-item">' + formatDate(c.contractDate) + ' ' + (c.customerName || '-') + ' ' + formatMoney(c.totalAmount) + '??/div>';
+            return '<div class="widget-item">' + formatDate(c.contractDate) + ' ' + (c.customerName || '-') + ' ' + formatMoney(c.totalAmount) + '</div>';
           }).join('');
     }
 
-    var stages = { '????: 0, '??': 0, '????: 0, '???: 0 };
+    var stages = { '착공전': 0, '착공': 0, '진행중': 0, '완료': 0 };
     contracts.forEach(function (c) {
-      var p = c.constructionProgress || '????;
+      var p = c.constructionProgress || '착공전';
       if (stages[p] !== undefined) stages[p]++;
     });
     var stagesEl = document.getElementById('dashboard-construction-stages');
     if (stagesEl) {
-      stagesEl.innerHTML = ['????, '??', '????, '???].map(function (key) {
-        return '<div class="widget-item">' + key + ' <strong>' + stages[key] + '</strong>??/div>';
+      stagesEl.innerHTML = ['착공전', '착공', '진행중', '완료'].map(function (key) {
+        return '<div class="widget-item">' + key + ' <strong>' + stages[key] + '</strong></div>';
       }).join('');
     }
 
@@ -905,7 +973,7 @@
     return SHOWROOMS.map(function (s) {
       var visitCount = visits.filter(function (v) { return (v.showroomId || '') === s.id; }).length;
       var consultCount = visits.filter(function (v) {
-        return (v.showroomId || '') === s.id && (v.status || '') === '?????????';
+        return (v.showroomId || '') === s.id && (v.status || '') === '영업배정';
       }).length;
       var contractCount = contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
       return {
@@ -936,22 +1004,25 @@
     var todayStats = getTodayShowroomStats();
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var userTeam = (cur && (cur.team || '').trim()) || '';
-    var isConstructionTeam = (userTeam === '???' || userTeam === '?????');
+    var isConstructionTeam = (userTeam === '시공' || userTeam === '시공팀');
     var myShowroomId = getMyShowroomId();
-    if (userTeam === '???' || myShowroomId) {
-      if (myShowroomId) {
-        todayStats = todayStats.filter(function (row) { return (row.showroom || '') === myShowroomId; });
-      } else {
-        todayStats = [];
+    // admin, master, superAdmin은 전체 전시장 현황 표시
+    if (!isAdmin() && !isMaster() && !isSuperAdmin()) {
+      if (userTeam === '마케팅' || myShowroomId) {
+        if (myShowroomId) {
+          todayStats = todayStats.filter(function (row) { return (row.showroom || '') === myShowroomId; });
+        } else {
+          todayStats = [];
+        }
       }
     }
     grid.innerHTML = todayStats.map(function (row) {
       return '<div class="card today-showroom-card">' +
         '<h4 class="today-showroom-name">' + escapeHtml(row.showroomName) + '</h4>' +
         '<dl class="today-showroom-dl">' +
-          '<div class="today-showroom-row"><dt>?????</dt><dd>' + row.visitCount + '</dd></div>' +
-          '<div class="today-showroom-row"><dt>???</dt><dd>' + row.consultCount + '</dd></div>' +
-          '<div class="today-showroom-row"><dt>??</dt><dd>' + row.contractCount + '</dd></div>' +
+          '<div class="today-showroom-row"><dt>방문 건수</dt><dd>' + row.visitCount + '</dd></div>' +
+          '<div class="today-showroom-row"><dt>상담</dt><dd>' + row.consultCount + '</dd></div>' +
+          '<div class="today-showroom-row"><dt>계약</dt><dd>' + row.contractCount + '</dd></div>' +
         '</dl></div>';
     }).join('');
   }
@@ -1023,7 +1094,7 @@
     if (!list) return;
     var items = activityLogs.slice(0, 10);
     list.innerHTML = items.length === 0
-      ? '<li class="activity-logs-empty">?? ???????????.</li>'
+      ? '<li class="activity-logs-empty">활동 내역이 없습니다.</li>'
       : items.map(function (log) {
           var targetText = log.target ? ' ' + escapeHtml(log.target) : '';
           return '<li class="activity-logs-item">' +
@@ -1212,7 +1283,7 @@
     var files = (fileList && fileList.length) ? fileList : [];
     function finish() {
       if (typeof logActivity === 'function') {
-        logActivity({ actionType: 'create', targetType: 'notice', targetId: item.id, targetName: item.title, description: '??? ???' });
+        logActivity({ actionType: 'create', targetType: 'notice', targetId: item.id, targetName: item.title, description: '공지 등록' });
       }
       renderAnnouncementsPage();
       renderDashboardAnnouncementBanner();
@@ -1274,7 +1345,7 @@
   function getAnnouncementBadgesHtml(a) {
     var parts = [];
     if (isAnnouncementWithin3Days(a.createdAt)) parts.push('<span class="announcement-badge new">NEW</span>');
-    if (a.important) parts.push('<span class="announcement-badge important">??</span>');
+    if (a.important) parts.push('<span class="announcement-badge important">중요</span>');
     return parts.join('');
   }
 
@@ -1308,7 +1379,7 @@
       console.error('Supabase announcements delete exception:', e);
     }
     if (typeof logActivity === 'function') {
-      logActivity({ actionType: 'delete', targetType: 'notice', targetId: id, targetName: title || '(??? ????)', description: '??? ????' });
+      logActivity({ actionType: 'delete', targetType: 'notice', targetId: id, targetName: title || '(제목 없음)', description: '공지 삭제' });
     }
     renderAnnouncementsPage();
     renderDashboardAnnouncementBanner();
@@ -1360,10 +1431,10 @@
       el.innerHTML = '';
       return;
     }
-    el.innerHTML = '<p class="notice-file-list-label">????????:</p>' + selectedNoticeFiles.map(function (f, i) {
+    el.innerHTML = '<p class="notice-file-list-label">선택된 파일:</p>' + selectedNoticeFiles.map(function (f, i) {
       return '<div class="notice-file-item">' +
         '<span class="notice-file-name">' + escapeHtml(f.name) + '</span> ' +
-        '<button type="button" class="notice-file-remove" data-index="' + i + '" aria-label="????">&times;</button>' +
+        '<button type="button" class="notice-file-remove" data-index="' + i + '" aria-label="삭제">&times;</button>' +
         '</div>';
     }).join('');
     el.querySelectorAll('.notice-file-remove').forEach(function (btn) {
@@ -1454,8 +1525,9 @@
     var listEl = document.getElementById('noticeDetailFileList');
     if (!section || !listEl) return;
     section.classList.remove('hidden');
+    section.style.cssText = 'background:#232323!important;border:1px solid #343434!important;border-radius:14px!important;padding:18px!important;box-sizing:border-box!important;margin-bottom:1.25rem!important;';
     if (!files || files.length === 0) {
-      listEl.innerHTML = '<p class="notice-file-empty">?????? ???</p>';
+      listEl.innerHTML = '<p class="notice-file-empty">첨부 파일 없음</p>';
       return;
     }
     var ext = function (name) {
@@ -1463,16 +1535,24 @@
     };
     listEl.innerHTML = files.map(function (f) {
       var name = escapeHtml(f.file_name || '');
-      var canPreview = ['pdf', 'jpg', 'jpeg', 'png'].indexOf(ext(f.file_name)) !== -1;
+      var fileExt = ext(f.file_name);
+      var isImage = ['jpg', 'jpeg', 'png'].indexOf(fileExt) !== -1;
+      var canPreview = ['pdf', 'jpg', 'jpeg', 'png'].indexOf(fileExt) !== -1;
       var previewBtn = canPreview
-        ? '<button type="button" class="notice-file-preview btn-pill">??</button>'
+        ? '<button type="button" class="notice-file-preview btn-pill">미리보기</button>'
+        : '';
+      var imgPreview = isImage
+        ? '<div class="notice-file-img-wrap"><img src="' + escapeHtml(f.file_url || '') + '" alt="' + name + '" class="notice-file-img-thumb" loading="lazy"></div>'
         : '';
       return '<div class="notice-file-item">' +
+        '<div class="notice-file-item-header">' +
         '<span class="notice-file-name">' + name + '</span>' +
         '<div class="notice-file-actions">' +
         previewBtn +
-        '<a href="' + escapeHtml(f.file_url || '') + '" target="_blank" rel="noopener" download="' + escapeHtml(f.file_name || '') + '" class="notice-file-download btn-pill">?????</a>' +
-        '</div></div>';
+        '<a href="' + escapeHtml(f.file_url || '') + '" target="_blank" rel="noopener" download="' + escapeHtml(f.file_name || '') + '" class="notice-file-download btn-pill">다운로드</a>' +
+        '</div></div>' +
+        imgPreview +
+        '</div>';
     }).join('');
     listEl.querySelectorAll('.notice-file-preview').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1507,6 +1587,33 @@
       };
     }).catch(function (err) {
       console.error('contract_files upload failed', err);
+      return null;
+    });
+  }
+
+  function uploadContractExtraFile(contractId, file) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !contractId || !file) return Promise.resolve(null);
+    var year = new Date().getFullYear();
+    var safeName = sanitizeNoticeFileName(file.name || 'extra');
+    var bucket = 'contract_files';
+    var path = 'contracts/' + year + '/' + contractId + '/extras/' + Date.now() + '_' + safeName;
+    return supabase.storage.from(bucket).upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: true
+    }).then(function (res) {
+      if (res && res.error) {
+        console.error('contract_files extra upload error', res.error);
+        return null;
+      }
+      var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      return {
+        url: publicUrl,
+        path: path,
+        name: file.name || safeName
+      };
+    }).catch(function (err) {
+      console.error('contract_files extra upload failed', err);
       return null;
     });
   }
@@ -1567,7 +1674,7 @@
     console.log('render comments count', comments && comments.length);
     if (!listEl) return;
     if (!comments || comments.length === 0) {
-      listEl.innerHTML = '<div class="notice-empty-comments">?????????????????.</div>';
+      listEl.innerHTML = '<div class="notice-empty-comments">댓글이 없습니다. 첫 댓글을 남겨보세요.</div>';
       if (countEl) countEl.textContent = '0';
       console.log('rendered html (empty)', listEl.innerHTML);
       return;
@@ -1599,7 +1706,7 @@
               '</div>' +
             '</div>' +
             (canDelete
-              ? '<button type="button" class="notice-comment-delete" data-comment-id="' + c.id + '">????</button>'
+              ? '<button type="button" class="notice-comment-delete" data-comment-id="' + c.id + '">삭제</button>'
               : '') +
           '</div>' +
           '<div class="notice-comment-body">' + safeContent + '</div>' +
@@ -1669,7 +1776,7 @@
   /** ???? ???? (notice_comments) */
   function deleteNoticeComment(commentId) {
     if (!commentId) return;
-    if (!window.confirm('?????????????????????')) return;
+    if (!window.confirm('이 댓글을 삭제하시겠습니까?')) return;
     var supabase = typeof window !== 'undefined' && window.seumSupabase;
     if (!supabase) return;
     console.log('[notice_comments] deleteNoticeComment id =', commentId);
@@ -1794,7 +1901,7 @@
     if (monthContracts.length === 0) return [];
     var byPerson = {};
     monthContracts.forEach(function (c) {
-      var name = c.salesPerson || '????;
+      var name = c.salesPerson || '-';
       if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
       byPerson[name].count += 1;
       byPerson[name].amount += Number(c.totalAmount) || 0;
@@ -1834,7 +1941,7 @@
     if (monthContracts.length === 0) return [];
     var byPerson = {};
     monthContracts.forEach(function (c) {
-      var name = c.salesPerson || '????;
+      var name = c.salesPerson || '-';
       if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
       byPerson[name].count += 1;
       byPerson[name].amount += Number(c.totalAmount) || 0;
@@ -1883,23 +1990,23 @@
 
     var top3 = getOverallTop3();
     if (top3.length === 0) {
-      overallEl.innerHTML = '<p class="sales-performance-empty">??? ???? ???????????.</p>';
+      overallEl.innerHTML = '<p class="sales-performance-empty">이번 달 계약 데이터가 없습니다.</p>';
     } else {
       var first = top3[0];
       var firstHtml = '<div class="sales-performance-first">' +
-        '<span class="sales-performance-medal" aria-hidden="true">???</span>' +
+        '<span class="sales-performance-medal" aria-hidden="true">🥇</span>' +
         '<div class="sales-performance-first-body">' +
           '<span class="sales-performance-name">' + escapeHtml(first.name || '-') + '</span>' +
-          '<span class="sales-performance-count">' + first.count + '??/span>' +
-          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '??</span>' +
+          '<span class="sales-performance-count">' + first.count + '건</span>' +
+          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '원</span>' +
           '<span class="sales-performance-showroom">' + escapeHtml(first.showroomName || '-') + '</span>' +
         '</div></div>';
       var subList = top3.slice(1).map(function (row) {
-        var icon = row.rank === 2 ? '???' : '???';
+        var icon = row.rank === 2 ? '🥈' : '🥉';
         return '<li class="sales-performance-sub-item">' +
           '<span class="sales-performance-sub-medal" aria-hidden="true">' + icon + '</span>' +
           '<span class="sales-performance-sub-name">' + escapeHtml(row.name || '-') + '</span>' +
-          '<span class="sales-performance-sub-stats">' + row.count + '??? ' + formatMoney(row.amount) + '??</span>' +
+          '<span class="sales-performance-sub-stats">' + row.count + '건 | ' + formatMoney(row.amount) + '원</span>' +
           '</li>';
       }).join('');
       overallEl.innerHTML = firstHtml + '<ul class="sales-performance-sub-list">' + subList + '</ul>';
@@ -1910,14 +2017,14 @@
       if (!item.top) {
         return '<div class="card sales-performance-showroom-card">' +
           '<span class="sales-performance-showroom-label">' + escapeHtml(item.showroomName) + '</span>' +
-          '<p class="sales-performance-empty-inline">??? ???</p></div>';
+          '<p class="sales-performance-empty-inline">데이터 없음</p></div>';
       }
       var t = item.top;
       return '<div class="card sales-performance-showroom-card">' +
         '<span class="sales-performance-showroom-label">' + escapeHtml(item.showroomName) + '</span>' +
         '<span class="sales-performance-showroom-name">' + escapeHtml(t.name) + '</span>' +
-        '<span class="sales-performance-showroom-count">' + t.count + '??/span>' +
-        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '??</span>' +
+        '<span class="sales-performance-showroom-count">' + t.count + '건</span>' +
+        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '원</span>' +
         '</div>';
     }).join('');
   }
@@ -1936,13 +2043,13 @@
     wrap.classList.remove('hidden');
     var badges = getAnnouncementBadgesHtml(a);
     var preview = (a.content || '').slice(0, 120);
-    if ((a.content || '').length > 120) preview += '??;
+    if ((a.content || '').length > 120) preview += '…';
     wrap.innerHTML = '<button type="button" class="dashboard-announcement-banner" data-announcement-id="' + (a.id || '') + '">' +
       '<div class="dashboard-announcement-banner-badges">' + badges + '</div>' +
       '<h4 class="dashboard-announcement-banner-title">' + escapeHtml(a.title || '') + '</h4>' +
       '<p class="dashboard-announcement-banner-meta">' + (a.createdAt || '') + '</p>' +
       '<p class="dashboard-announcement-banner-preview">' + escapeHtml(preview) + '</p>' +
-      '<span class="dashboard-announcement-banner-cta">???????</span>' +
+      '<span class="dashboard-announcement-banner-cta">자세히 보기</span>' +
       '</button>';
   }
 
@@ -1952,13 +2059,13 @@
     if (!listEl) return;
     var items = getRecentAnnouncements();
     listEl.innerHTML = items.length === 0
-      ? '<li class="announcement-item"><span class="announcement-item-preview">????????? ??????.</span></li>'
+      ? '<li class="announcement-item"><span class="announcement-item-preview">공지사항이 없습니다.</span></li>'
       : items.map(function (a) {
           var preview = (a.content || '').slice(0, 80);
-          if ((a.content || '').length > 80) preview += '??;
+          if ((a.content || '').length > 80) preview += '…';
           var badges = getAnnouncementBadgesHtml(a);
           var attach = a.fileCount && a.fileCount > 0
-            ? '<span class="announcement-attach-badge">??? ' + a.fileCount + '??/span>'
+            ? '<span class="announcement-attach-badge">첨부 ' + a.fileCount + '</span>'
             : '';
           return '<li class="announcement-item">' +
             '<div class="announcement-item-title">' + badges + escapeHtml(a.title || '') + (attach ? ' ' + attach : '') + '</div>' +
@@ -1982,7 +2089,7 @@
       return;
     }
     badgeEl.textContent = count;
-    badgeEl.setAttribute('aria-label', '????? ' + count + '??);
+    badgeEl.setAttribute('aria-label', '안 읽은 공지 ' + count + '건');
     if (importantUnread) badgeEl.classList.add('nav-item-badge-important');
   }
 
@@ -1992,11 +2099,11 @@
     if (!listEl) return;
     var items = getAnnouncementsSorted();
     listEl.innerHTML = items.length === 0
-      ? '<p class="announcements-page-empty">????????? ??????.</p>'
+      ? '<p class="announcements-page-empty">공지사항이 없습니다.</p>'
       : items.map(function (a) {
           var badges = getAnnouncementBadgesHtml(a);
           var attach = a.fileCount && a.fileCount > 0
-            ? '<span class="announcement-attach-badge">??? ' + a.fileCount + '??/span>'
+            ? '<span class="announcement-attach-badge">첨부 ' + a.fileCount + '</span>'
             : '';
           return '<article class="announcement-page-card" role="button" tabindex="0" data-announcement-id="' + (a.id || '') + '">' +
             '<div class="announcement-page-card-head">' +
@@ -2004,14 +2111,14 @@
               '<div class="announcement-page-card-meta-line">' +
                 '<time class="announcement-page-card-date">' + (a.createdAt || '') + '</time>' +
                 (a.authorName || a.authorDepartment || a.showroom
-                  ? '<span class="announcement-page-card-author"> ? ????? ' + escapeHtml(a.authorName || '-') +
-                    ' | ???: ' + escapeHtml(a.authorDepartment || '-') +
-                    ' | ????? ' + escapeHtml(a.showroom || '-') +
+                  ? '<span class="announcement-page-card-author"> · 작성자: ' + escapeHtml(a.authorName || '-') +
+                    ' | 부서: ' + escapeHtml(a.authorDepartment || '-') +
+                    ' | 전시장: ' + escapeHtml(a.showroom || '-') +
                     '</span>'
                   : '') +
               '</div>' +
             '</div>' +
-            '<p class="announcement-page-card-preview">' + escapeHtml((a.content || '').slice(0, 100)) + ((a.content || '').length > 100 ? '?? : '') + '</p>' +
+            '<p class="announcement-page-card-preview">' + escapeHtml((a.content || '').slice(0, 100)) + ((a.content || '').length > 100 ? '…' : '') + '</p>' +
             '</article>';
         }).join('');
   }
@@ -2025,13 +2132,13 @@
     var modal = document.getElementById('modal-announcement-detail');
     if (!modal) return;
     setEl('modal-announcement-title', a.title || '');
-    var meta = '????? ' + (a.createdAt || '');
+    var meta = '등록일: ' + (a.createdAt || '');
     if (a.authorName || a.authorDepartment || a.showroom) {
       var parts = [];
-      if (a.authorName) parts.push('????? ' + a.authorName);
-      if (a.authorDepartment) parts.push('???: ' + a.authorDepartment);
-      if (a.showroom) parts.push('????? ' + a.showroom);
-      meta += ' ? ' + parts.join(' | ');
+      if (a.authorName) parts.push('작성자: ' + a.authorName);
+      if (a.authorDepartment) parts.push('부서: ' + a.authorDepartment);
+      if (a.showroom) parts.push('전시장: ' + a.showroom);
+      meta += ' · ' + parts.join(' | ');
     }
     setEl('modal-announcement-meta', meta);
     var bodyEl = document.getElementById('modal-announcement-body');
@@ -2090,7 +2197,7 @@
     if (btnDelete) {
       btnDelete.addEventListener('click', function () {
         if (!currentAnnouncementId) return;
-        if (!window.confirm('????????????????????')) return;
+        if (!window.confirm('이 공지사항을 삭제하시겠습니까?')) return;
         deleteAnnouncement(currentAnnouncementId);
         modal.classList.add('hidden');
       });
@@ -2135,10 +2242,10 @@
       var showroomId = cur && cur.showroom ? String(cur.showroom).trim() : '';
       var showroomName = showroomId ? getShowroomName(showroomId) : '';
       var parts = [];
-      if (name) parts.push('????? ' + name);
-      if (team) parts.push('???: ' + team);
-      if (showroomName) parts.push('????? ' + showroomName);
-      authorEl.textContent = parts.length ? parts.join(' | ') : '??????????????????????.';
+      if (name) parts.push('작성자: ' + name);
+      if (team) parts.push('부서: ' + team);
+      if (showroomName) parts.push('전시장: ' + showroomName);
+      authorEl.textContent = parts.length ? parts.join(' | ') : '작성자 정보를 불러올 수 없습니다.';
     }
     selectedNoticeFiles.length = 0;
     if (typeof renderSelectedNoticeFiles === 'function') renderSelectedNoticeFiles();
@@ -2176,7 +2283,7 @@
         var content = (document.getElementById('announcement-form-content') || {}).value || '';
         var important = (document.getElementById('announcement-form-important') || {}).checked || false;
         if (!title.trim()) {
-          alert('??????????????');
+          alert('제목을 입력해주세요.');
           return;
         }
         var fileList = selectedNoticeFiles.slice();
@@ -2215,15 +2322,15 @@
     if (!wrap) return;
     var king = getSalesKingOfMonth();
     if (!king) {
-      wrap.innerHTML = '<p class="sales-king-empty">??? ???? ???????????.</p>';
+      wrap.innerHTML = '<p class="sales-king-empty">이달 계약 데이터가 없습니다.</p>';
       return;
     }
     wrap.innerHTML =
       '<div class="sales-king-name">' + escapeHtml(king.name) + '</div>' +
       '<div class="sales-king-team">' + escapeHtml(king.team || '') + '</div>' +
       '<div class="sales-king-stats">' +
-      '<div class="sales-king-stat"><span class="sales-king-stat-label">?? ??</span><span class="sales-king-stat-value">' + king.contractCount + '??/span></div>' +
-      '<div class="sales-king-stat"><span class="sales-king-stat-label">??????</span><span class="sales-king-stat-value">' + formatMoney(king.totalAmount) + '??</span></div>' +
+      '<div class="sales-king-stat"><span class="sales-king-stat-label">계약 건수</span><span class="sales-king-stat-value">' + king.contractCount + '건</span></div>' +
+      '<div class="sales-king-stat"><span class="sales-king-stat-label">계약금액</span><span class="sales-king-stat-value">' + formatMoney(king.totalAmount) + '원</span></div>' +
       '</div>';
   }
 
@@ -2235,24 +2342,24 @@
   }
 
   var TEAM_LABELS = {
-    sales: '?????',
-    design: '?????',
-    construction: '?????',
-    marketing: '???????',
-    settlement: '?????',
-    management: '????'
+    sales: '영업팀',
+    design: '설계팀',
+    construction: '시공팀',
+    marketing: '마케팅팀',
+    settlement: '정산팀',
+    management: '경영팀'
   };
 
   function getCurrentTeamCode() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur || !cur.team) return null;
     var t = String(cur.team).trim();
-    if (t === '???') return 'sales';
-    if (t === '???') return 'design';
-    if (t === '???') return 'construction';
-    if (t === '?????) return 'marketing';
-    if (t === '???') return 'settlement';
-     if (t === '??') return 'management';
+    if (t === '영업') return 'sales';
+    if (t === '설계') return 'design';
+    if (t === '시공') return 'construction';
+    if (t === '마케팅') return 'marketing';
+    if (t === '정산') return 'settlement';
+    if (t === '경영') return 'management';
     return null;
   }
 
@@ -2275,7 +2382,7 @@
 
   function getTeamCalendarMonthLabel() {
     ensureTeamCalendarMonth();
-    return teamCalendarYear + '??' + String(teamCalendarMonth + 1) + '??;
+    return teamCalendarYear + '년 ' + String(teamCalendarMonth + 1) + '월';
   }
 
   function getTeamCalendarMonthPrefix() {
@@ -2367,7 +2474,7 @@
     var first = new Date(year, month, 1);
     var startDay = first.getDay();
     var daysInMonth = new Date(year, month + 1, 0).getDate();
-    var weekdayNames = ['??, '??, '??, '??, '??, '??, '??];
+    var weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
     var events = filterTeamEvents(getTeamEvents());
     var monthPrefix = getTeamCalendarMonthPrefix();
     var byDate = groupEventsByDate(events, monthPrefix);
@@ -2390,7 +2497,7 @@
         if (ev.team && TEAM_LABELS[ev.team]) {
           cls += ' team-calendar-event-' + ev.team;
         }
-        var title = ev.title || '(??? ???)';
+        var title = ev.title || '(제목 없음)';
         var timeText = ev.startTime || ev.time || '';
         var timePrefix = timeText ? timeText + ' ' : '';
         var creator = ev.createdByName || ev.createdBy || '';
@@ -2416,7 +2523,7 @@
     ensureTeamCalendarMonth();
     var year = teamCalendarYear;
     var month = teamCalendarMonth;
-    var weekdayNames = ['??, '??, '??, '??, '??, '??, '??];
+    var weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
     var today = new Date();
     var base = new Date(year, month, today.getDate());
     if (base.getMonth() !== month) base = new Date(year, month, 1);
@@ -2427,7 +2534,7 @@
     var monthPrefix = getTeamCalendarMonthPrefix();
     var byDate = groupEventsByDate(events, monthPrefix);
     var todayStr = today.toISOString().slice(0, 10);
-    label.textContent = getTeamCalendarMonthLabel() + ' ? ??';
+    label.textContent = getTeamCalendarMonthLabel() + ' 이번 주';
     var html = [];
     for (var i = 0; i < 7; i++) {
       var d = new Date(start);
@@ -2449,13 +2556,13 @@
         if (ev.team && TEAM_LABELS[ev.team]) clsEv += ' team-calendar-event-' + ev.team;
         var timeText = ev.startTime || ev.time || '';
         var timePrefix = timeText ? timeText + ' ' : '';
-        var title = ev.title || '(??? ???)';
+        var title = ev.title || '(제목 없음)';
         return '<button type="button" class="' + clsEv + '" data-team-event-id="' + ev.id + '">' +
           '<span class="team-calendar-event-title">' + escapeHtml(timePrefix + title) + '</span>' +
           '</button>';
       }).join('');
       if (!eventsHtml) {
-        eventsHtml = '<div class="team-calendar-week-empty">??? ???</div>';
+        eventsHtml = '<div class="team-calendar-week-empty">일정 없음</div>';
       }
       html.push(
         '<div class="' + cls + '" data-calendar-date="' + dateStr + '">' +
@@ -2475,7 +2582,7 @@
     var label = document.getElementById('team-calendar-current-label');
     if (!tbody || !label) return;
     ensureTeamCalendarMonth();
-    label.textContent = getTeamCalendarMonthLabel() + ' ? ????;
+    label.textContent = getTeamCalendarMonthLabel() + ' ? ???';
     // ???????????????? ?? ??????????????????? ?????
     var events = getTeamEvents().slice();
     if (events.length > 0 && console && console.log) {
@@ -2493,7 +2600,7 @@
       return ad.localeCompare(bd);
     });
     if (events.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10">??? ???????????????.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10">일정 데이터가 없습니다.</td></tr>';
       return;
     }
     tbody.innerHTML = events.map(function (ev) {
@@ -2503,7 +2610,7 @@
       var isAllDay = !!(ev.is_all_day || ev.allDay);
       var teamCode = ev.team || ev.team_name || '';
       var teamLabel = TEAM_LABELS[teamCode] || (teamCode || '');
-      var assignee = ev.assignee_name || ev.assignee || ev.manager || '?????;
+      var assignee = ev.assignee_name || ev.assignee || ev.manager || '-';
       var showroomId = ev.showroom || ev.showroom_name || ev.showroomId || '';
       var showroomName = showroomId ? getShowroomName(showroomId) : '-';
       var statusLabel = getTeamEventStatusLabel(ev.status) || '-';
@@ -2513,10 +2620,10 @@
       var startDisplay = '';
       var endDisplay = '';
       if (isAllDay) {
-        startDisplay = '??';
+        startDisplay = '종일';
         endDisplay = '-';
       } else {
-        startDisplay = startTime || '??? ?????;
+        startDisplay = startTime || '시작 시간 없음';
         endDisplay = endTime || '-';
       }
       return '<tr data-team-event-id="' + ev.id + '">' +
@@ -2548,11 +2655,11 @@
     var done = events.filter(function (ev) { return ev.status === 'done'; }).length;
     var consulting = events.filter(function (ev) { return ev.eventType === 'consulting'; }).length;
     wrap.innerHTML =
-      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">??? ???</div><div class="team-calendar-stat-value">' + total + '</div></div>' +
-      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">??? ???</div><div class="team-calendar-stat-value">' + todayCount + '</div></div>' +
-      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">???</div><div class="team-calendar-stat-value">' + planned + '</div></div>' +
-      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">???</div><div class="team-calendar-stat-value">' + done + '</div></div>' +
-      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">??? ???</div><div class="team-calendar-stat-value">' + consulting + '</div></div>';
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">이번 달 일정</div><div class="team-calendar-stat-value">' + total + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">오늘 일정</div><div class="team-calendar-stat-value">' + todayCount + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">예정</div><div class="team-calendar-stat-value">' + planned + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">완료</div><div class="team-calendar-stat-value">' + done + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">상담 일정</div><div class="team-calendar-stat-value">' + consulting + '</div></div>';
   }
 
   function renderTeamCalendar() {
@@ -2656,7 +2763,7 @@
     modal.classList.remove('hidden');
   }
 
-  var SOURCE_LABELS = { youtube: '?????, instagram: '?????', naver: '?????, referral: '??????, etc: '???' };
+  var SOURCE_LABELS = { youtube: '유튜브', instagram: '인스타그램', naver: '네이버', referral: '지인소개', etc: '기타' };
 
   function getAssignShowroomSelect(visitId, currentShowroomId) {
     var opts = SHOWROOMS.map(function (s) {
@@ -2677,16 +2784,16 @@
     var tbody = document.getElementById('tbody-visits');
     if (!tbody) return;
     tbody.innerHTML = visits.map(function (v) {
-      var statusClass = v.status === '?????????' ? 'badge-done' : 'badge-new';
-      var statusText = v.status || '???';
+      var statusClass = v.status === '영업배정' ? 'badge-done' : 'badge-new';
+      var statusText = v.status || '신규';
       var dateTime = formatDate(v.visitDate) + (v.visitTime ? ' ' + v.visitTime : '');
-      var canAssign = v.status !== '?????????';
+      var canAssign = v.status !== '영업배정';
       var checkCell = canAssign ? '<td class="col-check"><input type="checkbox" class="visit-row-check" value="' + v.id + '"></td>' : '<td class="col-check"></td>';
       var assignShowroomCell = canAssign ? '<td class="col-assign-showroom">' + getAssignShowroomSelect(v.id, v.showroomId) + '</td>' : '<td class="col-assign-showroom">' + getShowroomName(v.showroomId) + '</td>';
-      var assignBtn = canAssign ? '<button type="button" class="btn btn-sm btn-primary" data-assign-visit="' + v.id + '">????? ???</button>' : '';
-      var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-visit-detail="' + v.id + '">???</button>';
-      return '<tr>' + checkCell + '<td>' + getShowroomName(v.showroomId) + '</td>' + assignShowroomCell + '<td>' + formatDate(v.createdAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + dateTime + '</td><td>' + (v.interestType || '-') + '</td><td>' + (v.desiredPyeong ? v.desiredPyeong + '?? : '-') + '</td><td>' + (v.budgetRange || '-') + '</td><td>' + (v.hasLand === 'Y' ? 'O' : v.hasLand === 'N' ? 'X' : '-') + '</td><td><span class="badge ' + statusClass + '">' + statusText + '</span></td><td>' + detailBtn + ' ' + assignBtn + '</td></tr>';
-    }).join('') || '<tr><td colspan="13">?????????????.</td></tr>';
+      var assignBtn = canAssign ? '<button type="button" class="btn btn-sm btn-primary" data-assign-visit="' + v.id + '">영업팀 전달</button>' : '';
+      var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-visit-detail="' + v.id + '">상세</button>';
+      return '<tr>' + checkCell + '<td>' + getShowroomName(v.showroomId) + '</td>' + assignShowroomCell + '<td>' + formatDate(v.createdAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + dateTime + '</td><td>' + (v.interestType || '-') + '</td><td>' + (v.desiredPyeong ? v.desiredPyeong + '평' : '-') + '</td><td>' + (v.budgetRange || '-') + '</td><td>' + (v.hasLand === 'Y' ? 'O' : v.hasLand === 'N' ? 'X' : '-') + '</td><td><span class="badge ' + statusClass + '">' + statusText + '</span></td><td>' + detailBtn + ' ' + assignBtn + '</td></tr>';
+    }).join('') || '<tr><td colspan="13">방문 데이터가 없습니다.</td></tr>';
   }
 
   function openVisitDetail(visitId) {
@@ -2694,22 +2801,22 @@
     var v = visits.find(function (x) { return x.id === visitId; });
     if (!v) return;
     var html = '<table class="detail-table"><tbody>' +
-      '<tr><th>?????/th><td>' + getShowroomName(v.showroomId) + '</td></tr>' +
-      '<tr><th>???</th><td>' + (v.name || '-') + '</td></tr>' +
-      '<tr><th>?????/th><td>' + (v.phone || '-') + '</td></tr>' +
-      '<tr><th>????/th><td>' + formatDate(v.visitDate) + '</td></tr>' +
-      '<tr><th>?????</th><td>' + (v.visitTime || '-') + '</td></tr>' +
-      '<tr><th>?????</th><td>' + (v.visitCount ? v.visitCount + '?? : '-') + '</td></tr>' +
-      '<tr><th>?????</th><td>' + (SOURCE_LABELS[v.source] || v.source || '-') + '</td></tr>' +
-      '<tr><th>????????????</th><td>' + (v.interestType || '-') + '</td></tr>' +
-      '<tr><th>??????</th><td>' + (v.desiredPyeong ? v.desiredPyeong + '?? : '-') + '</td></tr>' +
-      '<tr><th>??? ??</th><td>' + (v.budgetRange || '-') + '</td></tr>' +
-      '<tr><th>???? ?? ????</th><td>' + (v.hasLand === 'Y' ? '??' : v.hasLand === 'N' ? '???? : '-') + '</td></tr>' +
-      '<tr><th>????(???</th><td>' + (v.landAddress || '-') + '</td></tr>' +
-      '<tr><th>LG????????/th><td>' + (v.lgEvent ? 'Y' : '-') + '</td></tr>' +
-      '<tr><th>3D???</th><td>' + (v.need3d ? 'Y' : '-') + '</td></tr>' +
-      '<tr><th>??</th><td>' + (v.memo || '-') + '</td></tr>' +
-      '<tr><th>???</th><td>' + (v.status || '-') + '</td></tr>' +
+      '<tr><th>전시장</th><td>' + getShowroomName(v.showroomId) + '</td></tr>' +
+      '<tr><th>이름</th><td>' + (v.name || '-') + '</td></tr>' +
+      '<tr><th>연락처</th><td>' + (v.phone || '-') + '</td></tr>' +
+      '<tr><th>방문일</th><td>' + formatDate(v.visitDate) + '</td></tr>' +
+      '<tr><th>방문 시간</th><td>' + (v.visitTime || '-') + '</td></tr>' +
+      '<tr><th>방문 횟수</th><td>' + (v.visitCount ? v.visitCount + '회' : '-') + '</td></tr>' +
+      '<tr><th>유입 경로</th><td>' + (SOURCE_LABELS[v.source] || v.source || '-') + '</td></tr>' +
+      '<tr><th>관심 주택/시공 유형</th><td>' + (v.interestType || '-') + '</td></tr>' +
+      '<tr><th>희망 평수</th><td>' + (v.desiredPyeong ? v.desiredPyeong + '평' : '-') + '</td></tr>' +
+      '<tr><th>예산 범위</th><td>' + (v.budgetRange || '-') + '</td></tr>' +
+      '<tr><th>토지 보유 여부</th><td>' + (v.hasLand === 'Y' ? '있음' : v.hasLand === 'N' ? '없음' : '-') + '</td></tr>' +
+      '<tr><th>토지 주소</th><td>' + (v.landAddress || '-') + '</td></tr>' +
+      '<tr><th>LG 행사 참여</th><td>' + (v.lgEvent ? 'Y' : '-') + '</td></tr>' +
+      '<tr><th>3D 상담</th><td>' + (v.need3d ? 'Y' : '-') + '</td></tr>' +
+      '<tr><th>메모</th><td>' + (v.memo || '-') + '</td></tr>' +
+      '<tr><th>상태</th><td>' + (v.status || '-') + '</td></tr>' +
       '</tbody></table>';
     var el = document.getElementById('visit-detail-body');
     if (el) el.innerHTML = html;
@@ -2717,14 +2824,14 @@
   }
 
   function renderSales() {
-    var visitsAll = getVisits().filter(function (v) { return v.status === '?????????'; });
+    var visitsAll = getVisits().filter(function (v) { return v.status === '영업배정'; });
     var contractsAll = getContracts();
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroomId = resolveShowroomId(cur);
       // ????? ?????? ??? ?????????? ??????????? ???????
-      if (team === '???' && myShowroomId) {
+      if (team === '영업' && myShowroomId) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
         contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
       }
@@ -2733,6 +2840,7 @@
     visits = filterByYearMonth(visits, 'visitDate');
     var contracts = filterByShowroom(contractsAll, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    contracts = getFilteredContracts(contracts);
     var tbodyLeads = document.getElementById('tbody-leads');
     var tbodyContracts = document.getElementById('tbody-contracts');
     if (tbodyLeads) {
@@ -2741,8 +2849,8 @@
       allContracts.forEach(function (c) { if (c.visitId) alreadyContract[c.visitId] = true; });
       var leads = visits.filter(function (v) { return !alreadyContract[v.id]; });
       tbodyLeads.innerHTML = leads.map(function (v) {
-        return '<tr><td>' + getShowroomName(v.showroomId) + '</td><td>' + formatDate(v.assignedToSalesAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + formatDate(v.visitDate) + '</td><td><button type="button" class="btn btn-sm btn-primary" data-create-contract="' + v.id + '">?? ???</button></td></tr>';
-      }).join('') || '<tr><td colspan="6">?????? ??? ??????.</td></tr>';
+        return '<tr><td>' + getShowroomName(v.showroomId) + '</td><td>' + formatDate(v.assignedToSalesAt) + '</td><td>' + (v.name || '-') + '</td><td>' + (v.phone || '-') + '</td><td>' + formatDate(v.visitDate) + '</td><td><button type="button" class="btn btn-sm btn-primary" data-create-contract="' + v.id + '">계약 작성</button></td></tr>';
+      }).join('') || '<tr><td colspan="6">리드 데이터가 없습니다.</td></tr>';
     }
     if (tbodyContracts) {
       var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
@@ -2750,20 +2858,29 @@
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
       var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
       // ????? ?????? "?? ????? ???????????
-      if (userTeam === '???' && curUser) {
+      if (userTeam === '영업' && curUser) {
         var myShowroomId = resolveShowroomId(curUser);
         if (myShowroomId) {
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
         }
       }
+      // contract-detail-panel이 tbody 안으로 이동된 경우, innerHTML 초기화로 소멸되는 것을 방지
+      (function () {
+        var _p = document.getElementById('contract-detail-panel');
+        if (_p && tbodyContracts.contains(_p)) {
+          var _tbl = tbodyContracts.closest('table');
+          var _safe = _tbl && _tbl.closest('.table-wrap') && _tbl.closest('.table-wrap').parentNode;
+          if (_safe) _safe.appendChild(_p);
+        }
+      })();
       tbodyContracts.innerHTML = contracts.map(function (c) {
         function amountCell(amount, date, type) {
           if (amount != null && String(amount).trim() !== '') {
-            var label = formatMoney(amount) + '??;
+            var label = formatMoney(amount) + '원';
             if (date) label += ' (' + formatDate(date) + ')';
-            return '<span class="payment-label">' + label + '</span> <button type="button" class="btn btn-xs btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">???</button>';
+            return '<span class="payment-label">' + label + '</span> <button type="button" class="btn btn-xs btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">수정</button>';
           }
-          return '<button type="button" class="btn btn-sm btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">???</button>';
+          return '<button type="button" class="btn btn-sm btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">입금</button>';
         }
         var deposit = amountCell(c.depositAmount, c.depositReceivedAt, 'deposit');
         var p1 = amountCell(c.progress1Amount, c.progress1ReceivedAt, 'progress1');
@@ -2773,10 +2890,20 @@
         var salesPerson = (c.salesPerson || '-');
         var houseType = (c.contractModel || '-');
         var modelName = (c.contractModelName || '-');
-        var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-contract-detail="' + c.id + '">???</button>';
-        var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + c.id + '">????</button>';
-        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + formatDate(c.contractDate) + '</td><td>' + (c.customerName || '-') + '</td><td>' + salesPerson + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
-      }).join('') || '<tr><td colspan="13">??????????.</td></tr>';
+        var editFieldBtn = function(field) { return ' <button type="button" class="btn btn-xs btn-secondary" data-contract-field="' + field + '" data-id="' + c.id + '">수정</button>'; };
+        var detailBtn = '<button type="button" class="btn btn-sm btn-secondary" data-contract-detail="' + c.id + '">상세</button>';
+        var deleteBtn = ' <button type="button" class="btn btn-sm btn-danger btn-contract-delete" data-contract-id="' + c.id + '">삭제</button>';
+        var shortAddr = (function() {
+          var addr = c.siteAddress || '';
+          if (!addr) return '-';
+          var parts = addr.trim().split(/\s+/);
+          return parts.slice(0, 2).join(' ');
+        })();
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+      }).join('') || (getContractSearchKeyword()
+        ? '<tr><td colspan="14" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+        : '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>');
+      updateContractFilterResult(contracts, contracts);
       if (expandedContractId) {
         var exists = contracts.some(function (c) { return c.id === expandedContractId; });
         if (exists) {
@@ -2796,7 +2923,7 @@
       var team = (cur.team || '').trim();
       var myShowroom = (cur.showroom || '').trim();
       // ????? ?????? ?? ?????? ?? ??????????? ???????
-      if (team === '???' && myShowroom) {
+      if (team === '영업' && myShowroom) {
         customers = customers.filter(function (o) { return (o.showroomId || '') === myShowroom; });
       }
     }
@@ -2805,8 +2932,8 @@
     var tbody = document.getElementById('tbody-customers');
     if (!tbody) return;
     tbody.innerHTML = customers.map(function (o) {
-      return '<tr><td>' + formatDate(o.createdAt) + '</td><td>' + (o.name || '-') + '</td><td>' + (o.phone || '-') + '</td><td>' + formatDate(o.visitDate) + '</td><td>' + (o.salesPerson || '-') + '</td><td>' + getShowroomName(o.showroomId) + '</td><td>' + (o.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-customer="' + o.id + '">???</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-customer="' + o.id + '">????</button></td></tr>';
-    }).join('') || '<tr><td colspan="8">???????????????. + ?? ?????????????</td></tr>';
+      return '<tr><td>' + formatDate(o.createdAt) + '</td><td>' + (o.name || '-') + '</td><td>' + (o.phone || '-') + '</td><td>' + formatDate(o.visitDate) + '</td><td>' + (o.salesPerson || '-') + '</td><td>' + getShowroomName(o.showroomId) + '</td><td>' + (o.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-customer="' + o.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-customer="' + o.id + '">삭제</button></td></tr>';
+    }).join('') || '<tr><td colspan="8">고객 데이터가 없습니다.</td></tr>';
   }
 
   function renderDesign() {
@@ -2816,7 +2943,7 @@
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroom = (cur.showroom || '').trim();
-      if (team === '???' && myShowroom) {
+      if (team === '영업' && myShowroom) {
         contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroom; });
       }
     }
@@ -2827,53 +2954,63 @@
     var salesReadonly = isSalesReadonly();
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     var userTeam = (cur && (cur.team || '').trim()) || '';
-    var designOnlyReview = (userTeam === '???');
-    var constructionOnlyReview = (userTeam === '???');
+    var myName = (cur && (cur.name || '').trim()) || '';
+    var designOnlyReview = (userTeam === '설계');
+    var constructionOnlyReview = (userTeam === '시공');
+    var salesOnlyReview = (userTeam === '영업' || userTeam === '영업팀');
     var salesCheckDisabled = designOnlyReview || constructionOnlyReview;
-    var designCheckDisabled = salesReadonly || constructionOnlyReview;
-    var constructionCheckDisabled = salesReadonly || designOnlyReview;
+    var designCheckDisabled = salesReadonly || constructionOnlyReview || salesOnlyReview;
+    var constructionCheckDisabled = salesReadonly || designOnlyReview || salesOnlyReview;
     var statusMap = {
-      none: '????,
-      in_progress: '??? ??',
-      negotiating: '??? ??,
-      negotiated: '??? ???',
-      done: '??? ???'
+      none: '미착수',
+      in_progress: '설계 중',
+      negotiating: '협의 중',
+      negotiated: '협의 완료',
+      done: '설계 완료'
     };
     tbody.innerHTML = contracts.map(function (c) {
       var status = c.designStatus || 'none';
-      var statusLabel = statusMap[status] || '????;
+      var statusLabel = statusMap[status] || '미착수';
       var select = '<select class="design-status-select design-progress-select" data-id="' + c.id + '"' + (salesReadonly ? ' disabled' : '') + '>' +
-        '<option value="none"' + (status === 'none' ? ' selected' : '') + '>????/option>' +
-        '<option value="in_progress"' + (status === 'in_progress' ? ' selected' : '') + '>??? ??</option>' +
-        '<option value="negotiating"' + (status === 'negotiating' ? ' selected' : '') + '>??? ??/option>' +
-        '<option value="negotiated"' + (status === 'negotiated' ? ' selected' : '') + '>??? ???</option>' +
-        '<option value="done"' + (status === 'done' ? ' selected' : '') + '>??? ???</option>' +
+        '<option value="none"' + (status === 'none' ? ' selected' : '') + '>미착수</option>' +
+        '<option value="in_progress"' + (status === 'in_progress' ? ' selected' : '') + '>설계 중</option>' +
+        '<option value="negotiating"' + (status === 'negotiating' ? ' selected' : '') + '>협의 중</option>' +
+        '<option value="negotiated"' + (status === 'negotiated' ? ' selected' : '') + '>협의 완료</option>' +
+        '<option value="done"' + (status === 'done' ? ' selected' : '') + '>설계 완료</option>' +
         '</select>';
-      var designProgressCell = '<div class="design-process-cell"><span class="design-process-label">?????</span>' + select + '</div>';
+      var designProgressCell = '<div class="design-process-cell"><span class="design-process-label">설계 진행</span>' + select + '</div>';
       var projectType = c.projectType || '-';
       var constructionOk = c.constructionStartOk ? 'Y' : '-';
       var salesC = !!c.salesConfirmed;
       var designC = !!c.designConfirmed;
       var constructionC = !!c.constructionConfirmed;
       var allConfirmed = salesC && designC && constructionC;
-      var reviewCell = '<div class="review-checklist"><span class="review-checklist-title">?????</span>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabled ? ' disabled' : '') + '><span>???????????</span><small class="review-desc review-help">???? ? ??? ? ?? ??????</small></label>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>???????????</span><small class="review-desc review-help">??? ? ?? ? ???? ???/small></label>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check construction-check" data-contract-id="' + escapeAttr(c.id) + '"' + (constructionC ? ' checked' : '') + (constructionCheckDisabled ? ' disabled' : '') + '><span>???????????</span><small class="review-desc review-help">??? ??????? ? ?? ?? ? ??? ??</small></label>' +
+      var salesCheckDisabledForRow = salesCheckDisabled || (salesOnlyReview && (c.salesPerson || '').trim() !== myName);
+      var reviewCell = '<div class="review-checklist"><span class="review-checklist-title">검토 확인</span>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabledForRow ? ' disabled' : '') + '><span>영업팀 확인</span><small class="review-desc review-help">계약 내용 및 고객 요구 사항 확인</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>설계팀 확인</span><small class="review-desc review-help">설계 가능 여부 및 특이사항 검토</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check construction-check" data-contract-id="' + escapeAttr(c.id) + '"' + (constructionC ? ' checked' : '') + (constructionCheckDisabled ? ' disabled' : '') + '><span>시공팀 확인</span><small class="review-desc review-help">현장 시공 가능 여부 및 일정 확인</small></label>' +
         '</div>';
       var reviewTdClass = 'review-check-cell' + (allConfirmed ? ' review-all-done' : '');
       var approved = !!c.finalApproved;
       var canApprove = allConfirmed && !salesReadonly;
       var approvalBtnDisabled = !canApprove;
-      var approvalBtnText = approved ? '??? ??' : '?? ???';
-      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '??? ???' : '????) + '</span><button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
+      var approvalBtnText = approved ? '승인 취소' : '최종 승인';
+      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '최종 승인됨' : '미승인') + '</span><button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
       var rowClass = 'design-row' + (allConfirmed ? ' review-complete' : '');
       var designerName = c.designPermitDesigner || c.designContactName || '-';
       var houseType = (c.contractModel || '-');
       var modelName = (c.contractModelName || '-');
       var contractDateStr = formatDate(c.contractDate) || '-';
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + designerName + '</td><td>' + (c.constructionManager || '-') + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
-    }).join('') || '<tr><td colspan="15">??????? ?? ??????.</td></tr>';
+      var shortAddr = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
+      var designerCell = designOnlyReview
+        ? '<input type="text" class="design-designer-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.designPermitDesigner || c.designContactName || '') + '" placeholder="설계담당">'
+        : designerName;
+      var constructionMgrCell = constructionOnlyReview
+        ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
+        : (c.constructionManager || '-');
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+    }).join('') || '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>';
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
       if (expandedDesignRow) {
@@ -2890,7 +3027,7 @@
   function formatOptionsSummary(options) {
     if (!options) return '';
     var parts = [];
-    var labels = { porch: '???', deck: '???', sunroom: '???', demolition: '??', repair: '????, interior: '?????' };
+    var labels = { porch: '포치', deck: '데크', sunroom: '썬룸', demolition: '철거', repair: '집수리', interior: '인테리어' };
     ['porch', 'deck', 'sunroom', 'demolition', 'repair', 'interior'].forEach(function (key) {
       var o = options[key] || {};
       if (o.enabled) {
@@ -2898,7 +3035,7 @@
         if (key === 'demolition' || key === 'repair' || key === 'interior') {
           parts.push(label);
         } else {
-          var p = (o.pyeong != null && o.pyeong !== '') ? String(o.pyeong) + '?? : '';
+          var p = (o.pyeong != null && o.pyeong !== '') ? String(o.pyeong) + '평' : '';
           parts.push(label + (p ? ' ' + p : ''));
         }
       }
@@ -2913,12 +3050,12 @@
     }
     var lines = [];
     var l;
-    l = line('???/??', c.memoBedroom); if (l) lines.push(l);
-    l = line('??', c.memoLiving); if (l) lines.push(l);
-    l = line('??', c.memoKitchen); if (l) lines.push(l);
-    l = line('?????, c.memoBath); if (l) lines.push(l);
-    l = line('????/???/???', c.memoExterior); if (l) lines.push(l);
-    l = line('??? ??????', c.memoEtc); if (l) lines.push(l);
+    l = line('침실/방', c.memoBedroom); if (l) lines.push(l);
+    l = line('거실', c.memoLiving); if (l) lines.push(l);
+    l = line('주방', c.memoKitchen); if (l) lines.push(l);
+    l = line('욕실/화장실', c.memoBath); if (l) lines.push(l);
+    l = line('외부/데크/포치', c.memoExterior); if (l) lines.push(l);
+    l = line('기타 요청사항', c.memoEtc); if (l) lines.push(l);
     return lines.join('\\n');
   }
 
@@ -2927,66 +3064,66 @@
     var esc = function (v) { return escapeAttr(v || ''); };
     var roomLabel = function (mode, memo) {
       var isChange = (mode || 'basic') === 'change' || (!mode && memo && String(memo).trim());
-      if (!isChange) return '<span class="design-request-view-badge design-request-view-basic">??</span>';
-      return '<span class="design-request-view-badge design-request-view-change">???/span> ' + (memo ? esc(memo) : '-');
+      if (!isChange) return '<span class="design-request-view-badge design-request-view-basic">기본</span>';
+      return '<span class="design-request-view-badge design-request-view-change">변경</span> ' + (memo ? esc(memo) : '-');
     };
     var extLabel = function (type, memo) {
-      if ((type || 'none') === 'none') return '<span class="design-request-view-badge design-request-view-none">???</span>';
-      return '<span class="design-request-view-badge design-request-view-add">???</span> ' + (memo ? esc(memo) : '');
+      if ((type || 'none') === 'none') return '<span class="design-request-view-badge design-request-view-none">없음</span>';
+      return '<span class="design-request-view-badge design-request-view-add">추가</span> ' + (memo ? esc(memo) : '');
     };
-    var matLabel = { default: '??', ceramic: '????????', longbrick: '????, smart: '?????????' };
-    var exteriorMat = matLabel[c.exteriorMaterialType || 'default'] || (c.exteriorMaterialType || '??');
+    var matLabel = { default: '기본', ceramic: '세라믹사이딩', longbrick: '롱브릭', smart: '스마트사이딩' };
+    var exteriorMat = matLabel[c.exteriorMaterialType || 'default'] || (c.exteriorMaterialType || '기본');
 
     var html = '<div class="design-detail-design-request-block">' +
-      '<h5 class="design-detail-design-request-heading">??? ??? ???</h5>' +
+      '<h5 class="design-detail-design-request-heading">설계 요청 사항</h5>' +
 
-      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">???? ??</span>' +
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">내부 공간</span>' +
       '<div class="design-detail-design-request-grid">' +
-      '<div class="design-detail-field"><label>???/??</label><div>' + roomLabel(c.bedroomMode, c.memoBedroom) + '</div></div>' +
-      '<div class="design-detail-field"><label>??</label><div>' + roomLabel(c.livingMode, c.memoLiving) + '</div></div>' +
-      '<div class="design-detail-field"><label>??</label><div>' + roomLabel(c.kitchenMode, c.memoKitchen) + '</div></div>' +
-      '<div class="design-detail-field"><label>?????/label><div>' + roomLabel(c.bathMode, c.memoBath) + '</div></div>' +
+      '<div class="design-detail-field"><label>침실/방</label><div>' + roomLabel(c.bedroomMode, c.memoBedroom) + '</div></div>' +
+      '<div class="design-detail-field"><label>거실</label><div>' + roomLabel(c.livingMode, c.memoLiving) + '</div></div>' +
+      '<div class="design-detail-field"><label>주방</label><div>' + roomLabel(c.kitchenMode, c.memoKitchen) + '</div></div>' +
+      '<div class="design-detail-field"><label>욕실/화장실</label><div>' + roomLabel(c.bathMode, c.memoBath) + '</div></div>' +
       '</div></div>' +
 
-      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">???? ??</span>' +
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">외부 공간</span>' +
       '<div class="design-detail-design-request-grid design-detail-design-request-external">' +
-      '<div class="design-detail-field"><label>???</label><div>' + extLabel(c.externalDeck, c.externalDeckMemo) + '</div></div>' +
-      '<div class="design-detail-field"><label>???</label><div>' + extLabel(c.externalPorch, c.externalPorchMemo) + '</div></div>' +
-      '<div class="design-detail-field"><label>??</label><div>' + extLabel(c.externalYard, c.externalYardMemo) + '</div></div>' +
-      '<div class="design-detail-field"><label>??</label><div>' + extLabel(c.externalParking, c.externalParkingMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>데크</label><div>' + extLabel(c.externalDeck, c.externalDeckMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>포치</label><div>' + extLabel(c.externalPorch, c.externalPorchMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>마당</label><div>' + extLabel(c.externalYard, c.externalYardMemo) + '</div></div>' +
+      '<div class="design-detail-field"><label>주차</label><div>' + extLabel(c.externalParking, c.externalParkingMemo) + '</div></div>' +
       '</div>' +
-      (c.memoExterior && !c.externalDeck && !c.externalPorch ? '<div class="design-detail-field design-detail-field-full"><label>????/???/??? (??)</label><div>' + esc(c.memoExterior) + '</div></div>' : '') +
+      (c.memoExterior && !c.externalDeck && !c.externalPorch ? '<div class="design-detail-field design-detail-field-full"><label>외부/데크/포치 (메모)</label><div>' + esc(c.memoExterior) + '</div></div>' : '') +
       '</div>' +
 
-      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">?? ???/span>' +
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">창호 변경</span>' +
       '<div class="design-detail-design-request-window">' +
-      (c.windowAddMemo ? '<div class="design-detail-field"><label>?????</label><div>' + esc(c.windowAddMemo) + '</div></div>' : '') +
-      (c.windowPositionMemo ? '<div class="design-detail-field"><label>????? ???/label><div>' + esc(c.windowPositionMemo) + '</div></div>' : '') +
-      (c.windowSizeMemo ? '<div class="design-detail-field"><label>????? ???/label><div>' + esc(c.windowSizeMemo) + '</div></div>' : '') +
+      (c.windowAddMemo ? '<div class="design-detail-field"><label>창 추가</label><div>' + esc(c.windowAddMemo) + '</div></div>' : '') +
+      (c.windowPositionMemo ? '<div class="design-detail-field"><label>창 위치 변경</label><div>' + esc(c.windowPositionMemo) + '</div></div>' : '') +
+      (c.windowSizeMemo ? '<div class="design-detail-field"><label>창 크기 변경</label><div>' + esc(c.windowSizeMemo) + '</div></div>' : '') +
       (!c.windowAddMemo && !c.windowPositionMemo && !c.windowSizeMemo ? '<div class="design-detail-field"><div class="design-detail-view-empty">-</div></div>' : '') +
       '</div></div>' +
 
-      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">????????/span>' +
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">외장재 변경</span>' +
       '<div class="design-detail-field"><div>' + esc(exteriorMat) + '</div></div></div>' +
 
-      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">??? / ???</span>' +
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">설비 / 전기</span>' +
       '<div class="design-detail-design-request-grid design-detail-design-request-facility">' +
-      (c.facilityCeilingFan ? '<div class="design-detail-field"><label>?????/label><div>' + esc(c.facilityCeilingFan) + '</div></div>' : '') +
-      (c.facilityAircon ? '<div class="design-detail-field"><label>????????</label><div>' + esc(c.facilityAircon) + '</div></div>' : '') +
-      (c.facilityOutlet ? '<div class="design-detail-field"><label>???????</label><div>' + esc(c.facilityOutlet) + '</div></div>' : '') +
-      (c.facilityLighting ? '<div class="design-detail-field"><label>?? ???/label><div>' + esc(c.facilityLighting) + '</div></div>' : '') +
+      (c.facilityCeilingFan ? '<div class="design-detail-field"><label>실링팬</label><div>' + esc(c.facilityCeilingFan) + '</div></div>' : '') +
+      (c.facilityAircon ? '<div class="design-detail-field"><label>에어컨 위치</label><div>' + esc(c.facilityAircon) + '</div></div>' : '') +
+      (c.facilityOutlet ? '<div class="design-detail-field"><label>콘센트 추가</label><div>' + esc(c.facilityOutlet) + '</div></div>' : '') +
+      (c.facilityLighting ? '<div class="design-detail-field"><label>조명 변경</label><div>' + esc(c.facilityLighting) + '</div></div>' : '') +
       (!c.facilityCeilingFan && !c.facilityAircon && !c.facilityOutlet && !c.facilityLighting ? '<div class="design-detail-field"><div class="design-detail-view-empty">-</div></div>' : '') +
       '</div></div>' +
 
-      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">????? ??? ??</span>' +
+      '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">기타 요청 및 메모</span>' +
       '<div class="design-detail-design-request-grid">' +
-      '<div class="design-detail-field"><label>??? ??????</label><div>' + esc(c.memoEtc) + '</div></div>' +
-      '<div class="design-detail-field"><label>?????/label><div>' + esc(c.exteriorNote) + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ???</label><div>' + esc(c.extraNote) + '</div></div>' +
+      '<div class="design-detail-field"><label>기타 요청사항</label><div>' + esc(c.memoEtc) + '</div></div>' +
+      '<div class="design-detail-field"><label>외장재</label><div>' + esc(c.exteriorNote) + '</div></div>' +
+      '<div class="design-detail-field"><label>추가 내용</label><div>' + esc(c.extraNote) + '</div></div>' +
       '</div></div>';
 
     if (c.designHandoverSummary) {
-      html += '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">[????? ??? ??]</span>' +
+      html += '<div class="design-detail-design-request-group"><span class="design-detail-design-request-group-title">[설계팀 인계 메모]</span>' +
         '<div class="design-detail-field design-detail-handover-summary-wrap"><pre class="design-detail-handover-summary">' + esc(c.designHandoverSummary) + '</pre></div></div>';
     }
     html += '</div>';
@@ -2996,40 +3133,40 @@
   function buildDesignDetailContent(contractId) {
     var c = getContracts().find(function (x) { return x.id === contractId; });
     if (!c) return '';
-    var statusMap = { none: '????, in_progress: '?????, done: '???' };
-    var statusLabel = statusMap[c.designStatus || 'none'] || '????;
+    var statusMap = { none: '미착수', in_progress: '설계 중', done: '완료' };
+    var statusLabel = statusMap[c.designStatus || 'none'] || '-';
     var projectType = c.projectType || '-';
-    var houseWrapHidden = (c.projectType || '') !== '??' ? ' hidden' : '';
+    var houseWrapHidden = (c.projectType || '') !== '주택' ? ' hidden' : '';
     var summaryBar = '<div class="design-detail-summary-bar">' +
-      '<span class="design-detail-summary-item"><strong>????/strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
-      '<span class="design-detail-summary-item"><strong>???</strong> ' + escapeAttr(projectType) + '</span>' +
-      '<span class="design-detail-summary-item"><strong>????</strong> ' + escapeAttr(formatMoney(c.totalAmount)) + '??/span>' +
-      '<span class="design-detail-summary-item"><strong>?????????/strong> ' + escapeAttr(formatDate(c.depositReceivedAt)) + '</span>' +
-      '<span class="design-detail-summary-item"><strong>?????? ???</strong> ' + escapeAttr(statusLabel) + '</span>' +
-      '<span class="design-detail-summary-item"><strong>?????????</strong> ' + (c.constructionStartOk ? 'Y' : '-') + '</span>' +
+      '<span class="design-detail-summary-item"><strong>고객명</strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
+      '<span class="design-detail-summary-item"><strong>유형</strong> ' + escapeAttr(projectType) + '</span>' +
+      '<span class="design-detail-summary-item"><strong>계약금액</strong> ' + escapeAttr(formatMoney(c.totalAmount)) + '원</span>' +
+      '<span class="design-detail-summary-item"><strong>계약금 입금일</strong> ' + escapeAttr(formatDate(c.depositReceivedAt)) + '</span>' +
+      '<span class="design-detail-summary-item"><strong>설계 진행 상태</strong> ' + escapeAttr(statusLabel) + '</span>' +
+      '<span class="design-detail-summary-item"><strong>착공 준비완료</strong> ' + (c.constructionStartOk ? 'Y' : '-') + '</span>' +
       '<div class="design-detail-summary-actions">' +
-      '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapeAttr(contractId) + '">?? ??</button>' +
-      '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">????/button>' +
-      '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">???????</button>' +
+      '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapeAttr(contractId) + '">팀 채팅</button>' +
+      '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">저장</button>' +
+      '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">계약 상세</button>' +
       '</div></div>';
     var cardBasic = '<div class="design-detail-card">' +
-      '<h4 class="design-detail-card-title">?? ?? ??? (????</h4>' +
+      '<h4 class="design-detail-card-title">기본 계약 정보 (읽기)</h4>' +
       '<div class="design-detail-card-body design-detail-basic-grid">' +
-      '<div class="design-detail-field"><label>?????? ?????/label><div>' + escapeAttr(getShowroomName(c.showroomId || "")) + '</div></div>' +
-      '<div class="design-detail-field"><label>?? ???</label><div>' + escapeAttr(c.contractModel || "-") + '</div></div>' +
-      '<div class="design-detail-field"><label>?? ???</label><div>' + escapeAttr(c.contractModelName || "-") + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ??????</label><div>' + escapeAttr(c.salesPerson || "-") + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ??</label><div>' + escapeAttr(c.siteAddress || "-") + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ??</label><div>' + escapeAttr(c.installType || "??????") + '</div></div>' +
-      '<div class="design-detail-field"><label>???(??)</label><div>' + escapeAttr(c.supplyAmount || "") + '</div></div>' +
-      '<div class="design-detail-field"><label>??????)</label><div>' + escapeAttr(c.vatAmount || "") + '</div></div>' +
-      '<div class="design-detail-field"><label>???? ???</label><div>' + escapeAttr(c.foundationPyeong || "") + '</div></div>' +
-      '<div class="design-detail-field"><label>?? ???</label><div>' + escapeAttr(c.housePyeong || "") + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ???</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
+      '<div class="design-detail-field"><label>영업사원 전시장</label><div>' + escapeAttr(getShowroomName(c.showroomId || "")) + '</div></div>' +
+      '<div class="design-detail-field"><label>계약 모델</label><div>' + escapeAttr(c.contractModel || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>모델 이름</label><div>' + escapeAttr(c.contractModelName || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>담당 영업사원</label><div>' + escapeAttr(c.salesPerson || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>시공 주소</label><div>' + escapeAttr(c.siteAddress || "-") + '</div></div>' +
+      '<div class="design-detail-field"><label>설치 유형</label><div>' + escapeAttr(c.installType || "현장시공") + '</div></div>' +
+      '<div class="design-detail-field"><label>공급가(만원)</label><div>' + escapeAttr(c.supplyAmount || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>부가세(만원)</label><div>' + escapeAttr(c.vatAmount || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>기초공사 평수</label><div>' + escapeAttr(c.foundationPyeong || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>주택 평수</label><div>' + escapeAttr(c.housePyeong || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>옵션 요약</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
       buildDesignRequestViewHtml(c) +
       '</div></div>';
     var cardSalesContract = '<div class="design-detail-card design-detail-sales-contract-view">' +
-      '<h4 class="design-detail-card-title">????? ????(????</h4>' +
+      '<h4 class="design-detail-card-title">영업팀 계약서 (읽기)</h4>' +
       '<div class="design-detail-card-body"><p class="design-detail-view-only">' + linkOrText(c.contractAttachment) + '</p></div></div>';
     var d1DesignMemo = c.designDrawing1DesignMemo || '';
     var d1SalesMemo = c.designDrawing1SalesMemo || '';
@@ -3043,70 +3180,70 @@
     var d3SalesMemo = c.designDrawing3SalesMemo || '';
     var d3Final = !!c.designDrawing3Final;
     var cardDrawing = '<div class="design-detail-card">' +
-      '<h4 class="design-detail-card-title">??? ?????</h4>' +
+      '<h4 class="design-detail-card-title">도면 관리</h4>' +
       '<div class="design-detail-card-body">' +
-      '<label class="design-detail-field">??? <select class="design-inline-project-type"><option value="">???</option><option value="???????' + (c.projectType === '??????? ? ' selected' : '') + '>???????/option><option value="??"' + (c.projectType === '??' ? ' selected' : '') + '>??</option></select></label>' +
+      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="체류형쉼터"' + (c.projectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="주택"' + (c.projectType === '주택' ? ' selected' : '') + '>주택</option></select></label>' +
       '<div class="design-discussion-card">' +
-      '<div class="design-discussion-header"><span class="design-discussion-title">?????? 1??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
-      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
-      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-drawing drawing-url-input" placeholder="???????? ?? (??? ?? ?? ????????)" value="' + escapeAttr(c.designDrawingAttachment || '') + '"><input type="file" class="design-inline-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open">???</button></div>' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 1차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
+      '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-drawing drawing-url-input" placeholder="파일 업로드 후 URL 자동 입력 (또는 직접 입력)" value="' + escapeAttr(c.designDrawingAttachment || '') + '"><input type="file" class="design-inline-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open">열기</button></div>' +
       '<div class="drawing-file-list" data-input-selector=".design-inline-drawing"></div>' +
       '</div>' +
       '<div class="design-discussion-card">' +
-      '<div class="design-discussion-header"><span class="design-discussion-title">?????? 2??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-2-final design-inline-drawing-final"' + (d2Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d2Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
-      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(d2Attachment) + '</div></div>' +
-      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-drawing-2 drawing-url-input" placeholder="???????? ??" value="' + escapeAttr(d2Attachment) + '"><input type="file" class="design-inline-drawing-file-2" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-2">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-2">???</button></div>' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 2차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-2-final design-inline-drawing-final"' + (d2Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d2Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
+      '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(d2Attachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-drawing-2 drawing-url-input" placeholder="파일 업로드 후 URL" value="' + escapeAttr(d2Attachment) + '"><input type="file" class="design-inline-drawing-file-2" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-2">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-2">열기</button></div>' +
       '<div class="drawing-file-list" data-inputSelector=".design-inline-drawing-2"></div>' +
       '</div>' +
       '<div class="design-discussion-card">' +
-      '<div class="design-discussion-header"><span class="design-discussion-title">?????? 3??/span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-3-final design-inline-drawing-final"' + (d3Final ? ' checked' : '') + '> ?? ???</label><span class="design-discussion-final-badge' + (d3Final ? '' : '" style=\\"display:none\\""') + '">?? ???</span></div>' +
-      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(d3Attachment) + '</div></div>' +
-      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-drawing-3 drawing-url-input" placeholder="???????? ??" value="' + escapeAttr(d3Attachment) + '"><input type="file" class="design-inline-drawing-file-3" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-3">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-3">???</button></div>' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 3차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-3-final design-inline-drawing-final"' + (d3Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d3Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
+      '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(d3Attachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-drawing-3 drawing-url-input" placeholder="파일 업로드 후 URL" value="' + escapeAttr(d3Attachment) + '"><input type="file" class="design-inline-drawing-file-3" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-3">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-3">열기</button></div>' +
       '<div class="drawing-file-list" data-input-selector=".design-inline-drawing-3"></div>' +
       '</div>' +
       '<div class="design-discussion-card design-construction-card">' +
-      '<div class="design-discussion-header"><span class="design-discussion-title">??????</span></div>' +
-      '<div class="design-detail-field"><label>??? ???????</label><div class="design-detail-view-only">' + linkOrText(c.constructionDrawingAttachment) + '</div></div>' +
-      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>???</label><input type="text" class="design-inline-construction-drawing drawing-url-input" placeholder="???????? ?? (??? ?? ?? ????????)" value="' + escapeAttr(c.constructionDrawingAttachment || '') + '"><input type="file" class="design-inline-construction-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-construction-drawing-upload">??? ???</button><button type="button" class="btn btn-sm btn-secondary design-inline-construction-drawing-open">???</button></div>' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">시공 도면</span></div>' +
+      '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.constructionDrawingAttachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-construction-drawing drawing-url-input" placeholder="파일 업로드 후 URL 자동 입력 (또는 직접 입력)" value="' + escapeAttr(c.constructionDrawingAttachment || '') + '"><input type="file" class="design-inline-construction-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-construction-drawing-upload">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-construction-drawing-open">열기</button></div>' +
       '<div class="drawing-file-list" data-input-selector=".design-inline-construction-drawing"></div>' +
       '</div>' +
       '</div></div>';
     var cardPermitInfo = '<div class="design-detail-card design-inline-house-wrap' + houseWrapHidden + '">' +
-      '<h4 class="design-detail-card-title">?? ???? ???</h4>' +
+      '<h4 class="design-detail-card-title">주택 허가 정보</h4>' +
       '<div class="design-detail-card-body">' +
-      '<label class="design-detail-field">???????<input type="text" class="design-inline-architect" placeholder="???/???" value="' + escapeAttr(c.architectInfo || '') + '"></label>' +
-      '<label class="design-detail-field">?????<input type="text" class="design-inline-contact-name" placeholder="????????" value="' + escapeAttr(c.designContactName || '') + '"></label>' +
-      '<label class="design-detail-field">?????<input type="tel" class="design-inline-contact-phone" placeholder="???????" value="' + escapeAttr(c.designContactPhone || '') + '"></label>' +
-      '<label class="design-detail-field">??????? ??? <input type="text" class="design-inline-permit-attachment" placeholder="???????? ??" value="' + escapeAttr(c.permitAttachment || '') + '"></label>' +
-      '<label class="design-detail-field">???????? <input type="text" class="design-inline-completion-attachment" placeholder="???????? ??" value="' + escapeAttr(c.completionCertAttachment || '') + '"></label>' +
+      '<label class="design-detail-field">건축사 정보<input type="text" class="design-inline-architect" placeholder="이름/연락처" value="' + escapeAttr(c.architectInfo || '') + '"></label>' +
+      '<label class="design-detail-field">담당자 이름<input type="text" class="design-inline-contact-name" placeholder="건축사 담당자명" value="' + escapeAttr(c.designContactName || '') + '"></label>' +
+      '<label class="design-detail-field">담당자 연락처<input type="tel" class="design-inline-contact-phone" placeholder="010-0000-0000" value="' + escapeAttr(c.designContactPhone || '') + '"></label>' +
+      '<label class="design-detail-field">건축허가서 URL <input type="text" class="design-inline-permit-attachment" placeholder="파일 업로드 후 URL" value="' + escapeAttr(c.permitAttachment || '') + '"></label>' +
+      '<label class="design-detail-field">사용승인서 URL <input type="text" class="design-inline-completion-attachment" placeholder="파일 업로드 후 URL" value="' + escapeAttr(c.completionCertAttachment || '') + '"></label>' +
       '</div></div>';
     var cardStatus = '<div class="design-detail-card permit-status-card">' +
       '<div class="design-detail-card-body">' +
-      '<h4 class="design-detail-card-title manager-info-title">????????</h4>' +
-      '<div class="design-detail-field"><label>??? ?????/label><div class="design-detail-view-only">' + escapeAttr(c.salesPerson || '-') + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ?????/label><div class="design-detail-view-only">' + escapeAttr(c.designPermitDesigner || c.designContactName || '-') + '</div></div>' +
-      '<div class="design-detail-field"><label>??? ?????/label><div class="design-detail-view-only">' + escapeAttr(c.constructionManager || '-') + '</div></div>' +
+      '<h4 class="design-detail-card-title manager-info-title">담당자 정보</h4>' +
+      '<div class="design-detail-field"><label>영업 담당자</label><div class="design-detail-view-only">' + escapeAttr(c.salesPerson || '-') + '</div></div>' +
+      '<div class="design-detail-field"><label>설계 담당자</label><div class="design-detail-view-only">' + escapeAttr(c.designPermitDesigner || c.designContactName || '-') + '</div></div>' +
+      '<div class="design-detail-field"><label>시공 담당자</label><div class="design-detail-view-only">' + escapeAttr(c.constructionManager || '-') + '</div></div>' +
       '<div class="design-detail-field design-detail-designer-field">' +
-      '<label>??? ?????/label>' +
+      '<label>설계 담당자</label>' +
       '<div class="design-detail-designer-inputs">' +
-      '<input type="text" class="design-inline-designer" placeholder="????????? ?????????????????? value="' + escapeAttr(c.designPermitDesigner || '') + '">' +
+      '<input type="text" class="design-inline-designer" placeholder="설계 담당자 이름을 입력하세요" value="' + escapeAttr(c.designPermitDesigner || '') + '">' +
       '</div>' +
       '</div>' +
-      '<h4 class="design-detail-card-title permit-status-title">???? / ?? ???</h4>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> ??????? ???</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> ????????</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> ???????</label>' +
+      '<h4 class="design-detail-card-title permit-status-title">허가 / 착공 현황</h4>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축허가서 수령</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용승인서</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공신고서</label>' +
       '<div class="start-ready-box">' +
-      '<label class="design-detail-check-item highlight"><input type="checkbox" class="design-inline-construction-start-ok"' + (c.constructionStartOk ? ' checked' : '') + '> ?????? (????? ?? ??? ???</label>' +
+      '<label class="design-detail-check-item highlight"><input type="checkbox" class="design-inline-construction-start-ok"' + (c.constructionStartOk ? ' checked' : '') + '> 착공 준비완료 (시공팀 인계 준비 완료)</label>' +
       '</div>' +
       '<div class="design-detail-memo-grid">' +
-      '<label class="design-detail-field"><span>????? ??</span><textarea class="design-status-memo design-status-memo-design" rows="3" placeholder="?? ???? ?? ???, ??? ?????? ??>' + escapeAttr(c.designStatusMemoDesign || '') + '</textarea></label>' +
-      '<label class="design-detail-field"><span>????? ??</span><textarea class="design-status-memo design-status-memo-sales" rows="3" placeholder="?? ?? ??? ???, ??? ??? ??? ??>' + escapeAttr(c.designStatusMemoSales || '') + '</textarea></label>' +
-      '<label class="design-detail-field"><span>????? ??</span><textarea class="design-status-memo design-status-memo-construction" rows="3" placeholder="?? ?? ??????, ??? ??? ??>' + escapeAttr(c.designStatusMemoConstruction || '') + '</textarea></label>' +
+      '<label class="design-detail-field"><span>설계팀 메모</span><textarea class="design-status-memo design-status-memo-design" rows="3" placeholder="설계 진행 상황 메모, 특이 사항 기록">' + escapeAttr(c.designStatusMemoDesign || '') + '</textarea></label>' +
+      '<label class="design-detail-field"><span>영업팀 메모</span><textarea class="design-status-memo design-status-memo-sales" rows="3" placeholder="고객 요청 내용 메모, 영업 협의 사항 등">' + escapeAttr(c.designStatusMemoSales || '') + '</textarea></label>' +
+      '<label class="design-detail-field"><span>시공팀 메모</span><textarea class="design-status-memo design-status-memo-construction" rows="3" placeholder="시공 준비 메모, 현장 특이사항 등">' + escapeAttr(c.designStatusMemoConstruction || '') + '</textarea></label>' +
       '</div>' +
       '</div></div>';
     var chatTitle = (c.customerName || '-') + ' ? ' + (c.contractModelName || c.contractModel || '-');
-    var chatSubtitle = (typeof getShowroomName === 'function' ? getShowroomName(c.showroomId || '') : (c.showroomId || '-')) + ' ? ??? ?? ??';
+    var chatSubtitle = (typeof getShowroomName === 'function' ? getShowroomName(c.showroomId || '') : (c.showroomId || '-')) + ' · 팀 내부 채팅';
     var cardChat = '<div class="design-detail-card design-contract-chat-card contract-chat-card">' +
       '<div class="contract-chat-header">' +
       '<h4 class="contract-chat-title">' + escapeAttr(chatTitle) + '</h4>' +
@@ -3120,21 +3257,20 @@
       '<input type="file" id="design-contract-chat-file-input" class="chat-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp" multiple hidden>' +
       '<div class="chat-input-bar design-contract-chat-input-bar">' +
       '<div class="chat-input-actions">' +
-      '<button type="button" class="chat-tool-btn design-chat-attach-btn" title="??? ???">???</button>' +
-      '<button type="button" class="chat-tool-btn design-chat-mention-btn" title="??">@</button>' +
-      '<button type="button" class="chat-tool-btn design-chat-emoji-btn" title="??????">???</button>' +
+      '<button type="button" class="chat-tool-btn design-chat-attach-btn" title="파일 첨부">📎</button>' +
+      '<button type="button" class="chat-tool-btn design-chat-mention-btn" title="멘션">@</button>' +
+      '<button type="button" class="chat-tool-btn design-chat-emoji-btn" title="이모지">😊</button>' +
       '</div>' +
-      '<textarea id="design-contract-chat-input" class="chat-input chat-textarea" placeholder="?????????????.." rows="1" maxlength="2000"></textarea>' +
-      '<button type="button" class="btn btn-primary chat-send-btn design-chat-send-btn">???</button>' +
+      '<textarea id="design-contract-chat-input" class="chat-input chat-textarea" placeholder="메시지를 입력하세요..." rows="1" maxlength="2000"></textarea>' +
+      '<button type="button" class="btn btn-primary chat-send-btn design-chat-send-btn">전송</button>' +
       '</div>' +
       '<div class="design-chat-emoji-popover hidden" id="design-chat-emoji-popover">' +
-      '<span class="chat-emoji-item" data-emoji="??">??</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
-      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
-      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??">??</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
-      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
-      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span>' +
-      '<span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span>' +
-      '<span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="??>??/span><span class="chat-emoji-item" data-emoji="???">???</span><span class="chat-emoji-item" data-emoji="???">???</span>' +
+      '<span class="chat-emoji-item" data-emoji="😊">😊</span><span class="chat-emoji-item" data-emoji="😄">😄</span><span class="chat-emoji-item" data-emoji="😂">😂</span><span class="chat-emoji-item" data-emoji="🥰">🥰</span><span class="chat-emoji-item" data-emoji="😎">😎</span><span class="chat-emoji-item" data-emoji="🤔">🤔</span><span class="chat-emoji-item" data-emoji="😅">😅</span><span class="chat-emoji-item" data-emoji="😭">😭</span>' +
+      '<span class="chat-emoji-item" data-emoji="👍">👍</span><span class="chat-emoji-item" data-emoji="👎">👎</span><span class="chat-emoji-item" data-emoji="👏">👏</span><span class="chat-emoji-item" data-emoji="🙏">🙏</span><span class="chat-emoji-item" data-emoji="🤝">🤝</span><span class="chat-emoji-item" data-emoji="💪">💪</span><span class="chat-emoji-item" data-emoji="✅">✅</span><span class="chat-emoji-item" data-emoji="❌">❌</span>' +
+      '<span class="chat-emoji-item" data-emoji="⭐">⭐</span><span class="chat-emoji-item" data-emoji="🔥">🔥</span><span class="chat-emoji-item" data-emoji="💡">💡</span><span class="chat-emoji-item" data-emoji="📌">📌</span><span class="chat-emoji-item" data-emoji="📎">📎</span><span class="chat-emoji-item" data-emoji="📋">📋</span><span class="chat-emoji-item" data-emoji="📝">📝</span><span class="chat-emoji-item" data-emoji="📊">📊</span>' +
+      '<span class="chat-emoji-item" data-emoji="🏠">🏠</span><span class="chat-emoji-item" data-emoji="🏗️">🏗️</span><span class="chat-emoji-item" data-emoji="🔨">🔨</span><span class="chat-emoji-item" data-emoji="🪚">🪚</span><span class="chat-emoji-item" data-emoji="⚙️">⚙️</span><span class="chat-emoji-item" data-emoji="🔧">🔧</span><span class="chat-emoji-item" data-emoji="📐">📐</span><span class="chat-emoji-item" data-emoji="📏">📏</span>' +
+      '<span class="chat-emoji-item" data-emoji="💰">💰</span><span class="chat-emoji-item" data-emoji="💳">💳</span><span class="chat-emoji-item" data-emoji="📞">📞</span><span class="chat-emoji-item" data-emoji="✉️">✉️</span><span class="chat-emoji-item" data-emoji="📱">📱</span><span class="chat-emoji-item" data-emoji="🚗">🚗</span><span class="chat-emoji-item" data-emoji="📅">📅</span><span class="chat-emoji-item" data-emoji="⏰">⏰</span>' +
+      '<span class="chat-emoji-item" data-emoji="❓">❓</span><span class="chat-emoji-item" data-emoji="❗">❗</span><span class="chat-emoji-item" data-emoji="⚠️">⚠️</span><span class="chat-emoji-item" data-emoji="🔔">🔔</span><span class="chat-emoji-item" data-emoji="🎯">🎯</span><span class="chat-emoji-item" data-emoji="✨">✨</span><span class="chat-emoji-item" data-emoji="🆗">🆗</span><span class="chat-emoji-item" data-emoji="🆕">🆕</span>' +
       '</div>' +
       '</div></div>';
     var grid = '<div class="design-detail-grid">' +
@@ -3144,7 +3280,7 @@
     var form = '<form class="form-design-inline-inline" data-contract-id="' + escapeAttr(contractId) + '">' +
       '<input type="hidden" class="design-inline-contract-id" value="' + escapeAttr(contractId) + '">' +
       summaryBar + grid +
-      '<div class="form-actions design-detail-actions"><button type="submit" class="btn btn-primary">????/button></div></form>';
+      '<div class="form-actions design-detail-actions"><button type="submit" class="btn btn-primary">저장</button></div></form>';
     return '<div class="design-detail-inner">' + form + '</div>';
   }
 
@@ -3207,7 +3343,7 @@
     }
     function doDesignChatSend() {
       var rawText = (input.value || '').trim();
-      var text = rawText.replace(/\s*\[???:[^\]]*\]\s*$/, '').trim();
+      var text = rawText.replace(/\s*\[\?\?\?:[^\]]*\]\s*$/, '').trim();
       var pending = form._designChatPendingFiles || [];
       if (!text && !pending.length) return;
       var hid = td.querySelector('#design-contract-chat-contract-id');
@@ -3215,13 +3351,13 @@
       if (!cid) return;
       if (pending.length && typeof uploadChatFiles === 'function') {
         uploadChatFiles(pending, 'contract_' + cid).then(function (attachments) {
-          var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '??' };
+          var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '사용자' };
           var msg = {
             id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
             contract_id: cid,
             sender_id: me.id,
             sender_name: me.name,
-            message: text || '(??? ???)',
+            message: text || '(파일 첨부)',
             created_at: new Date().toISOString()
           };
           if (attachments && attachments.length) msg.attachments = attachments;
@@ -3230,14 +3366,14 @@
           form._designChatPendingFiles = [];
           if (typeof renderContractChat === 'function') renderContractChat(cid, 'design-contract-chat-message-list');
         }).catch(function () {
-          var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '??' };
+          var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '사용자' };
           if (typeof saveContractChatMessage === 'function') saveContractChatMessage(cid, { id: 'msg_' + Date.now(), contract_id: cid, sender_id: me.id, sender_name: me.name, message: rawText, created_at: new Date().toISOString() });
           input.value = '';
           form._designChatPendingFiles = [];
           if (typeof renderContractChat === 'function') renderContractChat(cid, 'design-contract-chat-message-list');
         });
       } else {
-        var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '??' };
+        var me = typeof getCurrentChatUser === 'function' ? getCurrentChatUser() : { id: 'user', name: '사용자' };
         var msg = {
           id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
           contract_id: cid,
@@ -3281,15 +3417,28 @@
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
-      var canDesign = team === '???';
-      var canSales = team === '???';
-      var canConstruction = team === '???';
+      var canDesign = team === '설계';
+      var canSales = team === '영업';
+      var canConstruction = team === '시공';
       var designMemo = td.querySelector('.design-status-memo-design');
       var salesMemo = td.querySelector('.design-status-memo-sales');
       var constructionMemo = td.querySelector('.design-status-memo-construction');
       if (designMemo && !canDesign) designMemo.readOnly = true;
       if (salesMemo && !canSales) salesMemo.readOnly = true;
       if (constructionMemo && !canConstruction) constructionMemo.readOnly = true;
+      // 설계팀만 설계 담당자 입력란 및 허가/착공 현황 체크박스 편집 가능
+      if (!canDesign) {
+        var designerInput = td.querySelector('.design-inline-designer');
+        if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
+        var permitCheck = td.querySelector('.design-inline-has-permit');
+        if (permitCheck) permitCheck.disabled = true;
+        var completionCheck = td.querySelector('.design-inline-has-completion-cert');
+        if (completionCheck) completionCheck.disabled = true;
+        var constructionReportCheck = td.querySelector('.design-inline-has-construction-report');
+        if (constructionReportCheck) constructionReportCheck.disabled = true;
+        var constructionStartOkCheck = td.querySelector('.design-inline-construction-start-ok');
+        if (constructionStartOkCheck) constructionStartOkCheck.disabled = true;
+      }
     }
     // ???????? ??? ?????? ?????
     td.querySelectorAll('.drawing-file-list[data-input-selector]').forEach(function (listEl) {
@@ -3355,13 +3504,35 @@
         });
         // ?? ????? ?????? "????? ??" ??? + ?????????????
         var curEmp = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
-        if (curEmp && (curEmp.team || '').trim() === '???') {
+        if (curEmp && (curEmp.team || '').trim() === '영업') {
           var salesMemo = detailRow.querySelector('.design-status-memo-sales');
           if (salesMemo) {
             salesMemo.readOnly = false;
             salesMemo.removeAttribute('readonly');
             salesMemo.disabled = false;
           }
+          detailRow.querySelectorAll('button[type="submit"], .btn-primary.design-detail-save-top-inline').forEach(function (btn) {
+            btn.disabled = false;
+          });
+        }
+        if (curEmp && (curEmp.team || '').trim() === '설계') {
+          var designMemo = detailRow.querySelector('.design-status-memo-design');
+          if (designMemo) {
+            designMemo.readOnly = false;
+            designMemo.removeAttribute('readonly');
+            designMemo.disabled = false;
+          }
+          // 설계 담당자 입력란 및 허가/착공 현황 체크박스 활성화
+          var designerInput = detailRow.querySelector('.design-inline-designer');
+          if (designerInput) { designerInput.readOnly = false; designerInput.removeAttribute('readonly'); designerInput.disabled = false; }
+          var permitCheck = detailRow.querySelector('.design-inline-has-permit');
+          if (permitCheck) permitCheck.disabled = false;
+          var completionCheck = detailRow.querySelector('.design-inline-has-completion-cert');
+          if (completionCheck) completionCheck.disabled = false;
+          var constructionReportCheck = detailRow.querySelector('.design-inline-has-construction-report');
+          if (constructionReportCheck) constructionReportCheck.disabled = false;
+          var constructionStartOkCheck = detailRow.querySelector('.design-inline-construction-start-ok');
+          if (constructionStartOkCheck) constructionStartOkCheck.disabled = false;
           detailRow.querySelectorAll('button[type="submit"], .btn-primary.design-detail-save-top-inline').forEach(function (btn) {
             btn.disabled = false;
           });
@@ -3381,15 +3552,34 @@
     var c = contracts.find(function (x) { return x.id === contractId; });
     if (!c) return;
     var curEmp = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
-    var isSales = curEmp && (curEmp.team || '').trim() === '???';
+    var isSales = curEmp && (curEmp.team || '').trim() === '영업';
     // ?????????? ?????? ?????? ????? ??????
+    var isDesign = curEmp && (curEmp.team || '').trim() === '설계';
     if (isSalesReadonly() && isSales) {
       function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
       c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
       saveContracts(contracts);
       renderDesign();
       renderConstruction();
-      window.alert('????? ??? ???????????.');
+      window.alert('설계 메모가 저장되었습니다.');
+      return;
+    }
+    if (isSalesReadonly() && isDesign) {
+      function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
+      c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
+      c.designPermitDesigner = (sel('.design-inline-designer') || {}).value ? sel('.design-inline-designer').value.trim() : '';
+      var permitEl = sel('.design-inline-has-permit');
+      if (permitEl) c.hasPermitCert = permitEl.checked;
+      var completionEl = sel('.design-inline-has-completion-cert');
+      if (completionEl) c.hasCompletionCert = completionEl.checked;
+      var constructionReportEl = sel('.design-inline-has-construction-report');
+      if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
+      var constructionStartOkEl = sel('.design-inline-construction-start-ok');
+      if (constructionStartOkEl) c.constructionStartOk = constructionStartOkEl.checked;
+      saveContracts(contracts);
+      renderDesign();
+      renderConstruction();
+      window.alert('설계팀 메모가 저장되었습니다.');
       return;
     }
     if (isSalesReadonly()) return;
@@ -3436,7 +3626,7 @@
     // ???????? ?? ????????????, ??? ???????????? ???????? ????? ??????????? ??? ???
     if (c.constructionStartOk && !c.designPermitDesigner && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var curEmp = window.seumAuth.currentEmployee;
-      if (curEmp && (curEmp.team || '').trim() === '???') {
+      if (curEmp && (curEmp.team || '').trim() === '설계') {
         c.designPermitDesigner = curEmp.name || c.designPermitDesigner;
       }
     }
@@ -3444,9 +3634,12 @@
     c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
     c.designStatusMemoConstruction = (sel('.design-status-memo-construction') || {}).value ? sel('.design-status-memo-construction').value.trim() : '';
     saveContracts(contracts);
+    if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
+      window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
+    }
     renderDesign();
     renderConstruction();
-    window.alert('??? ???? ???????????.');
+    window.alert('설계 정보가 저장되었습니다.');
     if (expandedDesignId === contractId) {
       var detailRow = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"]');
       if (detailRow && detailRow.querySelector('td')) {
@@ -3460,7 +3653,7 @@
       if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
         var form = e.target.closest('form');
         var wrap = form && form.querySelector('.design-inline-house-wrap');
-        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '??');
+        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '주택');
       }
       if (e.target.classList.contains('design-inline-drawing-file') ||
         e.target.classList.contains('design-inline-drawing-file-2') ||
@@ -3479,7 +3672,7 @@
           })).then(function (results) {
             var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
             if (!urls.length) {
-              window.alert('?????? ?????? ?????????.');
+              window.alert('업로드에 실패했습니다.');
               return;
             }
             existingUrls = existingUrls.concat(urls);
@@ -3516,7 +3709,7 @@
           })).then(function (results) {
             var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
             if (!urls.length) {
-              window.alert('?????? ?????? ?????????.');
+              window.alert('업로드에 실패했습니다.');
               return;
             }
             if (inp) {
@@ -3559,7 +3752,7 @@
             : '.design-inline-drawing-3';
         var urlInput = form && form.querySelector(inputSelector);
         if (urlInput && (urlInput.value || '').trim()) {
-          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
           return;
         }
         var fileInput = form && form.querySelector(selector);
@@ -3583,8 +3776,8 @@
           var parts = raw.split(/\s+/);
           var val = parts[parts.length - 1];
           if (/^https?:\/\//i.test(val)) window.open(val, '_blank');
-          else window.alert('URL ???????????. ????????????????????? ????');
-        } else window.alert('???????? ??????.');
+          else window.alert('유효한 URL이 아닙니다. https:// 로 시작하는 URL을 입력해 주세요.');
+        } else window.alert('파일이 없습니다.');
       }
       if (e.target.classList.contains('design-inline-construction-drawing-open')) {
         var form = e.target.closest('form');
@@ -3594,15 +3787,15 @@
           var parts = raw.split(/\s+/);
           var val = parts[parts.length - 1];
           if (/^https?:\/\//i.test(val)) window.open(val, '_blank');
-          else window.alert('URL ???????????. ????????????????????? ????');
-        } else window.alert('???????? ??????.');
+          else window.alert('유효한 URL이 아닙니다. https:// 로 시작하는 URL을 입력해 주세요.');
+        } else window.alert('파일이 없습니다.');
       }
       // ??? ??? ???? ???/????
       if (e.target.classList.contains('drawing-file-open')) {
         var url = e.target.getAttribute('data-url') || '';
-        if (!url) { window.alert('???????? ??????.'); return; }
+        if (!url) { window.alert('파일이 없습니다.'); return; }
         if (!/^https?:\/\//i.test(url)) {
-          window.alert('URL ???????????. ????????????????????? ????');
+          window.alert('유효한 URL이 아닙니다. https:// 로 시작하는 URL을 입력해 주세요.');
           return;
         }
         window.open(url, '_blank');
@@ -3659,17 +3852,17 @@
   }
 
   var CONSTRUCTION_PROGRESS_OPTIONS = [
-    { value: '????, label: '???? },
-    { value: '??', label: '??' },
-    { value: '????, label: '???? },
-    { value: '???, label: '??? }
+    { value: '착공전', label: '착공전 '},
+    { value: '착공', label: '착공' },
+    { value: '진행중', label: '진행중 '},
+    { value: '완료', label: '완료 '}
   ];
 
   function getStageBadgeClass(progress) {
-    var p = progress || '????;
-    if (p === '??') return 'started';
-    if (p === '????) return 'progress';
-    if (p === '???) return 'done';
+    var p = progress || '착공전';
+    if (p === '착공') return 'started';
+    if (p === '진행중') return 'progress';
+    if (p === '완료') return 'done';
     return 'waiting';
   }
 
@@ -3691,21 +3884,21 @@
         '<td class="stage-name-cell">' + (s.name || '-') + '</td>' +
         '<td><input type="date" class="stage-start-date" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" value="' + escapeAttr(s.startDate || '') + '"></td>' +
         '<td><input type="date" class="stage-end-date" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" value="' + escapeAttr(s.endDate || '') + '"></td>' +
-        '<td><input type="text" class="stage-manager" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="???? value="' + escapeAttr(s.responsibleName || '') + '"></td>' +
-        '<td><input type="text" class="stage-worker-list" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????? ???, ????? value="' + escapeAttr(s.workerList || '') + '"></td>' +
-        '<td><input type="text" class="stage-phone" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????? value="' + escapeAttr(s.responsiblePhone || '') + '"></td>' +
-        '<td class="stage-cost-cell"><input type="number" class="stage-labor-cost" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????????" value="' + escapeAttr(s.laborCost || '') + '" min="0" step="1"></td>' +
-        '<td class="stage-cost-cell"><input type="number" class="stage-extra-cost" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="????? ???" value="' + escapeAttr(s.extraCost || '') + '" min="0" step="1"></td>' +
-        '<td><textarea class="stage-memo" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="?????? ???" rows="2">' + escapeAttr(s.memo || '') + '</textarea></td>' +
+        '<td><input type="text" class="stage-manager" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="담당자" value="' + escapeAttr(s.responsibleName || '') + '"></td>' +
+        '<td><input type="text" class="stage-worker-list" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="작업자 이름, 연락처" value="' + escapeAttr(s.workerList || '') + '"></td>' +
+        '<td><input type="text" class="stage-phone" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="연락처" value="' + escapeAttr(s.responsiblePhone || '') + '"></td>' +
+        '<td class="stage-cost-cell"><input type="number" class="stage-labor-cost" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="인건비(만원)" value="' + escapeAttr(s.laborCost || '') + '" min="0" step="1"></td>' +
+        '<td class="stage-cost-cell"><input type="number" class="stage-extra-cost" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="기타 비용" value="' + escapeAttr(s.extraCost || '') + '" min="0" step="1"></td>' +
+        '<td><textarea class="stage-memo" data-contract-id="' + escapedId + '" data-stage="' + stageName + '" placeholder="메모 및 특이사항" rows="2">' + escapeAttr(s.memo || '') + '</textarea></td>' +
         '</tr>';
     }).join('');
     return '<div class="construction-detail-inner">' +
       '<div class="construction-detail-header-inline"><strong class="construction-detail-customer-name">' + (c.customerName || '-') + '</strong>' +
-      '<span class="construction-detail-dates-inline">?? ??: ' + startStr + ' ~ ' + endStr + '</span>' +
-      '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapedId + '">?? ??</button>' +
-      '<button type="button" class="btn btn-sm btn-secondary construction-detail-edit-btn" data-contract-id="' + escapedId + '">??? ??? ???</button></div>' +
+      '<span class="construction-detail-dates-inline">시공 기간: ' + startStr + ' ~ ' + endStr + '</span>' +
+      '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapedId + '">팀 채팅</button>' +
+      '<button type="button" class="btn btn-sm btn-secondary construction-detail-edit-btn" data-contract-id="' + escapedId + '">시공 정보 수정</button></div>' +
       '<div class="construction-detail-table-wrap">' +
-      '<table class="data-table construction-detail-table"><thead><tr><th>??? ???</th><th>?? ?????/th><th>?? ?????/th><th>????/th><th>?????????/th><th>?????/th><th>?????/th><th>?????</th><th>??????</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<table class="data-table construction-detail-table"><thead><tr><th>공사 단계</th><th>시작 날짜</th><th>완료 날짜</th><th>담당자</th><th>작업자/연락처</th><th>연락처</th><th>인건비</th><th>기타비용</th><th>메모</th></tr></thead><tbody>' + rows + '</tbody></table>' +
       '</div></div>';
   }
 
@@ -3731,7 +3924,7 @@
     if (detail) detail.remove();
   }
 
-  var CONSTRUCTION_STAGE_NAMES = ['?????', '????', '???? ??', '???? ??', '??????', '???????, '?????', '????', '???/???', '?????, '???];
+  var CONSTRUCTION_STAGE_NAMES = ['계약', '착공 준비', '기초 공사', '골조 공사', '외장 공사', '내장 공사', '마감 공사', '준공', '사후 관리'];
 
   function getConstructionStages(contract) {
     var arr = contract.constructionStages;
@@ -3792,7 +3985,7 @@
       var p2 = paymentCellWithConfirm(c, 'progress2');
       var p3 = paymentCellWithConfirm(c, 'progress3');
       var balance = paymentCellWithConfirm(c, 'balance');
-      var progress = c.constructionProgress || '????;
+      var progress = c.constructionProgress || '착공전';
       var stageBadgeClass = getStageBadgeClass(progress);
       var stageLabel = CONSTRUCTION_PROGRESS_OPTIONS.find(function (o) { return o.value === progress; });
       stageLabel = stageLabel ? stageLabel.label : progress;
@@ -3801,14 +3994,14 @@
         return '<option value="' + o.value + '"' + sel + '>' + o.label + '</option>';
       }).join('') + '</select>';
       var stageCell = '<div class="construction-stage-inner"><span class="stage-badge ' + stageBadgeClass + '">' + stageLabel + '</span>' + progressSelect + '</div>';
-      var startDate = formatDate(c.constructionStartDate);
-      var endDate = formatDate(c.constructionEndDate);
-      var stagesBtn = salesReadonly ? '' : '<button type="button" class="btn btn-sm btn-secondary" data-construction-stages="' + c.id + '">??? ???</button>';
+      var stagesBtn = salesReadonly ? '' : '<button type="button" class="btn btn-sm btn-secondary" data-construction-stages="' + c.id + '">단계 관리</button>';
       var summary = paymentSummaryHtml(c);
-      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="??????"' + (salesReadonly ? ' disabled' : '') + '>';
-      var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">????</button>';
-      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + startDate + '</td><td>' + endDate + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
-    }).join('') || '<tr><td colspan="16">???????? ?????????????? ??????.</td></tr>';
+      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="담당자명"' + (salesReadonly ? ' disabled' : '') + '>';
+      var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">삭제</button>';
+      var contractDateStr = formatDate(c.contractDate);
+      var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+    }).join('') || '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>';
     if (expandedConstructionId) {
       var expandedRow = tbody.querySelector('.construction-row[data-contract-id="' + expandedConstructionId + '"]');
       if (expandedRow) {
@@ -3832,8 +4025,8 @@
       var p3 = paymentCellWithConfirm(c, 'progress3');
       var balance = paymentCellWithConfirm(c, 'balance');
       var summary = paymentSummaryHtml(c);
-      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(c.totalAmount) + '??/td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
-    }).join('') || '<tr><td colspan="10">??????????.</td></tr>';
+      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
+    }).join('') || '<tr><td colspan="10">정산 데이터가 없습니다.</td></tr>';
     renderSettlementIncentive();
   }
 
@@ -3858,7 +4051,7 @@
 
     var bySales = {};
     contracts.forEach(function (c) {
-      var key = (c.salesPerson && c.salesPerson.trim()) ? c.salesPerson.trim() : '(?????';
+      var key = (c.salesPerson && c.salesPerson.trim()) ? c.salesPerson.trim() : '(미배정)';
       if (!bySales[key]) bySales[key] = { count: 0, total: 0 };
       bySales[key].count++;
       bySales[key].total += Number(c.totalAmount) || 0;
@@ -3887,9 +4080,9 @@
         totalAmount += v.total;
         totalPercentSum += (v.total * (Number(percents[name]) || 0)) / 100;
       });
-      totalRow = '<tr class="incentive-total-row"><td>???</td><td>' + totalCount + '</td><td>' + formatMoney(String(totalAmount)) + '</td><td>' + formatMoney(String(perContract * totalCount)) + '</td><td></td><td>' + formatMoney(String(Math.round(totalPercentSum))) + '</td><td><strong>' + formatMoney(String(Math.round(totalIncSum))) + '</strong></td></tr>';
+      totalRow = '<tr class="incentive-total-row"><td>합계</td><td>' + totalCount + '</td><td>' + formatMoney(String(totalAmount)) + '</td><td>' + formatMoney(String(perContract * totalCount)) + '</td><td></td><td>' + formatMoney(String(Math.round(totalPercentSum))) + '</td><td><strong>' + formatMoney(String(Math.round(totalIncSum))) + '</strong></td></tr>';
     }
-    tbody.innerHTML = rows.join('') + totalRow || '<tr><td colspan="7">?? ???????????????????????? ???????????.</td></tr>';
+    tbody.innerHTML = rows.join('') + totalRow || '<tr><td colspan="7">이번 달 계약 데이터가 없습니다. 인센티브를 계산할 수 없습니다.</td></tr>';
   }
 
   function renderHR() {
@@ -3900,11 +4093,11 @@
     var leaveSelect = document.getElementById('leave-employee-id');
     if (tbodyEmp) {
       tbodyEmp.innerHTML = employees.map(function (e) {
-        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">???</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">????</button></td></tr>';
-      }).join('') || '<tr><td colspan="7">???????????????.</td></tr>';
+        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
+      }).join('') || '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
     }
     if (leaveSelect) {
-      leaveSelect.innerHTML = '<option value="">???</option>' + employees.map(function (e) {
+      leaveSelect.innerHTML = '<option value="">선택</option>' + employees.map(function (e) {
         return '<option value="' + e.id + '">' + (e.name || '-') + '</option>';
       }).join('');
     }
@@ -3916,8 +4109,8 @@
       tbodyLeaves.innerHTML = thisMonthLeaves.map(function (l) {
         var emp = employees.find(function (e) { return e.id === l.employeeId; });
         var name = emp ? emp.name : l.employeeId;
-        return '<tr><td>' + (name || '-') + '</td><td>' + formatDate(l.startDate) + '</td><td>' + formatDate(l.endDate) + '</td><td>' + (l.reason || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-delete-leave="' + l.id + '">????</button></td></tr>';
-      }).join('') || '<tr><td colspan="5">??? ?????? ???????????.</td></tr>';
+        return '<tr><td>' + (name || '-') + '</td><td>' + formatDate(l.startDate) + '</td><td>' + formatDate(l.endDate) + '</td><td>' + (l.reason || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-delete-leave="' + l.id + '">삭제</button></td></tr>';
+      }).join('') || '<tr><td colspan="5">이번 달 휴가 기록이 없습니다.</td></tr>';
     }
   }
 
@@ -3957,7 +4150,7 @@
       tbodySales.innerHTML = Object.keys(bySales).sort().map(function (key) {
         var v = bySales[key];
         return '<tr><td>' + key + '</td><td>' + v.count + '</td><td>' + formatMoney(String(v.total)) + '</td><td></td></tr>';
-      }).join('') || '<tr><td colspan="4">??????????.</td></tr>';
+      }).join('') || '<tr><td colspan="4">데이터가 없습니다.</td></tr>';
     }
 
     var byShowroom = {};
@@ -3973,8 +4166,537 @@
       tbodyShowroom.innerHTML = Object.keys(byShowroom).sort().map(function (name) {
         var v = byShowroom[name];
         return '<tr><td>' + name + '</td><td>' + v.count + '</td><td>' + formatMoney(String(v.total)) + '</td></tr>';
-      }).join('') || '<tr><td colspan="3">??? ????????????.</td></tr>';
+      }).join('') || '<tr><td colspan="3">전시장 데이터가 없습니다.</td></tr>';
     }
+  }
+
+  function getCeoReports() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_CEO_REPORTS) || '[]'); } catch (e) { return []; }
+  }
+
+  function saveCeoReports(reports) {
+    localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(reports));
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderCeoDashboard() {
+    var contracts = getContracts ? getContracts() : [];
+    var today = new Date();
+    var thisMonth = today.toISOString().slice(0, 7);
+
+    // 이번 달 계약
+    var monthContracts = contracts.filter(function(c) {
+      return (c.contractDate || '').slice(0, 7) === thisMonth;
+    });
+
+    // KPI: 계약총액, 예상매출(계약금합계), 달성률
+    var totalAmount = monthContracts.reduce(function(s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+    var expectedSales = monthContracts.reduce(function(s, c) { return s + (Number(c.depositAmount) || 0); }, 0);
+    var goalAmount = 10000000000; // 100억 (기본값)
+    var rateVal = goalAmount > 0 ? Math.round((totalAmount / goalAmount) * 100) : 0;
+
+    function toEok(val) {
+      if (!val) return '0억';
+      return (val / 100000000).toFixed(2) + '억';
+    }
+
+    var elTotal = document.getElementById('ceo-db-total-amount');
+    var elExp = document.getElementById('ceo-db-expected-sales');
+    var elRate = document.getElementById('ceo-db-rate');
+    var elRateCard = document.getElementById('ceo-db-rate-card');
+    if (elTotal) elTotal.textContent = toEok(totalAmount);
+    if (elExp) elExp.textContent = toEok(expectedSales);
+    if (elRate) elRate.textContent = rateVal + '%';
+    if (elRateCard) {
+      elRateCard.classList.remove('accent-green', 'accent-red', 'accent-orange');
+      if (rateVal >= 100) elRateCard.classList.add('accent-green');
+      else if (rateVal >= 60) elRateCard.classList.add('accent-orange');
+      else elRateCard.classList.add('accent-red');
+    }
+
+    // 전체 진행 현황
+    var allContracts = contracts;
+    var designCount = allContracts.filter(function(c) { return c.status === '설계중' || c.designStatus === '진행중'; }).length;
+    var constructionCount = allContracts.filter(function(c) { return c.status === '시공중' || c.constructionStatus === '진행중'; }).length;
+    var pendingCount = allContracts.filter(function(c) { return c.status === '착공대기' || c.status === '계약완료'; }).length;
+
+    var pC = document.getElementById('ceo-db-p-contracts');
+    var pD = document.getElementById('ceo-db-p-design');
+    var pCo = document.getElementById('ceo-db-p-construction');
+    var pP = document.getElementById('ceo-db-p-pending');
+    if (pC) pC.textContent = allContracts.length;
+    if (pD) pD.textContent = designCount;
+    if (pCo) pCo.textContent = constructionCount;
+    if (pP) pP.textContent = pendingCount;
+
+    // 전시장별 현황 (더미 + 실데이터 혼합)
+    var showrooms = [
+      { id: 'headquarters', name: '본사' },
+      { id: 'showroom1', name: '1전시장' },
+      { id: 'showroom3', name: '3전시장' },
+      { id: 'showroom4', name: '4전시장' }
+    ];
+    var tbody = document.getElementById('ceo-db-showroom-tbody');
+    if (tbody) {
+      tbody.innerHTML = showrooms.map(function(sr) {
+        var srContracts = allContracts.filter(function(c) {
+          return c.showroomId === sr.id || c.showroom === sr.name;
+        });
+        var srTotal = srContracts.reduce(function(s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+        var srDeposit = srContracts.reduce(function(s, c) { return s + (Number(c.depositAmount) || 0); }, 0);
+        var srDesignDelay = srContracts.filter(function(c) { return c.designDelay || c.designDelayDays > 0; }).length;
+        var srConstDelay = srContracts.filter(function(c) { return c.constructionDelay || c.constructionDelayDays > 0; }).length;
+        return '<tr>' +
+          '<td class="ceo-db-td-name">' + sr.name + '</td>' +
+          '<td>' + toEok(srTotal) + '</td>' +
+          '<td>' + toEok(srDeposit) + '</td>' +
+          '<td class="' + (srDesignDelay > 0 ? 'accent-orange' : '') + '">' + srDesignDelay + '건</td>' +
+          '<td class="' + (srConstDelay > 0 ? 'accent-red' : '') + '">' + srConstDelay + '건</td>' +
+          '<td>' + srContracts.length + '건</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    // 지연 / 이슈 목록
+    var today10 = today.toISOString().slice(0, 10);
+    var designDelayed = allContracts.filter(function(c) {
+      return c.designDelay || (c.designDueDate && c.designDueDate < today10 && c.status !== '시공완료');
+    });
+    var constDelayed = allContracts.filter(function(c) {
+      return c.constructionDelay || (c.constructionDueDate && c.constructionDueDate < today10 && c.status !== '시공완료');
+    });
+    var paymentDelayed = allContracts.filter(function(c) {
+      return c.paymentDelay || (c.paymentDueDate && c.paymentDueDate < today10 && !c.paymentCompleted);
+    });
+
+    function renderIssueList(listId, items, labelFn) {
+      var el = document.getElementById(listId);
+      if (!el) return;
+      if (!items.length) {
+        el.innerHTML = '<li class="ceo-db-issue-item ceo-db-issue-none">이슈 없음</li>';
+        return;
+      }
+      el.innerHTML = items.slice(0, 5).map(function(c) {
+        return '<li class="ceo-db-issue-item">' + labelFn(c) + '</li>';
+      }).join('');
+    }
+
+    renderIssueList('ceo-db-issue-design', designDelayed, function(c) {
+      return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
+    });
+    renderIssueList('ceo-db-issue-construction', constDelayed, function(c) {
+      return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
+    });
+    renderIssueList('ceo-db-issue-payment', paymentDelayed, function(c) {
+      return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
+    });
+
+    // 더미 데이터: 실 데이터가 없을 때 예시 표시
+    if (!allContracts.length) {
+      if (elTotal) elTotal.textContent = '8.40억';
+      if (elExp) elExp.textContent = '2.10억';
+      if (elRate) elRate.textContent = '84%';
+      if (pC) pC.textContent = '12';
+      if (pD) pD.textContent = '5';
+      if (pCo) pCo.textContent = '4';
+      if (pP) pP.textContent = '3';
+      if (tbody) {
+        tbody.innerHTML = [
+          { name: '본사', total: '3.20억', dep: '0.80억', dd: 1, cd: 0, cnt: 4 },
+          { name: '1전시장', total: '2.50억', dep: '0.62억', dd: 0, cd: 1, cnt: 3 },
+          { name: '3전시장', total: '1.50억', dep: '0.38억', dd: 2, cd: 0, cnt: 3 },
+          { name: '4전시장', total: '1.20억', dep: '0.30억', dd: 0, cd: 0, cnt: 2 }
+        ].map(function(r) {
+          return '<tr>' +
+            '<td class="ceo-db-td-name">' + r.name + '</td>' +
+            '<td>' + r.total + '</td>' +
+            '<td>' + r.dep + '</td>' +
+            '<td class="' + (r.dd > 0 ? 'accent-orange' : '') + '">' + r.dd + '건</td>' +
+            '<td class="' + (r.cd > 0 ? 'accent-red' : '') + '">' + r.cd + '건</td>' +
+            '<td>' + r.cnt + '건</td>' +
+            '</tr>';
+        }).join('');
+      }
+      var dummyDesign = [
+        { customerName: '홍길동', showroom: '3전시장' },
+        { customerName: '김영희', showroom: '3전시장' }
+      ];
+      var dummyConst = [
+        { customerName: '이철수', showroom: '1전시장' }
+      ];
+      var dummyPay = [];
+      renderIssueList('ceo-db-issue-design', dummyDesign, function(c) {
+        return c.customerName + ' (' + c.showroom + ')';
+      });
+      renderIssueList('ceo-db-issue-construction', dummyConst, function(c) {
+        return c.customerName + ' (' + c.showroom + ')';
+      });
+      renderIssueList('ceo-db-issue-payment', dummyPay, function(c) {
+        return c.customerName + ' (' + c.showroom + ')';
+      });
+    }
+  }
+
+  function renderCeoReport(type) {
+    var reports = getCeoReports().filter(function (r) { return r.type === type; });
+    reports.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    var tbody = document.getElementById('tbody-ceo-' + type);
+    if (!tbody) return;
+    tbody.innerHTML = reports.map(function (r) {
+      return '<tr>' +
+        '<td>' + (r.date || '-') + '</td>' +
+        '<td><button type="button" class="btn btn-sm btn-secondary" data-ceo-view="' + r.id + '" data-ceo-type="' + type + '">' + esc(r.title || '-') + '</button></td>' +
+        '<td>' + esc(r.author || '-') + '</td>' +
+        '<td>' + (r.createdAt ? r.createdAt.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
+        '<td><button type="button" class="btn btn-sm btn-secondary" data-ceo-delete="' + r.id + '" data-ceo-type="' + type + '">삭제</button></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="5">보고 내역이 없습니다.</td></tr>';
+  }
+
+  function computeCeoAutoData(type) {
+    var today = new Date().toISOString().slice(0, 10);
+    var thisMonth = today.slice(0, 7);
+    var d = new Date();
+    var dow = d.getDay();
+    var daysToMon = dow === 0 ? 6 : dow - 1;
+    var weekStart = new Date(d.getTime() - daysToMon * 86400000).toISOString().slice(0, 10);
+
+    var allContracts = getContracts();
+    var allVisits = getVisits();
+
+    var periodContracts, periodVisits;
+    if (type === 'daily') {
+      periodContracts = allContracts.filter(function (c) { return c.contractDate === today; });
+      periodVisits = allVisits.filter(function (v) { return v.visitDate === today; });
+    } else if (type === 'weekly') {
+      periodContracts = allContracts.filter(function (c) { return c.contractDate >= weekStart && c.contractDate <= today; });
+      periodVisits = allVisits.filter(function (v) { return v.visitDate >= weekStart && v.visitDate <= today; });
+    } else {
+      periodContracts = allContracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === thisMonth; });
+      periodVisits = allVisits.filter(function (v) { return (v.visitDate || '').slice(0, 7) === thisMonth; });
+    }
+
+    var monthContracts = allContracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === thisMonth; });
+    var monthSales = monthContracts.reduce(function (s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+    var monthVisits = allVisits.filter(function (v) { return (v.visitDate || '').slice(0, 7) === thisMonth; }).length;
+
+    var goals = getKpiGoals ? getKpiGoals() : {};
+    var goal = goals[thisMonth] || {};
+    var goalC = Number(goal.goalContracts) || 0;
+    var rateC = goalC ? ((monthContracts.length / goalC) * 100).toFixed(0) + '%' : '-';
+
+    var srCounts = { headquarters: 0, showroom1: 0, showroom3: 0, showroom4: 0 };
+    monthContracts.forEach(function (c) { if (srCounts[c.showroomId] !== undefined) srCounts[c.showroomId]++; });
+
+    // 설계
+    var designBase = allContracts.filter(function (c) { return c.depositReceivedAt; });
+    var dNone = designBase.filter(function (c) { return (c.designStatus || 'none') === 'none'; }).length;
+    var dInProg = designBase.filter(function (c) { return c.designStatus === 'in_progress'; }).length;
+    var dNego = designBase.filter(function (c) { return c.designStatus === 'negotiating'; }).length;
+    var dDone = designBase.filter(function (c) { return c.designStatus === 'done' || c.designStatus === 'negotiated'; }).length;
+    var dNoDeposit = allContracts.filter(function (c) { return !c.depositReceivedAt; }).length;
+
+    // 시공
+    var cBefore = allContracts.filter(function (c) { return (c.constructionProgress || '착공전') === '착공전'; }).length;
+    var cActive = allContracts.filter(function (c) { var p = c.constructionProgress || ''; return p === '착공' || p === '진행중'; }).length;
+    var cDone = allContracts.filter(function (c) { return c.constructionProgress === '완료'; }).length;
+
+    // 입금
+    var depOk = allContracts.filter(function (c) { return c.depositConfirmed; }).length;
+    var progPend = allContracts.filter(function (c) {
+      return (c.progress1Amount && !c.progress1Confirmed) || (c.progress2Amount && !c.progress2Confirmed) || (c.progress3Amount && !c.progress3Confirmed);
+    }).length;
+    var balPend = allContracts.filter(function (c) { return c.balanceAmount && !c.balanceConfirmed; }).length;
+    var unpaid = allContracts.filter(function (c) { return c.depositAmount && !c.depositConfirmed; }).length;
+
+    return {
+      periodContract: periodContracts.length + '건',
+      monthContract: monthContracts.length + '건',
+      monthSales: (monthSales / 10000).toFixed(0) + '만원',
+      goalRate: rateC,
+      srHq: srCounts.headquarters + '건',
+      sr1: srCounts.showroom1 + '건',
+      sr3: srCounts.showroom3 + '건',
+      sr4: srCounts.showroom4 + '건',
+      periodVisit: periodVisits.length + '명',
+      monthVisit: monthVisits + '명',
+      designWait: dNone + '건',
+      designProgress: dInProg + '건',
+      designRevision: dNego + '건',
+      designDone: dDone + '건',
+      designNone: dNoDeposit + '건',
+      constWait: cBefore + '건',
+      constActive: cActive + '건',
+      constDone: cDone + '건',
+      payDeposit: depOk + '건',
+      payProgress: progPend + '건',
+      payBalance: balPend + '건',
+      payUnpaid: unpaid + '건'
+    };
+  }
+
+  function setCeoField(type, field, val) {
+    var el = document.getElementById('ceo-' + type + '-f-' + field);
+    if (el) el.value = val;
+  }
+
+  function getCeoField(type, field) {
+    var el = document.getElementById('ceo-' + type + '-f-' + field);
+    return el ? (el.value || '-') : '-';
+  }
+
+  function autoFillCeoForm(type) {
+    var data = computeCeoAutoData(type);
+    setCeoField(type, 'period-contract', data.periodContract);
+    setCeoField(type, 'month-contract', data.monthContract);
+    setCeoField(type, 'month-sales', data.monthSales);
+    setCeoField(type, 'goal-rate', data.goalRate);
+    setCeoField(type, 'sr-hq', data.srHq);
+    setCeoField(type, 'sr-1', data.sr1);
+    setCeoField(type, 'sr-3', data.sr3);
+    setCeoField(type, 'sr-4', data.sr4);
+    setCeoField(type, 'period-visit', data.periodVisit);
+    setCeoField(type, 'month-visit', data.monthVisit);
+    setCeoField(type, 'design-wait', data.designWait);
+    setCeoField(type, 'design-progress', data.designProgress);
+    setCeoField(type, 'design-revision', data.designRevision);
+    setCeoField(type, 'design-done', data.designDone);
+    setCeoField(type, 'design-none', data.designNone);
+    setCeoField(type, 'const-wait', data.constWait);
+    setCeoField(type, 'const-active', data.constActive);
+    setCeoField(type, 'const-done', data.constDone);
+    setCeoField(type, 'pay-deposit', data.payDeposit);
+    setCeoField(type, 'pay-progress', data.payProgress);
+    setCeoField(type, 'pay-balance', data.payBalance);
+    setCeoField(type, 'pay-unpaid', data.payUnpaid);
+    showToast('대시보드 데이터가 자동 입력되었습니다.');
+  }
+
+  function generateCeoReportText(type) {
+    var g = function (f) { return getCeoField(type, f); };
+    var periodLabel = type === 'daily' ? '오늘 계약' : type === 'weekly' ? '이번주 계약' : '이달 계약';
+    var visitLabel = type === 'daily' ? '오늘 방문' : type === 'weekly' ? '이번주 방문' : '이달 방문';
+    var monthContractLabel = type === 'monthly' ? '전월 대비' : '이달 계약';
+    var monthVisitLabel = type === 'monthly' ? '전월 대비' : '이달 방문';
+    var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
+    var notesEl = document.getElementById('ceo-' + type + '-f-notes');
+    var issues = issuesEl ? (issuesEl.value || '-') : '-';
+    var notes = notesEl ? (notesEl.value || '-') : '-';
+    return [
+      '[세움 대표 보고]',
+      '',
+      '■ 계약 현황',
+      periodLabel + ' : ' + g('period-contract'),
+      monthContractLabel + ' : ' + g('month-contract'),
+      '이달 매출 : ' + g('month-sales'),
+      '목표 대비 : ' + g('goal-rate'),
+      '',
+      '전시장별',
+      '본사 : ' + g('sr-hq'),
+      '1전시장 : ' + g('sr-1'),
+      '3전시장 : ' + g('sr-3'),
+      '4전시장 : ' + g('sr-4'),
+      '',
+      '■ 방문 / 상담 현황',
+      visitLabel + ' : ' + g('period-visit'),
+      monthVisitLabel + ' : ' + g('month-visit'),
+      '상담 진행 : ' + g('consult'),
+      '계약 예정 : ' + g('contract-expected'),
+      '견적 진행 : ' + g('estimate'),
+      '',
+      '■ 설계 진행 현황',
+      '설계 대기 : ' + g('design-wait'),
+      '설계 진행 : ' + g('design-progress'),
+      '설계 완료 : ' + g('design-done'),
+      '설계 수정 : ' + g('design-revision'),
+      '계약 후 미설계 : ' + g('design-none'),
+      '',
+      '■ 시공 진행 현황',
+      '착공 대기 : ' + g('const-wait'),
+      '시공 중 : ' + g('const-active'),
+      '시공 완료 : ' + g('const-done'),
+      '지연 현장 : ' + g('const-delay'),
+      '이슈 현장 : ' + g('const-issue'),
+      '',
+      '■ 입금 / 잔금 현황',
+      '계약금 입금 : ' + g('pay-deposit'),
+      '중도금 예정 : ' + g('pay-progress'),
+      '잔금 예정 : ' + g('pay-balance'),
+      '미입금 : ' + g('pay-unpaid'),
+      '연체 : ' + g('pay-overdue'),
+      '',
+      '■ 매출 예측',
+      '이번달 예상 계약 : ' + g('forecast-this'),
+      '다음달 예상 계약 : ' + g('forecast-next'),
+      '진행 중 계약 : ' + g('forecast-ongoing'),
+      '',
+      '■ 이슈 보고',
+      issues,
+      '',
+      '■ 특이사항',
+      notes
+    ].join('\n');
+  }
+
+  function collectCeoFormFields(type) {
+    var fields = ['period-contract', 'month-contract', 'month-sales', 'goal-rate',
+      'sr-hq', 'sr-1', 'sr-3', 'sr-4',
+      'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
+      'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
+      'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
+      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'forecast-this', 'forecast-next', 'forecast-ongoing'];
+    var result = {};
+    fields.forEach(function (f) { result[f] = getCeoField(type, f); });
+    var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
+    var notesEl = document.getElementById('ceo-' + type + '-f-notes');
+    result.issues = issuesEl ? issuesEl.value : '';
+    result.notes = notesEl ? notesEl.value : '';
+    return result;
+  }
+
+  function resetCeoForm(type) {
+    var fields = ['period-contract', 'month-contract', 'month-sales', 'goal-rate',
+      'sr-hq', 'sr-1', 'sr-3', 'sr-4',
+      'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
+      'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
+      'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
+      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'forecast-this', 'forecast-next', 'forecast-ongoing'];
+    fields.forEach(function (f) { setCeoField(type, f, ''); });
+    var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
+    var notesEl = document.getElementById('ceo-' + type + '-f-notes');
+    if (issuesEl) issuesEl.value = '';
+    if (notesEl) notesEl.value = '';
+    var titleEl = document.getElementById('ceo-' + type + '-title');
+    if (titleEl) titleEl.value = '';
+    var previewBox = document.getElementById('ceo-' + type + '-preview-box');
+    if (previewBox) previewBox.classList.add('hidden');
+  }
+
+  function initCeoReports() {
+    ['daily', 'weekly', 'monthly'].forEach(function (type) {
+      // 날짜 초기값
+      var dateInput = document.getElementById('ceo-' + type + '-date');
+      if (dateInput) {
+        dateInput.value = type === 'monthly' ? new Date().toISOString().slice(0, 7) : new Date().toISOString().slice(0, 10);
+      }
+
+      // 자동 채우기 버튼
+      var autofillBtn = document.getElementById('btn-ceo-' + type + '-autofill');
+      if (autofillBtn) {
+        autofillBtn.addEventListener('click', function () { autoFillCeoForm(type); });
+      }
+
+      // 미리보기/복사 버튼
+      var previewBtn = document.getElementById('btn-ceo-' + type + '-preview');
+      if (previewBtn) {
+        previewBtn.addEventListener('click', function () {
+          var text = generateCeoReportText(type);
+          var preEl = document.getElementById('ceo-' + type + '-preview-text');
+          var box = document.getElementById('ceo-' + type + '-preview-box');
+          if (preEl) preEl.textContent = text;
+          if (box) { box.classList.remove('hidden'); box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        });
+      }
+
+      // 복사 버튼
+      var copyBtn = document.getElementById('btn-ceo-' + type + '-copy');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+          var preEl = document.getElementById('ceo-' + type + '-preview-text');
+          var text = preEl ? preEl.textContent : generateCeoReportText(type);
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function () { showToast('복사되었습니다.'); });
+          } else {
+            var ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+            showToast('복사되었습니다.');
+          }
+        });
+      }
+
+      // 폼 저장
+      var form = document.getElementById('form-ceo-' + type);
+      if (form) {
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          if (!canSeeCeoSection()) return;
+          var cur = window.seumAuth && window.seumAuth.currentEmployee;
+          var author = cur ? (cur.name || cur.email || '비서') : '비서';
+          var dateVal = document.getElementById('ceo-' + type + '-date').value;
+          var titleEl = document.getElementById('ceo-' + type + '-title');
+          var titleVal = titleEl ? titleEl.value.trim() : '';
+          if (!dateVal) { alert('날짜를 입력해 주세요.'); return; }
+          var content = generateCeoReportText(type);
+          var fields = collectCeoFormFields(type);
+          if (!titleVal) {
+            titleVal = dateVal + ' ' + (type === 'daily' ? '일일' : type === 'weekly' ? '주간' : '월간') + ' 보고';
+          }
+          var reports = getCeoReports();
+          reports.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            type: type,
+            date: dateVal,
+            title: titleVal,
+            content: content,
+            fields: fields,
+            author: author,
+            createdAt: new Date().toISOString()
+          });
+          saveCeoReports(reports);
+          resetCeoForm(type);
+          if (dateInput) dateInput.value = type === 'monthly' ? new Date().toISOString().slice(0, 7) : new Date().toISOString().slice(0, 10);
+          renderCeoReport(type);
+          showToast('보고가 저장되었습니다.');
+        });
+      }
+
+      // 목록 클릭 (보기/삭제)
+      var tbody = document.getElementById('tbody-ceo-' + type);
+      if (tbody) {
+        tbody.addEventListener('click', function (e) {
+          var viewBtn = e.target.closest('[data-ceo-view]');
+          var deleteBtn = e.target.closest('[data-ceo-delete]');
+          if (viewBtn) {
+            var rid = viewBtn.getAttribute('data-ceo-view');
+            var rtype = viewBtn.getAttribute('data-ceo-type');
+            var report = getCeoReports().find(function (r) { return r.id === rid; });
+            if (!report) return;
+            var detail = document.getElementById('ceo-' + rtype + '-detail');
+            if (detail) {
+              document.getElementById('ceo-' + rtype + '-detail-title').textContent = report.title || '';
+              document.getElementById('ceo-' + rtype + '-detail-meta').textContent = '작성자: ' + (report.author || '-') + '  |  ' + (report.createdAt ? report.createdAt.slice(0, 16).replace('T', ' ') : '');
+              document.getElementById('ceo-' + rtype + '-detail-content').textContent = report.content || '';
+              detail.classList.remove('hidden');
+              detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
+          if (deleteBtn) {
+            var did = deleteBtn.getAttribute('data-ceo-delete');
+            var dtype = deleteBtn.getAttribute('data-ceo-type');
+            if (!confirm('이 보고를 삭제하시겠습니까?')) return;
+            saveCeoReports(getCeoReports().filter(function (r) { return r.id !== did; }));
+            renderCeoReport(dtype);
+            var detail2 = document.getElementById('ceo-' + dtype + '-detail');
+            if (detail2) detail2.classList.add('hidden');
+            showToast('삭제되었습니다.');
+          }
+        });
+      }
+
+      // 닫기 버튼
+      var closeBtn = document.getElementById('btn-ceo-' + type + '-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+          var detail = document.getElementById('ceo-' + type + '-detail');
+          if (detail) detail.classList.add('hidden');
+        });
+      }
+    });
   }
 
   function showConstructionDetailPanel(contractId, forceRefresh) {
@@ -4152,7 +4874,7 @@
       document.getElementById('design-construction-drawing-list')
     );
     var houseFields = document.getElementById('design-house-fields');
-    if (houseFields) houseFields.classList.toggle('hidden', (c.projectType || '') !== '??');
+    if (houseFields) houseFields.classList.toggle('hidden', (c.projectType || '') !== '주택');
     document.getElementById('modal-design-permit').classList.remove('hidden');
   }
 
@@ -4167,7 +4889,7 @@
     });
     if (projectTypeEl && houseFields) {
       projectTypeEl.addEventListener('change', function () {
-        houseFields.classList.toggle('hidden', projectTypeEl.value !== '??');
+        houseFields.classList.toggle('hidden', projectTypeEl.value !== '주택');
       });
     }
     if (form) {
@@ -4214,7 +4936,7 @@
         saveContracts(contracts);
         modal.classList.add('hidden');
         renderDesign();
-        window.alert('??? ????/?? ???? ???????????.');
+        window.alert('허가 현황이 저장되었습니다.');
       });
     }
     var drawingFileEl = document.getElementById('design-drawing-attachment-file');
@@ -4224,7 +4946,7 @@
       drawingUploadBtn.addEventListener('click', function () {
         var inputEl = document.getElementById('design-drawing-attachment');
         if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
           return;
         }
         drawingFileEl.click();
@@ -4232,14 +4954,14 @@
       drawingFileEl.addEventListener('change', function () {
         var contractId = document.getElementById('design-contract-id').value;
         var files = Array.prototype.slice.call(drawingFileEl.files || []);
-        if (!contractId) { window.alert('??????? ?????????'); drawingFileEl.value = ''; return; }
+        if (!contractId) { window.alert('계약 ID 없음'); drawingFileEl.value = ''; return; }
         if (!files.length) return;
         var inputEl = document.getElementById('design-drawing-attachment');
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
           .then(function (results) {
             var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
-            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
@@ -4262,7 +4984,7 @@
       drawingUploadBtn2.addEventListener('click', function () {
         var inputEl = document.getElementById('design-drawing-attachment-2');
         if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
           return;
         }
         drawingFileEl2.click();
@@ -4270,14 +4992,14 @@
       drawingFileEl2.addEventListener('change', function () {
         var contractId = document.getElementById('design-contract-id').value;
         var files = Array.prototype.slice.call(drawingFileEl2.files || []);
-        if (!contractId) { window.alert('??????? ?????????'); drawingFileEl2.value = ''; return; }
+        if (!contractId) { window.alert('계약 ID 없음'); drawingFileEl2.value = ''; return; }
         if (!files.length) return;
         var inputEl = document.getElementById('design-drawing-attachment-2');
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
           .then(function (results) {
             var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
-            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
@@ -4300,7 +5022,7 @@
       drawingUploadBtn3.addEventListener('click', function () {
         var inputEl = document.getElementById('design-drawing-attachment-3');
         if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
           return;
         }
         drawingFileEl3.click();
@@ -4308,14 +5030,14 @@
       drawingFileEl3.addEventListener('change', function () {
         var contractId = document.getElementById('design-contract-id').value;
         var files = Array.prototype.slice.call(drawingFileEl3.files || []);
-        if (!contractId) { window.alert('??????? ?????????'); drawingFileEl3.value = ''; return; }
+        if (!contractId) { window.alert('계약 ID 없음'); drawingFileEl3.value = ''; return; }
         if (!files.length) return;
         var inputEl = document.getElementById('design-drawing-attachment-3');
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
           .then(function (results) {
             var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
-            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
@@ -4337,7 +5059,7 @@
       constructionUploadBtn.addEventListener('click', function () {
         var inputEl = document.getElementById('design-construction-drawing-attachment');
         if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('???? ?????? ???????????.\n??? ?????????????? ???????? ??????????');
+          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
           return;
         }
         constructionFileEl.click();
@@ -4345,14 +5067,14 @@
       constructionFileEl.addEventListener('change', function () {
         var contractId = document.getElementById('design-contract-id').value;
         var files = Array.prototype.slice.call(constructionFileEl.files || []);
-        if (!contractId) { window.alert('??????? ?????????'); constructionFileEl.value = ''; return; }
+        if (!contractId) { window.alert('계약 ID 없음'); constructionFileEl.value = ''; return; }
         if (!files.length) return;
         var inputEl = document.getElementById('design-construction-drawing-attachment');
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadConstructionDrawingAttachment(contractId, file); }))
           .then(function (results) {
             var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
-            if (!urls.length) { window.alert('?????? ?????? ?????????.'); return; }
+            if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
@@ -4377,11 +5099,14 @@
     if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
       return;
     }
+    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard') && !canSeeCeoSection()) {
+      return;
+    }
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') &&
       !canAccessTeamSection(sectionId)) {
-      window.alert('??? ???? ?????????? ???????');
+      window.alert('접근 권한이 없습니다.');
       return;
     }
     document.querySelectorAll('.content-section').forEach(function (el) {
@@ -4403,6 +5128,20 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'ceo-dashboard') renderCeoDashboard();
+    if (sectionId === 'ceo-daily') renderCeoReport('daily');
+    if (sectionId === 'ceo-weekly') renderCeoReport('weekly');
+    if (sectionId === 'ceo-monthly') renderCeoReport('monthly');
+    if (sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly') {
+      var ceoSub = document.getElementById('nav-ceo-sub');
+      var ceoGroup = document.getElementById('sidebar-group-ceo');
+      var ceoBtn = document.getElementById('nav-ceo-toggle');
+      if (ceoSub && ceoGroup) {
+        ceoSub.classList.remove('collapsed');
+        ceoGroup.classList.add('expanded');
+        if (ceoBtn) ceoBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
     if (sectionId && sectionId.indexOf('admin-') === 0) {
       var adminSub = document.getElementById('nav-admin-sub');
       var adminGroup = document.getElementById('sidebar-group-admin');
@@ -4497,6 +5236,18 @@
         adminToggle.setAttribute('aria-expanded', adminSub.classList.contains('collapsed') ? 'false' : 'true');
       });
     }
+    var ceoToggle = document.getElementById('nav-ceo-toggle');
+    var ceoSub = document.getElementById('nav-ceo-sub');
+    var ceoGroup = document.getElementById('sidebar-group-ceo');
+    if (ceoToggle && ceoSub && ceoGroup) {
+      ceoToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        ceoSub.classList.toggle('collapsed');
+        ceoGroup.classList.toggle('expanded');
+        ceoToggle.setAttribute('aria-expanded', ceoSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
   }
 
   function initVisitForm() {
@@ -4545,7 +5296,7 @@
           need3d: need3d,
           memo: memo,
           createdAt: new Date().toISOString().slice(0, 10),
-          status: '???'
+          status: '신규'
         });
         saveVisits(visits);
         form.reset();
@@ -4564,7 +5315,7 @@
     var v = visits.find(function (x) { return x.id === visitId; });
     if (!v) return;
     if (targetShowroomId) v.showroomId = targetShowroomId;
-    v.status = '?????????';
+    v.status = '영업배정';
     v.assignedToSalesAt = new Date().toISOString().slice(0, 10);
     saveVisits(visits);
     renderMarketing();
@@ -4574,7 +5325,7 @@
   function assignSelectedToSales() {
     var checked = document.querySelectorAll('.visit-row-check:checked');
     if (!checked.length) {
-      alert('???????? ??????? ?????????');
+      alert('선택된 방문이 없습니다.');
       return;
     }
     var visits = getVisits();
@@ -4583,9 +5334,9 @@
       var visitId = el.value;
       var targetShowroomId = getAssignShowroomValue(visitId);
       var v = visits.find(function (x) { return x.id === visitId; });
-      if (v && v.status !== '?????????') {
+      if (v && v.status !== '영업배정') {
         if (targetShowroomId) v.showroomId = targetShowroomId;
-        v.status = '?????????';
+        v.status = '영업배정';
         v.assignedToSalesAt = new Date().toISOString().slice(0, 10);
         updated++;
       }
@@ -4593,7 +5344,7 @@
     saveVisits(visits);
     renderMarketing();
     renderSales();
-    if (updated) alert(updated + '?? ???????? ?????????.');
+    if (updated) alert(updated + '건 영업배정이 완료되었습니다.');
   }
 
   function initVisitAssign() {
@@ -4626,9 +5377,12 @@
       nameInput.value = '';
       return;
     }
-    var colorInitial = color ? color.charAt(0).toUpperCase() : '';
-    var code = series + size + colorInitial;
-    nameInput.value = '????' + code;
+    var colorSuffix = '';
+    if (color) {
+      colorSuffix = color.length === 2 ? color.toUpperCase() : color.charAt(0).toUpperCase();
+    }
+    var code = series + size + colorSuffix;
+    nameInput.value = '세움' + code;
   }
 
   function openContractForm(visitId) {
@@ -4642,7 +5396,7 @@
       // ?????????? ???????????? ??????????? ???
       if (!showroomEl.value && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
         var cur = window.seumAuth.currentEmployee;
-        if ((cur.team || '').trim() === '???' && cur.showroom) {
+        if ((cur.team || '').trim() === '영업' && cur.showroom) {
           showroomEl.value = cur.showroom;
         }
       }
@@ -4676,8 +5430,8 @@
     var parts = raw.split(/\s+/);
     var first = parts[0];
     if (/^https?:\/\//i.test(first)) {
-      var suffix = parts.length > 1 ? ' (??' + (parts.length - 1) + '??' : '';
-      return '<a href="' + first + '" target="_blank" rel="noopener">??' + suffix + '</a>';
+      var suffix = parts.length > 1 ? ' (외 ' + (parts.length - 1) + '건)' : '';
+      return '<a href="' + first + '" target="_blank" rel="noopener">링크' + suffix + '</a>';
     }
     return val;
   }
@@ -4687,7 +5441,7 @@
     if (!el) return;
     var raw = (el.value || '').trim();
     if (!raw) {
-      window.alert('???????? ??????.');
+      window.alert('파일이 없습니다.');
       return;
     }
     // ?????? ??? URL???????? ??
@@ -4726,7 +5480,7 @@
     var summaryEl = document.getElementById('contract-inline-design-handover-summary');
     if (!summaryEl) return;
     var lines = [];
-    var roomLabels = { bedroom: '???', living: '??', kitchen: '??', bath: '???' };
+    var roomLabels = { bedroom: '침실/방', living: '거실', kitchen: '주방', bath: '욕실' };
     ['bedroom', 'living', 'kitchen', 'bath'].forEach(function (room) {
       var r = document.querySelector('input[name="contract-inline-room-' + room + '"]:checked');
       var memo = document.getElementById('contract-inline-memo-' + room);
@@ -4735,45 +5489,45 @@
         lines.push(roomLabels[room] + ' : ' + txt);
       }
     });
-    var extLabels = { deck: '???', porch: '???', yard: '??', parking: '??' };
+    var extLabels = { deck: '데크', porch: '포치', yard: '마당', parking: '주차' };
     ['deck', 'porch', 'yard', 'parking'].forEach(function (ext) {
       var r = document.querySelector('input[name="contract-inline-external-' + ext + '"]:checked');
       var memo = document.getElementById('contract-inline-external-' + ext + '-memo');
       var txt = memo && memo.value ? (memo.value || '').trim() : '';
       if (r && r.value === 'add') {
-        lines.push('???? ' + extLabels[ext] + ' : ' + (txt || '???'));
+        lines.push('외부공간 ' + extLabels[ext] + ' : ' + (txt || '메모 없음'));
       }
     });
     var winAdd = document.getElementById('contract-inline-window-add-memo');
     var winPos = document.getElementById('contract-inline-window-position-memo');
     var winSize = document.getElementById('contract-inline-window-size-memo');
     var winParts = [];
-    if (winAdd && (winAdd.value || '').trim()) winParts.push('????? ' + (winAdd.value || '').trim());
-    if (winPos && (winPos.value || '').trim()) winParts.push('??????' + (winPos.value || '').trim());
-    if (winSize && (winSize.value || '').trim()) winParts.push('??????' + (winSize.value || '').trim());
-    if (winParts.length) lines.push('?? : ' + winParts.join(', '));
+    if (winAdd && (winAdd.value || '').trim()) winParts.push('창 추가: ' + (winAdd.value || '').trim());
+    if (winPos && (winPos.value || '').trim()) winParts.push('창 위치 변경: ' + (winPos.value || '').trim());
+    if (winSize && (winSize.value || '').trim()) winParts.push('창 크기 변경: ' + (winSize.value || '').trim());
+    if (winParts.length) lines.push('창호 : ' + winParts.join(', '));
     var extMatR = document.querySelector('input[name="contract-inline-exterior-material"]:checked');
     if (extMatR && extMatR.value !== 'default') {
-      var matLabels = { ceramic: '????????', longbrick: '????, smart: '?????????' };
-      lines.push('?????: ' + (matLabels[extMatR.value] || extMatR.value));
+      var matLabels = { ceramic: '세라믹사이딩', longbrick: '롱브릭', smart: '스마트사이딩' };
+      lines.push('외장재: ' + (matLabels[extMatR.value] || extMatR.value));
     }
     var facCf = document.getElementById('contract-inline-facility-ceiling-fan');
     var facAc = document.getElementById('contract-inline-facility-aircon');
     var facOut = document.getElementById('contract-inline-facility-outlet');
     var facLight = document.getElementById('contract-inline-facility-lighting');
     var facParts = [];
-    if (facCf && (facCf.value || '').trim()) facParts.push('?????' + (facCf.value || '').trim());
-    if (facAc && (facAc.value || '').trim()) facParts.push('?????' + (facAc.value || '').trim());
-    if (facOut && (facOut.value || '').trim()) facParts.push('????' + (facOut.value || '').trim());
-    if (facLight && (facLight.value || '').trim()) facParts.push('?? ' + (facLight.value || '').trim());
-    if (facParts.length) lines.push('???/??? : ' + facParts.join(', '));
+    if (facCf && (facCf.value || '').trim()) facParts.push('실링팬: ' + (facCf.value || '').trim());
+    if (facAc && (facAc.value || '').trim()) facParts.push('에어컨: ' + (facAc.value || '').trim());
+    if (facOut && (facOut.value || '').trim()) facParts.push('콘센트: ' + (facOut.value || '').trim());
+    if (facLight && (facLight.value || '').trim()) facParts.push('조명 ' + (facLight.value || '').trim());
+    if (facParts.length) lines.push('설비/전기 : ' + facParts.join(', '));
     var etc = document.getElementById('contract-inline-memo-etc');
-    if (etc && (etc.value || '').trim()) lines.push('??? : ' + (etc.value || '').trim());
+    if (etc && (etc.value || '').trim()) lines.push('기타 : ' + (etc.value || '').trim());
     var extNote = document.getElementById('contract-inline-exterior');
-    if (extNote && (extNote.value || '').trim()) lines.push('??????? : ' + (extNote.value || '').trim());
+    if (extNote && (extNote.value || '').trim()) lines.push('외장재 메모 : ' + (extNote.value || '').trim());
     var extra = document.getElementById('contract-inline-extra');
-    if (extra && (extra.value || '').trim()) lines.push('??? : ' + (extra.value || '').trim());
-    var header = '[????? ??? ??]\n\n';
+    if (extra && (extra.value || '').trim()) lines.push('추가 내용 : ' + (extra.value || '').trim());
+    var header = '[설계팀 인계 메모]\n\n';
     summaryEl.value = lines.length ? header + lines.join('\n') : '';
   }
 
@@ -4811,8 +5565,8 @@
 
     var titleEl = document.getElementById('contract-detail-customer');
     var subtitleEl = document.getElementById('contract-detail-subtitle');
-    if (titleEl) titleEl.textContent = (c.customerName || '-') + ' ?? ??';
-    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' ? ' + (c.contractModelName || c.contractModel || '-') + ' ? ' + formatMoney(c.totalAmount) + '??';
+    if (titleEl) titleEl.textContent = (c.customerName || '-') + ' 계약 상세';
+    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' | ' + (c.contractModelName || c.contractModel || '-') + ' | ' + formatMoney(c.totalAmount) + '원';
     document.getElementById('contract-inline-id').value = c.id;
     document.getElementById('contract-inline-showroom').value = c.showroomId || '';
     var inlineModelShowroomEl = document.getElementById('contract-inline-model-showroom');
@@ -4822,8 +5576,9 @@
     document.getElementById('contract-inline-sales-person').value = c.salesPerson || '';
     document.getElementById('contract-inline-attachment').value = c.contractAttachment || '';
     if (typeof window.syncContractAttachCard === 'function') window.syncContractAttachCard();
+    if (typeof window.syncExtraAttachList === 'function') window.syncExtraAttachList();
     document.getElementById('contract-inline-site-address').value = c.siteAddress || '';
-    var inlineInstall = document.querySelector('input[name="contract-inline-install-type"][value="' + (c.installType || '??????') + '"]');
+    var inlineInstall = document.querySelector('input[name="contract-inline-install-type"][value="' + (c.installType || '현장시공') + '"]');
     if (inlineInstall) inlineInstall.checked = true;
     document.getElementById('contract-inline-foundation-pyeong').value = c.foundationPyeong != null && c.foundationPyeong !== '' ? c.foundationPyeong : '';
     document.getElementById('contract-inline-house-pyeong').value = c.housePyeong != null && c.housePyeong !== '' ? c.housePyeong : '';
@@ -4915,7 +5670,7 @@
     c.contractAttachment = document.getElementById('contract-inline-attachment').value.trim();
     c.siteAddress = document.getElementById('contract-inline-site-address').value.trim();
     var inlineInstallChecked = document.querySelector('input[name="contract-inline-install-type"]:checked');
-    c.installType = inlineInstallChecked ? inlineInstallChecked.value : '??????';
+    c.installType = inlineInstallChecked ? inlineInstallChecked.value : '현장시공';
     c.foundationPyeong = (document.getElementById('contract-inline-foundation-pyeong').value || '').trim();
     c.housePyeong = (document.getElementById('contract-inline-house-pyeong').value || '').trim();
     c.options = c.options || { porch: { enabled: false, pyeong: '' }, deck: { enabled: false, pyeong: '' }, sunroom: { enabled: false, pyeong: '' }, demolition: { enabled: false, pyeong: '' }, repair: { enabled: false, pyeong: '' }, interior: { enabled: false, pyeong: '' } };
@@ -4971,6 +5726,7 @@
     var summaryIn = document.getElementById('contract-inline-design-handover-summary');
     c.designHandoverSummary = summaryIn ? (summaryIn.value || '').trim() : '';
     saveContracts(contracts);
+    showToast('계약 상세 정보가 저장됐습니다.');
     renderSales();
     showContractDetailPanel(contractId, true);
   }
@@ -5010,31 +5766,89 @@
         saveContractInline();
       });
     }
-    // ??????? ?????(????????)
+    var saveBtn = document.getElementById('btn-contract-inline-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        saveContractInline();
+      });
+    }
+    var inlineDeleteBtn = document.getElementById('btn-contract-inline-delete');
+    if (inlineDeleteBtn) {
+      inlineDeleteBtn.addEventListener('click', function () {
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (!contractId) return;
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee ? window.seumAuth.currentEmployee : null;
+        var team = cur ? (cur.team || '').trim() : '';
+        var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        var canSalesDeleteOwn = cur && team === '영업' && (cur.name || '').trim() && String(c.salesPerson || '').trim() === (cur.name || '').trim();
+        if (!isAdminRole && !canSalesDeleteOwn) {
+          window.alert('계약 삭제 권한이 없습니다. 관리자에게 문의하세요.');
+          return;
+        }
+        if (!window.confirm('이 계약을 삭제하시겠습니까?')) return;
+        deleteContractById(contractId);
+      });
+    }
+    // 계약서 첨부: 플레이스홀더 클릭으로 파일 선택 (btn-contract-inline-attach 없음)
     var inlineFileInput = document.getElementById('contract-inline-attachment-file');
     var inlineUploadBtn = document.getElementById('btn-contract-inline-attach');
-    if (inlineFileInput && inlineUploadBtn) {
-      inlineUploadBtn.addEventListener('click', function () {
-        inlineFileInput.click();
-      });
+    if (inlineUploadBtn) inlineUploadBtn.addEventListener('click', function () { inlineFileInput && inlineFileInput.click(); });
+    if (inlineFileInput) {
       inlineFileInput.addEventListener('change', function () {
         var file = inlineFileInput.files && inlineFileInput.files[0];
         if (!file) return;
         var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
         if (!contractId) {
-          window.alert('??????? ????????????? ????');
           inlineFileInput.value = '';
+          window.alert('계약을 먼저 선택하거나 저장한 뒤 계약서를 업로드해 주세요.');
           return;
         }
+        var placeholder = document.getElementById('contract-attach-card-placeholder');
+        var fileBlock = document.getElementById('contract-attach-card-file');
+        var filenameEl = document.getElementById('contract-attach-card-filename');
+        var viewLink = document.getElementById('contract-attach-card-view');
+        if (placeholder && fileBlock && filenameEl) {
+          placeholder.classList.add('hidden');
+          fileBlock.classList.remove('hidden');
+          filenameEl.textContent = '업로드 중... ' + (file.name || '');
+          if (viewLink) viewLink.style.display = 'none';
+        }
         uploadContractAttachment(contractId, file).then(function (res) {
+          inlineFileInput.value = '';
           if (!res || !res.url) {
-            window.alert('??????? ?????? ?????????.');
+            if (placeholder && fileBlock) {
+              placeholder.classList.remove('hidden');
+              fileBlock.classList.add('hidden');
+            }
+            window.alert('파일 업로드에 실패했습니다.');
             return;
           }
           var input = document.getElementById('contract-inline-attachment');
           if (input) input.value = res.url;
-          inlineFileInput.value = '';
-          if (typeof syncContractAttachCard === 'function') syncContractAttachCard();
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === contractId; });
+          if (contract) {
+            contract.contractAttachment = res.url;
+            saveContracts(contracts);
+          }
+          if (placeholder && fileBlock && filenameEl) {
+            placeholder.classList.add('hidden');
+            fileBlock.classList.remove('hidden');
+            var displayName = (res.name || res.url.replace(/^.*\//, '')).replace(/^\d+_/, '');
+            filenameEl.textContent = displayName || '첨부됨';
+            if (viewLink) {
+              viewLink.href = res.url;
+              viewLink.style.display = '';
+            }
+          }
+          if (typeof syncContractAttachCard === 'function') {
+            syncContractAttachCard();
+            setTimeout(syncContractAttachCard, 50);
+          }
         });
       });
     }
@@ -5055,7 +5869,8 @@
       placeholder.classList.add('hidden');
       fileBlock.classList.remove('hidden');
       var displayName = val.indexOf('/') !== -1 ? val.replace(/^.*\//, '') : val;
-      if (filenameEl) filenameEl.textContent = displayName;
+      if (displayName && /^\d+_/.test(displayName)) displayName = displayName.replace(/^\d+_/, '');
+      if (filenameEl) filenameEl.textContent = displayName || '첨부됨';
       if (viewLink) {
         viewLink.href = /^https?:\/\//i.test(val) ? val : '#';
         viewLink.style.display = /^https?:\/\//i.test(val) ? '' : 'none';
@@ -5073,6 +5888,108 @@
         if (this.getAttribute('href') === '#') e.preventDefault();
       });
     }
+
+    // 추가 자료 첨부 핸들러
+    var extraFileInput = document.getElementById('contract-extra-attachment-file');
+    var extraCard = document.getElementById('contract-extra-attach-card');
+    var extraPlaceholder = document.getElementById('contract-extra-attach-placeholder');
+    var extraList = document.getElementById('contract-extra-attach-list');
+
+    function renderExtraAttachList(attachments) {
+      if (!extraList) return;
+      extraList.innerHTML = '';
+      if (!attachments || !attachments.length) {
+        if (extraPlaceholder) extraPlaceholder.style.display = '';
+        return;
+      }
+      if (extraPlaceholder) extraPlaceholder.style.display = 'none';
+      attachments.forEach(function (item, idx) {
+        var li = document.createElement('li');
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'extra-file-name';
+        var displayName = (item.name || item.url.replace(/^.*\//, '')).replace(/^\d+_/, '');
+        nameSpan.textContent = displayName || '첨부됨';
+        var viewA = document.createElement('a');
+        viewA.className = 'extra-file-view';
+        viewA.href = item.url;
+        viewA.target = '_blank';
+        viewA.rel = 'noopener';
+        viewA.textContent = '보기';
+        var removeBtn = document.createElement('button');
+        removeBtn.className = 'extra-file-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.title = '삭제';
+        removeBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+          if (!contractId) return;
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === contractId; });
+          if (contract && Array.isArray(contract.extraAttachments)) {
+            contract.extraAttachments.splice(idx, 1);
+            saveContracts(contracts);
+            renderExtraAttachList(contract.extraAttachments);
+          }
+        });
+        li.appendChild(nameSpan);
+        li.appendChild(viewA);
+        li.appendChild(removeBtn);
+        extraList.appendChild(li);
+      });
+      // 추가 업로드 버튼 (목록 있을 때도 클릭 가능하게)
+      if (extraPlaceholder) extraPlaceholder.style.display = '';
+      if (extraPlaceholder) {
+        extraPlaceholder.querySelector('.contract-attach-card-placeholder-text').textContent = '+ 추가 자료 업로드';
+      }
+    }
+
+    function syncExtraAttachList() {
+      var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+      if (!contractId) { renderExtraAttachList([]); return; }
+      var contracts = getContracts();
+      var contract = contracts.find(function (x) { return x.id === contractId; });
+      renderExtraAttachList(contract && contract.extraAttachments || []);
+    }
+    if (typeof window !== 'undefined') window.syncExtraAttachList = syncExtraAttachList;
+
+    if (extraCard && extraPlaceholder && extraFileInput) {
+      extraPlaceholder.addEventListener('click', function () { extraFileInput.click(); });
+    }
+
+    if (extraFileInput) {
+      extraFileInput.addEventListener('change', function () {
+        var files = extraFileInput.files;
+        if (!files || !files.length) return;
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (!contractId) {
+          extraFileInput.value = '';
+          window.alert('계약을 먼저 선택하거나 저장한 뒤 추가 자료를 업로드해 주세요.');
+          return;
+        }
+        var uploads = Array.prototype.slice.call(files).map(function (file) {
+          return uploadContractExtraFile(contractId, file);
+        });
+        Promise.all(uploads).then(function (results) {
+          extraFileInput.value = '';
+          var succeeded = results.filter(Boolean);
+          if (!succeeded.length) {
+            window.alert('파일 업로드에 실패했습니다.');
+            return;
+          }
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === contractId; });
+          if (contract) {
+            if (!Array.isArray(contract.extraAttachments)) contract.extraAttachments = [];
+            succeeded.forEach(function (res) {
+              contract.extraAttachments.push({ url: res.url, name: res.name });
+            });
+            saveContracts(contracts);
+            renderExtraAttachList(contract.extraAttachments);
+          }
+        });
+      });
+    }
+
     if (modalBtn && panel) {
       modalBtn.addEventListener('click', function () {
         var id = panel.getAttribute('data-current-id');
@@ -5126,20 +6043,20 @@
     var designView = document.getElementById('detail-design-full-view');
     if (designView) {
       var rows = [
-        ['???', c.projectType || '-'],
-        ['???????', linkOrText(c.contractAttachment)],
-        ['?????? ???', linkOrText(c.designDrawingAttachment)],
-        ['?????? ???', linkOrText(c.constructionDrawingAttachment)]
+        ['유형', c.projectType || '-'],
+        ['계약서 파일', linkOrText(c.contractAttachment)],
+        ['설계 도면 URL', linkOrText(c.designDrawingAttachment)],
+        ['시공 도면 URL', linkOrText(c.constructionDrawingAttachment)]
       ];
-      if ((c.projectType || '') === '??') {
-        rows.push(['???????, c.architectInfo || '-']);
-        rows.push(['?????, c.designContactName || '-']);
-        rows.push(['?????, c.designContactPhone || '-']);
-        rows.push(['??????? ???', c.hasPermitCert ? '?? : '??]);
-        rows.push(['??????? ???', linkOrText(c.permitAttachment)]);
-        rows.push(['???????', c.hasConstructionStartReport ? '?? : '??]);
-        rows.push(['????????', c.hasCompletionCert ? '?? : '??]);
-        rows.push(['?????? (????? ????? ???', c.constructionStartOk ? 'Y' : '-']);
+      if ((c.projectType || '') === '주택') {
+        rows.push(['건축사 정보', c.architectInfo || '-']);
+        rows.push(['담당자 이름', c.designContactName || '-']);
+        rows.push(['담당자 연락처', c.designContactPhone || '-']);
+        rows.push(['건축허가서 수령', c.hasPermitCert ? '완료' : '미완']);
+        rows.push(['건축허가서 URL', linkOrText(c.permitAttachment)]);
+        rows.push(['착공신고서', c.hasConstructionStartReport ? '완료' : '미완']);
+        rows.push(['사용승인서', c.hasCompletionCert ? '완료' : '미완']);
+        rows.push(['착공 준비완료 (시공팀 인계 준비)', c.constructionStartOk ? 'Y' : '-']);
       }
       var html = '<table class="detail-table"><tbody>' + rows.map(function (r) {
         return '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td></tr>';
@@ -5154,7 +6071,7 @@
     document.getElementById('detail-sales-person').value = c.salesPerson || '';
     document.getElementById('detail-contract-attachment').value = c.contractAttachment || '';
     document.getElementById('detail-site-address').value = c.siteAddress || '';
-    var detailInstall = document.querySelector('input[name="detail-install-type"][value="' + (c.installType || '??????') + '"]');
+    var detailInstall = document.querySelector('input[name="detail-install-type"][value="' + (c.installType || '현장시공') + '"]');
     if (detailInstall) detailInstall.checked = true;
     document.getElementById('detail-foundation-pyeong').value = c.foundationPyeong != null && c.foundationPyeong !== '' ? c.foundationPyeong : '';
     document.getElementById('detail-house-pyeong').value = c.housePyeong != null && c.housePyeong !== '' ? c.housePyeong : '';
@@ -5196,18 +6113,26 @@
         if (!file) return;
         var cid = document.getElementById('detail-contract-id') && document.getElementById('detail-contract-id').value;
         if (!cid) {
-          window.alert('??????? ????????????? ????');
+          window.alert('계약 ID를 찾을 수 없습니다.');
           detailFileInput.value = '';
           return;
         }
+        var detailInput = document.getElementById('detail-contract-attachment');
+        if (detailInput) detailInput.placeholder = '업로드 중... ' + (file.name || '');
         uploadContractAttachment(cid, file).then(function (res) {
+          detailFileInput.value = '';
+          if (detailInput) detailInput.placeholder = '파일 URL 또는 파일명';
           if (!res || !res.url) {
-            window.alert('??????? ?????? ?????????.');
+            window.alert('파일 업로드에 실패했습니다.');
             return;
           }
-          var input = document.getElementById('detail-contract-attachment');
-          if (input) input.value = res.url;
-          detailFileInput.value = '';
+          if (detailInput) detailInput.value = res.url;
+          var contracts = getContracts();
+          var contract = contracts.find(function (x) { return x.id === cid; });
+          if (contract) {
+            contract.contractAttachment = res.url;
+            saveContracts(contracts);
+          }
         });
       });
     }
@@ -5303,11 +6228,11 @@
     if (typeSel && seriesSel) {
       typeSel.addEventListener('change', function () {
         var v = typeSel.value;
-        if (v === '???????) {
+        if (v === '???????') {
           seriesSel.value = 'FOREST';
-        } else if (v === '?????' || v === '???????? || v === '??') {
+        } else if (v === '?????' || v === '????????' || v === '??') {
           seriesSel.value = 'STAY';
-        } else if (v === '??????????) {
+        } else if (v === '??????????') {
           seriesSel.value = 'CUBE';
         }
         updateContractModelNamePreview();
@@ -5346,7 +6271,7 @@
         // ??????? ???? ?? ?????????????????showroom ??
         if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
           var cur = window.seumAuth.currentEmployee;
-          if ((cur.team || '').trim() === '???' && cur.showroom) {
+          if ((cur.team || '').trim() === '영업' && cur.showroom) {
             showroomId = cur.showroom;
             var showroomSelect = document.getElementById('contract-showroom');
             if (showroomSelect) showroomSelect.value = showroomId;
@@ -5364,7 +6289,7 @@
           contractModel: contractModel || '',
           contractModelName: getContractModelNameFromForm(),
           siteAddress: '',
-          installType: '??????',
+          installType: '현장시공',
           foundationPyeong: '',
           housePyeong: '',
           options: { porch: { enabled: false, pyeong: '' }, deck: { enabled: false, pyeong: '' }, sunroom: { enabled: false, pyeong: '' } },
@@ -5419,7 +6344,7 @@
           designDrawing3Final: false,
           discussionDrawings: [],
           constructionDrawings: [],
-          constructionProgress: '????,
+          constructionProgress: '착공전',
           constructionStartDate: '',
           constructionEndDate: '',
           constructionManager: '',
@@ -5439,6 +6364,18 @@
         if (newContract && typeof ensureContractChatRoom === 'function') {
           ensureContractChatRoom(newContract.id);
         }
+        if (newContract && typeof window.openContractChatModal === 'function') {
+          setTimeout(function () { window.openContractChatModal(newContract.id); }, 100);
+        }
+        // 설계팀에 계약 생성 알림 전송
+        if (newContract && window.seumNotifications && typeof window.seumNotifications.send === 'function') {
+          window.seumNotifications.send({
+            contractId: newContract.id,
+            customerName: newContract.customerName || customerName,
+            salesPerson: newContract.salesPerson || salesPerson,
+            recipientTeam: '설계'
+          });
+        }
         if (typeof logActivity === 'function') {
           logActivity({
             actionType: 'create',
@@ -5455,6 +6392,13 @@
         renderConstruction();
         renderSettlement();
         renderDashboard();
+        if (newContract && typeof showContractDetailPanel === 'function') {
+          expandedContractId = newContract.id;
+          // setTimeout으로 DOM 렌더링 완료 후 상세패널을 열어 패널 소멸 방지
+          setTimeout(function () {
+            showContractDetailPanel(newContract.id, true);
+          }, 0);
+        }
       });
     }
   }
@@ -5464,10 +6408,10 @@
     if (nums.total <= 0) return '<span class="payment-none">-</span>';
     var pct = Math.min(100, Math.max(0, nums.receivedPct));
     return '<div class="payment-status">' +
-      '<div class="payment-total">??' + formatMoney(String(nums.total)) + '??/div>' +
-      '<div class="payment-rate"><span class="payment-rate-label">?????/span><div class="payment-rate-bar"><div class="payment-rate-fill" style="width:' + pct + '%"></div></div><span class="payment-rate-pct">' + pct + '%</span></div>' +
-      '<div class="payment-row received"><span>???</span><span class="amount">' + formatMoney(String(nums.received)) + '??/span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
-      '<div class="payment-row remaining"><span>??</span><span class="amount">' + formatMoney(String(nums.remaining)) + '??/span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
+      '<div class="payment-total">총액 ' + formatMoney(String(nums.total)) + '원</div>' +
+      '<div class="payment-rate"><span class="payment-rate-label">입금율</span><div class="payment-rate-bar"><div class="payment-rate-fill" style="width:' + pct + '%"></div></div><span class="payment-rate-pct">' + pct + '%</span></div>' +
+      '<div class="payment-row received"><span>입금액</span><span class="amount">' + formatMoney(String(nums.received)) + '원</span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
+      '<div class="payment-row remaining"><span>잔액</span><span class="amount">' + formatMoney(String(nums.remaining)) + '원</span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
       '</div>';
   }
 
@@ -5491,14 +6435,14 @@
     if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
     var label = '';
     if (amount != null && String(amount).trim() !== '') {
-      label = formatMoney(amount) + '??;
+      label = formatMoney(amount) + '원';
     }
     if (receivedAt) {
       label += (label ? ' ' : '') + '(' + formatDate(receivedAt) + ')';
     }
     var check = '';
     if (amount != null && String(amount).trim() !== '') {
-      check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> ??????</label>';
+      check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> 입금 확인</label>';
     }
     return '<span class="payment-amount">' + (label || '-') + '</span>' + check;
   }
@@ -5517,7 +6461,7 @@
   }
 
   function openPaymentModal(contractId, type) {
-    var labels = { deposit: '????, progress1: '????1??, progress2: '????2??, progress3: '????3??, balance: '???' };
+    var labels = { deposit: '계약금', progress1: '중도금1차', progress2: '중도금2차', progress3: '중도금3차', balance: '잔금' };
     var contracts = getContracts();
     var c = contracts.find(function (x) { return x.id === contractId; }) || null;
     var map = {
@@ -5557,6 +6501,68 @@
     document.getElementById('modal-payment').classList.remove('hidden');
   }
 
+  function openContractFieldModal(contractId, field) {
+    var fieldMeta = {
+      showroomId:        { label: '전시장', type: 'select' },
+      contractModel:     { label: '주택유형', type: 'text' },
+      contractModelName: { label: '모델', type: 'text' },
+      contractDate:      { label: '계약일', type: 'date' },
+      customerName:      { label: '건축주', type: 'text' },
+      salesPerson:       { label: '영업담당', type: 'text' },
+      totalAmount:       { label: '공사금액(만원)', type: 'number' }
+    };
+    var meta = fieldMeta[field];
+    if (!meta) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    var currentValue = (c[field] != null) ? String(c[field]) : '';
+    document.getElementById('contract-field-contract-id').value = contractId;
+    document.getElementById('contract-field-name').value = field;
+    document.getElementById('modal-contract-field-title').textContent = meta.label + ' 수정';
+    var wrap = document.getElementById('contract-field-input-wrap');
+    if (meta.type === 'select') {
+      var opts = SHOWROOMS.map(function (s) {
+        return '<option value="' + s.id + '"' + (s.id === currentValue ? ' selected' : '') + '>' + s.name + '</option>';
+      }).join('');
+      wrap.innerHTML = '<label>' + meta.label + '<select id="contract-field-value">' + opts + '</select></label>';
+    } else {
+      var inputType = meta.type;
+      wrap.innerHTML = '<label>' + meta.label + ' <input type="' + inputType + '" id="contract-field-value" value="' + currentValue + '"' + (inputType === 'number' ? ' min="0" step="1"' : '') + ' required></label>';
+    }
+    document.getElementById('modal-contract-field').classList.remove('hidden');
+  }
+
+  function initContractFieldModal() {
+    var modal = document.getElementById('modal-contract-field');
+    if (!modal) return;
+    document.querySelectorAll('[data-close="modal-contract-field"]').forEach(function (btn) {
+      btn.addEventListener('click', function () { modal.classList.add('hidden'); });
+    });
+    var form = document.getElementById('form-contract-field');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var contractId = document.getElementById('contract-field-contract-id').value;
+        var field = document.getElementById('contract-field-name').value;
+        var valueEl = document.getElementById('contract-field-value');
+        if (!valueEl) return;
+        var newValue = valueEl.value;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (!c) return;
+        c[field] = newValue;
+        saveContracts(contracts);
+        modal.classList.add('hidden');
+        renderSales();
+        renderDesign();
+        renderDashboard();
+        renderConstruction();
+        renderSettlement();
+      });
+    }
+  }
+
   function initContractDetailModal() {
     var form = document.getElementById('form-contract-detail');
     var modal = document.getElementById('modal-contract-detail');
@@ -5582,7 +6588,7 @@
         c.contractAttachment = document.getElementById('detail-contract-attachment').value.trim();
         c.siteAddress = document.getElementById('detail-site-address').value.trim();
         var detailInstallChecked = document.querySelector('input[name="detail-install-type"]:checked');
-        c.installType = detailInstallChecked ? detailInstallChecked.value : '??????';
+        c.installType = detailInstallChecked ? detailInstallChecked.value : '현장시공';
         c.foundationPyeong = (document.getElementById('detail-foundation-pyeong').value || '').trim();
         c.housePyeong = (document.getElementById('detail-house-pyeong').value || '').trim();
         c.options = c.options || { porch: { enabled: false, pyeong: '' }, deck: { enabled: false, pyeong: '' }, sunroom: { enabled: false, pyeong: '' } };
@@ -5694,14 +6700,14 @@
         return;
       }
       var deleteEmp = e.target.getAttribute('data-delete-employee');
-      if (deleteEmp && confirm('???????????????')) {
+      if (deleteEmp && confirm('직원을 삭제하시겠습니까?')) {
         var employees = getEmployees().filter(function (x) { return x.id !== deleteEmp; });
         saveEmployees(employees);
         renderHR();
         return;
       }
       var deleteLeave = e.target.getAttribute('data-delete-leave');
-      if (deleteLeave && confirm('?????? ??????????????')) {
+      if (deleteLeave && confirm('휴가 기록을 삭제하시겠습니까?')) {
         var leaves = getLeaves().filter(function (x) { return x.id !== deleteLeave; });
         saveLeaves(leaves);
         renderHR();
@@ -5725,7 +6731,7 @@
         return;
       }
       var deleteCust = e.target.getAttribute('data-delete-customer');
-      if (deleteCust && confirm('???????????????')) {
+      if (deleteCust && confirm('고객을 삭제하시겠습니까?')) {
         var customers = getCustomers().filter(function (x) { return x.id !== deleteCust; });
         saveCustomers(customers);
         renderSalesCustomers();
@@ -5740,6 +6746,12 @@
       if (createContract) {
         showSection('sales-contracts');
         openContractForm(createContract);
+        return;
+      }
+      var contractFieldType = e.target.getAttribute('data-contract-field');
+      var contractFieldId = e.target.getAttribute('data-id');
+      if (contractFieldType && contractFieldId) {
+        openContractFieldModal(contractFieldId, contractFieldType);
         return;
       }
       var paymentType = e.target.getAttribute('data-payment');
@@ -5759,7 +6771,7 @@
         if (!delId) return;
         var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
         var team = (cur && (cur.team || '').trim()) || '';
-        var isConstructionTeam = (team === '???' || team === '?????');
+        var isConstructionTeam = (team === '시공' || team === '시공팀');
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === delId; });
         if (!c) return;
@@ -5767,23 +6779,23 @@
         var fromConstruction = !!contractDeleteBtn.closest('#tbody-construction');
         if (fromConstruction) {
           if (!isAdminRole && !isConstructionTeam) {
-            window.alert('?????????????? ??????????????.');
+            window.alert('시공팀 또는 관리자만 삭제할 수 있습니다.');
             return;
           }
         } else {
           var canSalesDeleteOwn = false;
           if (cur) {
             var name = (cur.name || '').trim();
-            if (team === '???' && name && String(c.salesPerson || '').trim() === name) {
+            if (team === '영업' && name && String(c.salesPerson || '').trim() === name) {
               canSalesDeleteOwn = true;
             }
           }
           if (!isAdminRole && !canSalesDeleteOwn) {
-            window.alert('???????????????????????????.');
+            window.alert('계약 삭제 권한이 없습니다. 관리자에게 문의하세요.');
             return;
           }
         }
-        if (!window.confirm('???????????????????')) return;
+        if (!window.confirm('이 계약을 삭제하시겠습니까?')) return;
         deleteContractById(delId);
         return;
       }
@@ -5846,6 +6858,42 @@
     });
 
     document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('design-designer-input')) {
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var userTeam = (cur && (cur.team || '').trim()) || '';
+        if (userTeam !== '설계') return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.designPermitDesigner = (e.target.value || '').trim();
+          saveContracts(contracts);
+          if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
+            window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
+          }
+          renderDesign();
+        }
+        return;
+      }
+      if (e.target.classList.contains('design-construction-manager-input')) {
+        var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+        var userTeam = (cur && (cur.team || '').trim()) || '';
+        if (userTeam !== '시공') return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.constructionManager = (e.target.value || '').trim();
+          saveContracts(contracts);
+          if (c.constructionManager && typeof window.addContractInviteMessage === 'function') {
+            window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
+          }
+          renderDesign();
+        }
+        return;
+      }
       if (e.target.classList.contains('construction-manager-input')) {
         if (isSalesReadonly()) return;
         var contractId = e.target.getAttribute('data-contract-id');
@@ -5855,6 +6903,9 @@
         if (c) {
           c.constructionManager = (e.target.value || '').trim();
           saveContracts(contracts);
+          if (c.constructionManager && typeof window.addContractInviteMessage === 'function') {
+            window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
+          }
           renderConstruction();
         }
         return;
@@ -5864,18 +6915,32 @@
         if (!contractId) return;
         var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
         var userTeam = (cur && (cur.team || '').trim()) || '';
-        var isConstructionTeam = (userTeam === '???' || userTeam === '?????');
+        var isConstructionTeam = (userTeam === '시공' || userTeam === '시공팀');
+        var isSalesOnlyTeam = (userTeam === '영업' || userTeam === '영업팀');
         if (isSalesReadonly() && !e.target.classList.contains('sales-check')) {
           renderDesign();
           return;
         }
-        if (userTeam === '???' && !e.target.classList.contains('design-check')) {
+        if (userTeam === '설계' && !e.target.classList.contains('design-check')) {
           renderDesign();
           return;
         }
         if (isConstructionTeam && !e.target.classList.contains('construction-check')) {
           renderDesign();
           return;
+        }
+        if (isSalesOnlyTeam && !e.target.classList.contains('sales-check')) {
+          renderDesign();
+          return;
+        }
+        if (isSalesOnlyTeam && e.target.classList.contains('sales-check')) {
+          var myNameSales = (cur && (cur.name || '').trim()) || '';
+          var allContracts = getContracts();
+          var targetContract = allContracts.find(function (x) { return x.id === contractId; });
+          if (!targetContract || (targetContract.salesPerson || '').trim() !== myNameSales) {
+            renderDesign();
+            return;
+          }
         }
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
@@ -5982,17 +7047,17 @@
         var list = (res.data || []);
         if (emptyEl) emptyEl.classList.toggle('hidden', list.length > 0);
         if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6">??? ?????? ??????????.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6">승인 대기 중인 직원이 없습니다.</td></tr>';
           return;
         }
         tbody.innerHTML = list.map(function (emp) {
           var dateStr = emp.created_at ? new Date(emp.created_at).toLocaleDateString('ko-KR') : '-';
           var showroomName = getShowroomName(emp.showroom);
-          return '<tr><td>' + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td>' + (emp.team || '-') + '</td><td>' + showroomName + '</td><td>' + dateStr + '</td><td><button type="button" class="btn btn-primary btn-sm btn-approve-employee" data-id="' + emp.id + '">???</button> <button type="button" class="btn btn-secondary btn-sm btn-block-employee" data-id="' + emp.id + '">??</button></td></tr>';
+          return '<tr><td>' + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td>' + (emp.team || '-') + '</td><td>' + showroomName + '</td><td>' + dateStr + '</td><td><button type="button" class="btn btn-primary btn-sm btn-approve-employee" data-id="' + emp.id + '">승인</button> <button type="button" class="btn btn-secondary btn-sm btn-block-employee" data-id="' + emp.id + '">거부</button></td></tr>';
         });
       })
       .catch(function (err) {
-        tbody.innerHTML = '<tr><td colspan="6">?????????? ???????</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">데이터를 불러오지 못했습니다.</td></tr>';
         if (emptyEl) emptyEl.classList.add('hidden');
         console.error('??? ?????? ?? ???:', err);
       });
@@ -6041,7 +7106,7 @@
     });
   }
 
-  var TEAM_OPTIONS = ['?????, '???', '???', '???', '???', '??'];
+  var TEAM_OPTIONS = ['마케팅', '영업', '설계', '시공', '정산', '경영', '사무', '본사'];
   var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master'];
 
   function renderAdminEmployees() {
@@ -6050,7 +7115,7 @@
     if (!tbody) return;
     var supabase = typeof window !== 'undefined' && window.seumSupabase;
     if (!supabase) {
-      tbody.innerHTML = '<tr><td colspan="7">Supabase ??????????????</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">Supabase를 사용할 수 없습니다.</td></tr>';
       return;
     }
     supabase.from('employees').select('id, name, email, team, role, showroom, status')
@@ -6059,10 +7124,10 @@
         var list = res.data || [];
         if (countEl) {
           var total = list.length || 0;
-          countEl.textContent = total ? '? ??' + total + '?? : '';
+          countEl.textContent = total ? '총 ' + total + '명' : '';
         }
         if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7">???????????????.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
           return;
         }
         tbody.innerHTML = list.map(function (emp, idx) {
@@ -6078,11 +7143,11 @@
             return '<option value="' + (s.id || '') + '"' + (isSelected ? ' selected' : '') + '>' + (s.name || s.id) + '</option>';
           }).join('');
           var numberLabel = (idx + 1) + '. ';
-          return '<tr data-id="' + emp.id + '"><td>' + numberLabel + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td><select class="admin-emp-team">' + teamOpts + '</select></td><td><select class="admin-emp-role">' + roleOpts + '</select></td><td><select class="admin-emp-showroom">' + srOpts + '</select></td><td>' + (emp.status || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + emp.id + '">????/button> <button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + emp.id + '">????</button></td></tr>';
+          return '<tr data-id="' + emp.id + '"><td>' + numberLabel + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td><select class="admin-emp-team">' + teamOpts + '</select></td><td><select class="admin-emp-role">' + roleOpts + '</select></td><td><select class="admin-emp-showroom">' + srOpts + '</select></td><td>' + (emp.status || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + emp.id + '">저장</button> <button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + emp.id + '">삭제</button></td></tr>';
         });
       })
       .catch(function (err) {
-        tbody.innerHTML = '<tr><td colspan="7">?????????? ???????</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7">직원 목록을 불러오지 못했습니다.</td></tr>';
         console.error(err);
       });
   }
@@ -6125,30 +7190,30 @@
 
   function getTeamEventStatusLabel(status) {
     if (!status) return '';
-    if (status === 'planned') return '???';
-    if (status === 'in_progress') return '????;
-    if (status === 'done') return '???';
-    if (status === 'canceled') return '??';
+    if (status === 'planned') return '예정';
+    if (status === 'in_progress') return '진행중';
+    if (status === 'done') return '완료';
+    if (status === 'canceled') return '취소';
     return status;
   }
 
   function getTeamEventPriorityLabel(priority) {
     if (!priority) return '';
-    if (priority === 'normal') return '???';
-    if (priority === 'important') return '??';
-    if (priority === 'urgent') return '??';
+    if (priority === 'normal') return '보통';
+    if (priority === 'important') return '중요';
+    if (priority === 'urgent') return '긴급';
     return priority;
   }
 
   function getTeamEventTypeLabel(type) {
     if (!type) return '';
-    if (type === 'consulting') return '???';
-    if (type === 'visit') return '??';
-    if (type === 'design') return '???';
-    if (type === 'construction') return '???';
-    if (type === 'meeting') return '???';
-    if (type === 'marketing') return '?????;
-    if (type === 'etc') return '???';
+    if (type === 'consulting') return '상담';
+    if (type === 'visit') return '방문';
+    if (type === 'design') return '설계';
+    if (type === 'construction') return '시공';
+    if (type === 'meeting') return '미팅';
+    if (type === 'marketing') return '마케팅';
+    if (type === 'etc') return '기타';
     return type;
   }
 
@@ -6247,11 +7312,11 @@
           .then(function (res) {
             if (res.error) throw res.error;
             renderAdminEmployees();
-            alert('???????????.');
+            alert('저장되었습니다.');
           })
           .catch(function (err) {
             saveBtn.disabled = false;
-            alert('????? ?????????.');
+            alert('저장에 실패했습니다.');
             console.error(err);
           });
         return;
@@ -6505,17 +7570,17 @@
       var source = cells[3] && cells[3].textContent;
       var status = cells[4] && cells[4].textContent;
       var salesPerson = cells[5] && cells[5].textContent;
-      var newName = window.prompt('???', name === '-' ? '' : name);
+      var newName = window.prompt('이름', name === '-' ? '' : name);
       if (newName === null) return;
-      var newPhone = window.prompt('?????, phone === '-' ? '' : phone);
+      var newPhone = window.prompt('연락처', phone === '-' ? '' : phone);
       if (newPhone === null) return;
-      var newAddress = window.prompt('??', address === '-' ? '' : address);
+      var newAddress = window.prompt('주소', address === '-' ? '' : address);
       if (newAddress === null) return;
-      var newSource = window.prompt('?????, source === '-' ? '' : source);
+      var newSource = window.prompt('유입경로', source === '-' ? '' : source);
       if (newSource === null) return;
-      var newStatus = window.prompt('???', status === '-' ? '' : status);
+      var newStatus = window.prompt('상태', status === '-' ? '' : status);
       if (newStatus === null) return;
-      var newSales = window.prompt('?????, salesPerson === '-' ? '' : salesPerson);
+      var newSales = window.prompt('담당 영업사원', salesPerson === '-' ? '' : salesPerson);
       if (newSales === null) return;
       var supabase = typeof window !== 'undefined' && window.seumSupabase;
       if (!supabase) return;
@@ -6612,7 +7677,7 @@
         });
       })
       .catch(function (err) {
-        tbody.innerHTML = '<tr><td colspan="6">?????????? ???????</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">데이터를 불러오지 못했습니다.</td></tr>';
         console.error(err);
       });
   }
@@ -6849,10 +7914,10 @@
         var curTeam = getCurrentTeamCode();
         var isAdminRole = isAdmin() || isSuperAdmin();
         if (target && target.team && curTeam && target.team !== curTeam && !isAdminRole) {
-          window.alert('??? ????? ?????????? ??????????????.');
+          window.alert('다른 팀의 일정은 삭제할 수 없습니다.');
           return;
         }
-        if (!window.confirm('????????????????')) return;
+        if (!window.confirm('이 일정을 삭제하시겠습니까?')) return;
         var events = eventsAll.filter(function (x) { return x.id !== eventId; });
         saveTeamEvents(events);
         // Supabase???????????? ????? ????? ????????
@@ -6879,9 +7944,9 @@
     if (yearSel) {
       var now = new Date();
       var curYear = now.getFullYear();
-      var options = '<option value="">???</option>';
+      var options = '<option value="">전체</option>';
       for (var y = curYear - 1; y <= curYear + 1; y++) {
-        options += '<option value="' + y + '"' + (y === curYear ? ' selected' : '') + '>' + y + '??/option>';
+        options += '<option value="' + y + '"' + (y === curYear ? ' selected' : '') + '>' + y + '년</option>';
       }
       yearSel.innerHTML = options;
     }
@@ -7062,7 +8127,7 @@
       for (var y = end; y >= start; y--) {
         var opt = document.createElement('option');
         opt.value = String(y);
-        opt.textContent = y + '??;
+        opt.textContent = y + '년';
         yearEl.appendChild(opt);
       }
       yearEl.value = String(currentYear);
@@ -7084,6 +8149,27 @@
     var el = document.getElementById('filter-showroom');
     if (el) {
       el.addEventListener('change', onFilterChange);
+    }
+    // 계약 목록 검색창 이벤트
+    var searchInput = document.getElementById('contract-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        renderSales();
+      });
+      searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          renderSales();
+        }
+      });
+    }
+    var clearBtn = document.getElementById('contract-search-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        if (searchInput) searchInput.value = '';
+        renderSales();
+        if (searchInput) searchInput.focus();
+      });
     }
     var btnReset = document.getElementById('btn-reset-samples');
     if (btnReset) {
@@ -7163,6 +8249,7 @@
   window.getContracts = getContracts;
   window.getShowroomName = getShowroomName;
   window.isAdmin = isAdmin;
+  window.isMaster = isMaster;
   window.formatDate = formatDate;
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
@@ -7191,6 +8278,7 @@
     initContractForm();
     initContractDetailModal();
     initPaymentModal();
+    initContractFieldModal();
     initHR();
     initKPI();
     initAdminApproval();
@@ -7202,10 +8290,13 @@
     initSettlementIncentive();
     updateAdminNavVisibility();
     updateManageNavVisibility();
+    updateCeoNavVisibility();
+    initCeoReports();
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
       updateAdminNavVisibility();
       updateManageNavVisibility();
+      updateCeoNavVisibility();
       if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
       // ????? ????? ?? ???? ???????? ????????? ????????? ?????
       if (typeof renderDashboard === 'function') renderDashboard();
@@ -7232,7 +8323,7 @@
     renderHR();
     renderTeamCalendar();
     renderKPI();
-    console.log('????????????? OS ???????????);
+    console.log('???????? OS ??? ??');
   }
 
   if (document.readyState === 'loading') {

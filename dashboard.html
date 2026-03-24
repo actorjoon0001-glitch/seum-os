@@ -683,6 +683,22 @@
             </div>
           </form>
         </div>
+        <!-- 계약 목록 검색 필터 -->
+        <div class="contract-filter-bar" id="contract-filter-bar">
+          <div class="filter-item filter-item-search">
+            <label for="contract-search-input">검색</label>
+            <div class="contract-search-wrap">
+              <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+                <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="text" id="contract-search-input" class="contract-search-input" placeholder="이름, 지역, 주소 검색" autocomplete="off">
+              <button type="button" class="contract-search-clear hidden" id="contract-search-clear" title="검색어 초기화" aria-label="검색어 초기화">✕</button>
+            </div>
+          </div>
+          <div class="contract-filter-result" id="contract-filter-result"></div>
+        </div>
+
         <div class="table-wrap table-wrapper">
           <table class="data-table contract-list-table">
             <thead>

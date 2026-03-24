@@ -1673,6 +1673,119 @@ button,
   margin-bottom: 2px;
 }
 
+/* ── 계약 목록 검색 필터 바 ────────────────────────────────── */
+.contract-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 8px 0 4px;
+  margin-bottom: 8px;
+  border-top: 1px solid #2A2A2A;
+}
+
+.contract-filter-bar .filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contract-filter-bar .filter-item label {
+  font-size: 12px;
+  color: #9CA3AF;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* 검색창 래퍼 */
+.contract-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.contract-search-icon {
+  position: absolute;
+  left: 10px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.contract-search-input {
+  height: 40px;
+  min-width: 220px;
+  width: 260px;
+  padding: 0 32px 0 34px;
+  border-radius: 10px;
+  background: #1F1F1F;
+  color: #E5E7EB;
+  border: 1px solid #374151;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.18s;
+}
+
+.contract-search-input::placeholder {
+  color: #6B7280;
+  font-weight: 400;
+}
+
+.contract-search-input:focus {
+  border-color: #6366F1;
+  background: #232332;
+}
+
+/* X 클리어 버튼 */
+.contract-search-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.contract-search-clear:hover { color: #E5E7EB; }
+
+/* 결과 요약 문구 */
+.contract-filter-result {
+  font-size: 12px;
+  color: #9CA3AF;
+  align-self: flex-end;
+  padding-bottom: 10px;
+  white-space: nowrap;
+}
+
+/* 검색 결과 없음 메시지 */
+.no-result-msg {
+  text-align: center;
+  color: #9CA3AF;
+  padding: 24px 0 !important;
+  font-size: 14px;
+}
+
+/* 모바일: 좁은 화면에서 줄바꿈 자연스럽게 */
+@media (max-width: 640px) {
+  .contract-search-input {
+    min-width: 160px;
+    width: 100%;
+  }
+  .contract-search-wrap {
+    width: 100%;
+  }
+  .contract-filter-bar {
+    gap: 10px;
+  }
+}
+
 .filter-bar label {
   font-size: 13px;
   font-weight: 500;
