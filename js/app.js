@@ -3818,25 +3818,29 @@
               window.alert('업로드에 실패했습니다.');
               return;
             }
-            // localStorage에서 최신 값 읽기 (DOM 참조가 낡은 경우 대비)
+            // 현재 DOM이 살아있으면 라이브 input 값 사용, 아니면 localStorage 사용
+            var liveForm = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
+            var liveInp = liveForm && liveForm.querySelector(selector);
             var contracts = getContracts();
             var c = contracts.find(function (x) { return x.id === contractId; });
-            var existingUrls = parseDrawingUrls(c && c[fieldKey] ? c[fieldKey] : '');
+            var baseVal = liveInp && liveInp.value ? liveInp.value : (c && c[fieldKey] ? c[fieldKey] : '');
+            var existingUrls = parseDrawingUrls(baseVal);
             existingUrls = existingUrls.concat(urls);
             var newVal = serializeDrawingUrls(existingUrls);
             if (c) {
               c[fieldKey] = newVal;
               saveContracts(contracts);
             }
-            // 현재 DOM이 살아있으면 UI 업데이트
-            var liveForm = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
-            if (liveForm) {
-              var liveInp = liveForm.querySelector(selector);
-              if (liveInp) {
-                liveInp.value = newVal;
-                var listSel = '.drawing-file-list[data-input-selector="' + selector + '"]';
-                var listEl = liveForm.querySelector(listSel);
-                if (listEl) refreshDrawingFileListForInput(liveInp, listEl);
+            if (liveInp) {
+              liveInp.value = newVal;
+              var listSel = '.drawing-file-list[data-input-selector="' + selector + '"]';
+              var listEl = liveForm.querySelector(listSel);
+              if (listEl) refreshDrawingFileListForInput(liveInp, listEl);
+              // 현재 도면 URL 표시도 즉시 업데이트
+              var card = liveInp.closest('.design-discussion-card');
+              if (card) {
+                var viewEl = card.querySelector('.design-detail-view-only');
+                if (viewEl) viewEl.innerHTML = linkOrText(newVal);
               }
             }
           }).finally(function () {
@@ -3857,8 +3861,6 @@
         var contractId = form && (form.querySelector('.design-inline-contract-id') || {}).value;
         var files = Array.prototype.slice.call(e.target.files || []);
         if (contractId && files.length) {
-          var inp = form && form.querySelector('.design-inline-construction-drawing');
-          var existingUrls = parseDrawingUrls(inp && inp.value ? inp.value : '');
           Promise.all(files.map(function (file) {
             return uploadConstructionDrawingAttachment(contractId, file);
           })).then(function (results) {
@@ -3867,19 +3869,27 @@
               window.alert('업로드에 실패했습니다.');
               return;
             }
-            existingUrls = existingUrls.concat(urls);
-            var newVal = serializeDrawingUrls(existingUrls);
-            if (inp) {
-              inp.value = newVal;
-              var listEl = form && form.querySelector('.drawing-file-list[data-input-selector=".design-inline-construction-drawing"]');
-              if (listEl) refreshDrawingFileListForInput(inp, listEl);
-            }
-            // 업로드 즉시 계약에 저장
+            var liveForm2 = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
+            var liveInp2 = liveForm2 && liveForm2.querySelector('.design-inline-construction-drawing');
             var contracts = getContracts();
             var c = contracts.find(function (x) { return x.id === contractId; });
+            var baseVal2 = liveInp2 && liveInp2.value ? liveInp2.value : (c && c.constructionDrawingAttachment ? c.constructionDrawingAttachment : '');
+            var existingUrls = parseDrawingUrls(baseVal2);
+            existingUrls = existingUrls.concat(urls);
+            var newVal = serializeDrawingUrls(existingUrls);
             if (c) {
               c.constructionDrawingAttachment = newVal;
               saveContracts(contracts);
+            }
+            if (liveInp2) {
+              liveInp2.value = newVal;
+              var listEl2 = liveForm2.querySelector('.drawing-file-list[data-input-selector=".design-inline-construction-drawing"]');
+              if (listEl2) refreshDrawingFileListForInput(liveInp2, listEl2);
+              var card2 = liveInp2.closest('.design-discussion-card');
+              if (card2) {
+                var viewEl2 = card2.querySelector('.design-detail-view-only');
+                if (viewEl2) viewEl2.innerHTML = linkOrText(newVal);
+              }
             }
           }).finally(function () {
             e.target.value = '';
