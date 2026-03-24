@@ -1667,6 +1667,16 @@
       </div>
     </section>
 
+    <style>
+      .ceo-block{margin-bottom:1.25rem;}
+      .ceo-block-title{font-weight:700;font-size:0.95rem;margin-bottom:0.5rem;color:var(--text-primary,#e2e8f0);}
+      .ceo-row{display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem;}
+      .ceo-label{min-width:7rem;font-size:0.85rem;color:var(--text-muted,#94a3b8);flex-shrink:0;}
+      .ceo-input{flex:1;padding:0.3rem 0.5rem;font-size:0.9rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:6px;color:var(--text-primary,#e2e8f0);}
+      .ceo-sub-label{min-width:5rem;font-size:0.82rem;color:var(--text-muted,#94a3b8);}
+      .ceo-preview-box{margin-top:1.5rem;padding:1rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:8px;}
+    </style>
+
     <!-- 대표님 일일 보고 -->
     <section id="section-ceo-daily" class="content-section">
       <header class="main-header">
@@ -1674,25 +1684,89 @@
         <p class="section-desc">비서님이 대표님께 매일의 업무 현황을 보고합니다.</p>
       </header>
       <div class="card">
-        <h3>일일 보고 작성</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h3>일일 보고 작성</h3>
+          <button type="button" class="btn btn-secondary" id="btn-ceo-daily-autofill">대시보드 데이터 자동 채우기</button>
+        </div>
         <form id="form-ceo-daily">
-          <div class="form-row">
-            <label>보고 날짜
-              <input type="date" id="ceo-daily-date" required>
-            </label>
-            <label>제목
-              <input type="text" id="ceo-daily-title" placeholder="예) 2026년 3월 24일 일일 보고" style="width:100%">
-            </label>
+          <div class="form-row" style="margin-bottom:1rem;">
+            <label>보고 날짜<br><input type="date" id="ceo-daily-date" required></label>
+            <label style="flex:1">제목<br><input type="text" id="ceo-daily-title" style="width:100%" placeholder="예) 2026년 3월 24일 일일 보고"></label>
           </div>
-          <div class="form-row">
-            <label style="width:100%">보고 내용
-              <textarea id="ceo-daily-content" rows="8" placeholder="오늘의 업무 현황, 주요 사항, 특이 사항 등을 작성해 주세요." style="width:100%;resize:vertical;"></textarea>
-            </label>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 계약 현황</div>
+            <div class="ceo-row"><span class="ceo-label">오늘 계약</span><input type="text" id="ceo-daily-f-period-contract" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 계약</span><input type="text" id="ceo-daily-f-month-contract" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 매출</span><input type="text" id="ceo-daily-f-month-sales" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">목표 대비</span><input type="text" id="ceo-daily-f-goal-rate" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="align-items:flex-start;">
+              <span class="ceo-label" style="padding-top:0.2rem;">전시장별</span>
+              <div style="display:flex;flex-direction:column;gap:0.25rem;flex:1;">
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">본사</span><input type="text" id="ceo-daily-f-sr-hq" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">1전시장</span><input type="text" id="ceo-daily-f-sr-1" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">3전시장</span><input type="text" id="ceo-daily-f-sr-3" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">4전시장</span><input type="text" id="ceo-daily-f-sr-4" class="ceo-input" placeholder="-"></div>
+              </div>
+            </div>
           </div>
-          <div class="form-actions">
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 방문 / 상담 현황</div>
+            <div class="ceo-row"><span class="ceo-label">오늘 방문</span><input type="text" id="ceo-daily-f-period-visit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 방문</span><input type="text" id="ceo-daily-f-month-visit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">상담 진행</span><input type="text" id="ceo-daily-f-consult" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약 예정</span><input type="text" id="ceo-daily-f-contract-expected" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">견적 진행</span><input type="text" id="ceo-daily-f-estimate" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 설계 진행 현황</div>
+            <div class="ceo-row"><span class="ceo-label">설계 대기</span><input type="text" id="ceo-daily-f-design-wait" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 진행</span><input type="text" id="ceo-daily-f-design-progress" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 완료</span><input type="text" id="ceo-daily-f-design-done" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 수정</span><input type="text" id="ceo-daily-f-design-revision" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약 후 미설계</span><input type="text" id="ceo-daily-f-design-none" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 시공 진행 현황</div>
+            <div class="ceo-row"><span class="ceo-label">착공 대기</span><input type="text" id="ceo-daily-f-const-wait" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">시공 중</span><input type="text" id="ceo-daily-f-const-active" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">시공 완료</span><input type="text" id="ceo-daily-f-const-done" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">지연 현장</span><input type="text" id="ceo-daily-f-const-delay" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이슈 현장</span><input type="text" id="ceo-daily-f-const-issue" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
+            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-daily-f-pay-deposit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-daily-f-pay-progress" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-daily-f-pay-balance" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-daily-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-daily-f-pay-overdue" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 매출 예측</div>
+            <div class="ceo-row"><span class="ceo-label">이번달 예상 계약</span><input type="text" id="ceo-daily-f-forecast-this" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">다음달 예상 계약</span><input type="text" id="ceo-daily-f-forecast-next" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">진행 중 계약</span><input type="text" id="ceo-daily-f-forecast-ongoing" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 이슈 보고</div>
+            <textarea id="ceo-daily-f-issues" rows="3" style="width:100%;resize:vertical;padding:0.4rem 0.5rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);font-family:inherit;" placeholder="-&#10;-&#10;-"></textarea>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 특이사항</div>
+            <textarea id="ceo-daily-f-notes" rows="3" style="width:100%;resize:vertical;padding:0.4rem 0.5rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);font-family:inherit;" placeholder="-&#10;-&#10;-"></textarea>
+          </div>
+          <div class="form-actions" style="margin-top:0.5rem;">
+            <button type="button" class="btn btn-secondary" id="btn-ceo-daily-preview">보고서 미리보기 / 복사</button>
             <button type="submit" class="btn btn-primary">보고 저장</button>
           </div>
         </form>
+        <div id="ceo-daily-preview-box" class="hidden ceo-preview-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <strong>보고서 미리보기 (복붙용)</strong>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-ceo-daily-copy">복사</button>
+          </div>
+          <pre id="ceo-daily-preview-text" style="white-space:pre-wrap;font-family:inherit;line-height:1.7;font-size:0.88rem;margin:0;"></pre>
+        </div>
       </div>
       <div class="card">
         <h3>일일 보고 목록</h3>
@@ -1722,25 +1796,89 @@
         <p class="section-desc">비서님이 대표님께 주간 업무 현황을 보고합니다.</p>
       </header>
       <div class="card">
-        <h3>주간 보고 작성</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h3>주간 보고 작성</h3>
+          <button type="button" class="btn btn-secondary" id="btn-ceo-weekly-autofill">대시보드 데이터 자동 채우기</button>
+        </div>
         <form id="form-ceo-weekly">
-          <div class="form-row">
-            <label>해당 주 시작일
-              <input type="date" id="ceo-weekly-date" required>
-            </label>
-            <label>제목
-              <input type="text" id="ceo-weekly-title" placeholder="예) 2026년 3월 4주차 주간 보고" style="width:100%">
-            </label>
+          <div class="form-row" style="margin-bottom:1rem;">
+            <label>해당 주 시작일<br><input type="date" id="ceo-weekly-date" required></label>
+            <label style="flex:1">제목<br><input type="text" id="ceo-weekly-title" style="width:100%" placeholder="예) 2026년 3월 4주차 주간 보고"></label>
           </div>
-          <div class="form-row">
-            <label style="width:100%">보고 내용
-              <textarea id="ceo-weekly-content" rows="8" placeholder="이번 주 업무 현황, 성과, 다음 주 계획 등을 작성해 주세요." style="width:100%;resize:vertical;"></textarea>
-            </label>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 계약 현황</div>
+            <div class="ceo-row"><span class="ceo-label">이번주 계약</span><input type="text" id="ceo-weekly-f-period-contract" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 계약</span><input type="text" id="ceo-weekly-f-month-contract" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 매출</span><input type="text" id="ceo-weekly-f-month-sales" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">목표 대비</span><input type="text" id="ceo-weekly-f-goal-rate" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="align-items:flex-start;">
+              <span class="ceo-label" style="padding-top:0.2rem;">전시장별</span>
+              <div style="display:flex;flex-direction:column;gap:0.25rem;flex:1;">
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">본사</span><input type="text" id="ceo-weekly-f-sr-hq" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">1전시장</span><input type="text" id="ceo-weekly-f-sr-1" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">3전시장</span><input type="text" id="ceo-weekly-f-sr-3" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">4전시장</span><input type="text" id="ceo-weekly-f-sr-4" class="ceo-input" placeholder="-"></div>
+              </div>
+            </div>
           </div>
-          <div class="form-actions">
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 방문 / 상담 현황</div>
+            <div class="ceo-row"><span class="ceo-label">이번주 방문</span><input type="text" id="ceo-weekly-f-period-visit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 방문</span><input type="text" id="ceo-weekly-f-month-visit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">상담 진행</span><input type="text" id="ceo-weekly-f-consult" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약 예정</span><input type="text" id="ceo-weekly-f-contract-expected" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">견적 진행</span><input type="text" id="ceo-weekly-f-estimate" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 설계 진행 현황</div>
+            <div class="ceo-row"><span class="ceo-label">설계 대기</span><input type="text" id="ceo-weekly-f-design-wait" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 진행</span><input type="text" id="ceo-weekly-f-design-progress" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 완료</span><input type="text" id="ceo-weekly-f-design-done" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 수정</span><input type="text" id="ceo-weekly-f-design-revision" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약 후 미설계</span><input type="text" id="ceo-weekly-f-design-none" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 시공 진행 현황</div>
+            <div class="ceo-row"><span class="ceo-label">착공 대기</span><input type="text" id="ceo-weekly-f-const-wait" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">시공 중</span><input type="text" id="ceo-weekly-f-const-active" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">시공 완료</span><input type="text" id="ceo-weekly-f-const-done" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">지연 현장</span><input type="text" id="ceo-weekly-f-const-delay" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이슈 현장</span><input type="text" id="ceo-weekly-f-const-issue" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
+            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-weekly-f-pay-deposit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-weekly-f-pay-progress" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-weekly-f-pay-balance" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-weekly-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-weekly-f-pay-overdue" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 매출 예측</div>
+            <div class="ceo-row"><span class="ceo-label">이번달 예상 계약</span><input type="text" id="ceo-weekly-f-forecast-this" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">다음달 예상 계약</span><input type="text" id="ceo-weekly-f-forecast-next" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">진행 중 계약</span><input type="text" id="ceo-weekly-f-forecast-ongoing" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 이슈 보고</div>
+            <textarea id="ceo-weekly-f-issues" rows="3" style="width:100%;resize:vertical;padding:0.4rem 0.5rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);font-family:inherit;" placeholder="-&#10;-&#10;-"></textarea>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 특이사항</div>
+            <textarea id="ceo-weekly-f-notes" rows="3" style="width:100%;resize:vertical;padding:0.4rem 0.5rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);font-family:inherit;" placeholder="-&#10;-&#10;-"></textarea>
+          </div>
+          <div class="form-actions" style="margin-top:0.5rem;">
+            <button type="button" class="btn btn-secondary" id="btn-ceo-weekly-preview">보고서 미리보기 / 복사</button>
             <button type="submit" class="btn btn-primary">보고 저장</button>
           </div>
         </form>
+        <div id="ceo-weekly-preview-box" class="hidden ceo-preview-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <strong>보고서 미리보기 (복붙용)</strong>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-ceo-weekly-copy">복사</button>
+          </div>
+          <pre id="ceo-weekly-preview-text" style="white-space:pre-wrap;font-family:inherit;line-height:1.7;font-size:0.88rem;margin:0;"></pre>
+        </div>
       </div>
       <div class="card">
         <h3>주간 보고 목록</h3>
@@ -1770,25 +1908,89 @@
         <p class="section-desc">비서님이 대표님께 월간 업무 현황을 보고합니다.</p>
       </header>
       <div class="card">
-        <h3>월간 보고 작성</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <h3>월간 보고 작성</h3>
+          <button type="button" class="btn btn-secondary" id="btn-ceo-monthly-autofill">대시보드 데이터 자동 채우기</button>
+        </div>
         <form id="form-ceo-monthly">
-          <div class="form-row">
-            <label>보고 월
-              <input type="month" id="ceo-monthly-date" required>
-            </label>
-            <label>제목
-              <input type="text" id="ceo-monthly-title" placeholder="예) 2026년 3월 월간 보고" style="width:100%">
-            </label>
+          <div class="form-row" style="margin-bottom:1rem;">
+            <label>보고 월<br><input type="month" id="ceo-monthly-date" required></label>
+            <label style="flex:1">제목<br><input type="text" id="ceo-monthly-title" style="width:100%" placeholder="예) 2026년 3월 월간 보고"></label>
           </div>
-          <div class="form-row">
-            <label style="width:100%">보고 내용
-              <textarea id="ceo-monthly-content" rows="8" placeholder="이번 달 업무 현황, 주요 성과, 다음 달 계획 등을 작성해 주세요." style="width:100%;resize:vertical;"></textarea>
-            </label>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 계약 현황</div>
+            <div class="ceo-row"><span class="ceo-label">이달 계약</span><input type="text" id="ceo-monthly-f-period-contract" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">전월 대비</span><input type="text" id="ceo-monthly-f-month-contract" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이달 매출</span><input type="text" id="ceo-monthly-f-month-sales" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">목표 대비</span><input type="text" id="ceo-monthly-f-goal-rate" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="align-items:flex-start;">
+              <span class="ceo-label" style="padding-top:0.2rem;">전시장별</span>
+              <div style="display:flex;flex-direction:column;gap:0.25rem;flex:1;">
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">본사</span><input type="text" id="ceo-monthly-f-sr-hq" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">1전시장</span><input type="text" id="ceo-monthly-f-sr-1" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">3전시장</span><input type="text" id="ceo-monthly-f-sr-3" class="ceo-input" placeholder="-"></div>
+                <div class="ceo-row" style="margin:0;"><span class="ceo-sub-label">4전시장</span><input type="text" id="ceo-monthly-f-sr-4" class="ceo-input" placeholder="-"></div>
+              </div>
+            </div>
           </div>
-          <div class="form-actions">
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 방문 / 상담 현황</div>
+            <div class="ceo-row"><span class="ceo-label">이달 방문</span><input type="text" id="ceo-monthly-f-period-visit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">전월 대비</span><input type="text" id="ceo-monthly-f-month-visit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">상담 진행</span><input type="text" id="ceo-monthly-f-consult" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약 예정</span><input type="text" id="ceo-monthly-f-contract-expected" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">견적 진행</span><input type="text" id="ceo-monthly-f-estimate" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 설계 진행 현황</div>
+            <div class="ceo-row"><span class="ceo-label">설계 대기</span><input type="text" id="ceo-monthly-f-design-wait" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 진행</span><input type="text" id="ceo-monthly-f-design-progress" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 완료</span><input type="text" id="ceo-monthly-f-design-done" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">설계 수정</span><input type="text" id="ceo-monthly-f-design-revision" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약 후 미설계</span><input type="text" id="ceo-monthly-f-design-none" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 시공 진행 현황</div>
+            <div class="ceo-row"><span class="ceo-label">착공 대기</span><input type="text" id="ceo-monthly-f-const-wait" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">시공 중</span><input type="text" id="ceo-monthly-f-const-active" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">시공 완료</span><input type="text" id="ceo-monthly-f-const-done" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">지연 현장</span><input type="text" id="ceo-monthly-f-const-delay" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">이슈 현장</span><input type="text" id="ceo-monthly-f-const-issue" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
+            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-monthly-f-pay-deposit" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-monthly-f-pay-progress" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-monthly-f-pay-balance" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-monthly-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-monthly-f-pay-overdue" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 매출 예측</div>
+            <div class="ceo-row"><span class="ceo-label">이번달 예상 계약</span><input type="text" id="ceo-monthly-f-forecast-this" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">다음달 예상 계약</span><input type="text" id="ceo-monthly-f-forecast-next" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">진행 중 계약</span><input type="text" id="ceo-monthly-f-forecast-ongoing" class="ceo-input" placeholder="-"></div>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 이슈 보고</div>
+            <textarea id="ceo-monthly-f-issues" rows="3" style="width:100%;resize:vertical;padding:0.4rem 0.5rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);font-family:inherit;" placeholder="-&#10;-&#10;-"></textarea>
+          </div>
+          <div class="ceo-block">
+            <div class="ceo-block-title">■ 특이사항</div>
+            <textarea id="ceo-monthly-f-notes" rows="3" style="width:100%;resize:vertical;padding:0.4rem 0.5rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-primary);font-family:inherit;" placeholder="-&#10;-&#10;-"></textarea>
+          </div>
+          <div class="form-actions" style="margin-top:0.5rem;">
+            <button type="button" class="btn btn-secondary" id="btn-ceo-monthly-preview">보고서 미리보기 / 복사</button>
             <button type="submit" class="btn btn-primary">보고 저장</button>
           </div>
         </form>
+        <div id="ceo-monthly-preview-box" class="hidden ceo-preview-box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <strong>보고서 미리보기 (복붙용)</strong>
+            <button type="button" class="btn btn-sm btn-secondary" id="btn-ceo-monthly-copy">복사</button>
+          </div>
+          <pre id="ceo-monthly-preview-text" style="white-space:pre-wrap;font-family:inherit;line-height:1.7;font-size:0.88rem;margin:0;"></pre>
+        </div>
       </div>
       <div class="card">
         <h3>월간 보고 목록</h3>

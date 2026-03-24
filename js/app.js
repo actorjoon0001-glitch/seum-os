@@ -4108,13 +4108,15 @@
     localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(reports));
   }
 
+  function esc(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   function renderCeoReport(type) {
     var reports = getCeoReports().filter(function (r) { return r.type === type; });
     reports.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
-    var tbodyId = 'tbody-ceo-' + type;
-    var tbody = document.getElementById(tbodyId);
+    var tbody = document.getElementById('tbody-ceo-' + type);
     if (!tbody) return;
-    var dateLabel = type === 'monthly' ? '보고 월' : (type === 'weekly' ? '해당 주' : '날짜');
     tbody.innerHTML = reports.map(function (r) {
       return '<tr>' +
         '<td>' + (r.date || '-') + '</td>' +
@@ -4126,54 +4128,306 @@
     }).join('') || '<tr><td colspan="5">보고 내역이 없습니다.</td></tr>';
   }
 
-  function esc(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  function computeCeoAutoData(type) {
+    var today = new Date().toISOString().slice(0, 10);
+    var thisMonth = today.slice(0, 7);
+    var d = new Date();
+    var dow = d.getDay();
+    var daysToMon = dow === 0 ? 6 : dow - 1;
+    var weekStart = new Date(d.getTime() - daysToMon * 86400000).toISOString().slice(0, 10);
+
+    var allContracts = getContracts();
+    var allVisits = getVisits();
+
+    var periodContracts, periodVisits;
+    if (type === 'daily') {
+      periodContracts = allContracts.filter(function (c) { return c.contractDate === today; });
+      periodVisits = allVisits.filter(function (v) { return v.visitDate === today; });
+    } else if (type === 'weekly') {
+      periodContracts = allContracts.filter(function (c) { return c.contractDate >= weekStart && c.contractDate <= today; });
+      periodVisits = allVisits.filter(function (v) { return v.visitDate >= weekStart && v.visitDate <= today; });
+    } else {
+      periodContracts = allContracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === thisMonth; });
+      periodVisits = allVisits.filter(function (v) { return (v.visitDate || '').slice(0, 7) === thisMonth; });
+    }
+
+    var monthContracts = allContracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === thisMonth; });
+    var monthSales = monthContracts.reduce(function (s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+    var monthVisits = allVisits.filter(function (v) { return (v.visitDate || '').slice(0, 7) === thisMonth; }).length;
+
+    var goals = getKpiGoals ? getKpiGoals() : {};
+    var goal = goals[thisMonth] || {};
+    var goalC = Number(goal.goalContracts) || 0;
+    var rateC = goalC ? ((monthContracts.length / goalC) * 100).toFixed(0) + '%' : '-';
+
+    var srCounts = { headquarters: 0, showroom1: 0, showroom3: 0, showroom4: 0 };
+    monthContracts.forEach(function (c) { if (srCounts[c.showroomId] !== undefined) srCounts[c.showroomId]++; });
+
+    // 설계
+    var designBase = allContracts.filter(function (c) { return c.depositReceivedAt; });
+    var dNone = designBase.filter(function (c) { return (c.designStatus || 'none') === 'none'; }).length;
+    var dInProg = designBase.filter(function (c) { return c.designStatus === 'in_progress'; }).length;
+    var dNego = designBase.filter(function (c) { return c.designStatus === 'negotiating'; }).length;
+    var dDone = designBase.filter(function (c) { return c.designStatus === 'done' || c.designStatus === 'negotiated'; }).length;
+    var dNoDeposit = allContracts.filter(function (c) { return !c.depositReceivedAt; }).length;
+
+    // 시공
+    var cBefore = allContracts.filter(function (c) { return (c.constructionProgress || '착공전') === '착공전'; }).length;
+    var cActive = allContracts.filter(function (c) { var p = c.constructionProgress || ''; return p === '착공' || p === '진행중'; }).length;
+    var cDone = allContracts.filter(function (c) { return c.constructionProgress === '완료'; }).length;
+
+    // 입금
+    var depOk = allContracts.filter(function (c) { return c.depositConfirmed; }).length;
+    var progPend = allContracts.filter(function (c) {
+      return (c.progress1Amount && !c.progress1Confirmed) || (c.progress2Amount && !c.progress2Confirmed) || (c.progress3Amount && !c.progress3Confirmed);
+    }).length;
+    var balPend = allContracts.filter(function (c) { return c.balanceAmount && !c.balanceConfirmed; }).length;
+    var unpaid = allContracts.filter(function (c) { return c.depositAmount && !c.depositConfirmed; }).length;
+
+    return {
+      periodContract: periodContracts.length + '건',
+      monthContract: monthContracts.length + '건',
+      monthSales: (monthSales / 10000).toFixed(0) + '만원',
+      goalRate: rateC,
+      srHq: srCounts.headquarters + '건',
+      sr1: srCounts.showroom1 + '건',
+      sr3: srCounts.showroom3 + '건',
+      sr4: srCounts.showroom4 + '건',
+      periodVisit: periodVisits.length + '명',
+      monthVisit: monthVisits + '명',
+      designWait: dNone + '건',
+      designProgress: dInProg + '건',
+      designRevision: dNego + '건',
+      designDone: dDone + '건',
+      designNone: dNoDeposit + '건',
+      constWait: cBefore + '건',
+      constActive: cActive + '건',
+      constDone: cDone + '건',
+      payDeposit: depOk + '건',
+      payProgress: progPend + '건',
+      payBalance: balPend + '건',
+      payUnpaid: unpaid + '건'
+    };
+  }
+
+  function setCeoField(type, field, val) {
+    var el = document.getElementById('ceo-' + type + '-f-' + field);
+    if (el) el.value = val;
+  }
+
+  function getCeoField(type, field) {
+    var el = document.getElementById('ceo-' + type + '-f-' + field);
+    return el ? (el.value || '-') : '-';
+  }
+
+  function autoFillCeoForm(type) {
+    var data = computeCeoAutoData(type);
+    setCeoField(type, 'period-contract', data.periodContract);
+    setCeoField(type, 'month-contract', data.monthContract);
+    setCeoField(type, 'month-sales', data.monthSales);
+    setCeoField(type, 'goal-rate', data.goalRate);
+    setCeoField(type, 'sr-hq', data.srHq);
+    setCeoField(type, 'sr-1', data.sr1);
+    setCeoField(type, 'sr-3', data.sr3);
+    setCeoField(type, 'sr-4', data.sr4);
+    setCeoField(type, 'period-visit', data.periodVisit);
+    setCeoField(type, 'month-visit', data.monthVisit);
+    setCeoField(type, 'design-wait', data.designWait);
+    setCeoField(type, 'design-progress', data.designProgress);
+    setCeoField(type, 'design-revision', data.designRevision);
+    setCeoField(type, 'design-done', data.designDone);
+    setCeoField(type, 'design-none', data.designNone);
+    setCeoField(type, 'const-wait', data.constWait);
+    setCeoField(type, 'const-active', data.constActive);
+    setCeoField(type, 'const-done', data.constDone);
+    setCeoField(type, 'pay-deposit', data.payDeposit);
+    setCeoField(type, 'pay-progress', data.payProgress);
+    setCeoField(type, 'pay-balance', data.payBalance);
+    setCeoField(type, 'pay-unpaid', data.payUnpaid);
+    showToast('대시보드 데이터가 자동 입력되었습니다.');
+  }
+
+  function generateCeoReportText(type) {
+    var g = function (f) { return getCeoField(type, f); };
+    var periodLabel = type === 'daily' ? '오늘 계약' : type === 'weekly' ? '이번주 계약' : '이달 계약';
+    var visitLabel = type === 'daily' ? '오늘 방문' : type === 'weekly' ? '이번주 방문' : '이달 방문';
+    var monthContractLabel = type === 'monthly' ? '전월 대비' : '이달 계약';
+    var monthVisitLabel = type === 'monthly' ? '전월 대비' : '이달 방문';
+    var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
+    var notesEl = document.getElementById('ceo-' + type + '-f-notes');
+    var issues = issuesEl ? (issuesEl.value || '-') : '-';
+    var notes = notesEl ? (notesEl.value || '-') : '-';
+    return [
+      '[세움 대표 보고]',
+      '',
+      '■ 계약 현황',
+      periodLabel + ' : ' + g('period-contract'),
+      monthContractLabel + ' : ' + g('month-contract'),
+      '이달 매출 : ' + g('month-sales'),
+      '목표 대비 : ' + g('goal-rate'),
+      '',
+      '전시장별',
+      '본사 : ' + g('sr-hq'),
+      '1전시장 : ' + g('sr-1'),
+      '3전시장 : ' + g('sr-3'),
+      '4전시장 : ' + g('sr-4'),
+      '',
+      '■ 방문 / 상담 현황',
+      visitLabel + ' : ' + g('period-visit'),
+      monthVisitLabel + ' : ' + g('month-visit'),
+      '상담 진행 : ' + g('consult'),
+      '계약 예정 : ' + g('contract-expected'),
+      '견적 진행 : ' + g('estimate'),
+      '',
+      '■ 설계 진행 현황',
+      '설계 대기 : ' + g('design-wait'),
+      '설계 진행 : ' + g('design-progress'),
+      '설계 완료 : ' + g('design-done'),
+      '설계 수정 : ' + g('design-revision'),
+      '계약 후 미설계 : ' + g('design-none'),
+      '',
+      '■ 시공 진행 현황',
+      '착공 대기 : ' + g('const-wait'),
+      '시공 중 : ' + g('const-active'),
+      '시공 완료 : ' + g('const-done'),
+      '지연 현장 : ' + g('const-delay'),
+      '이슈 현장 : ' + g('const-issue'),
+      '',
+      '■ 입금 / 잔금 현황',
+      '계약금 입금 : ' + g('pay-deposit'),
+      '중도금 예정 : ' + g('pay-progress'),
+      '잔금 예정 : ' + g('pay-balance'),
+      '미입금 : ' + g('pay-unpaid'),
+      '연체 : ' + g('pay-overdue'),
+      '',
+      '■ 매출 예측',
+      '이번달 예상 계약 : ' + g('forecast-this'),
+      '다음달 예상 계약 : ' + g('forecast-next'),
+      '진행 중 계약 : ' + g('forecast-ongoing'),
+      '',
+      '■ 이슈 보고',
+      issues,
+      '',
+      '■ 특이사항',
+      notes
+    ].join('\n');
+  }
+
+  function collectCeoFormFields(type) {
+    var fields = ['period-contract', 'month-contract', 'month-sales', 'goal-rate',
+      'sr-hq', 'sr-1', 'sr-3', 'sr-4',
+      'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
+      'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
+      'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
+      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'forecast-this', 'forecast-next', 'forecast-ongoing'];
+    var result = {};
+    fields.forEach(function (f) { result[f] = getCeoField(type, f); });
+    var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
+    var notesEl = document.getElementById('ceo-' + type + '-f-notes');
+    result.issues = issuesEl ? issuesEl.value : '';
+    result.notes = notesEl ? notesEl.value : '';
+    return result;
+  }
+
+  function resetCeoForm(type) {
+    var fields = ['period-contract', 'month-contract', 'month-sales', 'goal-rate',
+      'sr-hq', 'sr-1', 'sr-3', 'sr-4',
+      'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
+      'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
+      'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
+      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'forecast-this', 'forecast-next', 'forecast-ongoing'];
+    fields.forEach(function (f) { setCeoField(type, f, ''); });
+    var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
+    var notesEl = document.getElementById('ceo-' + type + '-f-notes');
+    if (issuesEl) issuesEl.value = '';
+    if (notesEl) notesEl.value = '';
+    var titleEl = document.getElementById('ceo-' + type + '-title');
+    if (titleEl) titleEl.value = '';
+    var previewBox = document.getElementById('ceo-' + type + '-preview-box');
+    if (previewBox) previewBox.classList.add('hidden');
   }
 
   function initCeoReports() {
     ['daily', 'weekly', 'monthly'].forEach(function (type) {
+      // 날짜 초기값
+      var dateInput = document.getElementById('ceo-' + type + '-date');
+      if (dateInput) {
+        dateInput.value = type === 'monthly' ? new Date().toISOString().slice(0, 7) : new Date().toISOString().slice(0, 10);
+      }
+
+      // 자동 채우기 버튼
+      var autofillBtn = document.getElementById('btn-ceo-' + type + '-autofill');
+      if (autofillBtn) {
+        autofillBtn.addEventListener('click', function () { autoFillCeoForm(type); });
+      }
+
+      // 미리보기/복사 버튼
+      var previewBtn = document.getElementById('btn-ceo-' + type + '-preview');
+      if (previewBtn) {
+        previewBtn.addEventListener('click', function () {
+          var text = generateCeoReportText(type);
+          var preEl = document.getElementById('ceo-' + type + '-preview-text');
+          var box = document.getElementById('ceo-' + type + '-preview-box');
+          if (preEl) preEl.textContent = text;
+          if (box) { box.classList.remove('hidden'); box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+        });
+      }
+
+      // 복사 버튼
+      var copyBtn = document.getElementById('btn-ceo-' + type + '-copy');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+          var preEl = document.getElementById('ceo-' + type + '-preview-text');
+          var text = preEl ? preEl.textContent : generateCeoReportText(type);
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(function () { showToast('복사되었습니다.'); });
+          } else {
+            var ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+            showToast('복사되었습니다.');
+          }
+        });
+      }
+
+      // 폼 저장
       var form = document.getElementById('form-ceo-' + type);
       if (form) {
-        // 날짜 초기값 설정
-        var dateInput = document.getElementById('ceo-' + type + '-date');
-        if (dateInput) {
-          if (type === 'monthly') {
-            dateInput.value = new Date().toISOString().slice(0, 7);
-          } else {
-            dateInput.value = new Date().toISOString().slice(0, 10);
-          }
-        }
         form.addEventListener('submit', function (e) {
           e.preventDefault();
           if (!canSeeCeoSection()) return;
           var cur = window.seumAuth && window.seumAuth.currentEmployee;
           var author = cur ? (cur.name || cur.email || '비서') : '비서';
           var dateVal = document.getElementById('ceo-' + type + '-date').value;
-          var titleVal = (document.getElementById('ceo-' + type + '-title').value || '').trim();
-          var contentVal = (document.getElementById('ceo-' + type + '-content').value || '').trim();
-          if (!dateVal || !contentVal) { alert('날짜와 내용을 입력해 주세요.'); return; }
+          var titleEl = document.getElementById('ceo-' + type + '-title');
+          var titleVal = titleEl ? titleEl.value.trim() : '';
+          if (!dateVal) { alert('날짜를 입력해 주세요.'); return; }
+          var content = generateCeoReportText(type);
+          var fields = collectCeoFormFields(type);
+          if (!titleVal) {
+            titleVal = dateVal + ' ' + (type === 'daily' ? '일일' : type === 'weekly' ? '주간' : '월간') + ' 보고';
+          }
           var reports = getCeoReports();
           reports.push({
             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
             type: type,
             date: dateVal,
-            title: titleVal || (dateVal + ' ' + (type === 'daily' ? '일일' : type === 'weekly' ? '주간' : '월간') + ' 보고'),
-            content: contentVal,
+            title: titleVal,
+            content: content,
+            fields: fields,
             author: author,
             createdAt: new Date().toISOString()
           });
           saveCeoReports(reports);
-          form.reset();
-          // 날짜 다시 초기화
-          if (dateInput) {
-            dateInput.value = type === 'monthly' ? new Date().toISOString().slice(0, 7) : new Date().toISOString().slice(0, 10);
-          }
+          resetCeoForm(type);
+          if (dateInput) dateInput.value = type === 'monthly' ? new Date().toISOString().slice(0, 7) : new Date().toISOString().slice(0, 10);
           renderCeoReport(type);
           showToast('보고가 저장되었습니다.');
         });
       }
 
-      // 목록 클릭 이벤트 (보기/삭제)
+      // 목록 클릭 (보기/삭제)
       var tbody = document.getElementById('tbody-ceo-' + type);
       if (tbody) {
         tbody.addEventListener('click', function (e) {
@@ -4197,8 +4451,7 @@
             var did = deleteBtn.getAttribute('data-ceo-delete');
             var dtype = deleteBtn.getAttribute('data-ceo-type');
             if (!confirm('이 보고를 삭제하시겠습니까?')) return;
-            var reports = getCeoReports().filter(function (r) { return r.id !== did; });
-            saveCeoReports(reports);
+            saveCeoReports(getCeoReports().filter(function (r) { return r.id !== did; }));
             renderCeoReport(dtype);
             var detail2 = document.getElementById('ceo-' + dtype + '-detail');
             if (detail2) detail2.classList.add('hidden');
