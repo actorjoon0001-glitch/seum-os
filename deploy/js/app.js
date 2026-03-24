@@ -5556,11 +5556,12 @@
     if (!val) return '-';
     var raw = String(val).trim();
     if (!raw) return '-';
-    var parts = raw.split(/\s+/);
-    var first = parts[0];
-    if (/^https?:\/\//i.test(first)) {
-      var suffix = parts.length > 1 ? ' (외 ' + (parts.length - 1) + '건)' : '';
-      return '<a href="' + first + '" target="_blank" rel="noopener">링크' + suffix + '</a>';
+    var urls = parseDrawingUrls(raw);
+    if (urls.length > 0) {
+      return urls.map(function (url) {
+        var name = url.split('/').pop().replace(/^\d+_/, '');
+        return '<div style="margin-bottom:2px"><a href="' + url + '" target="_blank" rel="noopener">' + name + '</a></div>';
+      }).join('');
     }
     return val;
   }
