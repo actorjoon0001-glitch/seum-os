@@ -285,6 +285,72 @@
     });
   }
 
+  // ────────────────────────────────────────────────────────────
+  //  계약 목록 검색 필터 헬퍼
+  // ────────────────────────────────────────────────────────────
+
+  /** 검색 입력창에서 키워드를 가져옴 */
+  function getContractSearchKeyword() {
+    var el = document.getElementById('contract-search-input');
+    return el ? el.value.trim() : '';
+  }
+
+  /**
+   * 계약 1건이 키워드에 매칭되는지 확인
+   * 현재 검색 대상: 건축주명, 주소(siteAddress)
+   * 향후 확장: 담당자(salesPerson), 상태 등 fields 배열에 추가
+   */
+  function matchesKeyword(contract, keyword) {
+    if (!keyword) return true;
+    var kw = keyword.toLowerCase();
+    var fields = [
+      contract.customerName || '',
+      contract.siteAddress  || ''
+    ];
+    return fields.some(function (f) {
+      return f.toLowerCase().indexOf(kw) !== -1;
+    });
+  }
+
+  /**
+   * 연/월/전시장 필터 이후에 키워드 필터를 추가로 적용
+   * 향후 필드별 검색(건축주명 전용, 지역 전용 등)으로 쉽게 확장 가능
+   */
+  function getFilteredContracts(contracts) {
+    var keyword = getContractSearchKeyword();
+    if (!keyword) return contracts;
+    return contracts.filter(function (c) {
+      return matchesKeyword(c, keyword);
+    });
+  }
+
+  /** 계약 검색 결과 요약 문구 업데이트 */
+  function updateContractFilterResult(filteredContracts, allAfterBaseFilter) {
+    var el = document.getElementById('contract-filter-result');
+    if (!el) return;
+    var keyword  = getContractSearchKeyword();
+    var showroom = getFilterShowroom();
+    var year     = getFilterYear();
+    var month    = getFilterMonth();
+    var parts    = [];
+    if (showroom) {
+      var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+      parts.push(names[showroom] || showroom);
+    }
+    if (year)  parts.push(year + '년');
+    if (month) parts.push(month + '월');
+    if (keyword) parts.push('"' + keyword + '"');
+    var count = filteredContracts.length;
+    if (parts.length > 0) {
+      el.textContent = parts.join(' / ') + ' · 총 ' + count + '건';
+    } else {
+      el.textContent = '총 ' + count + '건';
+    }
+    // X 버튼 표시 제어
+    var clearBtn = document.getElementById('contract-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
+  }
+
   function getVisits() {
     try {
       var raw = localStorage.getItem(STORAGE_VISITS);
@@ -2764,6 +2830,7 @@
     visits = filterByYearMonth(visits, 'visitDate');
     var contracts = filterByShowroom(contractsAll, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    contracts = getFilteredContracts(contracts);
     var tbodyLeads = document.getElementById('tbody-leads');
     var tbodyContracts = document.getElementById('tbody-contracts');
     if (tbodyLeads) {
@@ -2823,7 +2890,10 @@
           return parts.slice(0, 2).join(' ');
         })();
         return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
-      }).join('') || '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>';
+      }).join('') || (getContractSearchKeyword()
+        ? '<tr><td colspan="14" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+        : '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>');
+      updateContractFilterResult(contracts, contracts);
       if (expandedContractId) {
         var exists = contracts.some(function (c) { return c.id === expandedContractId; });
         if (exists) {
@@ -7511,6 +7581,27 @@
     var el = document.getElementById('filter-showroom');
     if (el) {
       el.addEventListener('change', onFilterChange);
+    }
+    // 계약 목록 검색창 이벤트
+    var searchInput = document.getElementById('contract-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        renderSales();
+      });
+      searchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          renderSales();
+        }
+      });
+    }
+    var clearBtn = document.getElementById('contract-search-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        if (searchInput) searchInput.value = '';
+        renderSales();
+        if (searchInput) searchInput.focus();
+      });
     }
     var btnReset = document.getElementById('btn-reset-samples');
     if (btnReset) {
