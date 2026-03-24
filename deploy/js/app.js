@@ -655,10 +655,23 @@
     container.innerHTML = '<ul class="drawing-file-list-inner">' + items + '</ul>';
   }
 
+  function updateDrawingFileCount(listEl) {
+    if (!listEl) return;
+    var id = listEl.id || '';
+    var countId = id === 'design-construction-drawing-list'
+      ? 'design-drawing-count-construction'
+      : id.replace('design-drawing-list-', 'design-drawing-count-');
+    var countEl = document.getElementById(countId);
+    if (!countEl) return;
+    var items = listEl.querySelectorAll('.drawing-file-item');
+    countEl.textContent = items.length > 0 ? '(' + items.length + '개)' : '';
+  }
+
   function refreshDrawingFileListForInput(inputEl, listEl) {
     if (!inputEl || !listEl) return;
     var urls = parseDrawingUrls(inputEl.value || '');
     renderDrawingFileList(listEl, urls);
+    updateDrawingFileCount(listEl);
   }
 
   function getTeamEvents() {
@@ -3852,11 +3865,6 @@
         var inputSelector = e.target.classList.contains('design-inline-drawing-upload') ? '.design-inline-drawing'
           : e.target.classList.contains('design-inline-drawing-upload-2') ? '.design-inline-drawing-2'
             : '.design-inline-drawing-3';
-        var urlInput = form && form.querySelector(inputSelector);
-        if (urlInput && (urlInput.value || '').trim()) {
-          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
-          return;
-        }
         var fileInput = form && form.querySelector(selector);
         if (fileInput) fileInput.click();
       }
@@ -5051,11 +5059,6 @@
     var drawingOpenBtn = document.getElementById('btn-design-drawing-open');
     if (drawingUploadBtn && drawingFileEl) {
       drawingUploadBtn.addEventListener('click', function () {
-        var inputEl = document.getElementById('design-drawing-attachment');
-        if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
-          return;
-        }
         drawingFileEl.click();
       });
       drawingFileEl.addEventListener('change', function () {
@@ -5089,11 +5092,6 @@
     var drawingOpenBtn2 = document.getElementById('btn-design-drawing-open-2');
     if (drawingUploadBtn2 && drawingFileEl2) {
       drawingUploadBtn2.addEventListener('click', function () {
-        var inputEl = document.getElementById('design-drawing-attachment-2');
-        if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
-          return;
-        }
         drawingFileEl2.click();
       });
       drawingFileEl2.addEventListener('change', function () {
@@ -5127,11 +5125,6 @@
     var drawingOpenBtn3 = document.getElementById('btn-design-drawing-open-3');
     if (drawingUploadBtn3 && drawingFileEl3) {
       drawingUploadBtn3.addEventListener('click', function () {
-        var inputEl = document.getElementById('design-drawing-attachment-3');
-        if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
-          return;
-        }
         drawingFileEl3.click();
       });
       drawingFileEl3.addEventListener('change', function () {
@@ -5164,11 +5157,6 @@
     var constructionOpenBtn = document.getElementById('btn-design-construction-drawing-open');
     if (constructionUploadBtn && constructionFileEl) {
       constructionUploadBtn.addEventListener('click', function () {
-        var inputEl = document.getElementById('design-construction-drawing-attachment');
-        if (inputEl && (inputEl.value || '').trim()) {
-          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
-          return;
-        }
         constructionFileEl.click();
       });
       constructionFileEl.addEventListener('change', function () {

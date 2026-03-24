@@ -3886,11 +3886,6 @@
         var inputSelector = e.target.classList.contains('design-inline-drawing-upload') ? '.design-inline-drawing'
           : e.target.classList.contains('design-inline-drawing-upload-2') ? '.design-inline-drawing-2'
             : '.design-inline-drawing-3';
-        var urlInput = form && form.querySelector(inputSelector);
-        if (urlInput && (urlInput.value || '').trim()) {
-          window.alert('이미 파일이 있습니다.\n기존 파일을 삭제한 후 업로드해 주세요.');
-          return;
-        }
         var fileInput = form && form.querySelector(selector);
         if (fileInput) fileInput.click();
       }

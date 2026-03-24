@@ -4671,6 +4671,12 @@ textarea.form-input {
 .drawing-url-input {
   display: none;
 }
+.drawing-count-badge {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #6B7280;
+  margin-left: 0.15rem;
+}
 .drawing-file-list {
   margin-top: 0.35rem;
   font-size: 0.8rem;
