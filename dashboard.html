@@ -998,6 +998,21 @@
       </header>
       <div class="card">
         <h3>협의도면 · 인허가 진행 현황 (계약금 수령 건)</h3>
+        <!-- 설계팀 검색 필터 -->
+        <div class="contract-filter-bar" id="design-filter-bar">
+          <div class="filter-item filter-item-search">
+            <label for="design-search-input">검색</label>
+            <div class="contract-search-wrap">
+              <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+                <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="text" id="design-search-input" class="contract-search-input" placeholder="건축주명, 지역, 주소, 모델 검색" autocomplete="off">
+              <button type="button" class="contract-search-clear hidden" id="design-search-clear" title="검색어 초기화" aria-label="검색어 초기화">✕</button>
+            </div>
+          </div>
+          <div class="contract-filter-result" id="design-filter-result"></div>
+        </div>
         <div class="table-wrap table-wrapper">
           <table class="data-table design-list-table">
             <thead>
@@ -1070,6 +1085,21 @@
       </header>
       <div class="card">
         <h3>계약자 명단 (착공 가능 건)</h3>
+        <!-- 시공팀 검색 필터 -->
+        <div class="contract-filter-bar" id="construction-filter-bar">
+          <div class="filter-item filter-item-search">
+            <label for="construction-search-input">검색</label>
+            <div class="contract-search-wrap">
+              <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+                <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="text" id="construction-search-input" class="contract-search-input" placeholder="건축주명, 지역, 주소, 담당자 검색" autocomplete="off">
+              <button type="button" class="contract-search-clear hidden" id="construction-search-clear" title="검색어 초기화" aria-label="검색어 초기화">✕</button>
+            </div>
+          </div>
+          <div class="contract-filter-result" id="construction-filter-result"></div>
+        </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
