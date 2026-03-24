@@ -148,6 +148,7 @@
       </div>
       <div class="nav-section hidden" id="nav-section-ceo">
         <div class="nav-section-title">대표님</div>
+        <a href="#" class="nav-item" data-section="ceo-dashboard">대표 대시보드</a>
         <div class="nav-group sidebar-group" id="sidebar-group-ceo">
           <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-ceo-toggle" aria-expanded="false">
             <span>보고</span>
@@ -2012,6 +2013,99 @@
         <pre id="ceo-monthly-detail-content" style="white-space:pre-wrap;font-family:inherit;margin-top:0.75rem;line-height:1.7;"></pre>
       </div>
     </section>
+    <!-- ===== CEO 대시보드 섹션 ===== -->
+    <section id="section-ceo-dashboard" class="content-section">
+      <header class="main-header">
+        <h2>대표 대시보드</h2>
+        <p class="section-desc">CEO 전용 KPI 종합 현황판</p>
+      </header>
+
+      <!-- KPI 카드 4개 -->
+      <div class="ceo-db-kpi-grid" id="ceo-db-kpi-grid">
+        <article class="ceo-db-kpi-card">
+          <div class="ceo-db-kpi-label">월 목표</div>
+          <div class="ceo-db-kpi-value" id="ceo-db-goal">100억</div>
+          <div class="ceo-db-kpi-sub">목표 계약총액</div>
+        </article>
+        <article class="ceo-db-kpi-card accent-blue">
+          <div class="ceo-db-kpi-label">현재 계약총액</div>
+          <div class="ceo-db-kpi-value" id="ceo-db-total-amount">—</div>
+          <div class="ceo-db-kpi-sub">이번 달 누계</div>
+        </article>
+        <article class="ceo-db-kpi-card accent-green">
+          <div class="ceo-db-kpi-label">예상 매출</div>
+          <div class="ceo-db-kpi-value" id="ceo-db-expected-sales">—</div>
+          <div class="ceo-db-kpi-sub">계약금 기준</div>
+        </article>
+        <article class="ceo-db-kpi-card" id="ceo-db-rate-card">
+          <div class="ceo-db-kpi-label">달성률</div>
+          <div class="ceo-db-kpi-value" id="ceo-db-rate">—</div>
+          <div class="ceo-db-kpi-sub">목표 대비</div>
+        </article>
+      </div>
+
+      <!-- 전체 진행 현황 -->
+      <div class="ceo-db-section-title">전체 진행 현황</div>
+      <div class="ceo-db-progress-grid" id="ceo-db-progress-grid">
+        <div class="ceo-db-progress-card">
+          <div class="ceo-db-prog-num" id="ceo-db-p-contracts">—</div>
+          <div class="ceo-db-prog-label">계약 건수</div>
+        </div>
+        <div class="ceo-db-progress-card">
+          <div class="ceo-db-prog-num accent-blue" id="ceo-db-p-design">—</div>
+          <div class="ceo-db-prog-label">설계 진행</div>
+        </div>
+        <div class="ceo-db-progress-card">
+          <div class="ceo-db-prog-num accent-orange" id="ceo-db-p-construction">—</div>
+          <div class="ceo-db-prog-label">시공 진행</div>
+        </div>
+        <div class="ceo-db-progress-card">
+          <div class="ceo-db-prog-num accent-red" id="ceo-db-p-pending">—</div>
+          <div class="ceo-db-prog-label">착공 대기</div>
+        </div>
+      </div>
+
+      <!-- 전시장별 현황 테이블 + 지연/이슈 -->
+      <div class="ceo-db-bottom-grid">
+        <div class="card ceo-db-table-card">
+          <h3 class="ceo-db-card-title">전시장별 현황</h3>
+          <div class="ceo-db-table-wrap">
+            <table class="ceo-db-table" id="ceo-db-showroom-table">
+              <thead>
+                <tr>
+                  <th>전시장</th>
+                  <th>계약총액</th>
+                  <th>계약금총액</th>
+                  <th>설계지연</th>
+                  <th>시공지연</th>
+                  <th>진행건수</th>
+                </tr>
+              </thead>
+              <tbody id="ceo-db-showroom-tbody">
+                <!-- JS renderCeoDashboard() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card ceo-db-issues-card">
+          <h3 class="ceo-db-card-title">지연 / 이슈</h3>
+          <div class="ceo-db-issue-section">
+            <div class="ceo-db-issue-label accent-orange">설계 지연</div>
+            <ul class="ceo-db-issue-list" id="ceo-db-issue-design"></ul>
+          </div>
+          <div class="ceo-db-issue-section">
+            <div class="ceo-db-issue-label accent-red">시공 지연</div>
+            <ul class="ceo-db-issue-list" id="ceo-db-issue-construction"></ul>
+          </div>
+          <div class="ceo-db-issue-section">
+            <div class="ceo-db-issue-label accent-blue">입금 지연</div>
+            <ul class="ceo-db-issue-list" id="ceo-db-issue-payment"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ===== /CEO 대시보드 섹션 ===== -->
   </main>
 
   <!-- 우측 채팅 패널: 왼쪽 대화(메인) | 오른쪽 채팅방 목록(보조) -->

@@ -8542,3 +8542,208 @@ table tbody tr.active td {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ============================================================
+   CEO 대시보드 (대표 전용 KPI 대시보드)
+   ============================================================ */
+#section-ceo-dashboard {
+  max-width: 1400px;
+}
+
+/* KPI 카드 그리드 */
+.ceo-db-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.ceo-db-kpi-card {
+  background: #181818;
+  border: 1px solid #2A2A2A;
+  border-radius: 14px;
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  transition: box-shadow 0.2s, border-color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.ceo-db-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: #374151;
+  border-radius: 14px 14px 0 0;
+}
+.ceo-db-kpi-card.accent-blue::before { background: #4F8CFF; }
+.ceo-db-kpi-card.accent-green::before { background: #22C55E; }
+.ceo-db-kpi-card.accent-orange::before { background: #F59E0B; }
+.ceo-db-kpi-card.accent-red::before { background: #EF4444; }
+.ceo-db-kpi-card:hover {
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  border-color: #3A3A3A;
+}
+
+.ceo-db-kpi-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+.ceo-db-kpi-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #F3F4F6;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+.ceo-db-kpi-sub {
+  font-size: 0.78rem;
+  color: #6B7280;
+}
+
+/* 전체 진행 현황 */
+.ceo-db-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #F3F4F6;
+  margin-bottom: 1rem;
+  padding-left: 0.25rem;
+  border-left: 3px solid #4F8CFF;
+  padding-left: 0.75rem;
+}
+.ceo-db-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+.ceo-db-progress-card {
+  background: #181818;
+  border: 1px solid #2A2A2A;
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.ceo-db-prog-num {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #F3F4F6;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.ceo-db-prog-label {
+  font-size: 0.85rem;
+  color: #9CA3AF;
+  font-weight: 500;
+}
+
+/* 색상 클래스 */
+.accent-blue  { color: #4F8CFF !important; }
+.accent-green { color: #22C55E !important; }
+.accent-orange{ color: #F59E0B !important; }
+.accent-red   { color: #EF4444 !important; }
+
+/* 하단 2열 레이아웃 */
+.ceo-db-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* 전시장별 테이블 */
+.ceo-db-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #F3F4F6;
+  margin-bottom: 1rem;
+}
+.ceo-db-table-wrap {
+  overflow-x: auto;
+}
+.ceo-db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.ceo-db-table th {
+  background: #0F0F0F;
+  color: #9CA3AF;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid #2A2A2A;
+}
+.ceo-db-table td {
+  padding: 0.75rem 0.9rem;
+  color: #E5E7EB;
+  border-bottom: 1px solid #1F1F1F;
+  font-weight: 500;
+}
+.ceo-db-table tr:last-child td { border-bottom: none; }
+.ceo-db-table tr:hover td { background: #1F1F1F; }
+.ceo-db-td-name {
+  font-weight: 700;
+  color: #F3F4F6;
+}
+
+/* 지연/이슈 카드 */
+.ceo-db-issues-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.ceo-db-issue-section {
+  margin-bottom: 1.25rem;
+}
+.ceo-db-issue-section:last-child { margin-bottom: 0; }
+.ceo-db-issue-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+.ceo-db-issue-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.ceo-db-issue-item {
+  font-size: 0.85rem;
+  color: #E5E7EB;
+  padding: 0.35rem 0.6rem;
+  background: #1F1F1F;
+  border-radius: 6px;
+  border-left: 3px solid #374151;
+}
+.ceo-db-issue-item.ceo-db-issue-none {
+  color: #6B7280;
+  background: transparent;
+  border-left-color: transparent;
+  font-style: italic;
+}
+
+/* 반응형 */
+@media (max-width: 1100px) {
+  .ceo-db-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .ceo-db-progress-grid { grid-template-columns: repeat(2, 1fr); }
+  .ceo-db-bottom-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .ceo-db-kpi-grid { grid-template-columns: 1fr; }
+  .ceo-db-progress-grid { grid-template-columns: repeat(2, 1fr); }
+  .ceo-db-kpi-value { font-size: 2rem; }
+  .ceo-db-prog-num { font-size: 2.2rem; }
+}
