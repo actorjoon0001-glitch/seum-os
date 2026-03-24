@@ -4112,6 +4112,164 @@
     return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function renderCeoDashboard() {
+    var contracts = getContracts ? getContracts() : [];
+    var today = new Date();
+    var thisMonth = today.toISOString().slice(0, 7);
+
+    // 이번 달 계약
+    var monthContracts = contracts.filter(function(c) {
+      return (c.contractDate || '').slice(0, 7) === thisMonth;
+    });
+
+    // KPI: 계약총액, 예상매출(계약금합계), 달성률
+    var totalAmount = monthContracts.reduce(function(s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+    var expectedSales = monthContracts.reduce(function(s, c) { return s + (Number(c.depositAmount) || 0); }, 0);
+    var goalAmount = 10000000000; // 100억 (기본값)
+    var rateVal = goalAmount > 0 ? Math.round((totalAmount / goalAmount) * 100) : 0;
+
+    function toEok(val) {
+      if (!val) return '0억';
+      return (val / 100000000).toFixed(2) + '억';
+    }
+
+    var elTotal = document.getElementById('ceo-db-total-amount');
+    var elExp = document.getElementById('ceo-db-expected-sales');
+    var elRate = document.getElementById('ceo-db-rate');
+    var elRateCard = document.getElementById('ceo-db-rate-card');
+    if (elTotal) elTotal.textContent = toEok(totalAmount);
+    if (elExp) elExp.textContent = toEok(expectedSales);
+    if (elRate) elRate.textContent = rateVal + '%';
+    if (elRateCard) {
+      elRateCard.classList.remove('accent-green', 'accent-red', 'accent-orange');
+      if (rateVal >= 100) elRateCard.classList.add('accent-green');
+      else if (rateVal >= 60) elRateCard.classList.add('accent-orange');
+      else elRateCard.classList.add('accent-red');
+    }
+
+    // 전체 진행 현황
+    var allContracts = contracts;
+    var designCount = allContracts.filter(function(c) { return c.status === '설계중' || c.designStatus === '진행중'; }).length;
+    var constructionCount = allContracts.filter(function(c) { return c.status === '시공중' || c.constructionStatus === '진행중'; }).length;
+    var pendingCount = allContracts.filter(function(c) { return c.status === '착공대기' || c.status === '계약완료'; }).length;
+
+    var pC = document.getElementById('ceo-db-p-contracts');
+    var pD = document.getElementById('ceo-db-p-design');
+    var pCo = document.getElementById('ceo-db-p-construction');
+    var pP = document.getElementById('ceo-db-p-pending');
+    if (pC) pC.textContent = allContracts.length;
+    if (pD) pD.textContent = designCount;
+    if (pCo) pCo.textContent = constructionCount;
+    if (pP) pP.textContent = pendingCount;
+
+    // 전시장별 현황 (더미 + 실데이터 혼합)
+    var showrooms = [
+      { id: 'headquarters', name: '본사' },
+      { id: 'showroom1', name: '1전시장' },
+      { id: 'showroom3', name: '3전시장' },
+      { id: 'showroom4', name: '4전시장' }
+    ];
+    var tbody = document.getElementById('ceo-db-showroom-tbody');
+    if (tbody) {
+      tbody.innerHTML = showrooms.map(function(sr) {
+        var srContracts = allContracts.filter(function(c) {
+          return c.showroomId === sr.id || c.showroom === sr.name;
+        });
+        var srTotal = srContracts.reduce(function(s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+        var srDeposit = srContracts.reduce(function(s, c) { return s + (Number(c.depositAmount) || 0); }, 0);
+        var srDesignDelay = srContracts.filter(function(c) { return c.designDelay || c.designDelayDays > 0; }).length;
+        var srConstDelay = srContracts.filter(function(c) { return c.constructionDelay || c.constructionDelayDays > 0; }).length;
+        return '<tr>' +
+          '<td class="ceo-db-td-name">' + sr.name + '</td>' +
+          '<td>' + toEok(srTotal) + '</td>' +
+          '<td>' + toEok(srDeposit) + '</td>' +
+          '<td class="' + (srDesignDelay > 0 ? 'accent-orange' : '') + '">' + srDesignDelay + '건</td>' +
+          '<td class="' + (srConstDelay > 0 ? 'accent-red' : '') + '">' + srConstDelay + '건</td>' +
+          '<td>' + srContracts.length + '건</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    // 지연 / 이슈 목록
+    var today10 = today.toISOString().slice(0, 10);
+    var designDelayed = allContracts.filter(function(c) {
+      return c.designDelay || (c.designDueDate && c.designDueDate < today10 && c.status !== '시공완료');
+    });
+    var constDelayed = allContracts.filter(function(c) {
+      return c.constructionDelay || (c.constructionDueDate && c.constructionDueDate < today10 && c.status !== '시공완료');
+    });
+    var paymentDelayed = allContracts.filter(function(c) {
+      return c.paymentDelay || (c.paymentDueDate && c.paymentDueDate < today10 && !c.paymentCompleted);
+    });
+
+    function renderIssueList(listId, items, labelFn) {
+      var el = document.getElementById(listId);
+      if (!el) return;
+      if (!items.length) {
+        el.innerHTML = '<li class="ceo-db-issue-item ceo-db-issue-none">이슈 없음</li>';
+        return;
+      }
+      el.innerHTML = items.slice(0, 5).map(function(c) {
+        return '<li class="ceo-db-issue-item">' + labelFn(c) + '</li>';
+      }).join('');
+    }
+
+    renderIssueList('ceo-db-issue-design', designDelayed, function(c) {
+      return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
+    });
+    renderIssueList('ceo-db-issue-construction', constDelayed, function(c) {
+      return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
+    });
+    renderIssueList('ceo-db-issue-payment', paymentDelayed, function(c) {
+      return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
+    });
+
+    // 더미 데이터: 실 데이터가 없을 때 예시 표시
+    if (!allContracts.length) {
+      if (elTotal) elTotal.textContent = '8.40억';
+      if (elExp) elExp.textContent = '2.10억';
+      if (elRate) elRate.textContent = '84%';
+      if (pC) pC.textContent = '12';
+      if (pD) pD.textContent = '5';
+      if (pCo) pCo.textContent = '4';
+      if (pP) pP.textContent = '3';
+      if (tbody) {
+        tbody.innerHTML = [
+          { name: '본사', total: '3.20억', dep: '0.80억', dd: 1, cd: 0, cnt: 4 },
+          { name: '1전시장', total: '2.50억', dep: '0.62억', dd: 0, cd: 1, cnt: 3 },
+          { name: '3전시장', total: '1.50억', dep: '0.38억', dd: 2, cd: 0, cnt: 3 },
+          { name: '4전시장', total: '1.20억', dep: '0.30억', dd: 0, cd: 0, cnt: 2 }
+        ].map(function(r) {
+          return '<tr>' +
+            '<td class="ceo-db-td-name">' + r.name + '</td>' +
+            '<td>' + r.total + '</td>' +
+            '<td>' + r.dep + '</td>' +
+            '<td class="' + (r.dd > 0 ? 'accent-orange' : '') + '">' + r.dd + '건</td>' +
+            '<td class="' + (r.cd > 0 ? 'accent-red' : '') + '">' + r.cd + '건</td>' +
+            '<td>' + r.cnt + '건</td>' +
+            '</tr>';
+        }).join('');
+      }
+      var dummyDesign = [
+        { customerName: '홍길동', showroom: '3전시장' },
+        { customerName: '김영희', showroom: '3전시장' }
+      ];
+      var dummyConst = [
+        { customerName: '이철수', showroom: '1전시장' }
+      ];
+      var dummyPay = [];
+      renderIssueList('ceo-db-issue-design', dummyDesign, function(c) {
+        return c.customerName + ' (' + c.showroom + ')';
+      });
+      renderIssueList('ceo-db-issue-construction', dummyConst, function(c) {
+        return c.customerName + ' (' + c.showroom + ')';
+      });
+      renderIssueList('ceo-db-issue-payment', dummyPay, function(c) {
+        return c.customerName + ' (' + c.showroom + ')';
+      });
+    }
+  }
+
   function renderCeoReport(type) {
     var reports = getCeoReports().filter(function (r) { return r.type === type; });
     reports.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
@@ -4871,7 +5029,7 @@
     if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
       return;
     }
-    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly') && !canSeeCeoSection()) {
+    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard') && !canSeeCeoSection()) {
       return;
     }
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
@@ -4900,6 +5058,7 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
     if (sectionId === 'ceo-weekly') renderCeoReport('weekly');
     if (sectionId === 'ceo-monthly') renderCeoReport('monthly');
