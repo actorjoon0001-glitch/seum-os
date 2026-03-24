@@ -23,6 +23,7 @@
   var STORAGE_KPI_GOALS = 'seum_kpi_goals';
   var STORAGE_INCENTIVE_PERCENTS = 'seum_incentive_percents';
   var STORAGE_CUSTOMERS = 'seum_customers';
+  var STORAGE_CEO_REPORTS = 'seum_ceo_reports';
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '본사 전시장' },
@@ -246,6 +247,15 @@
   function updateManageNavVisibility() {
     var section = document.getElementById('nav-section-manage');
     if (section) section.classList.toggle('hidden', !canSeeManageSection());
+  }
+
+  function canSeeCeoSection() {
+    return isMaster() || isSuperAdmin();
+  }
+
+  function updateCeoNavVisibility() {
+    var section = document.getElementById('nav-section-ceo');
+    if (section) section.classList.toggle('hidden', !canSeeCeoSection());
   }
 
   function getFilterShowroom() {
@@ -4090,6 +4100,124 @@
     }
   }
 
+  function getCeoReports() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_CEO_REPORTS) || '[]'); } catch (e) { return []; }
+  }
+
+  function saveCeoReports(reports) {
+    localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(reports));
+  }
+
+  function renderCeoReport(type) {
+    var reports = getCeoReports().filter(function (r) { return r.type === type; });
+    reports.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    var tbodyId = 'tbody-ceo-' + type;
+    var tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    var dateLabel = type === 'monthly' ? '보고 월' : (type === 'weekly' ? '해당 주' : '날짜');
+    tbody.innerHTML = reports.map(function (r) {
+      return '<tr>' +
+        '<td>' + (r.date || '-') + '</td>' +
+        '<td><button type="button" class="btn btn-sm btn-secondary" data-ceo-view="' + r.id + '" data-ceo-type="' + type + '">' + esc(r.title || '-') + '</button></td>' +
+        '<td>' + esc(r.author || '-') + '</td>' +
+        '<td>' + (r.createdAt ? r.createdAt.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
+        '<td><button type="button" class="btn btn-sm btn-secondary" data-ceo-delete="' + r.id + '" data-ceo-type="' + type + '">삭제</button></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="5">보고 내역이 없습니다.</td></tr>';
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function initCeoReports() {
+    ['daily', 'weekly', 'monthly'].forEach(function (type) {
+      var form = document.getElementById('form-ceo-' + type);
+      if (form) {
+        // 날짜 초기값 설정
+        var dateInput = document.getElementById('ceo-' + type + '-date');
+        if (dateInput) {
+          if (type === 'monthly') {
+            dateInput.value = new Date().toISOString().slice(0, 7);
+          } else {
+            dateInput.value = new Date().toISOString().slice(0, 10);
+          }
+        }
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          if (!canSeeCeoSection()) return;
+          var cur = window.seumAuth && window.seumAuth.currentEmployee;
+          var author = cur ? (cur.name || cur.email || '비서') : '비서';
+          var dateVal = document.getElementById('ceo-' + type + '-date').value;
+          var titleVal = (document.getElementById('ceo-' + type + '-title').value || '').trim();
+          var contentVal = (document.getElementById('ceo-' + type + '-content').value || '').trim();
+          if (!dateVal || !contentVal) { alert('날짜와 내용을 입력해 주세요.'); return; }
+          var reports = getCeoReports();
+          reports.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            type: type,
+            date: dateVal,
+            title: titleVal || (dateVal + ' ' + (type === 'daily' ? '일일' : type === 'weekly' ? '주간' : '월간') + ' 보고'),
+            content: contentVal,
+            author: author,
+            createdAt: new Date().toISOString()
+          });
+          saveCeoReports(reports);
+          form.reset();
+          // 날짜 다시 초기화
+          if (dateInput) {
+            dateInput.value = type === 'monthly' ? new Date().toISOString().slice(0, 7) : new Date().toISOString().slice(0, 10);
+          }
+          renderCeoReport(type);
+          showToast('보고가 저장되었습니다.');
+        });
+      }
+
+      // 목록 클릭 이벤트 (보기/삭제)
+      var tbody = document.getElementById('tbody-ceo-' + type);
+      if (tbody) {
+        tbody.addEventListener('click', function (e) {
+          var viewBtn = e.target.closest('[data-ceo-view]');
+          var deleteBtn = e.target.closest('[data-ceo-delete]');
+          if (viewBtn) {
+            var rid = viewBtn.getAttribute('data-ceo-view');
+            var rtype = viewBtn.getAttribute('data-ceo-type');
+            var report = getCeoReports().find(function (r) { return r.id === rid; });
+            if (!report) return;
+            var detail = document.getElementById('ceo-' + rtype + '-detail');
+            if (detail) {
+              document.getElementById('ceo-' + rtype + '-detail-title').textContent = report.title || '';
+              document.getElementById('ceo-' + rtype + '-detail-meta').textContent = '작성자: ' + (report.author || '-') + '  |  ' + (report.createdAt ? report.createdAt.slice(0, 16).replace('T', ' ') : '');
+              document.getElementById('ceo-' + rtype + '-detail-content').textContent = report.content || '';
+              detail.classList.remove('hidden');
+              detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
+          if (deleteBtn) {
+            var did = deleteBtn.getAttribute('data-ceo-delete');
+            var dtype = deleteBtn.getAttribute('data-ceo-type');
+            if (!confirm('이 보고를 삭제하시겠습니까?')) return;
+            var reports = getCeoReports().filter(function (r) { return r.id !== did; });
+            saveCeoReports(reports);
+            renderCeoReport(dtype);
+            var detail2 = document.getElementById('ceo-' + dtype + '-detail');
+            if (detail2) detail2.classList.add('hidden');
+            showToast('삭제되었습니다.');
+          }
+        });
+      }
+
+      // 닫기 버튼
+      var closeBtn = document.getElementById('btn-ceo-' + type + '-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+          var detail = document.getElementById('ceo-' + type + '-detail');
+          if (detail) detail.classList.add('hidden');
+        });
+      }
+    });
+  }
+
   function showConstructionDetailPanel(contractId, forceRefresh) {
     var tbody = document.getElementById('tbody-construction');
     if (!tbody) return;
@@ -4490,6 +4618,9 @@
     if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
       return;
     }
+    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly') && !canSeeCeoSection()) {
+      return;
+    }
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') &&
@@ -4516,6 +4647,19 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'ceo-daily') renderCeoReport('daily');
+    if (sectionId === 'ceo-weekly') renderCeoReport('weekly');
+    if (sectionId === 'ceo-monthly') renderCeoReport('monthly');
+    if (sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly') {
+      var ceoSub = document.getElementById('nav-ceo-sub');
+      var ceoGroup = document.getElementById('sidebar-group-ceo');
+      var ceoBtn = document.getElementById('nav-ceo-toggle');
+      if (ceoSub && ceoGroup) {
+        ceoSub.classList.remove('collapsed');
+        ceoGroup.classList.add('expanded');
+        if (ceoBtn) ceoBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
     if (sectionId && sectionId.indexOf('admin-') === 0) {
       var adminSub = document.getElementById('nav-admin-sub');
       var adminGroup = document.getElementById('sidebar-group-admin');
@@ -4608,6 +4752,18 @@
         adminSub.classList.toggle('collapsed');
         adminGroup.classList.toggle('expanded');
         adminToggle.setAttribute('aria-expanded', adminSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
+    var ceoToggle = document.getElementById('nav-ceo-toggle');
+    var ceoSub = document.getElementById('nav-ceo-sub');
+    var ceoGroup = document.getElementById('sidebar-group-ceo');
+    if (ceoToggle && ceoSub && ceoGroup) {
+      ceoToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        ceoSub.classList.toggle('collapsed');
+        ceoGroup.classList.toggle('expanded');
+        ceoToggle.setAttribute('aria-expanded', ceoSub.classList.contains('collapsed') ? 'false' : 'true');
       });
     }
   }
@@ -7631,10 +7787,13 @@
     initSettlementIncentive();
     updateAdminNavVisibility();
     updateManageNavVisibility();
+    updateCeoNavVisibility();
+    initCeoReports();
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
       updateAdminNavVisibility();
       updateManageNavVisibility();
+      updateCeoNavVisibility();
       if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
       // ????? ????? ?? ???? ???????? ????????? ????????? ?????
       if (typeof renderDashboard === 'function') renderDashboard();

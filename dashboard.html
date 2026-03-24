@@ -146,6 +146,20 @@
         <a href="#" class="nav-item" data-section="hr">인사(HR)</a>
         <a href="#" class="nav-item" data-section="kpi">KPI</a>
       </div>
+      <div class="nav-section hidden" id="nav-section-ceo">
+        <div class="nav-section-title">대표님</div>
+        <div class="nav-group sidebar-group" id="sidebar-group-ceo">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-ceo-toggle" aria-expanded="false">
+            <span>보고</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-ceo-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-daily">일일 보고</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-weekly">주간 보고</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-monthly">월간 보고</a>
+          </div>
+        </div>
+      </div>
       <div class="nav-section nav-section-admin hidden" id="nav-section-admin">
         <div class="nav-section-title">관리자</div>
         <div class="nav-group sidebar-group" id="sidebar-group-admin">
@@ -1650,6 +1664,150 @@
             <tbody id="tbody-showroom-kpi"></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- 대표님 일일 보고 -->
+    <section id="section-ceo-daily" class="content-section">
+      <header class="main-header">
+        <h2>일일 보고</h2>
+        <p class="section-desc">비서님이 대표님께 매일의 업무 현황을 보고합니다.</p>
+      </header>
+      <div class="card">
+        <h3>일일 보고 작성</h3>
+        <form id="form-ceo-daily">
+          <div class="form-row">
+            <label>보고 날짜
+              <input type="date" id="ceo-daily-date" required>
+            </label>
+            <label>제목
+              <input type="text" id="ceo-daily-title" placeholder="예) 2026년 3월 24일 일일 보고" style="width:100%">
+            </label>
+          </div>
+          <div class="form-row">
+            <label style="width:100%">보고 내용
+              <textarea id="ceo-daily-content" rows="8" placeholder="오늘의 업무 현황, 주요 사항, 특이 사항 등을 작성해 주세요." style="width:100%;resize:vertical;"></textarea>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">보고 저장</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>일일 보고 목록</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>날짜</th><th>제목</th><th>작성자</th><th>작성시각</th><th>관리</th></tr>
+            </thead>
+            <tbody id="tbody-ceo-daily"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="ceo-daily-detail" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 id="ceo-daily-detail-title"></h3>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-ceo-daily-close">닫기</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.85rem;" id="ceo-daily-detail-meta"></p>
+        <pre id="ceo-daily-detail-content" style="white-space:pre-wrap;font-family:inherit;margin-top:0.75rem;line-height:1.7;"></pre>
+      </div>
+    </section>
+
+    <!-- 대표님 주간 보고 -->
+    <section id="section-ceo-weekly" class="content-section">
+      <header class="main-header">
+        <h2>주간 보고</h2>
+        <p class="section-desc">비서님이 대표님께 주간 업무 현황을 보고합니다.</p>
+      </header>
+      <div class="card">
+        <h3>주간 보고 작성</h3>
+        <form id="form-ceo-weekly">
+          <div class="form-row">
+            <label>해당 주 시작일
+              <input type="date" id="ceo-weekly-date" required>
+            </label>
+            <label>제목
+              <input type="text" id="ceo-weekly-title" placeholder="예) 2026년 3월 4주차 주간 보고" style="width:100%">
+            </label>
+          </div>
+          <div class="form-row">
+            <label style="width:100%">보고 내용
+              <textarea id="ceo-weekly-content" rows="8" placeholder="이번 주 업무 현황, 성과, 다음 주 계획 등을 작성해 주세요." style="width:100%;resize:vertical;"></textarea>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">보고 저장</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>주간 보고 목록</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>해당 주</th><th>제목</th><th>작성자</th><th>작성시각</th><th>관리</th></tr>
+            </thead>
+            <tbody id="tbody-ceo-weekly"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="ceo-weekly-detail" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 id="ceo-weekly-detail-title"></h3>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-ceo-weekly-close">닫기</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.85rem;" id="ceo-weekly-detail-meta"></p>
+        <pre id="ceo-weekly-detail-content" style="white-space:pre-wrap;font-family:inherit;margin-top:0.75rem;line-height:1.7;"></pre>
+      </div>
+    </section>
+
+    <!-- 대표님 월간 보고 -->
+    <section id="section-ceo-monthly" class="content-section">
+      <header class="main-header">
+        <h2>월간 보고</h2>
+        <p class="section-desc">비서님이 대표님께 월간 업무 현황을 보고합니다.</p>
+      </header>
+      <div class="card">
+        <h3>월간 보고 작성</h3>
+        <form id="form-ceo-monthly">
+          <div class="form-row">
+            <label>보고 월
+              <input type="month" id="ceo-monthly-date" required>
+            </label>
+            <label>제목
+              <input type="text" id="ceo-monthly-title" placeholder="예) 2026년 3월 월간 보고" style="width:100%">
+            </label>
+          </div>
+          <div class="form-row">
+            <label style="width:100%">보고 내용
+              <textarea id="ceo-monthly-content" rows="8" placeholder="이번 달 업무 현황, 주요 성과, 다음 달 계획 등을 작성해 주세요." style="width:100%;resize:vertical;"></textarea>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">보고 저장</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h3>월간 보고 목록</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>보고 월</th><th>제목</th><th>작성자</th><th>작성시각</th><th>관리</th></tr>
+            </thead>
+            <tbody id="tbody-ceo-monthly"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="ceo-monthly-detail" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h3 id="ceo-monthly-detail-title"></h3>
+          <button type="button" class="btn btn-sm btn-secondary" id="btn-ceo-monthly-close">닫기</button>
+        </div>
+        <p style="color:var(--text-muted);font-size:0.85rem;" id="ceo-monthly-detail-meta"></p>
+        <pre id="ceo-monthly-detail-content" style="white-space:pre-wrap;font-family:inherit;margin-top:0.75rem;line-height:1.7;"></pre>
       </div>
     </section>
   </main>
