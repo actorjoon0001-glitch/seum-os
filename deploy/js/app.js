@@ -3108,6 +3108,7 @@
         ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
         : (c.constructionManager || '-');
       return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+    }).join('') || '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>';
     }).join('') || (getDesignSearchKeyword()
       ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
       : '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>');
@@ -4103,6 +4104,7 @@
       var contractDateStr = formatDate(c.contractDate);
       var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
       return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+    }).join('') || '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>';
     }).join('') || (getConstructionSearchKeyword()
       ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
       : '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>');
