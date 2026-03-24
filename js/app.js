@@ -3807,8 +3807,9 @@
           var selector = e.target.classList.contains('design-inline-drawing-file') ? '.design-inline-drawing'
             : e.target.classList.contains('design-inline-drawing-file-2') ? '.design-inline-drawing-2'
               : '.design-inline-drawing-3';
-          var inp = form && form.querySelector(selector);
-          var existingUrls = parseDrawingUrls(inp && inp.value ? inp.value : '');
+          var fieldKey = selector === '.design-inline-drawing' ? 'designDrawingAttachment'
+            : selector === '.design-inline-drawing-2' ? 'designDrawing2Attachment'
+              : 'designDrawing3Attachment';
           Promise.all(files.map(function (file) {
             return uploadDesignDrawingAttachment(contractId, file);
           })).then(function (results) {
@@ -3817,22 +3818,26 @@
               window.alert('업로드에 실패했습니다.');
               return;
             }
-            existingUrls = existingUrls.concat(urls);
-            var newVal = serializeDrawingUrls(existingUrls);
-            if (inp) {
-              inp.value = newVal;
-              var listSel = '.drawing-file-list[data-input-selector="' + selector + '"]';
-              var listEl = form && form.querySelector(listSel);
-              if (listEl) refreshDrawingFileListForInput(inp, listEl);
-            }
-            // 업로드 즉시 계약에 저장
+            // localStorage에서 최신 값 읽기 (DOM 참조가 낡은 경우 대비)
             var contracts = getContracts();
             var c = contracts.find(function (x) { return x.id === contractId; });
+            var existingUrls = parseDrawingUrls(c && c[fieldKey] ? c[fieldKey] : '');
+            existingUrls = existingUrls.concat(urls);
+            var newVal = serializeDrawingUrls(existingUrls);
             if (c) {
-              if (selector === '.design-inline-drawing') c.designDrawingAttachment = newVal;
-              else if (selector === '.design-inline-drawing-2') c.designDrawing2Attachment = newVal;
-              else if (selector === '.design-inline-drawing-3') c.designDrawing3Attachment = newVal;
+              c[fieldKey] = newVal;
               saveContracts(contracts);
+            }
+            // 현재 DOM이 살아있으면 UI 업데이트
+            var liveForm = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
+            if (liveForm) {
+              var liveInp = liveForm.querySelector(selector);
+              if (liveInp) {
+                liveInp.value = newVal;
+                var listSel = '.drawing-file-list[data-input-selector="' + selector + '"]';
+                var listEl = liveForm.querySelector(listSel);
+                if (listEl) refreshDrawingFileListForInput(liveInp, listEl);
+              }
             }
           }).finally(function () {
             e.target.value = '';
