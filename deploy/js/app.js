@@ -361,6 +361,103 @@
     if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
   }
 
+  // ────────────────────────────────────────────────────────────
+  //  설계팀 검색 필터 헬퍼
+  // ────────────────────────────────────────────────────────────
+
+  function getDesignSearchKeyword() {
+    var el = document.getElementById('design-search-input');
+    return el ? el.value.trim() : '';
+  }
+
+  function matchesDesignKeyword(contract, keyword) {
+    if (!keyword) return true;
+    var kw = keyword.toLowerCase();
+    var fields = [
+      contract.customerName          || '',
+      contract.siteAddress           || '',
+      contract.contractModel         || '',
+      contract.contractModelName     || '',
+      contract.salesPerson           || '',
+      contract.designPermitDesigner  || '',
+      contract.designContactName     || ''
+    ];
+    return fields.some(function (f) { return f.toLowerCase().indexOf(kw) !== -1; });
+  }
+
+  function getFilteredDesignContracts(contracts) {
+    var keyword = getDesignSearchKeyword();
+    if (!keyword) return contracts;
+    return contracts.filter(function (c) { return matchesDesignKeyword(c, keyword); });
+  }
+
+  function updateDesignFilterResult(filtered) {
+    var el = document.getElementById('design-filter-result');
+    if (!el) return;
+    var keyword  = getDesignSearchKeyword();
+    var showroom = getFilterShowroom();
+    var year     = getFilterYear();
+    var month    = getFilterMonth();
+    var parts    = [];
+    var names    = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+    if (showroom) parts.push(names[showroom] || showroom);
+    if (year)     parts.push(year + '년');
+    if (month)    parts.push(month + '월');
+    if (keyword)  parts.push('"' + keyword + '"');
+    el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + filtered.length + '건';
+    var clearBtn = document.getElementById('design-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  //  시공팀 검색 필터 헬퍼
+  // ────────────────────────────────────────────────────────────
+
+  function getConstructionSearchKeyword() {
+    var el = document.getElementById('construction-search-input');
+    return el ? el.value.trim() : '';
+  }
+
+  function matchesConstructionKeyword(contract, keyword) {
+    if (!keyword) return true;
+    var kw = keyword.toLowerCase();
+    var fields = [
+      contract.customerName          || '',
+      contract.siteAddress           || '',
+      contract.contractModel         || '',
+      contract.contractModelName     || '',
+      contract.salesPerson           || '',
+      contract.designPermitDesigner  || '',
+      contract.designContactName     || '',
+      contract.constructionManager   || ''
+    ];
+    return fields.some(function (f) { return f.toLowerCase().indexOf(kw) !== -1; });
+  }
+
+  function getFilteredConstructionContracts(contracts) {
+    var keyword = getConstructionSearchKeyword();
+    if (!keyword) return contracts;
+    return contracts.filter(function (c) { return matchesConstructionKeyword(c, keyword); });
+  }
+
+  function updateConstructionFilterResult(filtered) {
+    var el = document.getElementById('construction-filter-result');
+    if (!el) return;
+    var keyword  = getConstructionSearchKeyword();
+    var showroom = getFilterShowroom();
+    var year     = getFilterYear();
+    var month    = getFilterMonth();
+    var parts    = [];
+    var names    = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+    if (showroom) parts.push(names[showroom] || showroom);
+    if (year)     parts.push(year + '년');
+    if (month)    parts.push(month + '월');
+    if (keyword)  parts.push('"' + keyword + '"');
+    el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + filtered.length + '건';
+    var clearBtn = document.getElementById('construction-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
+  }
+
   function getVisits() {
     try {
       var raw = localStorage.getItem(STORAGE_VISITS);
@@ -2949,6 +3046,7 @@
     }
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    contracts = getFilteredDesignContracts(contracts);
     var tbody = document.getElementById('tbody-design');
     if (!tbody) return;
     var salesReadonly = isSalesReadonly();
@@ -3011,6 +3109,10 @@
         : (c.constructionManager || '-');
       return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>';
+    }).join('') || (getDesignSearchKeyword()
+      ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>');
+    updateDesignFilterResult(contracts);
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
       if (expandedDesignRow) {
@@ -3973,6 +4075,7 @@
     });
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    contracts = getFilteredConstructionContracts(contracts);
     var tbody = document.getElementById('tbody-construction');
     if (!tbody) return;
     var salesReadonly = isSalesReadonly();
@@ -4002,6 +4105,10 @@
       var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
       return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
     }).join('') || '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>';
+    }).join('') || (getConstructionSearchKeyword()
+      ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>');
+    updateConstructionFilterResult(contracts);
     if (expandedConstructionId) {
       var expandedRow = tbody.querySelector('.construction-row[data-contract-id="' + expandedConstructionId + '"]');
       if (expandedRow) {
@@ -8169,6 +8276,38 @@
         if (searchInput) searchInput.value = '';
         renderSales();
         if (searchInput) searchInput.focus();
+      });
+    }
+    // 설계팀 검색창 이벤트
+    var designSearchInput = document.getElementById('design-search-input');
+    if (designSearchInput) {
+      designSearchInput.addEventListener('input', function () { renderDesign(); });
+      designSearchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { designSearchInput.value = ''; renderDesign(); }
+      });
+    }
+    var designClearBtn = document.getElementById('design-search-clear');
+    if (designClearBtn) {
+      designClearBtn.addEventListener('click', function () {
+        if (designSearchInput) designSearchInput.value = '';
+        renderDesign();
+        if (designSearchInput) designSearchInput.focus();
+      });
+    }
+    // 시공팀 검색창 이벤트
+    var constructionSearchInput = document.getElementById('construction-search-input');
+    if (constructionSearchInput) {
+      constructionSearchInput.addEventListener('input', function () { renderConstruction(); });
+      constructionSearchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { constructionSearchInput.value = ''; renderConstruction(); }
+      });
+    }
+    var constructionClearBtn = document.getElementById('construction-search-clear');
+    if (constructionClearBtn) {
+      constructionClearBtn.addEventListener('click', function () {
+        if (constructionSearchInput) constructionSearchInput.value = '';
+        renderConstruction();
+        if (constructionSearchInput) constructionSearchInput.focus();
       });
     }
     var btnReset = document.getElementById('btn-reset-samples');
