@@ -3308,7 +3308,7 @@
       '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 2차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-2-final design-inline-drawing-final"' + (d2Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d2Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
       '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(d2Attachment) + '</div></div>' +
       '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-drawing-2 drawing-url-input" placeholder="파일 업로드 후 URL" value="' + escapeAttr(d2Attachment) + '"><input type="file" class="design-inline-drawing-file-2" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-2">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-2">열기</button></div>' +
-      '<div class="drawing-file-list" data-inputSelector=".design-inline-drawing-2"></div>' +
+      '<div class="drawing-file-list" data-input-selector=".design-inline-drawing-2"></div>' +
       '</div>' +
       '<div class="design-discussion-card">' +
       '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 3차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-3-final design-inline-drawing-final"' + (d3Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d3Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
@@ -3758,7 +3758,13 @@
     if (expandedDesignId === contractId) {
       var detailRow = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"]');
       if (detailRow && detailRow.querySelector('td')) {
-        detailRow.querySelector('td').innerHTML = buildDesignDetailContent(contractId);
+        var td2 = detailRow.querySelector('td');
+        td2.innerHTML = buildDesignDetailContent(contractId);
+        td2.querySelectorAll('.drawing-file-list[data-input-selector]').forEach(function (listEl) {
+          var sel2 = listEl.getAttribute('data-input-selector');
+          var inputEl2 = sel2 && td2.querySelector(sel2);
+          if (inputEl2) refreshDrawingFileListForInput(inputEl2, listEl);
+        });
       }
     }
   }
@@ -3791,13 +3797,21 @@
               return;
             }
             existingUrls = existingUrls.concat(urls);
+            var newVal = serializeDrawingUrls(existingUrls);
             if (inp) {
-              inp.value = serializeDrawingUrls(existingUrls);
+              inp.value = newVal;
               var listSel = '.drawing-file-list[data-input-selector="' + selector + '"]';
               var listEl = form && form.querySelector(listSel);
-              if (listEl) {
-                refreshDrawingFileListForInput(inp, listEl);
-              }
+              if (listEl) refreshDrawingFileListForInput(inp, listEl);
+            }
+            // 업로드 즉시 계약에 저장
+            var contracts = getContracts();
+            var c = contracts.find(function (x) { return x.id === contractId; });
+            if (c) {
+              if (selector === '.design-inline-drawing') c.designDrawingAttachment = newVal;
+              else if (selector === '.design-inline-drawing-2') c.designDrawing2Attachment = newVal;
+              else if (selector === '.design-inline-drawing-3') c.designDrawing3Attachment = newVal;
+              saveContracts(contracts);
             }
           }).finally(function () {
             e.target.value = '';
@@ -3818,7 +3832,7 @@
         var files = Array.prototype.slice.call(e.target.files || []);
         if (contractId && files.length) {
           var inp = form && form.querySelector('.design-inline-construction-drawing');
-          var existing = inp && inp.value ? inp.value.trim() : '';
+          var existingUrls = parseDrawingUrls(inp && inp.value ? inp.value : '');
           Promise.all(files.map(function (file) {
             return uploadConstructionDrawingAttachment(contractId, file);
           })).then(function (results) {
@@ -3827,8 +3841,19 @@
               window.alert('업로드에 실패했습니다.');
               return;
             }
+            existingUrls = existingUrls.concat(urls);
+            var newVal = serializeDrawingUrls(existingUrls);
             if (inp) {
-              inp.value = (existing ? existing + '\n' : '') + urls.join('\n');
+              inp.value = newVal;
+              var listEl = form && form.querySelector('.drawing-file-list[data-input-selector=".design-inline-construction-drawing"]');
+              if (listEl) refreshDrawingFileListForInput(inp, listEl);
+            }
+            // 업로드 즉시 계약에 저장
+            var contracts = getContracts();
+            var c = contracts.find(function (x) { return x.id === contractId; });
+            if (c) {
+              c.constructionDrawingAttachment = newVal;
+              saveContracts(contracts);
             }
           }).finally(function () {
             e.target.value = '';
