@@ -250,7 +250,7 @@
   }
 
   function canSeeCeoSection() {
-    return isMaster() || isSuperAdmin();
+    return isAdmin() || isMaster() || isSuperAdmin();
   }
 
   function updateCeoNavVisibility() {
