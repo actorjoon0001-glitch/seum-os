@@ -8871,3 +8871,232 @@ table tbody tr.active td {
   .ceo-db-kpi-value { font-size: 2rem; }
   .ceo-db-prog-num { font-size: 2.2rem; }
 }
+
+/* =====================================================================
+   발주팀 (Procurement) 스타일
+   ===================================================================== */
+
+/* 탭 바 */
+.procurement-tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  background: #1e293b;
+  border-radius: 10px 10px 0 0;
+  padding: 0.5rem 0.75rem 0;
+  margin-bottom: 0;
+  border-bottom: 2px solid #334155;
+}
+.procurement-tab-btn {
+  padding: 0.55rem 1.4rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #94a3b8;
+  font-size: 0.93rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  margin-bottom: -2px;
+}
+.procurement-tab-btn:hover {
+  color: #e2e8f0;
+  background: #273449;
+}
+.procurement-tab-btn.active {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+  background: #1e293b;
+  font-weight: 700;
+}
+
+/* 탭 패널 */
+.procurement-tab-panel {
+  padding-top: 1.2rem;
+}
+.procurement-tab-panel.hidden {
+  display: none;
+}
+
+/* 카드 헤더 (제목 + 버튼) */
+.procurement-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.procurement-card-header h3 {
+  margin: 0;
+}
+
+/* 검색/필터 바 */
+.procurement-search-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.procurement-search-bar .contract-search-input {
+  flex: 1;
+  min-width: 180px;
+}
+.procurement-filter-select {
+  padding: 0.45rem 0.8rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+/* 폼 래퍼 */
+.procurement-form-wrap {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.procurement-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.85rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.procurement-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.procurement-form-field label {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.procurement-form-field input,
+.procurement-form-field select {
+  padding: 0.45rem 0.75rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+.procurement-form-field input:focus,
+.procurement-form-field select:focus {
+  outline: none;
+  border-color: #60a5fa;
+}
+.procurement-form-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+/* 모델 그룹 */
+.procurement-model-group {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+.procurement-model-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.2rem;
+  background: #273449;
+  border-bottom: 1px solid #334155;
+  flex-wrap: wrap;
+}
+.procurement-model-header strong {
+  font-size: 1rem;
+  color: #e2e8f0;
+}
+.procurement-model-meta {
+  background: #1e40af;
+  color: #bfdbfe;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-weight: 600;
+}
+.procurement-model-cost {
+  font-size: 0.88rem;
+  color: #94a3b8;
+}
+.procurement-model-cost strong {
+  color: #60a5fa;
+  font-size: 0.95rem;
+}
+
+/* 발주 상태 select */
+.procurement-status-select {
+  padding: 0.3rem 0.6rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+/* 분류 배지 */
+.badge-category {
+  background: #1e3a5f;
+  color: #93c5fd;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+}
+
+/* 발주 상태 배지 */
+.badge-blue   { background: #1e40af; color: #bfdbfe; }
+.badge-yellow { background: #78350f; color: #fde68a; }
+.badge-green  { background: #14532d; color: #86efac; }
+.badge-gray   { background: #374151; color: #d1d5db; }
+
+/* 원가분석 강조 */
+.procurement-highlight {
+  color: #60a5fa;
+  font-weight: 700;
+}
+.procurement-over {
+  color: #f87171;
+  font-weight: 600;
+}
+.procurement-under {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* 텍스트 오른쪽 정렬 */
+.text-right {
+  text-align: right;
+}
+
+/* 위험 버튼 */
+.btn-danger {
+  background: #7f1d1d;
+  color: #fca5a5;
+  border: 1px solid #991b1b;
+}
+.btn-danger:hover {
+  background: #991b1b;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .procurement-tab-bar { padding: 0.4rem 0.4rem 0; }
+  .procurement-tab-btn { padding: 0.45rem 0.9rem; font-size: 0.84rem; }
+  .procurement-form-grid { grid-template-columns: 1fr 1fr; }
+  .procurement-model-header { gap: 0.5rem; }
+}
+@media (max-width: 500px) {
+  .procurement-tab-btn { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+  .procurement-form-grid { grid-template-columns: 1fr; }
+}
