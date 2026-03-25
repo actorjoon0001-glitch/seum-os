@@ -24,6 +24,7 @@
   var STORAGE_INCENTIVE_PERCENTS = 'seum_incentive_percents';
   var STORAGE_CUSTOMERS = 'seum_customers';
   var STORAGE_CEO_REPORTS = 'seum_ceo_reports';
+  var STORAGE_DESIGN_WORKLOG = 'seum_design_worklog';
   var STORAGE_PROCUREMENT_MATERIALS = 'seum_procurement_materials';
   var STORAGE_PROCUREMENT_SITES = 'seum_procurement_sites';
   var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
@@ -226,6 +227,11 @@
 
     // ??? ???: ???, ???, ???, ????? ???
     if (sectionId === 'design') {
+      return isDesign || isSales || isConstruction || isMarketing || isSettlement;
+    }
+
+    // 설계업무일지 / 설계일정: 설계팀 + 관리자
+    if (sectionId === 'design-worklog' || sectionId === 'design-schedule') {
       return isDesign || isSales || isConstruction || isMarketing || isSettlement;
     }
 
@@ -3077,6 +3083,328 @@
     tbody.innerHTML = customers.map(function (o) {
       return '<tr><td>' + formatDate(o.createdAt) + '</td><td>' + (o.name || '-') + '</td><td>' + (o.phone || '-') + '</td><td>' + formatDate(o.visitDate) + '</td><td>' + (o.salesPerson || '-') + '</td><td>' + getShowroomName(o.showroomId) + '</td><td>' + (o.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-customer="' + o.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-customer="' + o.id + '">삭제</button></td></tr>';
     }).join('') || '<tr><td colspan="8">고객 데이터가 없습니다.</td></tr>';
+  }
+
+  // =====================================================================
+  // 설계 업무일지 - 상수 & Storage Helpers
+  // =====================================================================
+  var DW_STAGES = ['상담설계', '1차도면', '2차도면', '3차도면', '최종도면', '설계완료', '시공이관'];
+
+  var DW_STAGE_COLOR = {
+    '상담설계': 'dw-stage-consult',
+    '1차도면':  'dw-stage-d1',
+    '2차도면':  'dw-stage-d2',
+    '3차도면':  'dw-stage-d3',
+    '최종도면': 'dw-stage-final',
+    '설계완료': 'dw-stage-done',
+    '시공이관': 'dw-stage-transfer'
+  };
+
+  function getDesignWorklog() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_DESIGN_WORKLOG) || '[]'); } catch (e) { return []; }
+  }
+  function saveDesignWorklog(list) {
+    localStorage.setItem(STORAGE_DESIGN_WORKLOG, JSON.stringify(list));
+  }
+
+  // =====================================================================
+  // 설계 업무일지 - 렌더
+  // =====================================================================
+  function renderDesignWorklog() {
+    var logs = getDesignWorklog();
+    var keyword = ((document.getElementById('dw-search') || {}).value || '').toLowerCase();
+    var stageFilter = (document.getElementById('dw-stage-filter') || {}).value || '';
+    if (keyword) {
+      logs = logs.filter(function (l) {
+        return (l.address || '').toLowerCase().indexOf(keyword) !== -1 ||
+               (l.customerName || '').toLowerCase().indexOf(keyword) !== -1;
+      });
+    }
+    if (stageFilter) {
+      logs = logs.filter(function (l) { return l.stage === stageFilter; });
+    }
+    // 날짜 내림차순 정렬
+    logs = logs.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+    var tbody = document.getElementById('tbody-dw');
+    if (!tbody) return;
+    tbody.innerHTML = logs.map(function (l) {
+      var stageClass = DW_STAGE_COLOR[l.stage] || '';
+      var stageHtml = '<span class="dw-stage-badge ' + stageClass + '">' + escapeHtml(l.stage || '-') + '</span>';
+      var drawingHtml = l.drawingUrl
+        ? '<a href="' + escapeAttr(l.drawingUrl) + '" target="_blank" class="dw-file-link" title="' + escapeAttr(l.drawingUrl) + '">' +
+            (l.drawingUrl.length > 16 ? l.drawingUrl.slice(0, 15) + '…' : l.drawingUrl) + '</a>'
+        : '-';
+      var transferBtn = l.stage !== '시공이관'
+        ? '<button type="button" class="btn btn-sm dw-transfer-btn" data-id="' + escapeAttr(l.id) + '" title="시공팀으로 이관">시공이관</button> '
+        : '<span class="dw-transferred-badge">이관완료</span> ';
+      return '<tr>' +
+        '<td>' + (l.date || '-') + '</td>' +
+        '<td>' + escapeHtml(l.customerName || '-') + '</td>' +
+        '<td>' + escapeHtml(l.address || '-') + '</td>' +
+        '<td>' + escapeHtml(l.size || '-') + '</td>' +
+        '<td>' + escapeHtml(l.task || '-') + '</td>' +
+        '<td>' + stageHtml + '</td>' +
+        '<td>' + escapeHtml(l.manager || '-') + '</td>' +
+        '<td>' + drawingHtml + '</td>' +
+        '<td>' + escapeHtml(l.memo || '-') + '</td>' +
+        '<td class="dw-action-cell">' + transferBtn +
+          '<button type="button" class="btn btn-sm btn-secondary btn-edit-dw" data-id="' + escapeAttr(l.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm btn-danger btn-delete-dw" data-id="' + escapeAttr(l.id) + '">삭제</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="10" class="no-result-msg">업무일지 데이터가 없습니다. 업무를 등록하거나 엑셀을 업로드하세요.</td></tr>';
+
+    // 필터 결과 카운트
+    var resultEl = document.getElementById('dw-filter-result');
+    if (resultEl) resultEl.textContent = '총 ' + logs.length + '건';
+
+    // 검색 초기화 버튼
+    var clearBtn = document.getElementById('dw-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
+
+    // 미초기화 시 이벤트 등록
+    if (!designWorklogInitialized) {
+      designWorklogInitialized = true;
+      initDesignWorklogEvents();
+    }
+  }
+
+  // =====================================================================
+  // 설계 일정 - 렌더
+  // =====================================================================
+  function renderDesignSchedule() {
+    var logs = getDesignWorklog();
+    var stageFilter = (document.getElementById('schedule-stage-filter') || {}).value || '';
+    var managerFilter = (document.getElementById('schedule-manager-filter') || {}).value || '';
+
+    // 담당자 select 채우기
+    var managerSel = document.getElementById('schedule-manager-filter');
+    if (managerSel) {
+      var managers = [];
+      logs.forEach(function (l) { if (l.manager && managers.indexOf(l.manager) === -1) managers.push(l.manager); });
+      var prevVal = managerSel.value;
+      managerSel.innerHTML = '<option value="">전체 담당자</option>' + managers.map(function (m) {
+        return '<option value="' + escapeAttr(m) + '"' + (prevVal === m ? ' selected' : '') + '>' + escapeHtml(m) + '</option>';
+      }).join('');
+      if (prevVal) managerSel.value = prevVal;
+    }
+
+    if (stageFilter) logs = logs.filter(function (l) { return l.stage === stageFilter; });
+    if (managerFilter) logs = logs.filter(function (l) { return l.manager === managerFilter; });
+
+    // 날짜 오름차순
+    logs = logs.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+
+    // 월별 그룹화
+    var monthGroups = {};
+    logs.forEach(function (l) {
+      var month = (l.date || '').slice(0, 7) || '날짜 없음';
+      if (!monthGroups[month]) monthGroups[month] = [];
+      monthGroups[month].push(l);
+    });
+
+    var container = document.getElementById('design-schedule-list');
+    if (!container) return;
+    var months = Object.keys(monthGroups).sort();
+    if (!months.length) {
+      container.innerHTML = '<p class="no-result-msg">등록된 일정이 없습니다.</p>';
+      return;
+    }
+    container.innerHTML = months.map(function (month) {
+      var items = monthGroups[month];
+      var rows = items.map(function (l) {
+        var stageClass = DW_STAGE_COLOR[l.stage] || '';
+        return '<tr>' +
+          '<td>' + (l.date || '-') + '</td>' +
+          '<td>' + escapeHtml(l.customerName || '-') + '</td>' +
+          '<td>' + escapeHtml(l.address || '-') + '</td>' +
+          '<td>' + escapeHtml(l.task || '-') + '</td>' +
+          '<td><span class="dw-stage-badge ' + stageClass + '">' + escapeHtml(l.stage || '-') + '</span></td>' +
+          '<td>' + escapeHtml(l.manager || '-') + '</td>' +
+          '</tr>';
+      }).join('');
+      var ym = month.split('-');
+      var label = ym.length === 2 ? ym[0] + '년 ' + parseInt(ym[1], 10) + '월' : month;
+      return '<div class="dw-month-group">' +
+        '<div class="dw-month-header"><span class="dw-month-label">' + label + '</span><span class="dw-month-count">' + items.length + '건</span></div>' +
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr><th>날짜</th><th>고객명</th><th>주소</th><th>작업</th><th>설계단계</th><th>담당자</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
+    }).join('');
+
+    // 필터 이벤트 (한 번만)
+    var sf = document.getElementById('schedule-stage-filter');
+    var mf = document.getElementById('schedule-manager-filter');
+    if (sf && !sf._dwBound) { sf._dwBound = true; sf.addEventListener('change', renderDesignSchedule); }
+    if (mf && !mf._dwBound) { mf._dwBound = true; mf.addEventListener('change', renderDesignSchedule); }
+  }
+
+  // =====================================================================
+  // 설계 업무일지 - 이벤트 초기화
+  // =====================================================================
+  var designWorklogInitialized = false;
+
+  function initDesignWorklogEvents() {
+    // 업무 등록 버튼
+    var btnAdd = document.getElementById('btn-add-dw');
+    if (btnAdd) btnAdd.addEventListener('click', function () {
+      document.getElementById('dw-edit-id').value = '';
+      document.getElementById('form-dw').reset();
+      document.getElementById('dw-form-title').textContent = '업무 등록';
+      document.getElementById('dw-form-wrap').classList.remove('hidden');
+    });
+
+    // 취소 버튼
+    var btnCancel = document.getElementById('btn-cancel-dw');
+    if (btnCancel) btnCancel.addEventListener('click', function () {
+      document.getElementById('dw-form-wrap').classList.add('hidden');
+    });
+
+    // 도면파일 첨부 → 파일명을 URL 필드에 표시
+    var dwFileInput = document.getElementById('dw-drawing-file');
+    if (dwFileInput) dwFileInput.addEventListener('change', function () {
+      if (dwFileInput.files && dwFileInput.files[0]) {
+        document.getElementById('dw-drawing-url').value = dwFileInput.files[0].name;
+      }
+    });
+
+    // 업무 등록/수정 폼 저장
+    var formDw = document.getElementById('form-dw');
+    if (formDw) formDw.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('dw-edit-id').value;
+      var entry = {
+        customerName: document.getElementById('dw-customer').value.trim(),
+        address: document.getElementById('dw-address').value.trim(),
+        size: document.getElementById('dw-size').value.trim(),
+        task: document.getElementById('dw-task').value.trim(),
+        date: document.getElementById('dw-date').value,
+        manager: document.getElementById('dw-manager').value.trim(),
+        stage: document.getElementById('dw-stage').value,
+        memo: document.getElementById('dw-memo').value.trim(),
+        drawingUrl: document.getElementById('dw-drawing-url').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      if (!entry.customerName || !entry.address || !entry.date || !entry.stage) return;
+      var logs = getDesignWorklog();
+      if (editId) {
+        logs = logs.map(function (l) { return l.id === editId ? Object.assign({}, l, entry) : l; });
+      } else {
+        entry.id = id();
+        entry.createdAt = new Date().toISOString();
+        logs.push(entry);
+      }
+      saveDesignWorklog(logs);
+      document.getElementById('dw-form-wrap').classList.add('hidden');
+      renderDesignWorklog();
+      showToast(editId ? '수정됐습니다.' : '업무일지가 등록됐습니다.');
+    });
+
+    // 검색 & 필터
+    var dwSearch = document.getElementById('dw-search');
+    if (dwSearch) dwSearch.addEventListener('input', renderDesignWorklog);
+    var dwSearchClear = document.getElementById('dw-search-clear');
+    if (dwSearchClear) dwSearchClear.addEventListener('click', function () {
+      document.getElementById('dw-search').value = '';
+      renderDesignWorklog();
+    });
+    var dwStageFilter = document.getElementById('dw-stage-filter');
+    if (dwStageFilter) dwStageFilter.addEventListener('change', renderDesignWorklog);
+
+    // 테이블 이벤트 위임 (수정/삭제/시공이관)
+    var tbodyDw = document.getElementById('tbody-dw');
+    if (tbodyDw) tbodyDw.addEventListener('click', function (e) {
+      var editBtn = e.target.closest('.btn-edit-dw');
+      var delBtn = e.target.closest('.btn-delete-dw');
+      var transferBtn = e.target.closest('.dw-transfer-btn');
+
+      if (editBtn) {
+        var lid = editBtn.getAttribute('data-id');
+        var log = getDesignWorklog().find(function (l) { return l.id === lid; });
+        if (!log) return;
+        document.getElementById('dw-edit-id').value = log.id;
+        document.getElementById('dw-customer').value = log.customerName || '';
+        document.getElementById('dw-address').value = log.address || '';
+        document.getElementById('dw-size').value = log.size || '';
+        document.getElementById('dw-task').value = log.task || '';
+        document.getElementById('dw-date').value = log.date || '';
+        document.getElementById('dw-manager').value = log.manager || '';
+        document.getElementById('dw-stage').value = log.stage || '';
+        document.getElementById('dw-memo').value = log.memo || '';
+        document.getElementById('dw-drawing-url').value = log.drawingUrl || '';
+        document.getElementById('dw-form-title').textContent = '업무 수정';
+        document.getElementById('dw-form-wrap').classList.remove('hidden');
+        document.getElementById('dw-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      if (delBtn) {
+        if (!confirm('업무일지를 삭제하시겠습니까?')) return;
+        var did = delBtn.getAttribute('data-id');
+        saveDesignWorklog(getDesignWorklog().filter(function (l) { return l.id !== did; }));
+        renderDesignWorklog();
+        showToast('삭제됐습니다.');
+      }
+
+      if (transferBtn) {
+        var tid = transferBtn.getAttribute('data-id');
+        var logs = getDesignWorklog().map(function (l) {
+          return l.id === tid ? Object.assign({}, l, { stage: '시공이관', updatedAt: new Date().toISOString() }) : l;
+        });
+        saveDesignWorklog(logs);
+        renderDesignWorklog();
+        showToast('시공팀으로 이관됐습니다.');
+      }
+    });
+
+    // 엑셀 업로드
+    var excelInput = document.getElementById('dw-excel-input');
+    if (excelInput) excelInput.addEventListener('change', function () {
+      var file = excelInput.files && excelInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        try {
+          var XLSX = window.XLSX;
+          if (!XLSX) { showToast('엑셀 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도하세요.', 'error'); return; }
+          var wb = XLSX.read(ev.target.result, { type: 'binary', cellDates: true });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          var COL_MAP = {
+            '주소': 'address', '고객명': 'customerName', '크기': 'size',
+            '작업': 'task', '날짜': 'date', '비고': 'memo',
+            '담당자': 'manager', '설계단계': 'stage', '도면파일': 'drawingUrl'
+          };
+          var imported = rows.filter(function (r) { return r['고객명'] || r['주소']; }).map(function (r) {
+            var entry = { id: id(), createdAt: new Date().toISOString() };
+            Object.keys(COL_MAP).forEach(function (col) {
+              var val = r[col];
+              if (col === '날짜' && val instanceof Date) {
+                val = val.toISOString().slice(0, 10);
+              } else if (col === '날짜' && typeof val === 'number') {
+                // Excel serial date
+                var d = new Date((val - 25569) * 86400 * 1000);
+                val = d.toISOString().slice(0, 10);
+              }
+              entry[COL_MAP[col]] = String(val || '').trim();
+            });
+            // 설계단계 유효성 검사
+            if (DW_STAGES.indexOf(entry.stage) === -1) entry.stage = '상담설계';
+            return entry;
+          });
+          if (!imported.length) { showToast('가져올 데이터가 없습니다. 열 이름을 확인하세요.', 'error'); return; }
+          var logs = getDesignWorklog().concat(imported);
+          saveDesignWorklog(logs);
+          renderDesignWorklog();
+          showToast(imported.length + '건을 업로드했습니다.');
+        } catch (err) {
+          showToast('엑셀 파싱 오류: ' + err.message, 'error');
+        }
+        excelInput.value = '';
+      };
+      reader.readAsBinaryString(file);
+    });
   }
 
   function renderDesign() {
@@ -5943,7 +6271,7 @@
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
-      sectionId === 'procurement') &&
+      sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
       return;
@@ -5955,6 +6283,8 @@
       el.classList.toggle('active', el.getAttribute('data-section') === sectionId);
     });
     if (sectionId === 'procurement') renderProcurement();
+    if (sectionId === 'design-worklog') renderDesignWorklog();
+    if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'announcements') renderAnnouncementsPage();
     if (sectionId === 'admin-approval') renderAdminApproval();
     if (sectionId === 'admin-employees') renderAdminEmployees();
@@ -5990,6 +6320,16 @@
         adminSub.classList.remove('collapsed');
         adminGroup.classList.add('expanded');
         if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
+    if (sectionId === 'design' || sectionId === 'design-worklog' || sectionId === 'design-schedule') {
+      var desSub = document.getElementById('nav-design-sub');
+      var desGroup = document.getElementById('sidebar-group-design');
+      if (desSub && desGroup) {
+        desSub.classList.remove('collapsed');
+        desGroup.classList.add('expanded');
+        var desBtn = document.getElementById('nav-design-toggle');
+        if (desBtn) desBtn.setAttribute('aria-expanded', 'true');
       }
     }
     if (sectionId === 'construction' || sectionId === 'procurement') {
@@ -6050,6 +6390,18 @@
         closeMobileSidebar();
       });
     });
+    var designToggle = document.getElementById('nav-design-toggle');
+    var designSub = document.getElementById('nav-design-sub');
+    var designGroup = document.getElementById('sidebar-group-design');
+    if (designToggle && designSub && designGroup) {
+      designToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        designSub.classList.toggle('collapsed');
+        designGroup.classList.toggle('expanded');
+        designToggle.setAttribute('aria-expanded', designSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
     var constructionToggle = document.getElementById('nav-construction-toggle');
     var constructionSub = document.getElementById('nav-construction-sub');
     var constructionGroup = document.getElementById('sidebar-group-construction');
@@ -9211,6 +9563,7 @@
       renderSales();
     }
     renderDesign();
+    renderDesignWorklog();
     renderConstruction();
     renderProcurement();
     renderSettlement();
