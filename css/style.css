@@ -9115,3 +9115,193 @@ table tbody tr.active td {
   .procurement-form-grid { grid-template-columns: 1fr; }
   .vendor-card-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* =====================================================================
+   설계 업무일지 (Design Worklog)
+   ===================================================================== */
+.dw-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.dw-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+.dw-filter-bar input,
+.dw-filter-bar select {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  outline: none;
+  background: #fff;
+}
+.dw-filter-bar input:focus,
+.dw-filter-bar select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+.dw-form-wrap {
+  background: #f8f9fe;
+  border: 1px solid #e0e2f0;
+  border-radius: 10px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.2rem;
+}
+.dw-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem 1rem;
+}
+.dw-form-grid label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  gap: 0.3rem;
+}
+.dw-form-grid input,
+.dw-form-grid select,
+.dw-form-grid textarea {
+  padding: 0.42rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.dw-form-grid input:focus,
+.dw-form-grid select:focus,
+.dw-form-grid textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+.dw-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
+/* Stage badge */
+.dw-stage-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dw-stage-consult   { background: #ede9fe; color: #5b21b6; }
+.dw-stage-draft1    { background: #dbeafe; color: #1d4ed8; }
+.dw-stage-draft2    { background: #e0f2fe; color: #0369a1; }
+.dw-stage-draft3    { background: #dcfce7; color: #15803d; }
+.dw-stage-final     { background: #fef9c3; color: #854d0e; }
+.dw-stage-complete  { background: #d1fae5; color: #065f46; }
+.dw-stage-transfer  { background: #fee2e2; color: #b91c1c; }
+/* Transfer badge */
+.dw-transferred-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+.dw-file-link {
+  color: #6366f1;
+  text-decoration: underline;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+.dw-file-link:hover { color: #4338ca; }
+.dw-action-cell {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dw-transfer-btn {
+  font-size: 0.72rem;
+  padding: 0.18rem 0.45rem;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dw-transfer-btn:hover { background: #fde68a; }
+/* Schedule view */
+.dw-schedule-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+.dw-month-group {
+  margin-bottom: 1.4rem;
+}
+.dw-month-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #4f46e5;
+  padding: 0.4rem 0.8rem;
+  background: #eef2ff;
+  border-radius: 6px;
+  margin-bottom: 0.6rem;
+  display: inline-block;
+}
+.dw-schedule-card {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.4rem;
+  transition: box-shadow 0.15s;
+}
+.dw-schedule-card:hover { box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1); }
+.dw-schedule-date {
+  font-size: 0.8rem;
+  color: #6b7280;
+  min-width: 5.5rem;
+  white-space: nowrap;
+}
+.dw-schedule-info {
+  flex: 1;
+}
+.dw-schedule-customer {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #111827;
+}
+.dw-schedule-address {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.1rem;
+}
+.dw-schedule-meta {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-top: 0.15rem;
+}
+@media (max-width: 768px) {
+  .dw-form-grid { grid-template-columns: 1fr 1fr; }
+  .dw-action-bar { gap: 0.4rem; }
+}
+@media (max-width: 500px) {
+  .dw-form-grid { grid-template-columns: 1fr; }
+  .dw-schedule-card { flex-direction: column; gap: 0.4rem; }
+}
