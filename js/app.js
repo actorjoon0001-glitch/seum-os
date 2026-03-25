@@ -25,9 +25,9 @@
   var STORAGE_CUSTOMERS = 'seum_customers';
   var STORAGE_CEO_REPORTS = 'seum_ceo_reports';
   var STORAGE_PROCUREMENT_MATERIALS = 'seum_procurement_materials';
-  var STORAGE_PROCUREMENT_BOM = 'seum_procurement_bom';
-  var STORAGE_PROCUREMENT_ORDERS = 'seum_procurement_orders';
-  var STORAGE_PROCUREMENT_PRICE_HISTORY = 'seum_procurement_price_history';
+  var STORAGE_PROCUREMENT_SITES = 'seum_procurement_sites';
+  var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
+  var STORAGE_PROCUREMENT_STD_QTY = 'seum_procurement_std_qty';
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '본사 전시장' },
@@ -4200,364 +4200,346 @@
   }
 
   // =====================================================================
-  // 발주팀 - 자재 마스터 헬퍼
+  // 발주팀 - 업체 템플릿 & 상수
   // =====================================================================
-  function getProcurementMaterials() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_MATERIALS) || '[]'); } catch (e) { return []; }
-  }
-  function saveProcurementMaterials(list) {
-    localStorage.setItem(STORAGE_PROCUREMENT_MATERIALS, JSON.stringify(list));
-  }
-
-  // 발주팀 - BOM 헬퍼
-  function getProcurementBOM() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_BOM) || '[]'); } catch (e) { return []; }
-  }
-  function saveProcurementBOM(list) {
-    localStorage.setItem(STORAGE_PROCUREMENT_BOM, JSON.stringify(list));
-  }
-
-  // 발주팀 - 발주 헬퍼
-  function getProcurementOrders() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_ORDERS) || '[]'); } catch (e) { return []; }
-  }
-  function saveProcurementOrders(list) {
-    localStorage.setItem(STORAGE_PROCUREMENT_ORDERS, JSON.stringify(list));
-  }
-
-  // 발주팀 - 단가 변동 이력 헬퍼
-  function getPriceHistory() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_PRICE_HISTORY) || '[]'); } catch (e) { return []; }
-  }
-  function savePriceHistory(list) {
-    localStorage.setItem(STORAGE_PROCUREMENT_PRICE_HISTORY, JSON.stringify(list));
-  }
-
-  function procurementOrderStatusBadge(status) {
-    var cls = {
-      '발주요청': 'badge-blue',
-      '발주완료': 'badge-yellow',
-      '입고완료': 'badge-green',
-      '현장투입': 'badge-gray'
-    }[status] || 'badge-gray';
-    return '<span class="badge ' + cls + '">' + (status || '-') + '</span>';
-  }
+  var PROCUREMENT_VENDORS = [
+    { name: '삼원목재', materials: ['다루끼', '투바이', '석고보드', '방수석고', '편백루바', 'OSB합판', '타이벡', '몰딩', '코너몰딩', '바닥피스', '직결피스'] },
+    { name: '로자메탈사이딩', materials: ['타카핀', 'ST', 'DT', 'T', 'F'] },
+    { name: '철물자재', materials: ['단열방화문', '고무바킹', '실리콘', '우레탄폼', '감바천', '자바라', '디지털도어락', '레바키', '크레인고리'] },
+    { name: '대한전기', materials: ['분전함', '통신함', '환풍기', '화재감지기', '콘센트', '스위치', '전선', '조명'] },
+    { name: '장원EPS', materials: ['스티로폼', 'EPS'] }
+  ];
+  var ORDER_STATUS_OPTIONS = ['발주전', '발주완료', '입고완료', '현장투입'];
+  var activeProcurementSiteId = '';
+  var activeVendorName = '';
 
   // =====================================================================
-  // 발주팀 - 자재관리 탭 렌더
+  // 발주팀 - Storage Helpers
+  // =====================================================================
+  function getProcurementMaterials() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_MATERIALS) || '[]'); } catch (e) { return []; } }
+  function saveProcurementMaterials(list) { localStorage.setItem(STORAGE_PROCUREMENT_MATERIALS, JSON.stringify(list)); }
+  function getProcurementSites() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_SITES) || '[]'); } catch (e) { return []; } }
+  function saveProcurementSites(list) { localStorage.setItem(STORAGE_PROCUREMENT_SITES, JSON.stringify(list)); }
+  function getProcurementOrderItems() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_ORDER_ITEMS) || '[]'); } catch (e) { return []; } }
+  function saveProcurementOrderItems(list) { localStorage.setItem(STORAGE_PROCUREMENT_ORDER_ITEMS, JSON.stringify(list)); }
+  function getProcurementStdQty() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_STD_QTY) || '[]'); } catch (e) { return []; } }
+  function saveProcurementStdQty(list) { localStorage.setItem(STORAGE_PROCUREMENT_STD_QTY, JSON.stringify(list)); }
+
+  // =====================================================================
+  // 발주팀 - 발주 항목 자동 생성 (현장 생성 시)
+  // =====================================================================
+  function generateOrderItemsForSite(site) {
+    var existing = getProcurementOrderItems().filter(function (it) { return it.siteId === site.id; });
+    if (existing.length) return;
+    var stdQtys = getProcurementStdQty().filter(function (sq) { return sq.modelName === site.modelName; });
+    var newItems = [];
+    if (stdQtys.length) {
+      stdQtys.forEach(function (sq) {
+        newItems.push({ id: id(), siteId: site.id, vendorName: sq.vendorName, materialName: sq.materialName, spec: sq.spec || '', standardQty: sq.quantity || 0, actualQty: null, unit: sq.unit || '', memo: '', status: '발주전' });
+      });
+    } else {
+      PROCUREMENT_VENDORS.forEach(function (v) {
+        v.materials.forEach(function (mat) {
+          newItems.push({ id: id(), siteId: site.id, vendorName: v.name, materialName: mat, spec: '', standardQty: 0, actualQty: null, unit: '', memo: '', status: '발주전' });
+        });
+      });
+    }
+    saveProcurementOrderItems(getProcurementOrderItems().concat(newItems));
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 현장발주
+  // =====================================================================
+  function renderFieldOrderTab() {
+    var sites = getProcurementSites();
+    var tbody = document.getElementById('tbody-field-orders');
+    if (!tbody) return;
+    tbody.innerHTML = sites.map(function (s) {
+      return '<tr>' +
+        '<td><a href="#" class="po-site-link" data-site-id="' + escapeAttr(s.id) + '">' + escapeHtml(s.siteName) + '</a></td>' +
+        '<td>' + escapeHtml(s.modelName) + '</td>' +
+        '<td>' + (s.pyeong || '-') + '평</td>' +
+        '<td>' + escapeHtml(s.siteAddress || '-') + '</td>' +
+        '<td>' + escapeHtml(s.foremanName || '-') + '</td>' +
+        '<td>' + escapeHtml(s.foremanPhone || '-') + '</td>' +
+        '<td>' + escapeHtml(s.manager || '-') + '</td>' +
+        '<td>' + (s.orderDate || '-') + '</td>' +
+        '<td>' +
+          '<button type="button" class="btn btn-sm btn-secondary btn-edit-field-order" data-id="' + escapeAttr(s.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm btn-danger btn-delete-field-order" data-id="' + escapeAttr(s.id) + '">삭제</button>' +
+        '</td></tr>';
+    }).join('') || '<tr><td colspan="9" class="no-result-msg">현장 발주 데이터가 없습니다. 새 현장 발주를 생성하세요.</td></tr>';
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 업체별발주
+  // =====================================================================
+  function renderVendorOrderTab() {
+    var sites = getProcurementSites();
+    var sel = document.getElementById('vendor-site-selector');
+    if (sel) {
+      var prevVal = activeProcurementSiteId || sel.value;
+      sel.innerHTML = '<option value="">현장 선택</option>' + sites.map(function (s) {
+        return '<option value="' + escapeAttr(s.id) + '"' + (prevVal === s.id ? ' selected' : '') + '>' +
+          escapeHtml(s.siteName) + ' (' + escapeHtml(s.modelName) + ' ' + (s.pyeong || '-') + '평)</option>';
+      }).join('');
+      if (!activeProcurementSiteId && sel.value) activeProcurementSiteId = sel.value;
+    }
+    renderVendorCards();
+  }
+
+  function renderVendorCards() {
+    var grid = document.getElementById('vendor-card-grid');
+    if (!grid) return;
+    var siteId = activeProcurementSiteId;
+    var allItems = getProcurementOrderItems().filter(function (it) { return it.siteId === siteId; });
+    grid.innerHTML = PROCUREMENT_VENDORS.map(function (v) {
+      var vendorItems = allItems.filter(function (it) { return it.vendorName === v.name; });
+      var total = vendorItems.length;
+      var ordered = vendorItems.filter(function (it) { return it.status !== '발주전'; }).length;
+      var statusClass = !siteId ? 'vendor-card-disabled' :
+        ordered === total && total > 0 ? 'vendor-card-done' :
+        ordered > 0 ? 'vendor-card-partial' : 'vendor-card-pending';
+      return '<div class="vendor-card ' + statusClass + '" data-vendor="' + escapeAttr(v.name) + '">' +
+        '<div class="vendor-card-name">' + escapeHtml(v.name) + '</div>' +
+        '<div class="vendor-card-count">' + (siteId ? (ordered + '/' + total + ' 발주') : '현장 선택') + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderVendorItems(siteId, vendorName) {
+    var detail = document.getElementById('vendor-order-detail');
+    var nameEl = document.getElementById('vendor-order-vendor-name');
+    if (!detail || !nameEl) return;
+    if (!siteId) { detail.classList.add('hidden'); return; }
+    detail.classList.remove('hidden');
+    nameEl.textContent = vendorName + ' - 발주 목록';
+    var items = getProcurementOrderItems().filter(function (it) {
+      return it.siteId === siteId && it.vendorName === vendorName;
+    });
+    var tbody = document.getElementById('tbody-vendor-order-items');
+    if (!tbody) return;
+    tbody.innerHTML = items.map(function (item) {
+      var statusSel = '<select class="vendor-item-status-select procurement-status-select" data-id="' + escapeAttr(item.id) + '">' +
+        ORDER_STATUS_OPTIONS.map(function (s) {
+          return '<option value="' + s + '"' + (item.status === s ? ' selected' : '') + '>' + s + '</option>';
+        }).join('') + '</select>';
+      return '<tr>' +
+        '<td>' + escapeHtml(item.materialName) + '</td>' +
+        '<td><input type="text" class="vendor-item-spec-input" data-id="' + escapeAttr(item.id) + '" value="' + escapeAttr(item.spec || '') + '" placeholder="규격" style="width:80px;"></td>' +
+        '<td class="text-right">' + (item.standardQty || 0) + '</td>' +
+        '<td><input type="number" class="vendor-item-qty-input" data-id="' + escapeAttr(item.id) + '" value="' + (item.actualQty != null ? item.actualQty : '') + '" placeholder="-" min="0" step="0.01" style="width:70px;"></td>' +
+        '<td><input type="text" class="vendor-item-unit-input" data-id="' + escapeAttr(item.id) + '" value="' + escapeAttr(item.unit || '') + '" placeholder="단위" style="width:55px;"></td>' +
+        '<td>' + statusSel + '</td>' +
+        '<td><input type="text" class="vendor-item-memo-input" data-id="' + escapeAttr(item.id) + '" value="' + escapeAttr(item.memo || '') + '" placeholder="비고" style="width:100px;"></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="7" class="no-result-msg">발주 항목이 없습니다.</td></tr>';
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 기준수량관리
+  // =====================================================================
+  function renderStdQtyTab() {
+    var stdQtys = getProcurementStdQty();
+    var modelFilter = ((document.getElementById('sq-model-filter') || {}).value || '').toLowerCase();
+    var vendorFilter = (document.getElementById('sq-vendor-filter') || {}).value || '';
+    if (modelFilter) stdQtys = stdQtys.filter(function (sq) { return (sq.modelName || '').toLowerCase().indexOf(modelFilter) !== -1; });
+    if (vendorFilter) stdQtys = stdQtys.filter(function (sq) { return sq.vendorName === vendorFilter; });
+    var groups = {};
+    stdQtys.forEach(function (sq) {
+      var key = (sq.modelName || '') + '||' + (sq.vendorName || '');
+      if (!groups[key]) groups[key] = { modelName: sq.modelName, vendorName: sq.vendorName, items: [] };
+      groups[key].items.push(sq);
+    });
+    var container = document.getElementById('std-qty-list');
+    if (!container) return;
+    var keys = Object.keys(groups);
+    if (!keys.length) { container.innerHTML = '<p class="no-result-msg">기준 수량 데이터가 없습니다.</p>'; return; }
+    container.innerHTML = keys.map(function (k) {
+      var g = groups[k];
+      var rows = g.items.map(function (sq) {
+        return '<tr>' +
+          '<td>' + escapeHtml(sq.materialName || '-') + '</td>' +
+          '<td>' + escapeHtml(sq.spec || '-') + '</td>' +
+          '<td class="text-right">' + (sq.quantity || 0) + '</td>' +
+          '<td>' + escapeHtml(sq.unit || '-') + '</td>' +
+          '<td><button type="button" class="btn btn-sm btn-danger btn-delete-std-qty" data-id="' + escapeAttr(sq.id) + '">삭제</button></td>' +
+          '</tr>';
+      }).join('');
+      return '<div class="procurement-model-group">' +
+        '<div class="procurement-model-header">' +
+          '<strong>' + escapeHtml(g.modelName) + '</strong>' +
+          '<span class="procurement-model-meta">' + escapeHtml(g.vendorName) + '</span>' +
+          '<span class="procurement-model-cost">' + g.items.length + '개 자재</span>' +
+        '</div>' +
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr><th>자재명</th><th>규격</th><th>기준 수량</th><th>단위</th><th>작업</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
+    }).join('');
+  }
+
+  function populateSqMaterialSelect(vendorName) {
+    var sel = document.getElementById('sq-material');
+    if (!sel) return;
+    var v = PROCUREMENT_VENDORS.find(function (vv) { return vv.name === vendorName; });
+    sel.innerHTML = '<option value="">자재 선택</option>' + (v ? v.materials : []).map(function (m) {
+      return '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + '</option>';
+    }).join('');
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 자재관리
   // =====================================================================
   function renderMaterialsTab() {
     var materials = getProcurementMaterials();
-    var keyword = (document.getElementById('material-search') || {}).value || '';
-    var categoryFilter = (document.getElementById('material-category-filter') || {}).value || '';
-    if (keyword) {
-      var kw = keyword.toLowerCase();
-      materials = materials.filter(function (m) {
-        return (m.name || '').toLowerCase().indexOf(kw) !== -1 ||
-          (m.vendor || '').toLowerCase().indexOf(kw) !== -1 ||
-          (m.category || '').toLowerCase().indexOf(kw) !== -1;
-      });
-    }
-    if (categoryFilter) {
-      materials = materials.filter(function (m) { return m.category === categoryFilter; });
-    }
+    var keyword = ((document.getElementById('material-search') || {}).value || '').toLowerCase();
+    var vendorFilter = (document.getElementById('material-vendor-filter') || {}).value || '';
+    if (keyword) materials = materials.filter(function (m) {
+      return (m.name || '').toLowerCase().indexOf(keyword) !== -1 || (m.vendor || '').toLowerCase().indexOf(keyword) !== -1;
+    });
+    if (vendorFilter) materials = materials.filter(function (m) { return m.vendor === vendorFilter; });
     var tbody = document.getElementById('tbody-materials');
     if (!tbody) return;
     tbody.innerHTML = materials.map(function (m) {
       return '<tr>' +
         '<td>' + escapeHtml(m.name || '') + '</td>' +
-        '<td>' + escapeHtml(m.unit || '') + '</td>' +
-        '<td class="text-right">' + formatMoney(m.price || 0) + '원</td>' +
         '<td>' + escapeHtml(m.vendor || '-') + '</td>' +
-        '<td><span class="badge badge-category">' + escapeHtml(m.category || '-') + '</span></td>' +
+        '<td>' + escapeHtml(m.unit || '-') + '</td>' +
+        '<td>' + escapeHtml(m.spec || '-') + '</td>' +
+        '<td class="text-right">' + (m.price ? formatMoney(m.price) + '원' : '-') + '</td>' +
         '<td>' +
           '<button type="button" class="btn btn-sm btn-secondary btn-edit-material" data-id="' + escapeAttr(m.id) + '">수정</button> ' +
           '<button type="button" class="btn btn-sm btn-danger btn-delete-material" data-id="' + escapeAttr(m.id) + '">삭제</button>' +
-        '</td>' +
-        '</tr>';
+        '</td></tr>';
     }).join('') || '<tr><td colspan="6" class="no-result-msg">자재 데이터가 없습니다.</td></tr>';
   }
 
   // =====================================================================
-  // 발주팀 - BOM 탭 렌더
+  // 발주팀 - Tab: 평당자재분석
   // =====================================================================
-  function renderBOMTab() {
-    var boms = getProcurementBOM();
-    var materials = getProcurementMaterials();
-    var modelFilter = ((document.getElementById('bom-model-filter') || {}).value || '').toLowerCase();
-    if (modelFilter) {
-      boms = boms.filter(function (b) { return (b.modelName || '').toLowerCase().indexOf(modelFilter) !== -1; });
-    }
-    // 모델명별로 그룹화
-    var modelMap = {};
-    boms.forEach(function (b) {
-      var mn = b.modelName || '(모델없음)';
-      if (!modelMap[mn]) modelMap[mn] = { pyeong: b.pyeong || 0, items: [] };
-      modelMap[mn].items.push(b);
-    });
-
-    var container = document.getElementById('bom-model-list');
-    if (!container) return;
-
-    var html = Object.keys(modelMap).map(function (modelName) {
-      var group = modelMap[modelName];
-      var totalCost = 0;
-      var rows = group.items.map(function (b) {
-        var mat = materials.find(function (m) { return m.id === b.materialId; }) || {};
-        var unitPrice = mat.price || 0;
-        var qty = b.quantity || 0;
-        var lineCost = unitPrice * qty;
-        totalCost += lineCost;
-        return '<tr>' +
-          '<td>' + escapeHtml(mat.name || b.materialName || '-') + '</td>' +
-          '<td>' + escapeHtml(mat.unit || '-') + '</td>' +
-          '<td class="text-right">' + formatMoney(unitPrice) + '원</td>' +
-          '<td class="text-right">' + qty + '</td>' +
-          '<td class="text-right">' + formatMoney(lineCost) + '원</td>' +
-          '<td>' +
-            '<button type="button" class="btn btn-sm btn-danger btn-delete-bom" data-id="' + escapeAttr(b.id) + '">삭제</button>' +
-          '</td>' +
-          '</tr>';
+  function renderPyeongAnalysisTab() {
+    var stdQtys = getProcurementStdQty();
+    var sel = document.getElementById('pyeong-model-select');
+    if (sel) {
+      var models = [];
+      stdQtys.forEach(function (sq) { if (models.indexOf(sq.modelName) === -1) models.push(sq.modelName); });
+      var prevVal = sel.value;
+      sel.innerHTML = '<option value="">모델 선택</option>' + models.map(function (m) {
+        return '<option value="' + escapeAttr(m) + '"' + (prevVal === m ? ' selected' : '') + '>' + escapeHtml(m) + '</option>';
       }).join('');
-      var pyeong = group.pyeong || 1;
-      var perPyeong = pyeong > 0 ? Math.round(totalCost / pyeong) : 0;
-      return '<div class="procurement-model-group">' +
-        '<div class="procurement-model-header">' +
-          '<strong>' + escapeHtml(modelName) + '</strong>' +
-          '<span class="procurement-model-meta">' + pyeong + '평</span>' +
-          '<span class="procurement-model-cost">모델 원가: <strong>' + formatMoney(totalCost) + '원</strong></span>' +
-          '<span class="procurement-model-cost">평당 원가: <strong>' + formatMoney(perPyeong) + '원/평</strong></span>' +
-        '</div>' +
-        '<div class="table-wrap"><table class="data-table">' +
-          '<thead><tr><th>자재명</th><th>단위</th><th>단가</th><th>사용량</th><th>소계</th><th>작업</th></tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table></div>' +
-        '</div>';
-    }).join('') || '<p class="no-result-msg">BOM 데이터가 없습니다.</p>';
-
-    container.innerHTML = html;
+    }
+    renderPyeongAnalysisResult(sel ? sel.value : '');
   }
 
-  // BOM 폼의 자재 select 옵션 채우기
-  function populateBOMMaterialSelect() {
-    var sel = document.getElementById('bom-material');
-    if (!sel) return;
-    var materials = getProcurementMaterials();
-    sel.innerHTML = '<option value="">자재 선택</option>' + materials.map(function (m) {
-      return '<option value="' + escapeAttr(m.id) + '">' + escapeHtml(m.name) + ' (' + escapeHtml(m.unit) + ')</option>';
+  function renderPyeongAnalysisResult(modelName) {
+    var el = document.getElementById('pyeong-analysis-result');
+    if (!el) return;
+    if (!modelName) { el.innerHTML = '<p class="no-result-msg">모델을 선택하세요.</p>'; return; }
+    var stdQtys = getProcurementStdQty().filter(function (sq) { return sq.modelName === modelName; });
+    var sites = getProcurementSites().filter(function (s) { return s.modelName === modelName; });
+    var pyeong = sites.length ? sites[0].pyeong : 0;
+    if (!stdQtys.length) { el.innerHTML = '<p class="no-result-msg">해당 모델의 기준 수량이 없습니다.</p>'; return; }
+    var vendorGroups = {};
+    stdQtys.forEach(function (sq) {
+      if (!vendorGroups[sq.vendorName]) vendorGroups[sq.vendorName] = [];
+      vendorGroups[sq.vendorName].push(sq);
+    });
+    el.innerHTML = Object.keys(vendorGroups).map(function (vName) {
+      var items = vendorGroups[vName];
+      var rows = items.map(function (sq) {
+        var perPyeong = pyeong > 0 ? (sq.quantity / pyeong).toFixed(2) : '-';
+        return '<tr>' +
+          '<td>' + escapeHtml(sq.materialName) + '</td>' +
+          '<td>' + escapeHtml(sq.unit || '-') + '</td>' +
+          '<td class="text-right">' + (sq.quantity || 0) + '</td>' +
+          '<td class="text-right procurement-highlight">' + perPyeong + (pyeong > 0 ? ' / 평' : '') + '</td>' +
+          '</tr>';
+      }).join('');
+      return '<div class="procurement-model-group" style="margin-bottom:1rem;">' +
+        '<div class="procurement-model-header">' +
+          '<strong>' + escapeHtml(vName) + '</strong>' +
+          (pyeong ? '<span class="procurement-model-meta">' + escapeHtml(modelName) + ' ' + pyeong + '평 기준</span>' : '') +
+        '</div>' +
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr><th>자재명</th><th>단위</th><th>기준 수량</th><th>평당 사용량</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
     }).join('');
   }
 
   // =====================================================================
-  // 발주팀 - 발주관리 탭 렌더
+  // 발주팀 - Tab: 발주서출력
   // =====================================================================
-  function renderOrdersTab() {
-    var orders = getProcurementOrders();
-    var keyword = ((document.getElementById('order-search') || {}).value || '').toLowerCase();
-    var statusFilter = (document.getElementById('order-status-filter') || {}).value || '';
-    if (keyword) {
-      orders = orders.filter(function (o) {
-        return (o.siteName || '').toLowerCase().indexOf(keyword) !== -1 ||
-          (o.customerName || '').toLowerCase().indexOf(keyword) !== -1 ||
-          (o.materialName || '').toLowerCase().indexOf(keyword) !== -1;
-      });
-    }
-    if (statusFilter) {
-      orders = orders.filter(function (o) { return o.status === statusFilter; });
-    }
-    var tbody = document.getElementById('tbody-orders');
-    if (!tbody) return;
-    var STATUS_OPTIONS = ['발주요청', '발주완료', '입고완료', '현장투입'];
-    tbody.innerHTML = orders.map(function (o) {
-      var unitPrice = o.unitPrice || 0;
-      var actualQty = o.actualQuantity != null ? o.actualQuantity : o.standardQuantity;
-      var amount = unitPrice * actualQty;
-      var statusSel = '<select class="order-status-select procurement-status-select" data-id="' + escapeAttr(o.id) + '">' +
-        STATUS_OPTIONS.map(function (s) {
-          return '<option value="' + s + '"' + (o.status === s ? ' selected' : '') + '>' + s + '</option>';
-        }).join('') + '</select>';
-      return '<tr>' +
-        '<td>' + escapeHtml(o.siteName || '-') + '</td>' +
-        '<td>' + escapeHtml(o.customerName || '-') + '</td>' +
-        '<td>' + escapeHtml(o.materialName || '-') + '</td>' +
-        '<td>' + escapeHtml(o.unit || '-') + '</td>' +
-        '<td class="text-right">' + (o.standardQuantity || 0) + '</td>' +
-        '<td class="text-right">' +
-          '<input type="number" class="order-actual-qty-input" data-id="' + escapeAttr(o.id) + '" value="' + (actualQty || 0) + '" min="0" step="0.01" style="width:70px;">' +
-        '</td>' +
-        '<td class="text-right">' + formatMoney(unitPrice) + '원</td>' +
-        '<td class="text-right">' + formatMoney(amount) + '원</td>' +
-        '<td>' + statusSel + '</td>' +
-        '<td><button type="button" class="btn btn-sm btn-danger btn-delete-order" data-id="' + escapeAttr(o.id) + '">삭제</button></td>' +
-        '</tr>';
-    }).join('') || '<tr><td colspan="10" class="no-result-msg">발주 데이터가 없습니다.</td></tr>';
-  }
-
-  // 계약 기반 발주 자동 생성
-  function generateOrdersFromContract(contract) {
-    if (!contract || !contract.id) return;
-    var boms = getProcurementBOM();
-    var materials = getProcurementMaterials();
-    var orders = getProcurementOrders();
-    // 이미 해당 계약 발주가 있으면 중복 생성 방지
-    var existingIds = orders.filter(function (o) { return o.contractId === contract.id; }).map(function (o) { return o.materialId; });
-    var modelName = contract.modelName || '';
-    var modelBoms = boms.filter(function (b) { return b.modelName === modelName; });
-    if (!modelBoms.length) return;
-    var newOrders = modelBoms.filter(function (b) {
-      return existingIds.indexOf(b.materialId) === -1;
-    }).map(function (b) {
-      var mat = materials.find(function (m) { return m.id === b.materialId; }) || {};
-      return {
-        id: id(),
-        contractId: contract.id,
-        siteName: contract.siteAddress || '',
-        customerName: contract.customerName || '',
-        modelName: modelName,
-        materialId: b.materialId,
-        materialName: mat.name || b.materialName || '',
-        unit: mat.unit || '',
-        unitPrice: mat.price || 0,
-        standardQuantity: b.quantity || 0,
-        actualQuantity: null,
-        status: '발주요청',
-        createdAt: new Date().toISOString()
-      };
-    });
-    if (newOrders.length) {
-      saveProcurementOrders(orders.concat(newOrders));
-      showToast(newOrders.length + '건 발주 리스트가 생성됐습니다.');
-    }
-  }
-
-  // =====================================================================
-  // 발주팀 - 원가분석 탭 렌더
-  // =====================================================================
-  function renderAnalysisTab() {
-    var boms = getProcurementBOM();
-    var materials = getProcurementMaterials();
-    var orders = getProcurementOrders();
-
-    // 1. 모델별 평당 자재 원가
-    var modelMap = {};
-    boms.forEach(function (b) {
-      var mn = b.modelName || '(모델없음)';
-      if (!modelMap[mn]) modelMap[mn] = { pyeong: b.pyeong || 0, cost: 0 };
-      var mat = materials.find(function (m) { return m.id === b.materialId; }) || {};
-      modelMap[mn].cost += (mat.price || 0) * (b.quantity || 0);
-    });
-    var modelCostEl = document.getElementById('analysis-model-cost');
-    if (modelCostEl) {
-      var modelKeys = Object.keys(modelMap);
-      if (!modelKeys.length) {
-        modelCostEl.innerHTML = '<p class="no-result-msg">BOM 데이터가 없습니다.</p>';
-      } else {
-        modelCostEl.innerHTML = '<div class="table-wrap"><table class="data-table">' +
-          '<thead><tr><th>모델명</th><th>평수</th><th>모델 원가</th><th>평당 원가</th></tr></thead>' +
-          '<tbody>' + modelKeys.map(function (mn) {
-            var d = modelMap[mn];
-            var pyeong = d.pyeong || 1;
-            var perPyeong = pyeong > 0 ? Math.round(d.cost / pyeong) : 0;
-            return '<tr>' +
-              '<td>' + escapeHtml(mn) + '</td>' +
-              '<td class="text-right">' + d.pyeong + '평</td>' +
-              '<td class="text-right">' + formatMoney(d.cost) + '원</td>' +
-              '<td class="text-right procurement-highlight">' + formatMoney(perPyeong) + '원/평</td>' +
-              '</tr>';
-          }).join('') +
-          '</tbody></table></div>';
-      }
-    }
-
-    // 2. 자재 단가 변동 - 자재 select 채우기
-    var matSel = document.getElementById('analysis-material-select');
-    if (matSel) {
-      var prevVal = matSel.value;
-      matSel.innerHTML = '<option value="">자재 선택</option>' + materials.map(function (m) {
-        return '<option value="' + escapeAttr(m.id) + '"' + (prevVal === m.id ? ' selected' : '') + '>' + escapeHtml(m.name) + '</option>';
+  function renderOrderPrintTab() {
+    var sites = getProcurementSites();
+    var siteSel = document.getElementById('print-site-select');
+    if (siteSel) {
+      var prevVal = siteSel.value;
+      siteSel.innerHTML = '<option value="">현장 선택</option>' + sites.map(function (s) {
+        return '<option value="' + escapeAttr(s.id) + '"' + (prevVal === s.id ? ' selected' : '') + '>' + escapeHtml(s.siteName) + '</option>';
       }).join('');
-      renderPriceHistoryForMaterial(matSel.value);
+      if (prevVal) siteSel.value = prevVal;
     }
-
-    // 3. 기준 vs 실제 사용량 비교
-    var usageEl = document.getElementById('analysis-usage-compare');
-    if (usageEl) {
-      // 자재별로 집계
-      var usageMap = {};
-      boms.forEach(function (b) {
-        var mid = b.materialId;
-        if (!usageMap[mid]) {
-          var mat = materials.find(function (m) { return m.id === mid; }) || {};
-          usageMap[mid] = { name: mat.name || b.materialName || mid, unit: mat.unit || '', stdTotal: 0, actualTotal: 0 };
-        }
-        usageMap[mid].stdTotal += (b.quantity || 0);
-      });
-      orders.forEach(function (o) {
-        var mid = o.materialId;
-        if (usageMap[mid] && o.actualQuantity != null) {
-          usageMap[mid].actualTotal += (o.actualQuantity || 0);
-        }
-      });
-      var usageKeys = Object.keys(usageMap);
-      if (!usageKeys.length) {
-        usageEl.innerHTML = '<p class="no-result-msg">비교 데이터가 없습니다.</p>';
-      } else {
-        usageEl.innerHTML = '<div class="table-wrap"><table class="data-table">' +
-          '<thead><tr><th>자재명</th><th>단위</th><th>기준 사용량</th><th>실제 사용량</th><th>차이</th></tr></thead>' +
-          '<tbody>' + usageKeys.map(function (mid) {
-            var d = usageMap[mid];
-            var diff = d.actualTotal - d.stdTotal;
-            var diffClass = diff > 0 ? 'procurement-over' : diff < 0 ? 'procurement-under' : '';
-            var diffSign = diff > 0 ? '+' : '';
-            return '<tr>' +
-              '<td>' + escapeHtml(d.name) + '</td>' +
-              '<td>' + escapeHtml(d.unit) + '</td>' +
-              '<td class="text-right">' + d.stdTotal + '</td>' +
-              '<td class="text-right">' + d.actualTotal + '</td>' +
-              '<td class="text-right ' + diffClass + '">' + diffSign + diff.toFixed(2) + '</td>' +
-              '</tr>';
-          }).join('') +
-          '</tbody></table></div>';
-      }
-    }
+    renderOrderPrintPreview();
   }
 
-  function renderPriceHistoryForMaterial(materialId) {
-    var el = document.getElementById('analysis-price-history');
+  function renderOrderPrintPreview() {
+    var siteId = (document.getElementById('print-site-select') || {}).value || '';
+    var vendorName = (document.getElementById('print-vendor-select') || {}).value || '';
+    var el = document.getElementById('order-print-preview');
     if (!el) return;
-    if (!materialId) { el.innerHTML = '<p class="no-result-msg">자재를 선택하세요.</p>'; return; }
-    var history = getPriceHistory().filter(function (h) { return h.materialId === materialId; });
-    if (!history.length) { el.innerHTML = '<p class="no-result-msg">단가 변동 이력이 없습니다.</p>'; return; }
-    el.innerHTML = '<div class="table-wrap"><table class="data-table">' +
-      '<thead><tr><th>변경일</th><th>이전 단가</th><th>변경 단가</th><th>변경률</th></tr></thead>' +
-      '<tbody>' + history.map(function (h) {
-        var rate = h.oldPrice > 0 ? (((h.newPrice - h.oldPrice) / h.oldPrice) * 100).toFixed(1) : '-';
-        var rateClass = h.newPrice > h.oldPrice ? 'procurement-over' : h.newPrice < h.oldPrice ? 'procurement-under' : '';
-        return '<tr>' +
-          '<td>' + (h.date || '-') + '</td>' +
-          '<td class="text-right">' + formatMoney(h.oldPrice) + '원</td>' +
-          '<td class="text-right">' + formatMoney(h.newPrice) + '원</td>' +
-          '<td class="text-right ' + rateClass + '">' + (rate !== '-' ? (h.newPrice > h.oldPrice ? '+' : '') + rate + '%' : '-') + '</td>' +
-          '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
-  }
-
-  // escapeHtml 헬퍼 (기존 escapeAttr과 구분)
-  function escapeHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    if (!siteId || !vendorName) {
+      el.innerHTML = '<p class="no-result-msg">현장과 업체를 선택하면 발주서 미리보기가 표시됩니다.</p>';
+      return;
+    }
+    var site = getProcurementSites().find(function (s) { return s.id === siteId; });
+    if (!site) { el.innerHTML = '<p class="no-result-msg">현장 정보를 찾을 수 없습니다.</p>'; return; }
+    var items = getProcurementOrderItems().filter(function (it) { return it.siteId === siteId && it.vendorName === vendorName; });
+    var today = new Date();
+    var dateStr = site.orderDate || (today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'));
+    var rowsHtml = items.map(function (item, i) {
+      var qty = item.actualQty != null ? item.actualQty : item.standardQty;
+      return '<tr>' +
+        '<td style="text-align:center;">' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(item.materialName) + '</td>' +
+        '<td>' + escapeHtml(item.spec || '') + '</td>' +
+        '<td style="text-align:center;">' + (qty || '') + '</td>' +
+        '<td>' + escapeHtml(item.unit || '') + '</td>' +
+        '<td>' + escapeHtml(item.memo || '') + '</td>' +
+        '</tr>';
+    }).join('');
+    el.innerHTML =
+      '<div class="order-form-sheet" id="order-form-printable">' +
+        '<div class="order-form-title">자  재  발  주  서</div>' +
+        '<div class="order-form-meta-grid">' +
+          '<div class="order-form-meta-row"><span class="order-form-label">발주업체</span><span class="order-form-value">' + escapeHtml(vendorName) + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">현장주소</span><span class="order-form-value">' + escapeHtml(site.siteAddress || '-') + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">발 주 일</span><span class="order-form-value">' + dateStr + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">반  장</span><span class="order-form-value">' + escapeHtml(site.foremanName || '-') + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">연락처</span><span class="order-form-value">' + escapeHtml(site.foremanPhone || '-') + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">담당자</span><span class="order-form-value">' + escapeHtml(site.manager || '-') + '</span></div>' +
+        '</div>' +
+        '<table class="order-form-table">' +
+          '<thead><tr><th style="width:5%">No.</th><th style="width:30%">품목</th><th style="width:25%">규격</th><th style="width:12%">수량</th><th style="width:10%">단위</th><th style="width:18%">비고</th></tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>' +
+        '<div class="order-form-footer">모델명: ' + escapeHtml(site.modelName || '-') + '  /  ' + (site.pyeong || '-') + '평</div>' +
+      '</div>';
   }
 
   // =====================================================================
-  // 발주팀 메인 렌더 & 이벤트 초기화
+  // 발주팀 - Main Render & Event Init
   // =====================================================================
   var procurementInitialized = false;
 
   function renderProcurement() {
+    renderFieldOrderTab();
+    renderVendorOrderTab();
+    renderStdQtyTab();
     renderMaterialsTab();
-    renderBOMTab();
-    renderOrdersTab();
-    renderAnalysisTab();
+    renderPyeongAnalysisTab();
+    renderOrderPrintTab();
     if (!procurementInitialized) {
       procurementInitialized = true;
       initProcurementEvents();
@@ -4565,207 +4547,328 @@
   }
 
   function initProcurementEvents() {
-    // 탭 전환
+    // ---- 탭 전환 ----
     document.querySelectorAll('.procurement-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
         document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
         btn.classList.add('active');
-        var tabId = 'procurement-tab-' + btn.getAttribute('data-tab');
-        var panel = document.getElementById(tabId);
+        var panel = document.getElementById('procurement-tab-' + btn.getAttribute('data-tab'));
         if (panel) { panel.classList.remove('hidden'); panel.classList.add('active'); }
-        if (btn.getAttribute('data-tab') === 'bom') populateBOMMaterialSelect();
-        if (btn.getAttribute('data-tab') === 'analysis') renderAnalysisTab();
+        var tab = btn.getAttribute('data-tab');
+        if (tab === 'vendor-order') renderVendorOrderTab();
+        if (tab === 'std-qty') renderStdQtyTab();
+        if (tab === 'pyeong-analysis') renderPyeongAnalysisTab();
+        if (tab === 'print') renderOrderPrintTab();
       });
     });
 
-    // ---- 자재관리 이벤트 ----
-    var btnAddMaterial = document.getElementById('btn-add-material');
-    if (btnAddMaterial) {
-      btnAddMaterial.addEventListener('click', function () {
-        document.getElementById('material-edit-id').value = '';
-        document.getElementById('form-material').reset();
-        document.getElementById('material-form-wrap').classList.remove('hidden');
-      });
-    }
-    var btnCancelMaterial = document.getElementById('btn-cancel-material');
-    if (btnCancelMaterial) {
-      btnCancelMaterial.addEventListener('click', function () {
-        document.getElementById('material-form-wrap').classList.add('hidden');
-      });
-    }
-    var formMaterial = document.getElementById('form-material');
-    if (formMaterial) {
-      formMaterial.addEventListener('submit', function (e) {
+    // ---- 현장발주 ----
+    var btnNewFO = document.getElementById('btn-new-field-order');
+    if (btnNewFO) btnNewFO.addEventListener('click', function () {
+      document.getElementById('field-order-edit-id').value = '';
+      document.getElementById('form-field-order').reset();
+      document.getElementById('field-order-form-wrap').classList.remove('hidden');
+    });
+    var btnCancelFO = document.getElementById('btn-cancel-field-order');
+    if (btnCancelFO) btnCancelFO.addEventListener('click', function () {
+      document.getElementById('field-order-form-wrap').classList.add('hidden');
+    });
+    var formFO = document.getElementById('form-field-order');
+    if (formFO) formFO.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('field-order-edit-id').value;
+      var siteData = {
+        siteName: document.getElementById('fo-site-name').value.trim(),
+        modelName: document.getElementById('fo-model-name').value.trim(),
+        pyeong: parseFloat(document.getElementById('fo-pyeong').value) || 0,
+        siteAddress: document.getElementById('fo-address').value.trim(),
+        foremanName: document.getElementById('fo-foreman').value.trim(),
+        foremanPhone: document.getElementById('fo-foreman-phone').value.trim(),
+        manager: document.getElementById('fo-manager').value.trim(),
+        orderDate: document.getElementById('fo-order-date').value,
+        createdAt: new Date().toISOString()
+      };
+      if (!siteData.siteName || !siteData.modelName) return;
+      var sites = getProcurementSites();
+      if (editId) {
+        sites = sites.map(function (s) { return s.id === editId ? Object.assign({}, s, siteData) : s; });
+        saveProcurementSites(sites);
+      } else {
+        siteData.id = id();
+        sites.push(siteData);
+        saveProcurementSites(sites);
+        generateOrderItemsForSite(siteData);
+      }
+      document.getElementById('field-order-form-wrap').classList.add('hidden');
+      renderFieldOrderTab();
+      showToast(editId ? '수정됐습니다.' : '현장 발주가 생성됐습니다. 업체별발주 탭에서 자재를 확인하세요.');
+    });
+
+    var tbodyFO = document.getElementById('tbody-field-orders');
+    if (tbodyFO) tbodyFO.addEventListener('click', function (e) {
+      var editBtn = e.target.closest('.btn-edit-field-order');
+      var delBtn = e.target.closest('.btn-delete-field-order');
+      var siteLink = e.target.closest('.po-site-link');
+      if (siteLink) {
         e.preventDefault();
-        var editId = document.getElementById('material-edit-id').value;
-        var name = document.getElementById('material-name').value.trim();
-        var unit = document.getElementById('material-unit').value.trim();
-        var price = parseFloat(document.getElementById('material-price').value) || 0;
-        var vendor = document.getElementById('material-vendor').value.trim();
-        var category = document.getElementById('material-category').value;
-        if (!name || !unit) return;
-        var materials = getProcurementMaterials();
-        if (editId) {
-          // 단가 변동 이력 기록
-          var existing = materials.find(function (m) { return m.id === editId; });
-          if (existing && existing.price !== price) {
-            var history = getPriceHistory();
-            history.push({ id: id(), materialId: editId, date: new Date().toISOString().slice(0, 10), oldPrice: existing.price, newPrice: price });
-            savePriceHistory(history);
-          }
-          materials = materials.map(function (m) {
-            if (m.id === editId) return { id: m.id, name: name, unit: unit, price: price, vendor: vendor, category: category };
-            return m;
-          });
-        } else {
-          materials.push({ id: id(), name: name, unit: unit, price: price, vendor: vendor, category: category });
-        }
-        saveProcurementMaterials(materials);
-        document.getElementById('material-form-wrap').classList.add('hidden');
-        renderMaterialsTab();
-        showToast('자재가 저장됐습니다.');
-      });
-    }
+        activeProcurementSiteId = siteLink.getAttribute('data-site-id');
+        document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
+        var vBtn = document.querySelector('.procurement-tab-btn[data-tab="vendor-order"]');
+        if (vBtn) vBtn.classList.add('active');
+        var vPanel = document.getElementById('procurement-tab-vendor-order');
+        if (vPanel) { vPanel.classList.remove('hidden'); vPanel.classList.add('active'); }
+        renderVendorOrderTab();
+      }
+      if (editBtn) {
+        var sid = editBtn.getAttribute('data-id');
+        var site = getProcurementSites().find(function (s) { return s.id === sid; });
+        if (!site) return;
+        document.getElementById('field-order-edit-id').value = site.id;
+        document.getElementById('fo-site-name').value = site.siteName || '';
+        document.getElementById('fo-model-name').value = site.modelName || '';
+        document.getElementById('fo-pyeong').value = site.pyeong || '';
+        document.getElementById('fo-address').value = site.siteAddress || '';
+        document.getElementById('fo-foreman').value = site.foremanName || '';
+        document.getElementById('fo-foreman-phone').value = site.foremanPhone || '';
+        document.getElementById('fo-manager').value = site.manager || '';
+        document.getElementById('fo-order-date').value = site.orderDate || '';
+        document.getElementById('field-order-form-wrap').classList.remove('hidden');
+      }
+      if (delBtn) {
+        if (!confirm('현장 발주를 삭제하면 발주 항목도 모두 삭제됩니다.')) return;
+        var did = delBtn.getAttribute('data-id');
+        saveProcurementSites(getProcurementSites().filter(function (s) { return s.id !== did; }));
+        saveProcurementOrderItems(getProcurementOrderItems().filter(function (it) { return it.siteId !== did; }));
+        if (activeProcurementSiteId === did) activeProcurementSiteId = '';
+        renderFieldOrderTab();
+        showToast('삭제됐습니다.');
+      }
+    });
 
-    // 자재 검색/필터
-    var matSearch = document.getElementById('material-search');
-    if (matSearch) matSearch.addEventListener('input', renderMaterialsTab);
-    var matCatFilter = document.getElementById('material-category-filter');
-    if (matCatFilter) matCatFilter.addEventListener('change', renderMaterialsTab);
+    // ---- 업체별발주 ----
+    var vendorSiteSel = document.getElementById('vendor-site-selector');
+    if (vendorSiteSel) vendorSiteSel.addEventListener('change', function () {
+      activeProcurementSiteId = vendorSiteSel.value;
+      activeVendorName = '';
+      document.getElementById('vendor-order-detail').classList.add('hidden');
+      renderVendorCards();
+    });
 
-    // 자재 수정/삭제 (이벤트 위임)
-    var tbodyMaterials = document.getElementById('tbody-materials');
-    if (tbodyMaterials) {
-      tbodyMaterials.addEventListener('click', function (e) {
-        var editBtn = e.target.closest('.btn-edit-material');
-        var delBtn = e.target.closest('.btn-delete-material');
-        if (editBtn) {
-          var mid = editBtn.getAttribute('data-id');
-          var mat = getProcurementMaterials().find(function (m) { return m.id === mid; });
-          if (!mat) return;
-          document.getElementById('material-edit-id').value = mat.id;
-          document.getElementById('material-name').value = mat.name || '';
-          document.getElementById('material-unit').value = mat.unit || '';
-          document.getElementById('material-price').value = mat.price || 0;
-          document.getElementById('material-vendor').value = mat.vendor || '';
-          document.getElementById('material-category').value = mat.category || '';
-          document.getElementById('material-form-wrap').classList.remove('hidden');
-        }
-        if (delBtn) {
-          if (!confirm('자재를 삭제하시겠습니까?')) return;
-          var did = delBtn.getAttribute('data-id');
-          saveProcurementMaterials(getProcurementMaterials().filter(function (m) { return m.id !== did; }));
-          renderMaterialsTab();
-          showToast('삭제됐습니다.');
-        }
-      });
-    }
+    var vendorGrid = document.getElementById('vendor-card-grid');
+    if (vendorGrid) vendorGrid.addEventListener('click', function (e) {
+      var card = e.target.closest('.vendor-card');
+      if (!card) return;
+      if (!activeProcurementSiteId) { showToast('현장을 먼저 선택하세요.', 'error'); return; }
+      activeVendorName = card.getAttribute('data-vendor');
+      renderVendorItems(activeProcurementSiteId, activeVendorName);
+    });
 
-    // ---- BOM 이벤트 ----
-    var btnAddBom = document.getElementById('btn-add-bom');
-    if (btnAddBom) {
-      btnAddBom.addEventListener('click', function () {
-        document.getElementById('bom-edit-id').value = '';
-        document.getElementById('form-bom').reset();
-        populateBOMMaterialSelect();
-        document.getElementById('bom-form-wrap').classList.remove('hidden');
-      });
-    }
-    var btnCancelBom = document.getElementById('btn-cancel-bom');
-    if (btnCancelBom) {
-      btnCancelBom.addEventListener('click', function () {
-        document.getElementById('bom-form-wrap').classList.add('hidden');
-      });
-    }
-    var formBom = document.getElementById('form-bom');
-    if (formBom) {
-      formBom.addEventListener('submit', function (e) {
-        e.preventDefault();
-        var modelName = document.getElementById('bom-model').value.trim();
-        var pyeong = parseFloat(document.getElementById('bom-pyeong').value) || 0;
-        var materialId = document.getElementById('bom-material').value;
-        var quantity = parseFloat(document.getElementById('bom-quantity').value) || 0;
-        if (!modelName || !materialId) return;
-        var mat = getProcurementMaterials().find(function (m) { return m.id === materialId; }) || {};
-        var boms = getProcurementBOM();
-        boms.push({ id: id(), modelName: modelName, pyeong: pyeong, materialId: materialId, materialName: mat.name || '', quantity: quantity });
-        saveProcurementBOM(boms);
-        document.getElementById('bom-form-wrap').classList.add('hidden');
-        renderBOMTab();
-        showToast('BOM이 저장됐습니다.');
-      });
-    }
+    var btnCloseVD = document.getElementById('btn-close-vendor-detail');
+    if (btnCloseVD) btnCloseVD.addEventListener('click', function () {
+      document.getElementById('vendor-order-detail').classList.add('hidden');
+      activeVendorName = '';
+    });
 
-    // BOM 모델 필터
-    var bomModelFilter = document.getElementById('bom-model-filter');
-    if (bomModelFilter) bomModelFilter.addEventListener('input', renderBOMTab);
+    var btnPrintVO = document.getElementById('btn-print-vendor-order');
+    if (btnPrintVO) btnPrintVO.addEventListener('click', function () {
+      document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
+      var pBtn = document.querySelector('.procurement-tab-btn[data-tab="print"]');
+      if (pBtn) pBtn.classList.add('active');
+      var pPanel = document.getElementById('procurement-tab-print');
+      if (pPanel) { pPanel.classList.remove('hidden'); pPanel.classList.add('active'); }
+      renderOrderPrintTab();
+      setTimeout(function () {
+        var pss = document.getElementById('print-site-select');
+        var pvs = document.getElementById('print-vendor-select');
+        if (pss) pss.value = activeProcurementSiteId;
+        if (pvs) pvs.value = activeVendorName;
+        renderOrderPrintPreview();
+      }, 50);
+    });
 
-    // BOM 삭제 (이벤트 위임)
-    var bomList = document.getElementById('bom-model-list');
-    if (bomList) {
-      bomList.addEventListener('click', function (e) {
-        var delBtn = e.target.closest('.btn-delete-bom');
-        if (delBtn) {
-          if (!confirm('BOM 항목을 삭제하시겠습니까?')) return;
-          var bid = delBtn.getAttribute('data-id');
-          saveProcurementBOM(getProcurementBOM().filter(function (b) { return b.id !== bid; }));
-          renderBOMTab();
-          showToast('삭제됐습니다.');
-        }
-      });
-    }
-
-    // ---- 발주관리 이벤트 ----
-    var orderSearch = document.getElementById('order-search');
-    if (orderSearch) orderSearch.addEventListener('input', renderOrdersTab);
-    var orderStatusFilter = document.getElementById('order-status-filter');
-    if (orderStatusFilter) orderStatusFilter.addEventListener('change', renderOrdersTab);
-
-    // 발주 상태 변경 / 실제 수량 입력 / 삭제 (이벤트 위임)
-    var tbodyOrders = document.getElementById('tbody-orders');
-    if (tbodyOrders) {
-      tbodyOrders.addEventListener('change', function (e) {
-        var statusSel = e.target.closest('.order-status-select');
-        var qtyInput = e.target.closest('.order-actual-qty-input');
+    // 발주 항목 인라인 편집 (이벤트 위임)
+    var vendorDetail = document.getElementById('vendor-order-detail');
+    if (vendorDetail) {
+      vendorDetail.addEventListener('change', function (e) {
+        var statusSel = e.target.closest('.vendor-item-status-select');
         if (statusSel) {
-          var oid = statusSel.getAttribute('data-id');
-          var orders = getProcurementOrders().map(function (o) {
-            if (o.id === oid) return Object.assign({}, o, { status: statusSel.value });
-            return o;
-          });
-          saveProcurementOrders(orders);
+          var iid = statusSel.getAttribute('data-id');
+          saveProcurementOrderItems(getProcurementOrderItems().map(function (it) {
+            return it.id === iid ? Object.assign({}, it, { status: statusSel.value }) : it;
+          }));
+          renderVendorCards();
           showToast('상태가 변경됐습니다.');
         }
-        if (qtyInput) {
-          var oqid = qtyInput.getAttribute('data-id');
-          var newQty = parseFloat(qtyInput.value) || 0;
-          var ordersQ = getProcurementOrders().map(function (o) {
-            if (o.id === oqid) return Object.assign({}, o, { actualQuantity: newQty });
-            return o;
-          });
-          saveProcurementOrders(ordersQ);
-        }
       });
-      tbodyOrders.addEventListener('click', function (e) {
-        var delBtn = e.target.closest('.btn-delete-order');
-        if (delBtn) {
-          if (!confirm('발주 항목을 삭제하시겠습니까?')) return;
-          var odid = delBtn.getAttribute('data-id');
-          saveProcurementOrders(getProcurementOrders().filter(function (o) { return o.id !== odid; }));
-          renderOrdersTab();
-          showToast('삭제됐습니다.');
-        }
-      });
+      vendorDetail.addEventListener('blur', function (e) {
+        var qtyInput = e.target.closest('.vendor-item-qty-input');
+        var specInput = e.target.closest('.vendor-item-spec-input');
+        var unitInput = e.target.closest('.vendor-item-unit-input');
+        var memoInput = e.target.closest('.vendor-item-memo-input');
+        var target = qtyInput || specInput || unitInput || memoInput;
+        if (!target) return;
+        var iid = target.getAttribute('data-id');
+        saveProcurementOrderItems(getProcurementOrderItems().map(function (it) {
+          if (it.id !== iid) return it;
+          var upd = Object.assign({}, it);
+          if (qtyInput) upd.actualQty = parseFloat(qtyInput.value) || 0;
+          if (specInput) upd.spec = specInput.value;
+          if (unitInput) upd.unit = unitInput.value;
+          if (memoInput) upd.memo = memoInput.value;
+          return upd;
+        }));
+      }, true);
     }
 
-    // ---- 원가분석 이벤트 ----
-    var analysisMaterialSel = document.getElementById('analysis-material-select');
-    if (analysisMaterialSel) {
-      analysisMaterialSel.addEventListener('change', function () {
-        renderPriceHistoryForMaterial(analysisMaterialSel.value);
-      });
-    }
+    // ---- 기준수량관리 ----
+    var btnAddSQ = document.getElementById('btn-add-std-qty');
+    if (btnAddSQ) btnAddSQ.addEventListener('click', function () {
+      document.getElementById('std-qty-edit-id').value = '';
+      document.getElementById('form-std-qty').reset();
+      populateSqMaterialSelect('');
+      document.getElementById('std-qty-form-wrap').classList.remove('hidden');
+    });
+    var btnCancelSQ = document.getElementById('btn-cancel-std-qty');
+    if (btnCancelSQ) btnCancelSQ.addEventListener('click', function () {
+      document.getElementById('std-qty-form-wrap').classList.add('hidden');
+    });
+    var sqVendorSel = document.getElementById('sq-vendor');
+    if (sqVendorSel) sqVendorSel.addEventListener('change', function () {
+      populateSqMaterialSelect(sqVendorSel.value);
+    });
+    var formSQ = document.getElementById('form-std-qty');
+    if (formSQ) formSQ.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var modelName = document.getElementById('sq-model').value.trim();
+      var vendorName = document.getElementById('sq-vendor').value;
+      var materialName = document.getElementById('sq-material').value;
+      var qty = parseFloat(document.getElementById('sq-qty').value) || 0;
+      var unit = document.getElementById('sq-unit').value.trim();
+      var spec = document.getElementById('sq-spec').value.trim();
+      if (!modelName || !vendorName || !materialName) return;
+      var list = getProcurementStdQty();
+      list.push({ id: id(), modelName: modelName, vendorName: vendorName, materialName: materialName, quantity: qty, unit: unit, spec: spec });
+      saveProcurementStdQty(list);
+      document.getElementById('std-qty-form-wrap').classList.add('hidden');
+      renderStdQtyTab();
+      showToast('기준 수량이 저장됐습니다.');
+    });
+    var sqModelFilter = document.getElementById('sq-model-filter');
+    if (sqModelFilter) sqModelFilter.addEventListener('input', renderStdQtyTab);
+    var sqVendorFilter = document.getElementById('sq-vendor-filter');
+    if (sqVendorFilter) sqVendorFilter.addEventListener('change', renderStdQtyTab);
+    var stdQtyList = document.getElementById('std-qty-list');
+    if (stdQtyList) stdQtyList.addEventListener('click', function (e) {
+      var delBtn = e.target.closest('.btn-delete-std-qty');
+      if (delBtn) {
+        if (!confirm('기준 수량을 삭제하시겠습니까?')) return;
+        saveProcurementStdQty(getProcurementStdQty().filter(function (sq) { return sq.id !== delBtn.getAttribute('data-id'); }));
+        renderStdQtyTab();
+        showToast('삭제됐습니다.');
+      }
+    });
+
+    // ---- 자재관리 ----
+    var btnAddMat = document.getElementById('btn-add-material');
+    if (btnAddMat) btnAddMat.addEventListener('click', function () {
+      document.getElementById('material-edit-id').value = '';
+      document.getElementById('form-material').reset();
+      document.getElementById('material-form-wrap').classList.remove('hidden');
+    });
+    var btnCancelMat = document.getElementById('btn-cancel-material');
+    if (btnCancelMat) btnCancelMat.addEventListener('click', function () {
+      document.getElementById('material-form-wrap').classList.add('hidden');
+    });
+    var formMat = document.getElementById('form-material');
+    if (formMat) formMat.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('material-edit-id').value;
+      var matData = {
+        name: document.getElementById('material-name').value.trim(),
+        vendor: document.getElementById('material-vendor-name').value,
+        unit: document.getElementById('material-unit').value.trim(),
+        spec: document.getElementById('material-spec').value.trim(),
+        price: parseFloat(document.getElementById('material-price').value) || 0
+      };
+      if (!matData.name) return;
+      var mats = getProcurementMaterials();
+      if (editId) {
+        mats = mats.map(function (m) { return m.id === editId ? Object.assign({}, m, matData) : m; });
+      } else {
+        matData.id = id();
+        mats.push(matData);
+      }
+      saveProcurementMaterials(mats);
+      document.getElementById('material-form-wrap').classList.add('hidden');
+      renderMaterialsTab();
+      showToast('자재가 저장됐습니다.');
+    });
+    var matSearch = document.getElementById('material-search');
+    if (matSearch) matSearch.addEventListener('input', renderMaterialsTab);
+    var matVendorFilter = document.getElementById('material-vendor-filter');
+    if (matVendorFilter) matVendorFilter.addEventListener('change', renderMaterialsTab);
+    var tbodyMats = document.getElementById('tbody-materials');
+    if (tbodyMats) tbodyMats.addEventListener('click', function (e) {
+      var editBtn = e.target.closest('.btn-edit-material');
+      var delBtn = e.target.closest('.btn-delete-material');
+      if (editBtn) {
+        var mid = editBtn.getAttribute('data-id');
+        var mat = getProcurementMaterials().find(function (m) { return m.id === mid; });
+        if (!mat) return;
+        document.getElementById('material-edit-id').value = mat.id;
+        document.getElementById('material-name').value = mat.name || '';
+        document.getElementById('material-vendor-name').value = mat.vendor || '';
+        document.getElementById('material-unit').value = mat.unit || '';
+        document.getElementById('material-spec').value = mat.spec || '';
+        document.getElementById('material-price').value = mat.price || 0;
+        document.getElementById('material-form-wrap').classList.remove('hidden');
+      }
+      if (delBtn) {
+        if (!confirm('자재를 삭제하시겠습니까?')) return;
+        saveProcurementMaterials(getProcurementMaterials().filter(function (m) { return m.id !== delBtn.getAttribute('data-id'); }));
+        renderMaterialsTab();
+        showToast('삭제됐습니다.');
+      }
+    });
+
+    // ---- 평당자재분석 ----
+    var pyeongModelSel = document.getElementById('pyeong-model-select');
+    if (pyeongModelSel) pyeongModelSel.addEventListener('change', function () {
+      renderPyeongAnalysisResult(pyeongModelSel.value);
+    });
+
+    // ---- 발주서출력 ----
+    var printSiteSel = document.getElementById('print-site-select');
+    if (printSiteSel) printSiteSel.addEventListener('change', renderOrderPrintPreview);
+    var printVendorSel = document.getElementById('print-vendor-select');
+    if (printVendorSel) printVendorSel.addEventListener('change', renderOrderPrintPreview);
+    var btnDoPrint = document.getElementById('btn-do-print');
+    if (btnDoPrint) btnDoPrint.addEventListener('click', function () {
+      var printable = document.getElementById('order-form-printable');
+      if (!printable) { showToast('현장과 업체를 선택하세요.', 'error'); return; }
+      var w = window.open('', '_blank', 'width=800,height=1000');
+      if (!w) return;
+      w.document.write(
+        '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>자재 발주서</title>' +
+        '<style>body{font-family:"맑은 고딕",sans-serif;background:#fff;color:#111;margin:0;padding:24px;max-width:800px;}' +
+        '.order-form-title{text-align:center;font-size:22px;font-weight:bold;margin-bottom:20px;letter-spacing:6px;border-bottom:2px solid #111;padding-bottom:10px;}' +
+        '.order-form-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-bottom:18px;border:1px solid #ccc;padding:12px;}' +
+        '.order-form-meta-row{display:flex;gap:12px;align-items:flex-end;}' +
+        '.order-form-label{font-weight:600;min-width:70px;color:#333;font-size:13px;}' +
+        '.order-form-value{border-bottom:1px solid #888;flex:1;padding-bottom:2px;font-size:14px;}' +
+        'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #999;padding:7px 9px;font-size:13px;}' +
+        'th{background:#f5f5f5;text-align:center;font-weight:600;}' +
+        '.order-form-footer{margin-top:14px;font-size:12px;color:#666;text-align:right;}' +
+        '@media print{body{padding:10px;}}</style>' +
+        '</head><body>' + printable.outerHTML + '</body></html>'
+      );
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 300);
+    });
   }
 
   function renderSettlement() {
