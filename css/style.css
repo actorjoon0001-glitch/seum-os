@@ -4210,11 +4210,8 @@ textarea.form-input {
 }
 .design-detail-design-request-block .design-detail-field > div {
   flex: 1 1 auto;
-  min-width: 0;
   font-size: 0.8125rem;
   color: #E6E6E6;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 .design-request-view-badge {
   display: inline-block;
