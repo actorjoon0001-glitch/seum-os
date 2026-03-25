@@ -9120,6 +9120,36 @@ table tbody tr.active td {
    설계 업무일지 (Design Worklog)
    ===================================================================== */
 .dw-action-bar {
+   시공 업무일지 (Construction Worklog)
+   ===================================================================== */
+.cw-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.cw-summary-card {
+  background: #1e2035;
+  border: 1px solid #2e3150;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  text-align: center;
+}
+.cw-summary-num {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 0.25rem;
+}
+.cw-summary-label {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+.cw-accent-blue .cw-summary-num  { color: #60a5fa; }
+.cw-accent-green .cw-summary-num { color: #34d399; }
+.cw-accent-red .cw-summary-num   { color: #f87171; }
+.cw-accent-orange .cw-summary-num{ color: #fb923c; }
+.cw-action-bar {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -9127,6 +9157,8 @@ table tbody tr.active td {
   flex-wrap: wrap;
 }
 .dw-filter-bar {
+}
+.cw-filter-bar {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -9155,6 +9187,7 @@ table tbody tr.active td {
   margin-bottom: 1.2rem;
 }
 .dw-form-grid {
+.cw-form-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.8rem 1rem;
@@ -9185,6 +9218,36 @@ table tbody tr.active td {
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
 }
 .dw-form-actions {
+.cw-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.cw-form-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d1d5db;
+}
+.cw-form-field input,
+.cw-form-field select,
+.cw-form-field textarea {
+  padding: 0.42rem 0.7rem;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #1e2035;
+  color: #e5e7eb;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.cw-form-field input:focus,
+.cw-form-field select:focus,
+.cw-form-field textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+.cw-form-field-wide { grid-column: 1 / -1; }
+.cw-form-actions {
   display: flex;
   gap: 0.6rem;
   margin-top: 1rem;
@@ -9194,6 +9257,30 @@ table tbody tr.active td {
 .dw-stage-badge {
   display: inline-block;
   padding: 0.2rem 0.55rem;
+.cw-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.cw-photo-count { font-size: 0.78rem; color: #9ca3af; }
+.cw-photo-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.cw-photo-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  cursor: pointer;
+}
+.cw-proc-badge {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -9208,6 +9295,17 @@ table tbody tr.active td {
 .dw-stage-transfer  { background: #fee2e2; color: #b91c1c; }
 /* Transfer badge */
 .dw-transferred-badge {
+.cw-proc-foundation  { background: #fef3c7; color: #92400e; }
+.cw-proc-frame       { background: #dbeafe; color: #1e40af; }
+.cw-proc-insulation  { background: #e0f2fe; color: #0369a1; }
+.cw-proc-exterior    { background: #ede9fe; color: #5b21b6; }
+.cw-proc-window      { background: #fce7f3; color: #9d174d; }
+.cw-proc-electric    { background: #fef9c3; color: #713f12; }
+.cw-proc-plumbing    { background: #ecfdf5; color: #065f46; }
+.cw-proc-interior    { background: #f0fdf4; color: #15803d; }
+.cw-proc-finish      { background: #f3f4f6; color: #374151; }
+.cw-proc-done        { background: #d1fae5; color: #065f46; }
+.cw-issue-badge {
   display: inline-block;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
@@ -9304,4 +9402,88 @@ table tbody tr.active td {
 @media (max-width: 500px) {
   .dw-form-grid { grid-template-columns: 1fr; }
   .dw-schedule-card { flex-direction: column; gap: 0.4rem; }
+  font-weight: 700;
+}
+.cw-delay-badge {
+  display: inline-block;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  background: #fff7ed;
+  color: #c2410c;
+  font-weight: 700;
+  border: 1px solid #fed7aa;
+  margin-left: 0.25rem;
+}
+.cw-progress-cell { min-width: 100px; }
+.cw-progress-wrap {
+  background: #374151;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 0.2rem;
+}
+.cw-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+.cw-prog-low  { background: #f87171; }
+.cw-prog-mid  { background: #fb923c; }
+.cw-prog-done { background: #34d399; }
+.cw-progress-pct { font-size: 0.75rem; color: #9ca3af; }
+.cw-site-cell { font-weight: 600; }
+.cw-photo-count-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cw-photo-count-badge:hover { background: #bfdbfe; }
+.cw-action-cell {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.ceo-db-cw-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.ceo-db-cw-card {
+  background: #1e2035;
+  border: 1px solid #2e3150;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+.ceo-db-cw-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #60a5fa;
+  line-height: 1.1;
+}
+.ceo-db-cw-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.15rem;
+}
+.ceo-db-cw-card-green .ceo-db-cw-num  { color: #34d399; }
+.ceo-db-cw-card-red .ceo-db-cw-num    { color: #f87171; }
+.ceo-db-cw-card-orange .ceo-db-cw-num { color: #fb923c; }
+@media (max-width: 900px) {
+  .cw-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .cw-form-grid { grid-template-columns: 1fr 1fr; }
+  .ceo-db-cw-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .cw-summary-grid { grid-template-columns: 1fr 1fr; }
+  .cw-form-grid { grid-template-columns: 1fr; }
+  .ceo-db-cw-grid { grid-template-columns: 1fr 1fr; }
 }
