@@ -1156,24 +1156,199 @@
     <section id="section-procurement" class="content-section">
       <header class="main-header">
         <h2>발주팀</h2>
-        <p class="section-desc">자재 마스터 관리, 모델 BOM, 현장 발주, 원가 분석을 통합 관리합니다.</p>
+        <p class="section-desc">현장 발주 생성부터 업체별 자재 발주, 기준 수량 관리, 발주서 출력까지 통합 관리합니다.</p>
       </header>
-      <!-- 탭 네비게이션 -->
+
       <div class="procurement-tab-bar">
-        <button type="button" class="procurement-tab-btn active" data-tab="materials">자재관리</button>
-        <button type="button" class="procurement-tab-btn" data-tab="bom">모델BOM</button>
-        <button type="button" class="procurement-tab-btn" data-tab="orders">발주관리</button>
-        <button type="button" class="procurement-tab-btn" data-tab="analysis">원가분석</button>
+        <button type="button" class="procurement-tab-btn active" data-tab="field-order">현장발주</button>
+        <button type="button" class="procurement-tab-btn" data-tab="vendor-order">업체별발주</button>
+        <button type="button" class="procurement-tab-btn" data-tab="std-qty">기준수량관리</button>
+        <button type="button" class="procurement-tab-btn" data-tab="materials">자재관리</button>
+        <button type="button" class="procurement-tab-btn" data-tab="pyeong-analysis">평당자재분석</button>
+        <button type="button" class="procurement-tab-btn" data-tab="print">발주서출력</button>
       </div>
 
-      <!-- 자재관리 탭 -->
-      <div id="procurement-tab-materials" class="procurement-tab-panel active">
+      <!-- ① 현장발주 탭 -->
+      <div id="procurement-tab-field-order" class="procurement-tab-panel active">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>현장 발주 목록</h3>
+            <button type="button" class="btn btn-primary" id="btn-new-field-order">+ 현장 발주 생성</button>
+          </div>
+          <div id="field-order-form-wrap" class="procurement-form-wrap hidden">
+            <h4 style="margin:0 0 1rem;color:#60a5fa;">현장 발주 정보 입력</h4>
+            <form id="form-field-order" class="procurement-form">
+              <input type="hidden" id="field-order-edit-id">
+              <div class="procurement-form-grid">
+                <div class="procurement-form-field">
+                  <label for="fo-site-name">현장명 *</label>
+                  <input type="text" id="fo-site-name" placeholder="현장명" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-model-name">모델명 *</label>
+                  <input type="text" id="fo-model-name" placeholder="예: STAY" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-pyeong">평수 *</label>
+                  <input type="number" id="fo-pyeong" placeholder="24" min="1" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-address">현장주소 *</label>
+                  <input type="text" id="fo-address" placeholder="현장 주소" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-foreman">반장명</label>
+                  <input type="text" id="fo-foreman" placeholder="반장명">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-foreman-phone">반장 연락처</label>
+                  <input type="tel" id="fo-foreman-phone" placeholder="010-0000-0000">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-manager">담당자</label>
+                  <input type="text" id="fo-manager" placeholder="담당자명">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-order-date">발주일</label>
+                  <input type="date" id="fo-order-date">
+                </div>
+              </div>
+              <div class="procurement-form-actions">
+                <button type="submit" class="btn btn-primary">저장 (업체별 발주 자동 생성)</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-field-order">취소</button>
+              </div>
+            </form>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>현장명</th>
+                  <th>모델명</th>
+                  <th>평수</th>
+                  <th>현장주소</th>
+                  <th>반장</th>
+                  <th>연락처</th>
+                  <th>담당자</th>
+                  <th>발주일</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-field-orders"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 업체별발주 탭 -->
+      <div id="procurement-tab-vendor-order" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>업체별 발주</h3>
+            <select id="vendor-site-selector" class="procurement-filter-select" style="min-width:220px;">
+              <option value="">현장 선택</option>
+            </select>
+          </div>
+          <div class="vendor-card-grid" id="vendor-card-grid"></div>
+          <div id="vendor-order-detail" class="hidden">
+            <div class="vendor-order-detail-header">
+              <strong id="vendor-order-vendor-name" style="font-size:1rem;color:#e2e8f0;"></strong>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-close-vendor-detail">닫기</button>
+              <button type="button" class="btn btn-sm btn-primary" id="btn-print-vendor-order">발주서 출력</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>품목</th>
+                    <th>규격</th>
+                    <th>기준수량</th>
+                    <th>실제수량</th>
+                    <th>단위</th>
+                    <th>상태</th>
+                    <th>비고</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-vendor-order-items"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ 기준수량관리 탭 -->
+      <div id="procurement-tab-std-qty" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>모델별 기준 수량</h3>
+            <button type="button" class="btn btn-primary" id="btn-add-std-qty">+ 기준 수량 추가</button>
+          </div>
+          <div id="std-qty-form-wrap" class="procurement-form-wrap hidden">
+            <form id="form-std-qty" class="procurement-form">
+              <input type="hidden" id="std-qty-edit-id">
+              <div class="procurement-form-grid">
+                <div class="procurement-form-field">
+                  <label for="sq-model">모델명 *</label>
+                  <input type="text" id="sq-model" placeholder="예: STAY" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-vendor">업체 *</label>
+                  <select id="sq-vendor" required>
+                    <option value="">업체 선택</option>
+                    <option value="삼원목재">삼원목재</option>
+                    <option value="로자메탈사이딩">로자메탈사이딩</option>
+                    <option value="철물자재">철물자재</option>
+                    <option value="대한전기">대한전기</option>
+                    <option value="장원EPS">장원EPS</option>
+                  </select>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-material">자재명 *</label>
+                  <select id="sq-material" required>
+                    <option value="">자재 선택</option>
+                  </select>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-qty">기준 수량 *</label>
+                  <input type="number" id="sq-qty" placeholder="0" min="0" step="0.01" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-unit">단위</label>
+                  <input type="text" id="sq-unit" placeholder="EA, m², 장 등">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-spec">규격</label>
+                  <input type="text" id="sq-spec" placeholder="규격/사이즈">
+                </div>
+              </div>
+              <div class="procurement-form-actions">
+                <button type="submit" class="btn btn-primary">저장</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-std-qty">취소</button>
+              </div>
+            </form>
+          </div>
+          <div class="procurement-search-bar">
+            <input type="text" id="sq-model-filter" placeholder="모델명 검색" class="contract-search-input" style="max-width:200px;">
+            <select id="sq-vendor-filter" class="procurement-filter-select">
+              <option value="">전체 업체</option>
+              <option value="삼원목재">삼원목재</option>
+              <option value="로자메탈사이딩">로자메탈사이딩</option>
+              <option value="철물자재">철물자재</option>
+              <option value="대한전기">대한전기</option>
+              <option value="장원EPS">장원EPS</option>
+            </select>
+          </div>
+          <div id="std-qty-list"></div>
+        </div>
+      </div>
+
+      <!-- ④ 자재관리 탭 -->
+      <div id="procurement-tab-materials" class="procurement-tab-panel hidden">
         <div class="card">
           <div class="procurement-card-header">
             <h3>자재 마스터</h3>
             <button type="button" class="btn btn-primary" id="btn-add-material">+ 자재 추가</button>
           </div>
-          <!-- 자재 추가/수정 폼 -->
           <div id="material-form-wrap" class="procurement-form-wrap hidden">
             <form id="form-material" class="procurement-form">
               <input type="hidden" id="material-edit-id">
@@ -1183,30 +1358,27 @@
                   <input type="text" id="material-name" placeholder="자재명" required>
                 </div>
                 <div class="procurement-form-field">
-                  <label for="material-unit">단위 *</label>
-                  <input type="text" id="material-unit" placeholder="EA, m², kg 등" required>
-                </div>
-                <div class="procurement-form-field">
-                  <label for="material-price">단가 (원) *</label>
-                  <input type="number" id="material-price" placeholder="0" min="0" required>
-                </div>
-                <div class="procurement-form-field">
-                  <label for="material-vendor">거래처</label>
-                  <input type="text" id="material-vendor" placeholder="거래처명">
-                </div>
-                <div class="procurement-form-field">
-                  <label for="material-category">분류</label>
-                  <select id="material-category">
+                  <label for="material-vendor-name">업체</label>
+                  <select id="material-vendor-name">
                     <option value="">선택</option>
-                    <option value="구조">구조</option>
-                    <option value="외장">외장</option>
-                    <option value="내장">내장</option>
-                    <option value="설비">설비</option>
-                    <option value="전기">전기</option>
-                    <option value="창호">창호</option>
-                    <option value="마감">마감</option>
-                    <option value="기타">기타</option>
+                    <option value="삼원목재">삼원목재</option>
+                    <option value="로자메탈사이딩">로자메탈사이딩</option>
+                    <option value="철물자재">철물자재</option>
+                    <option value="대한전기">대한전기</option>
+                    <option value="장원EPS">장원EPS</option>
                   </select>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-unit">단위</label>
+                  <input type="text" id="material-unit" placeholder="EA, m², 장 등">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-spec">규격</label>
+                  <input type="text" id="material-spec" placeholder="규격/사이즈">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-price">단가 (원)</label>
+                  <input type="number" id="material-price" placeholder="0" min="0">
                 </div>
               </div>
               <div class="procurement-form-actions">
@@ -1215,19 +1387,15 @@
               </div>
             </form>
           </div>
-          <!-- 자재 검색 -->
           <div class="procurement-search-bar">
-            <input type="text" id="material-search" placeholder="자재명, 거래처, 분류 검색" class="contract-search-input">
-            <select id="material-category-filter" class="procurement-filter-select">
-              <option value="">전체 분류</option>
-              <option value="구조">구조</option>
-              <option value="외장">외장</option>
-              <option value="내장">내장</option>
-              <option value="설비">설비</option>
-              <option value="전기">전기</option>
-              <option value="창호">창호</option>
-              <option value="마감">마감</option>
-              <option value="기타">기타</option>
+            <input type="text" id="material-search" placeholder="자재명 검색" class="contract-search-input">
+            <select id="material-vendor-filter" class="procurement-filter-select">
+              <option value="">전체 업체</option>
+              <option value="삼원목재">삼원목재</option>
+              <option value="로자메탈사이딩">로자메탈사이딩</option>
+              <option value="철물자재">철물자재</option>
+              <option value="대한전기">대한전기</option>
+              <option value="장원EPS">장원EPS</option>
             </select>
           </div>
           <div class="table-wrap">
@@ -1235,10 +1403,10 @@
               <thead>
                 <tr>
                   <th>자재명</th>
+                  <th>업체</th>
                   <th>단위</th>
+                  <th>규격</th>
                   <th>단가</th>
-                  <th>거래처</th>
-                  <th>분류</th>
                   <th>작업</th>
                 </tr>
               </thead>
@@ -1248,109 +1416,40 @@
         </div>
       </div>
 
-      <!-- 모델BOM 탭 -->
-      <div id="procurement-tab-bom" class="procurement-tab-panel hidden">
+      <!-- ⑤ 평당자재분석 탭 -->
+      <div id="procurement-tab-pyeong-analysis" class="procurement-tab-panel hidden">
         <div class="card">
           <div class="procurement-card-header">
-            <h3>모델 BOM</h3>
-            <button type="button" class="btn btn-primary" id="btn-add-bom">+ BOM 추가</button>
+            <h3>평당 자재 분석</h3>
+            <select id="pyeong-model-select" class="procurement-filter-select" style="min-width:200px;">
+              <option value="">모델 선택</option>
+            </select>
           </div>
-          <!-- BOM 추가/수정 폼 -->
-          <div id="bom-form-wrap" class="procurement-form-wrap hidden">
-            <form id="form-bom" class="procurement-form">
-              <input type="hidden" id="bom-edit-id">
-              <div class="procurement-form-grid">
-                <div class="procurement-form-field">
-                  <label for="bom-model">모델명 *</label>
-                  <input type="text" id="bom-model" placeholder="모델명" required>
-                </div>
-                <div class="procurement-form-field">
-                  <label for="bom-pyeong">평수 *</label>
-                  <input type="number" id="bom-pyeong" placeholder="0" min="1" required>
-                </div>
-                <div class="procurement-form-field">
-                  <label for="bom-material">자재명 *</label>
-                  <select id="bom-material" required>
-                    <option value="">자재 선택</option>
-                  </select>
-                </div>
-                <div class="procurement-form-field">
-                  <label for="bom-quantity">사용량 *</label>
-                  <input type="number" id="bom-quantity" placeholder="0" min="0" step="0.01" required>
-                </div>
-              </div>
-              <div class="procurement-form-actions">
-                <button type="submit" class="btn btn-primary">저장</button>
-                <button type="button" class="btn btn-secondary" id="btn-cancel-bom">취소</button>
-              </div>
-            </form>
-          </div>
-          <!-- 모델 필터 -->
-          <div class="procurement-search-bar">
-            <input type="text" id="bom-model-filter" placeholder="모델명 검색" class="contract-search-input">
-          </div>
-          <!-- 모델별 BOM 테이블 -->
-          <div id="bom-model-list"></div>
+          <div id="pyeong-analysis-result"></div>
         </div>
       </div>
 
-      <!-- 발주관리 탭 -->
-      <div id="procurement-tab-orders" class="procurement-tab-panel hidden">
+      <!-- ⑥ 발주서출력 탭 -->
+      <div id="procurement-tab-print" class="procurement-tab-panel hidden">
         <div class="card">
           <div class="procurement-card-header">
-            <h3>현장 발주 목록</h3>
+            <h3>발주서 출력</h3>
+            <div style="display:flex;gap:0.7rem;align-items:center;flex-wrap:wrap;">
+              <select id="print-site-select" class="procurement-filter-select" style="min-width:180px;">
+                <option value="">현장 선택</option>
+              </select>
+              <select id="print-vendor-select" class="procurement-filter-select" style="min-width:180px;">
+                <option value="">업체 선택</option>
+                <option value="삼원목재">삼원목재</option>
+                <option value="로자메탈사이딩">로자메탈사이딩</option>
+                <option value="철물자재">철물자재</option>
+                <option value="대한전기">대한전기</option>
+                <option value="장원EPS">장원EPS</option>
+              </select>
+              <button type="button" class="btn btn-primary" id="btn-do-print">🖨 인쇄 / PDF 저장</button>
+            </div>
           </div>
-          <!-- 발주 상태 필터 -->
-          <div class="procurement-search-bar">
-            <input type="text" id="order-search" placeholder="현장명, 건축주, 자재명 검색" class="contract-search-input">
-            <select id="order-status-filter" class="procurement-filter-select">
-              <option value="">전체 상태</option>
-              <option value="발주요청">발주요청</option>
-              <option value="발주완료">발주완료</option>
-              <option value="입고완료">입고완료</option>
-              <option value="현장투입">현장투입</option>
-            </select>
-          </div>
-          <div class="table-wrap">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>현장명</th>
-                  <th>건축주</th>
-                  <th>자재명</th>
-                  <th>단위</th>
-                  <th>기준 수량</th>
-                  <th>실제 수량</th>
-                  <th>단가</th>
-                  <th>금액</th>
-                  <th>상태</th>
-                  <th>작업</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-orders"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- 원가분석 탭 -->
-      <div id="procurement-tab-analysis" class="procurement-tab-panel hidden">
-        <div class="card">
-          <h3>모델별 평당 자재 원가</h3>
-          <div id="analysis-model-cost"></div>
-        </div>
-        <div class="card" style="margin-top:1.2rem;">
-          <h3>자재 단가 변동 이력</h3>
-          <div class="procurement-search-bar">
-            <select id="analysis-material-select" class="procurement-filter-select" style="min-width:200px;">
-              <option value="">자재 선택</option>
-            </select>
-          </div>
-          <div id="analysis-price-history"></div>
-        </div>
-        <div class="card" style="margin-top:1.2rem;">
-          <h3>기준 사용량 vs 실제 사용량</h3>
-          <div id="analysis-usage-compare"></div>
+          <div id="order-print-preview" class="order-print-preview"></div>
         </div>
       </div>
     </section>
