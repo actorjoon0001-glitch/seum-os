@@ -641,11 +641,13 @@
 
   function parseDrawingUrls(value) {
     if (!value) return [];
-    return String(value).split(/\r?\n/).map(function (s) { return s.trim(); }).filter(function (s) { return !!s; });
+    // '|' 구분자 우선, '\n' 구분자는 이전 데이터 하위 호환
+    var sep = String(value).indexOf('|') !== -1 ? '|' : '\n';
+    return String(value).split(sep === '\n' ? /\r?\n/ : /\|/).map(function (s) { return s.trim(); }).filter(function (s) { return !!s; });
   }
 
   function serializeDrawingUrls(urls) {
-    return urls.join('\n');
+    return urls.join('|');
   }
 
   function fileNameFromUrl(url) {
