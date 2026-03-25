@@ -25,6 +25,7 @@
   var STORAGE_CUSTOMERS = 'seum_customers';
   var STORAGE_CEO_REPORTS = 'seum_ceo_reports';
   var STORAGE_DESIGN_WORKLOG = 'seum_design_worklog';
+  var STORAGE_CONSTRUCTION_WORKLOG = 'seum_construction_worklog';
   var STORAGE_PROCUREMENT_MATERIALS = 'seum_procurement_materials';
   var STORAGE_PROCUREMENT_SITES = 'seum_procurement_sites';
   var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
@@ -238,6 +239,11 @@
     // ??? ???: ???, ???, ????? ??? + ????? ????(????? isSalesReadonly??? ?? ???)
     if (sectionId === 'construction') {
       return isConstruction || isDesign || isMarketing || isSettlement || isSales;
+    }
+
+    // 시공 업무일지: 시공팀 + 관리자만 접근
+    if (sectionId === 'construction-worklog') {
+      return isConstruction;
     }
 
     // 발주팀: 시공팀 + 관리자만 접근
@@ -4477,6 +4483,284 @@
     saveContracts(contracts);
   }
 
+  // =====================================================================
+  // 시공 업무일지
+  // =====================================================================
+  var CW_PROCESSES = ['기초', '골조', '단열', '외장', '창호', '전기', '설비', '내장', '마감', '완료'];
+  var CW_PROCESS_COLOR = {
+    '기초': 'cw-proc-foundation',
+    '골조': 'cw-proc-frame',
+    '단열': 'cw-proc-insulation',
+    '외장': 'cw-proc-exterior',
+    '창호': 'cw-proc-window',
+    '전기': 'cw-proc-electric',
+    '설비': 'cw-proc-plumbing',
+    '내장': 'cw-proc-interior',
+    '마감': 'cw-proc-finish',
+    '완료': 'cw-proc-done'
+  };
+
+  function getConstructionWorklog() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_CONSTRUCTION_WORKLOG) || '[]'); } catch (e) { return []; }
+  }
+  function saveConstructionWorklog(list) {
+    localStorage.setItem(STORAGE_CONSTRUCTION_WORKLOG, JSON.stringify(list));
+  }
+
+  function cwProgressBar(pct) {
+    var p = Math.min(100, Math.max(0, Number(pct) || 0));
+    var cls = p >= 100 ? 'cw-prog-done' : p >= 60 ? 'cw-prog-mid' : 'cw-prog-low';
+    return '<div class="cw-progress-wrap"><div class="cw-progress-bar ' + cls + '" style="width:' + p + '%"></div></div>' +
+           '<span class="cw-progress-pct">' + p + '%</span>';
+  }
+
+  function renderConstructionWorklog() {
+    var logs = getConstructionWorklog();
+    var keyword = ((document.getElementById('cw-search') || {}).value || '').toLowerCase();
+    var processFilter = (document.getElementById('cw-process-filter') || {}).value || '';
+    var issueFilter = (document.getElementById('cw-issue-filter') || {}).value || '';
+
+    if (keyword) {
+      logs = logs.filter(function (l) {
+        return (l.siteName || '').toLowerCase().indexOf(keyword) !== -1;
+      });
+    }
+    if (processFilter) {
+      logs = logs.filter(function (l) { return l.process === processFilter; });
+    }
+    if (issueFilter === 'issues') {
+      logs = logs.filter(function (l) { return l.issues && l.issues.trim(); });
+    }
+
+    // 날짜 내림차순
+    logs = logs.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+    // 요약 카드 업데이트
+    var allLogs = getConstructionWorklog();
+    var today10 = new Date().toISOString().slice(0, 10);
+    var sites = {};
+    allLogs.forEach(function (l) {
+      if (!l.siteName) return;
+      if (!sites[l.siteName] || l.date > sites[l.siteName].date) sites[l.siteName] = l;
+    });
+    var siteArr = Object.values ? Object.values(sites) : Object.keys(sites).map(function(k){ return sites[k]; });
+    var activeCount = siteArr.filter(function (l) { return l.process !== '완료'; }).length;
+    var doneCount = siteArr.filter(function (l) { return l.process === '완료'; }).length;
+    var issueCount = siteArr.filter(function (l) { return l.issues && l.issues.trim(); }).length;
+    var todayCount = allLogs.filter(function (l) { return l.date === today10; }).length;
+    var elA = document.getElementById('cw-count-active'); if (elA) elA.textContent = activeCount;
+    var elD = document.getElementById('cw-count-done'); if (elD) elD.textContent = doneCount;
+    var elI = document.getElementById('cw-count-issues'); if (elI) elI.textContent = issueCount;
+    var elT = document.getElementById('cw-count-today'); if (elT) elT.textContent = todayCount;
+
+    var tbody = document.getElementById('tbody-cw');
+    if (!tbody) return;
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:2rem;">등록된 업무일지가 없습니다.</td></tr>';
+      var fr = document.getElementById('cw-filter-result'); if (fr) fr.textContent = '0건';
+      return;
+    }
+
+    tbody.innerHTML = logs.map(function (l) {
+      var procClass = CW_PROCESS_COLOR[l.process] || '';
+      var procBadge = '<span class="cw-proc-badge ' + procClass + '">' + escapeHtml(l.process || '-') + '</span>';
+      var issueBadge = (l.issues && l.issues.trim())
+        ? '<span class="cw-issue-badge">문제</span>'
+        : '<span style="color:#9ca3af;">-</span>';
+      var photoHtml = (l.photos && l.photos.length)
+        ? '<span class="cw-photo-count-badge" data-id="' + escapeAttr(l.id) + '">' + l.photos.length + '장</span>'
+        : '-';
+      return '<tr>' +
+        '<td>' + (l.date || '-') + '</td>' +
+        '<td class="cw-site-cell">' + escapeHtml(l.siteName || '-') +
+          (l.delayed ? ' <span class="cw-delay-badge">지연</span>' : '') + '</td>' +
+        '<td>' + escapeHtml(l.address || '-') + '</td>' +
+        '<td>' + procBadge + '</td>' +
+        '<td class="cw-progress-cell">' + cwProgressBar(l.progress) + '</td>' +
+        '<td style="text-align:center;">' + (l.crew || '-') + '명</td>' +
+        '<td>' + issueBadge + '</td>' +
+        '<td>' + photoHtml + '</td>' +
+        '<td class="cw-action-cell">' +
+          '<button type="button" class="btn btn-sm btn-secondary cw-edit-btn" data-id="' + escapeAttr(l.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm cw-delete-btn" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" data-id="' + escapeAttr(l.id) + '">삭제</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    var filterResult = document.getElementById('cw-filter-result');
+    if (filterResult) filterResult.textContent = logs.length + '건';
+  }
+
+  var constructionWorklogInitialized = false;
+  function initConstructionWorklogEvents() {
+    if (constructionWorklogInitialized) return;
+    constructionWorklogInitialized = true;
+
+    var addBtn = document.getElementById('btn-add-cw');
+    var formWrap = document.getElementById('cw-form-wrap');
+    var cancelBtn = document.getElementById('btn-cancel-cw');
+    var formTitle = document.getElementById('cw-form-title');
+    var form = document.getElementById('form-cw');
+    var editId = document.getElementById('cw-edit-id');
+
+    function openForm(title) {
+      if (formTitle) formTitle.textContent = title;
+      if (formWrap) formWrap.classList.remove('hidden');
+      var dateEl = document.getElementById('cw-date');
+      if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+    }
+    function closeForm() {
+      if (formWrap) formWrap.classList.add('hidden');
+      if (form) form.reset();
+      if (editId) editId.value = '';
+      var preview = document.getElementById('cw-photo-preview');
+      if (preview) preview.innerHTML = '';
+      var photosData = document.getElementById('cw-photos-data');
+      if (photosData) photosData.value = '';
+      var photoCount = document.getElementById('cw-photo-count');
+      if (photoCount) photoCount.textContent = '';
+    }
+
+    if (addBtn) addBtn.addEventListener('click', function () { openForm('업무 등록'); });
+    if (cancelBtn) cancelBtn.addEventListener('click', closeForm);
+
+    // 사진 업로드 미리보기
+    var photoInput = document.getElementById('cw-photos');
+    if (photoInput) {
+      photoInput.addEventListener('change', function () {
+        var files = Array.prototype.slice.call(this.files || []);
+        if (!files.length) return;
+        var preview = document.getElementById('cw-photo-preview');
+        var photosData = document.getElementById('cw-photos-data');
+        var photoCount = document.getElementById('cw-photo-count');
+        var existing = [];
+        try { existing = JSON.parse((photosData && photosData.value) || '[]'); } catch (e) { existing = []; }
+        var pending = files.length;
+        files.forEach(function (f) {
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            existing.push({ name: f.name, data: ev.target.result });
+            pending--;
+            if (pending === 0) {
+              if (photosData) photosData.value = JSON.stringify(existing);
+              if (photoCount) photoCount.textContent = existing.length + '장 선택됨';
+              if (preview) {
+                preview.innerHTML = existing.map(function (p) {
+                  return '<img src="' + p.data + '" class="cw-photo-thumb" title="' + escapeAttr(p.name) + '" alt="' + escapeAttr(p.name) + '">';
+                }).join('');
+              }
+            }
+          };
+          reader.readAsDataURL(f);
+        });
+        this.value = '';
+      });
+    }
+
+    // 폼 저장
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var logs = getConstructionWorklog();
+        var id = (editId && editId.value) || '';
+        var photos = [];
+        try { photos = JSON.parse((document.getElementById('cw-photos-data') || {}).value || '[]'); } catch (ex) { photos = []; }
+        var entry = {
+          id: id || id(),
+          date: (document.getElementById('cw-date') || {}).value || '',
+          siteName: (document.getElementById('cw-site-name') || {}).value || '',
+          address: (document.getElementById('cw-address') || {}).value || '',
+          process: (document.getElementById('cw-process') || {}).value || '',
+          progress: (document.getElementById('cw-progress') || {}).value || '',
+          crew: (document.getElementById('cw-crew') || {}).value || '',
+          content: (document.getElementById('cw-content') || {}).value || '',
+          special: (document.getElementById('cw-special') || {}).value || '',
+          issues: (document.getElementById('cw-issues') || {}).value || '',
+          tomorrow: (document.getElementById('cw-tomorrow') || {}).value || '',
+          photos: photos,
+          delayed: false
+        };
+        if (id) {
+          var idx = logs.findIndex ? logs.findIndex(function (l) { return l.id === id; }) : -1;
+          if (idx === -1) { for (var i = 0; i < logs.length; i++) { if (logs[i].id === id) { idx = i; break; } } }
+          if (idx !== -1) {
+            entry.photos = entry.photos.length ? entry.photos : (logs[idx].photos || []);
+            logs[idx] = entry;
+          }
+        } else {
+          logs.push(entry);
+        }
+        saveConstructionWorklog(logs);
+        closeForm();
+        renderConstructionWorklog();
+        showToast(id ? '업무일지를 수정했습니다.' : '업무일지를 등록했습니다.', 'success');
+      });
+    }
+
+    // 검색 / 필터
+    var searchEl = document.getElementById('cw-search');
+    var procFilter = document.getElementById('cw-process-filter');
+    var issueFilter = document.getElementById('cw-issue-filter');
+    if (searchEl) searchEl.addEventListener('input', renderConstructionWorklog);
+    if (procFilter) procFilter.addEventListener('change', renderConstructionWorklog);
+    if (issueFilter) issueFilter.addEventListener('change', renderConstructionWorklog);
+
+    // 테이블 위임 (수정/삭제/사진보기)
+    var tbody = document.getElementById('tbody-cw');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('[data-id]') : null;
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        var logs = getConstructionWorklog();
+        var log = null;
+        for (var i = 0; i < logs.length; i++) { if (logs[i].id === id) { log = logs[i]; break; } }
+        if (!log) return;
+
+        if (btn.classList.contains('cw-edit-btn')) {
+          openForm('업무 수정');
+          document.getElementById('cw-edit-id').value = id;
+          document.getElementById('cw-date').value = log.date || '';
+          document.getElementById('cw-site-name').value = log.siteName || '';
+          document.getElementById('cw-address').value = log.address || '';
+          document.getElementById('cw-process').value = log.process || '';
+          document.getElementById('cw-progress').value = log.progress || '';
+          document.getElementById('cw-crew').value = log.crew || '';
+          document.getElementById('cw-content').value = log.content || '';
+          document.getElementById('cw-special').value = log.special || '';
+          document.getElementById('cw-issues').value = log.issues || '';
+          document.getElementById('cw-tomorrow').value = log.tomorrow || '';
+          var photosData = document.getElementById('cw-photos-data');
+          var photos = log.photos || [];
+          if (photosData) photosData.value = JSON.stringify(photos);
+          var photoCount = document.getElementById('cw-photo-count');
+          if (photoCount) photoCount.textContent = photos.length ? photos.length + '장 첨부됨' : '';
+          var preview = document.getElementById('cw-photo-preview');
+          if (preview) {
+            preview.innerHTML = photos.map(function (p) {
+              return '<img src="' + (p.data || '') + '" class="cw-photo-thumb" title="' + escapeAttr(p.name || '') + '" alt="' + escapeAttr(p.name || '') + '">';
+            }).join('');
+          }
+          formWrap.scrollIntoView({ behavior: 'smooth' });
+        } else if (btn.classList.contains('cw-delete-btn') || btn.getAttribute('class') && btn.getAttribute('class').indexOf('cw-delete') !== -1) {
+          if (!window.confirm('"' + escapeHtml(log.siteName) + '" 업무일지를 삭제하시겠습니까?')) return;
+          var newLogs = logs.filter(function (l) { return l.id !== id; });
+          saveConstructionWorklog(newLogs);
+          renderConstructionWorklog();
+          showToast('삭제했습니다.', 'info');
+        } else if (btn.classList.contains('cw-photo-count-badge')) {
+          var photos2 = log.photos || [];
+          if (!photos2.length) return;
+          var html = photos2.map(function (p) {
+            return '<div style="margin-bottom:0.5rem;"><img src="' + (p.data || '') + '" style="max-width:100%;border-radius:6px;" alt="' + escapeAttr(p.name || '') + '"><div style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">' + escapeHtml(p.name || '') + '</div></div>';
+          }).join('');
+          var win = window.open('', '_blank', 'width=600,height=800,scrollbars=yes');
+          if (win) { win.document.write('<body style="background:#1a1a2e;padding:1rem;">' + html + '</body>'); win.document.close(); }
+        }
+      });
+    }
+  }
+
   function renderConstruction() {
     var contracts = getContracts().filter(function (c) {
       return !!c.constructionStartOk;
@@ -5480,6 +5764,43 @@
       return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
     });
 
+    // 오늘 시공 보고 (업무일지)
+    var cwLogs = getConstructionWorklog();
+    var cwToday10 = today.toISOString().slice(0, 10);
+    var cwSites = {};
+    cwLogs.forEach(function (l) {
+      if (!l.siteName) return;
+      if (!cwSites[l.siteName] || l.date > cwSites[l.siteName].date) cwSites[l.siteName] = l;
+    });
+    var cwSiteArr = Object.keys(cwSites).map(function (k) { return cwSites[k]; });
+    var cwActiveCount = cwSiteArr.filter(function (l) { return l.process !== '완료'; }).length;
+    var cwDoneCount = cwSiteArr.filter(function (l) { return l.process === '완료'; }).length;
+    var cwIssueCount = cwSiteArr.filter(function (l) { return l.issues && l.issues.trim(); }).length;
+    var cwTodayCount = cwLogs.filter(function (l) { return l.date === cwToday10; }).length;
+    var elCwA = document.getElementById('ceo-db-cw-active'); if (elCwA) elCwA.textContent = cwActiveCount;
+    var elCwD = document.getElementById('ceo-db-cw-done'); if (elCwD) elCwD.textContent = cwDoneCount;
+    var elCwI = document.getElementById('ceo-db-cw-issues'); if (elCwI) elCwI.textContent = cwIssueCount;
+    var elCwT = document.getElementById('ceo-db-cw-today'); if (elCwT) elCwT.textContent = cwTodayCount;
+
+    var cwTodayLogs = cwLogs.filter(function (l) { return l.date === cwToday10; });
+    var cwTbody = document.getElementById('ceo-db-cw-today-tbody');
+    if (cwTbody) {
+      if (!cwTodayLogs.length) {
+        cwTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem;">오늘 보고된 현장이 없습니다.</td></tr>';
+      } else {
+        cwTbody.innerHTML = cwTodayLogs.map(function (l) {
+          var pct = Math.min(100, Math.max(0, Number(l.progress) || 0));
+          return '<tr>' +
+            '<td>' + escapeHtml(l.siteName || '-') + '</td>' +
+            '<td>' + escapeHtml(l.process || '-') + '</td>' +
+            '<td>' + pct + '%</td>' +
+            '<td>' + (l.crew || '-') + '명</td>' +
+            '<td>' + (l.issues && l.issues.trim() ? '<span style="color:#ef4444;font-weight:600;">⚠ ' + escapeHtml(l.issues.slice(0, 30)) + '</span>' : '-') + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+    }
+
     // 더미 데이터: 실 데이터가 없을 때 예시 표시
     if (!allContracts.length) {
       if (elTotal) elTotal.textContent = '8.40억';
@@ -6271,7 +6592,8 @@
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
-      sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule') &&
+      sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
+      sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
       return;
@@ -6298,6 +6620,7 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
     if (sectionId === 'ceo-weekly') renderCeoReport('weekly');
@@ -6332,7 +6655,7 @@
         if (desBtn) desBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'construction' || sectionId === 'procurement') {
+    if (sectionId === 'construction' || sectionId === 'procurement' || sectionId === 'construction-worklog') {
       var conSub = document.getElementById('nav-construction-sub');
       var conGroup = document.getElementById('sidebar-group-construction');
       if (conSub && conGroup) {
@@ -9564,6 +9887,8 @@
     }
     renderDesign();
     renderDesignWorklog();
+    renderConstructionWorklog();
+    initConstructionWorklogEvents();
     renderConstruction();
     renderProcurement();
     renderSettlement();
