@@ -1080,19 +1080,23 @@
     var monthContracts = (getFilterYear() || getFilterMonth())
       ? contracts
       : contracts.filter(function (c) { return c.contractDate && c.contractDate.slice(0, 7) === thisMonth(); });
+    function toManwon(c, field) {
+      var v = Number(c[field]) || 0;
+      return c.amountUnit === 'manwon' ? v : Math.round(v / 10000);
+    }
     var totalAmount = monthContracts.reduce(function (sum, c) {
-      return sum + (Number(c.totalAmount) || 0);
+      return sum + toManwon(c, 'totalAmount');
     }, 0);
     var totalDeposit = contracts.reduce(function (sum, c) {
-      return sum + (Number(c.depositAmount) || 0);
+      return sum + toManwon(c, 'depositAmount');
     }, 0);
 
     var elCount = document.getElementById('kpi-contract-count');
     var elAmount = document.getElementById('kpi-total-amount');
     var elDeposit = document.getElementById('kpi-deposit-received');
     if (elCount) elCount.textContent = monthContracts.length;
-    if (elAmount) elAmount.textContent = (totalAmount / 10000).toFixed(1);
-    if (elDeposit) elDeposit.textContent = (totalDeposit / 10000).toFixed(1);
+    if (elAmount) elAmount.textContent = totalAmount.toLocaleString();
+    if (elDeposit) elDeposit.textContent = totalDeposit.toLocaleString();
     renderDashboardCharts();
 
     var leadsWaiting = visits.filter(function (v) { return v.status !== '영업배정'; }).length;
