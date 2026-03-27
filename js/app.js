@@ -551,27 +551,21 @@
 
   function migrateContractAmounts(contracts) {
     var FIELDS = ['totalAmount', 'supplyAmount', 'vatAmount', 'depositAmount', 'progress1Amount', 'progress2Amount', 'progress3Amount', 'balanceAmount'];
-    var THRESHOLD = 10000000;      // 1천만원 미만 → 아직 만원 단위 구 데이터
-    var MAX_REASONABLE = 1000000000; // 10억 초과 → 이중 변환된 오류 데이터
+    // 10억 초과는 이중 변환 오류 → ÷10,000 (반복 실행해도 안전한 멱등 방식)
+    var MAX_REASONABLE = 1000000000;
     var changed = false;
     contracts.forEach(function (c) {
-      if (c._amountMigrated) return; // 이미 처리된 계약은 건너뜀
       FIELDS.forEach(function (field) {
         var v = c[field];
         if (v == null || v === '' || isNaN(Number(v)) || Number(v) <= 0) return;
         var n = Number(v);
-        if (n > MAX_REASONABLE) {
-          // 이중 변환 복구: 10억 초과 → ÷10,000
-          c[field] = String(Math.round(n / 10000));
-          changed = true;
-        } else if (n < THRESHOLD) {
-          // 만원→원 변환: 1천만원 미만 → ×10,000
-          c[field] = String(Math.round(n * 10000));
+        // 10억 초과는 계속 ÷10,000 해서 10억 이하가 될 때까지 반복
+        while (n > MAX_REASONABLE) {
+          n = Math.round(n / 10000);
+          c[field] = String(n);
           changed = true;
         }
       });
-      c._amountMigrated = true;
-      changed = true;
     });
     if (changed) {
       localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts));
