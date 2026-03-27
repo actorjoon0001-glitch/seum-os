@@ -4221,8 +4221,9 @@
         if (stepsWrap) stepsWrap.classList.toggle('hidden', !e.target.checked);
       }
       if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
-        var form = e.target.closest('form');
-        var wrap = form && form.querySelector('.design-inline-house-wrap');
+        var container = e.target.closest('form') || e.target.closest('.design-detail-inner') || e.target.closest('.design-detail-row');
+        var wrap = container ? container.querySelector('.design-inline-house-wrap') : null;
+        if (!wrap) wrap = document.querySelector('.design-inline-house-wrap');
         if (wrap) wrap.classList.toggle('hidden', e.target.value !== '전원주택');
       }
       if (e.target.classList.contains('design-inline-drawing-file') ||
