@@ -3646,9 +3646,18 @@
       '<div class="design-detail-field"><label>옵션 요약</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
       buildDesignRequestViewHtml(c) +
       '</div></div>';
+    var extraLinks = '';
+    if (Array.isArray(c.extraAttachments) && c.extraAttachments.length > 0) {
+      extraLinks = c.extraAttachments.map(function (f) {
+        var name = (f.name || (f.url || '').split('/').pop().replace(/^\d+_/, '') || '파일');
+        return '<div style="margin-bottom:2px"><a href="' + escapeAttr(f.url || '') + '" target="_blank" rel="noopener">' + escapeAttr(name) + '</a></div>';
+      }).join('');
+    }
     var cardSalesContract = '<div class="design-detail-card design-detail-sales-contract-view">' +
       '<h4 class="design-detail-card-title">영업팀 계약서 (읽기)</h4>' +
-      '<div class="design-detail-card-body"><p class="design-detail-view-only">' + linkOrText(c.contractAttachment) + '</p></div></div>';
+      '<div class="design-detail-card-body"><p class="design-detail-view-only">' + linkOrText(c.contractAttachment) + '</p>' +
+      (extraLinks ? '<p class="design-detail-view-only" style="margin-top:6px"><span style="font-size:11px;color:#9ca3af;display:block;margin-bottom:4px">추가 자료</span>' + extraLinks + '</p>' : '') +
+      '</div></div>';
     var d1DesignMemo = c.designDrawing1DesignMemo || '';
     var d1SalesMemo = c.designDrawing1SalesMemo || '';
     var d1Final = !!c.designDrawing1Final;
