@@ -2104,7 +2104,8 @@
       var name = c.salesPerson || '-';
       if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
       byPerson[name].count += 1;
-      byPerson[name].amount += Number(c.totalAmount) || 0;
+      var amt = Number(c.totalAmount) || 0;
+      byPerson[name].amount += c.amountUnit === 'manwon' ? amt : Math.round(amt / 10000);
     });
     var list = Object.keys(byPerson).map(function (name) {
       var row = byPerson[name];
@@ -2144,7 +2145,8 @@
       var name = c.salesPerson || '-';
       if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
       byPerson[name].count += 1;
-      byPerson[name].amount += Number(c.totalAmount) || 0;
+      var amt = Number(c.totalAmount) || 0;
+      byPerson[name].amount += c.amountUnit === 'manwon' ? amt : Math.round(amt / 10000);
     });
     var list = Object.keys(byPerson).map(function (name) {
       var row = byPerson[name];
@@ -2198,7 +2200,7 @@
         '<div class="sales-performance-first-body">' +
           '<span class="sales-performance-name">' + escapeHtml(first.name || '-') + '</span>' +
           '<span class="sales-performance-count">' + first.count + '건</span>' +
-          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '원</span>' +
+          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '만원</span>' +
           '<span class="sales-performance-showroom">' + escapeHtml(first.showroomName || '-') + '</span>' +
         '</div></div>';
       var subList = top3.slice(1).map(function (row) {
@@ -2206,7 +2208,7 @@
         return '<li class="sales-performance-sub-item">' +
           '<span class="sales-performance-sub-medal" aria-hidden="true">' + icon + '</span>' +
           '<span class="sales-performance-sub-name">' + escapeHtml(row.name || '-') + '</span>' +
-          '<span class="sales-performance-sub-stats">' + row.count + '건 | ' + formatMoney(row.amount) + '원</span>' +
+          '<span class="sales-performance-sub-stats">' + row.count + '건 | ' + formatMoney(row.amount) + '만원</span>' +
           '</li>';
       }).join('');
       overallEl.innerHTML = firstHtml + '<ul class="sales-performance-sub-list">' + subList + '</ul>';
@@ -2224,7 +2226,7 @@
         '<span class="sales-performance-showroom-label">' + escapeHtml(item.showroomName) + '</span>' +
         '<span class="sales-performance-showroom-name">' + escapeHtml(t.name) + '</span>' +
         '<span class="sales-performance-showroom-count">' + t.count + '건</span>' +
-        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '원</span>' +
+        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '만원</span>' +
         '</div>';
     }).join('');
   }
