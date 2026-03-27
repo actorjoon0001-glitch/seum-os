@@ -9992,6 +9992,18 @@
     updateConstructionRestrictedNavVisibility();
     updateSalesRestrictedNavVisibility();
     initCeoReports();
+
+    // 섹션 인쇄 버튼
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.btn-section-print');
+      if (!btn) return;
+      var sectionId = btn.getAttribute('data-print-section');
+      var section = sectionId && document.getElementById(sectionId);
+      if (!section) return;
+      section.classList.add('print-target');
+      window.print();
+      section.classList.remove('print-target');
+    });
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
       updateAdminNavVisibility();
