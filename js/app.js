@@ -3026,8 +3026,9 @@
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroomId = resolveShowroomId(cur);
-      // ????? ?????? ??? ?????????? ??????????? ???????
-      if (team === '영업' && myShowroomId) {
+      // 영업팀(비관리자)은 소속 전시장만 노출
+      var _isAdminHere = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      if (team === '영업' && myShowroomId && !_isAdminHere) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
         contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
       }
