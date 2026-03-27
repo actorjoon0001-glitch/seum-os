@@ -3616,11 +3616,10 @@
     if (!c) return '';
     var statusMap = { none: '미착수', in_progress: '설계 중', done: '완료' };
     var statusLabel = statusMap[c.designStatus || 'none'] || '-';
-    // 영업팀 주택유형 → 설계팀 유형 자동 매핑 (projectType이 없을 때만)
-    var contractModelMap = { '체류형쉼터': '체류형쉼터', '컨테이너/농막': '체류형쉼터', '전원주택': '주택', '기타': '' };
-    var effectiveProjectType = c.projectType || (c.contractModel ? (contractModelMap[c.contractModel] !== undefined ? contractModelMap[c.contractModel] : '') : '');
+    // 영업팀 contractModel을 항상 기준으로 사용 (기존 projectType 무시)
+    var effectiveProjectType = c.contractModel || '';
     var projectType = effectiveProjectType || '-';
-    var houseWrapHidden = effectiveProjectType !== '주택' ? ' hidden' : '';
+    var houseWrapHidden = effectiveProjectType !== '전원주택' ? ' hidden' : '';
     var summaryBar = '<div class="design-detail-summary-bar">' +
       '<span class="design-detail-summary-item"><strong>고객명</strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
       '<span class="design-detail-summary-item"><strong>유형</strong> ' + escapeAttr(projectType) + '</span>' +
@@ -3675,7 +3674,7 @@
     var cardDrawing = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">도면 관리</h4>' +
       '<div class="design-detail-card-body">' +
-      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="체류형쉼터"' + (effectiveProjectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="주택"' + (effectiveProjectType === '주택' ? ' selected' : '') + '>주택</option></select></label>' +
+      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="컨테이너/농막"' + (effectiveProjectType === '컨테이너/농막' ? ' selected' : '') + '>컨테이너/농막</option><option value="체류형쉼터"' + (effectiveProjectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="전원주택"' + (effectiveProjectType === '전원주택' ? ' selected' : '') + '>전원주택</option><option value="기타"' + (effectiveProjectType === '기타' ? ' selected' : '') + '>기타</option></select></label>' +
       '<div class="design-discussion-card">' +
       '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 1차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
       '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
@@ -4156,7 +4155,7 @@
       if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
         var form = e.target.closest('form');
         var wrap = form && form.querySelector('.design-inline-house-wrap');
-        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '주택');
+        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '전원주택');
       }
       if (e.target.classList.contains('design-inline-drawing-file') ||
         e.target.classList.contains('design-inline-drawing-file-2') ||
@@ -6397,7 +6396,7 @@
       document.getElementById('design-construction-drawing-list')
     );
     var houseFields = document.getElementById('design-house-fields');
-    if (houseFields) houseFields.classList.toggle('hidden', (c.projectType || '') !== '주택');
+    if (houseFields) houseFields.classList.toggle('hidden', (c.contractModel || '') !== '전원주택');
     document.getElementById('modal-design-permit').classList.remove('hidden');
   }
 
@@ -6412,7 +6411,7 @@
     });
     if (projectTypeEl && houseFields) {
       projectTypeEl.addEventListener('change', function () {
-        houseFields.classList.toggle('hidden', projectTypeEl.value !== '주택');
+        houseFields.classList.toggle('hidden', projectTypeEl.value !== '전원주택');
       });
     }
     if (form) {
@@ -7602,7 +7601,7 @@
         ['설계 도면 URL', linkOrText(c.designDrawingAttachment)],
         ['시공 도면 URL', linkOrText(c.constructionDrawingAttachment)]
       ];
-      if ((c.projectType || '') === '주택') {
+      if ((c.contractModel || '') === '전원주택') {
         rows.push(['건축사 정보', c.architectInfo || '-']);
         rows.push(['담당자 이름', c.designContactName || '-']);
         rows.push(['담당자 연락처', c.designContactPhone || '-']);
