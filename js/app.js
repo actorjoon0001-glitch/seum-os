@@ -9993,16 +9993,74 @@
     updateSalesRestrictedNavVisibility();
     initCeoReports();
 
-    // 섹션 인쇄 버튼
+    // 섹션 인쇄 버튼 (새 창 방식)
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('.btn-section-print');
       if (!btn) return;
       var sectionId = btn.getAttribute('data-print-section');
       var section = sectionId && document.getElementById(sectionId);
       if (!section) return;
-      section.classList.add('print-target');
-      window.print();
-      section.classList.remove('print-target');
+      // 입력값 동기화 후 클론
+      var clone = section.cloneNode(true);
+      var origInputs = section.querySelectorAll('input, textarea, select');
+      var cloneInputs = clone.querySelectorAll('input, textarea, select');
+      origInputs.forEach(function (orig, i) {
+        var cl = cloneInputs[i];
+        if (!cl) return;
+        if (orig.type === 'checkbox' || orig.type === 'radio') {
+          if (orig.checked) cl.setAttribute('checked', ''); else cl.removeAttribute('checked');
+        } else {
+          cl.setAttribute('value', orig.value);
+          if (cl.tagName === 'TEXTAREA') cl.textContent = orig.value;
+          if (cl.tagName === 'SELECT') {
+            Array.from(cl.options).forEach(function (opt, oi) {
+              if (orig.options[oi] && orig.options[oi].selected) opt.setAttribute('selected', ''); else opt.removeAttribute('selected');
+            });
+          }
+        }
+      });
+      // 인쇄 불필요 요소 제거
+      clone.querySelectorAll('.no-print, .btn-section-print, .btn-section-print').forEach(function (el) { el.remove(); });
+      var w = window.open('', '_blank', 'width=820,height=1100');
+      if (!w) return;
+      w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>인쇄</title><style>' +
+        '@page{size:A4 portrait;margin:15mm}' +
+        'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:13px;line-height:1.5}' +
+        'h2{font-size:1.4rem;margin:0 0 2mm}h3{font-size:1.1rem;margin:2mm 0}h4{font-size:1rem;margin:2mm 0}' +
+        'p{margin:0 0 2mm;color:#555}' +
+        'button,input[type=button],input[type=submit],.btn{display:none!important}' +
+        '.card{border:1px solid #ccc;border-radius:4px;padding:4mm;margin-bottom:5mm;break-inside:avoid}' +
+        '.ceo-db-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:5mm}' +
+        '.ceo-db-kpi-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
+        '.ceo-db-kpi-label{font-size:0.75rem;color:#555;margin-bottom:1mm}' +
+        '.ceo-db-kpi-value{font-size:1.5rem;font-weight:700;margin-bottom:1mm}' +
+        '.ceo-db-kpi-sub{font-size:0.72rem;color:#777}' +
+        '.ceo-db-section-title{font-weight:700;font-size:1rem;margin:4mm 0 2mm;border-left:3px solid #333;padding-left:2mm}' +
+        '.ceo-db-progress-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:5mm}' +
+        '.ceo-db-progress-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
+        '.ceo-db-prog-num{font-size:1.5rem;font-weight:700}.ceo-db-prog-label{font-size:0.75rem;color:#555}' +
+        '.ceo-db-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-bottom:5mm}' +
+        '.ceo-db-table-wrap,.table-wrap{overflow:visible!important}' +
+        'table{width:100%;border-collapse:collapse;font-size:0.78rem}' +
+        'th,td{border:1px solid #999;padding:2mm 3mm}th{background:#f5f5f5;font-weight:600}' +
+        '.ceo-db-issue-label{font-weight:700;margin-bottom:1mm;font-size:0.85rem}' +
+        '.ceo-db-issue-list{margin:0 0 3mm;padding-left:4mm;font-size:0.8rem}' +
+        '.ceo-db-cw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}' +
+        '.ceo-db-cw-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
+        '.ceo-db-cw-num{font-size:1.3rem;font-weight:700}.ceo-db-cw-label{font-size:0.75rem;color:#555}' +
+        '.ceo-block{border:1px solid #ddd;padding:3mm 4mm;margin-bottom:3mm;break-inside:avoid}' +
+        '.ceo-block-title{font-weight:700;margin-bottom:2mm}' +
+        '.ceo-row{display:flex;gap:3mm;margin-bottom:1mm;align-items:center}' +
+        '.ceo-label{min-width:6rem;font-size:0.8rem;color:#555;flex-shrink:0}' +
+        '.ceo-sub-label{min-width:5rem;font-size:0.78rem;color:#555;flex-shrink:0}' +
+        '.ceo-input{border:none;border-bottom:1px solid #ccc;flex:1;padding:0;font-size:0.85rem;background:transparent}' +
+        '.main-header{margin-bottom:4mm}.section-desc{font-size:0.82rem;color:#555}' +
+        '.ceo-preview-box{background:#f9f9f9;border:1px solid #ddd;padding:3mm;white-space:pre-wrap;font-size:0.82rem}' +
+        '.accent-blue{color:#2563eb!important}.accent-green{color:#16a34a!important}.accent-orange{color:#d97706!important}.accent-red{color:#dc2626!important}' +
+        '</style></head><body>' + clone.innerHTML + '</body></html>');
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 400);
     });
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
