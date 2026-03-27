@@ -3736,6 +3736,22 @@ textarea.form-input {
   text-decoration: underline;
 }
 
+.contract-attach-card-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 4px;
+  transition: color 0.15s;
+}
+.contract-attach-card-remove:hover {
+  color: #EF4444;
+}
+
 .contract-extra-attach-card {
   border: 2px dashed rgba(79, 140, 255, 0.5);
   border-radius: 10px;

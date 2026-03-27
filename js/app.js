@@ -7458,6 +7458,23 @@
         if (this.getAttribute('href') === '#') e.preventDefault();
       });
     }
+    var attachRemoveBtn = document.getElementById('contract-attach-card-remove');
+    if (attachRemoveBtn) {
+      attachRemoveBtn.addEventListener('click', function () {
+        var input = document.getElementById('contract-inline-attachment');
+        if (input) input.value = '';
+        var fileInput = document.getElementById('contract-inline-attachment-file');
+        if (fileInput) fileInput.value = '';
+        if (typeof syncContractAttachCard === 'function') syncContractAttachCard();
+        // 저장된 계약에도 즉시 반영
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (contractId) {
+          var contracts = getContracts();
+          var c = contracts.find(function (x) { return x.id === contractId; });
+          if (c) { c.contractAttachment = ''; saveContracts(contracts); }
+        }
+      });
+    }
 
     // 추가 자료 첨부 핸들러
     var extraFileInput = document.getElementById('contract-extra-attachment-file');
