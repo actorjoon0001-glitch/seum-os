@@ -549,9 +549,11 @@
         gotoDesignBtn.addEventListener('click', function () {
           var contractId = gotoDesignBtn.getAttribute('data-contract-id');
           if (!contractId) return;
-          // 필터 초기화: 년/월 필터와 검색어를 비워 해당 계약이 테이블에 렌더링되도록
+          // 필터 초기화: 전시장·월 필터와 검색어를 비워 해당 계약이 테이블에 렌더링되도록
+          var showroomEl = document.getElementById('filter-showroom');
           var monthEl = document.getElementById('filter-month');
           var searchEl = document.getElementById('design-search-input');
+          if (showroomEl) showroomEl.value = '';
           if (monthEl) monthEl.value = '';
           if (searchEl) searchEl.value = '';
           if (typeof window.showSection === 'function') window.showSection('design');
