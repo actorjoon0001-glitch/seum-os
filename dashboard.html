@@ -2361,12 +2361,43 @@
       .ceo-sub-label{min-width:5rem;font-size:0.82rem;color:var(--text-muted,#94a3b8);}
       .ceo-preview-box{margin-top:1.5rem;padding:1rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:8px;}
     </style>
+    <style>
+      @media print {
+        @page { size: A4 portrait; margin: 15mm; }
+        body * { visibility: hidden; }
+        .print-target, .print-target * { visibility: visible; }
+        .print-target { position: fixed; top: 0; left: 0; width: 100%; height: auto; z-index: 9999; background: #fff; color: #111; padding: 10mm; box-sizing: border-box; }
+        .print-target .no-print, .print-target .btn, .print-target button { display: none !important; }
+        .print-target .card { background: #fff !important; border: 1px solid #ccc !important; color: #111 !important; box-shadow: none !important; margin-bottom: 8mm; break-inside: avoid; }
+        .print-target h2, .print-target h3, .print-target h4 { color: #111 !important; }
+        .print-target .ceo-db-kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 4mm; }
+        .print-target .ceo-db-kpi-card { border: 1px solid #ccc; padding: 4mm; border-radius: 3mm; color: #111 !important; background: #fff !important; }
+        .print-target .ceo-db-kpi-value { font-size: 1.4rem; font-weight: 700; color: #111 !important; }
+        .print-target .ceo-db-kpi-label, .print-target .ceo-db-kpi-sub { color: #555 !important; }
+        .print-target table { width: 100%; border-collapse: collapse; }
+        .print-target th, .print-target td { border: 1px solid #999; padding: 3mm 4mm; font-size: 0.8rem; color: #111 !important; }
+        .print-target th { background: #f0f0f0 !important; font-weight: 600; }
+        .print-target .main-header p.section-desc { color: #555 !important; font-size: 0.85rem; }
+        .print-target .ceo-block { border: 1px solid #ddd; padding: 3mm 4mm; margin-bottom: 4mm; border-radius: 2mm; }
+        .print-target .ceo-block-title { font-weight: 700; margin-bottom: 2mm; color: #111 !important; }
+        .print-target .ceo-row { display: flex; gap: 3mm; margin-bottom: 1mm; }
+        .print-target .ceo-label, .print-target .ceo-sub-label { color: #555 !important; min-width: 6rem; font-size: 0.8rem; }
+        .print-target .ceo-input { border: none; border-bottom: 1px solid #ccc; background: transparent; color: #111 !important; padding: 0; font-size: 0.85rem; }
+        .print-target .ceo-preview-box { background: #f9f9f9 !important; border: 1px solid #ddd; color: #111 !important; }
+        .print-target .ceo-db-bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+        .print-target .ceo-db-progress-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 4mm; }
+        .print-target .ceo-db-progress-card { border: 1px solid #ccc; padding: 3mm; border-radius: 2mm; text-align: center; }
+        .print-target .ceo-db-prog-num { font-size: 1.6rem; font-weight: 700; color: #111 !important; }
+        .print-target .ceo-db-section-title { font-weight: 700; font-size: 1rem; color: #111 !important; margin: 4mm 0 2mm; }
+      }
+    </style>
 
     <!-- 대표님 일일 보고 -->
     <section id="section-ceo-daily" class="content-section">
       <header class="main-header">
         <h2>일일 보고</h2>
         <p class="section-desc">비서님이 대표님께 매일의 업무 현황을 보고합니다.</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-daily">🖨 인쇄</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -2479,6 +2510,7 @@
       <header class="main-header">
         <h2>주간 보고</h2>
         <p class="section-desc">비서님이 대표님께 주간 업무 현황을 보고합니다.</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-weekly">🖨 인쇄</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -2591,6 +2623,7 @@
       <header class="main-header">
         <h2>월간 보고</h2>
         <p class="section-desc">비서님이 대표님께 월간 업무 현황을 보고합니다.</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-monthly">🖨 인쇄</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -2702,6 +2735,7 @@
       <header class="main-header">
         <h2>대표 대시보드</h2>
         <p class="section-desc">CEO 전용 KPI 종합 현황판</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-dashboard">🖨 A4 인쇄</button>
       </header>
 
       <!-- KPI 카드 4개 -->
