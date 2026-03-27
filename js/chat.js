@@ -478,6 +478,8 @@
     var myName = (me && me.name) ? String(me.name).trim() : '';
     var myTeam = (me && me.team) ? String(me.team).trim() : '';
     var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster());
+    var isManagerUser = (typeof window.isManager === 'function' && window.isManager());
+    var myShowroom = (me && (me.showroom || me.showroomId)) ? (me.showroom || me.showroomId) : '';
     var isDesignTeam = (myTeam === '설계');
     var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
@@ -488,7 +490,8 @@
       var sales = (c.salesPerson || '').trim();
       var design = (c.designContactName || c.designPermitDesigner || '').trim();
       var construction = (c.constructionManager || '').trim();
-      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam;
+      var isSameShowroom = isManagerUser && myShowroom && (c.showroomId || '') === myShowroom;
+      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam || isSameShowroom;
       if (!isAssignee && !isAdminUser) return;
 
       ensureContractChatRoom(c.id);
