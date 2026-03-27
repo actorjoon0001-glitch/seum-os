@@ -3722,9 +3722,12 @@
       '</div>' +
       '</div>' +
       '<h4 class="design-detail-card-title permit-status-title">허가 / 착공 현황</h4>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축허가서 수령</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용승인서</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공신고서</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-no-permit-required"' + (c.noPermitRequired ? ' checked' : '') + '> 인허가 필요없음</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-design-consult-inprogress"' + (c.designConsultInProgress ? ' checked' : '') + '> 건축 설계 협의 진행중</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-permit-inprogress"' + (c.permitInProgress ? ' checked' : '') + '> 건축 인허가 진행중</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축 허가서 완료</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공 신고서 완료</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용 승인서 완료</label>' +
       '<div class="start-ready-box">' +
       '<div class="design-approval-readonly">' +
       '<span class="design-approval-readonly-item' + (c.salesConfirmed ? ' confirmed' : '') + '">영업팀 확인 ' + (c.salesConfirmed ? '✓' : '✗') + '</span>' +
@@ -3927,12 +3930,10 @@
       if (!canDesign) {
         var designerInput = td.querySelector('.design-inline-designer');
         if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
-        var permitCheck = td.querySelector('.design-inline-has-permit');
-        if (permitCheck) permitCheck.disabled = true;
-        var completionCheck = td.querySelector('.design-inline-has-completion-cert');
-        if (completionCheck) completionCheck.disabled = true;
-        var constructionReportCheck = td.querySelector('.design-inline-has-construction-report');
-        if (constructionReportCheck) constructionReportCheck.disabled = true;
+        ['.design-inline-no-permit-required', '.design-inline-design-consult-inprogress',
+          '.design-inline-permit-inprogress', '.design-inline-has-permit',
+          '.design-inline-has-construction-report', '.design-inline-has-completion-cert'
+        ].forEach(function (cls) { var el = td.querySelector(cls); if (el) el.disabled = true; });
         var constructionStartOkCheck = td.querySelector('.design-inline-construction-start-ok');
         if (constructionStartOkCheck) constructionStartOkCheck.disabled = true;
       }
@@ -4065,12 +4066,18 @@
       function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
       c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
       c.designPermitDesigner = (sel('.design-inline-designer') || {}).value ? sel('.design-inline-designer').value.trim() : '';
+      var noPermitEl = sel('.design-inline-no-permit-required');
+      if (noPermitEl) c.noPermitRequired = noPermitEl.checked;
+      var designConsultEl = sel('.design-inline-design-consult-inprogress');
+      if (designConsultEl) c.designConsultInProgress = designConsultEl.checked;
+      var permitInProgressEl = sel('.design-inline-permit-inprogress');
+      if (permitInProgressEl) c.permitInProgress = permitInProgressEl.checked;
       var permitEl = sel('.design-inline-has-permit');
       if (permitEl) c.hasPermitCert = permitEl.checked;
-      var completionEl = sel('.design-inline-has-completion-cert');
-      if (completionEl) c.hasCompletionCert = completionEl.checked;
       var constructionReportEl = sel('.design-inline-has-construction-report');
       if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
+      var completionEl = sel('.design-inline-has-completion-cert');
+      if (completionEl) c.hasCompletionCert = completionEl.checked;
       c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
       saveContracts(contracts);
       renderDesign();
@@ -4113,6 +4120,9 @@
     c.designContactName = (sel('.design-inline-contact-name', 'design-inline-contact-name') || {}).value.trim() || '';
     c.designContactPhone = (sel('.design-inline-contact-phone', 'design-inline-contact-phone') || {}).value.trim() || '';
     c.designPermitDesigner = (sel('.design-inline-designer', 'design-inline-designer') || {}).value.trim() || '';
+    c.noPermitRequired = (sel('.design-inline-no-permit-required') || {}).checked || false;
+    c.designConsultInProgress = (sel('.design-inline-design-consult-inprogress') || {}).checked || false;
+    c.permitInProgress = (sel('.design-inline-permit-inprogress') || {}).checked || false;
     c.hasPermitCert = (sel('.design-inline-has-permit', 'design-inline-has-permit') || {}).checked || false;
     c.permitAttachment = (sel('.design-inline-permit-attachment', 'design-inline-permit-attachment') || {}).value.trim() || '';
     c.completionCertAttachment = (sel('.design-inline-completion-attachment', 'design-inline-completion-attachment') || {}).value.trim() || '';
