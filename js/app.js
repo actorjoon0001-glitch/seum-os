@@ -3724,7 +3724,8 @@
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용승인서</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공신고서</label>' +
       '<div class="start-ready-box">' +
-      '<label class="design-detail-check-item highlight"><input type="checkbox" class="design-inline-construction-start-ok"' + (c.constructionStartOk ? ' checked' : '') + '> 착공 준비완료 (시공팀 인계 준비 완료)</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-reviewer-confirmed"' + (c.designReviewerConfirmed ? ' checked' : '') + '> 검토자 확인</label>' +
+      '<label class="design-detail-check-item highlight"><input type="checkbox" class="design-inline-final-approved"' + (c.designFinalApproved ? ' checked' : '') + '> 최종 승인 (시공팀 인계)</label>' +
       '</div>' +
       '<div class="design-detail-memo-grid">' +
       '<label class="design-detail-field"><span>설계팀 메모</span><textarea class="design-status-memo design-status-memo-design" rows="3" placeholder="설계 진행 상황 메모, 특이 사항 기록">' + escapeAttr(c.designStatusMemoDesign || '') + '</textarea></label>' +
@@ -3926,8 +3927,10 @@
         if (completionCheck) completionCheck.disabled = true;
         var constructionReportCheck = td.querySelector('.design-inline-has-construction-report');
         if (constructionReportCheck) constructionReportCheck.disabled = true;
-        var constructionStartOkCheck = td.querySelector('.design-inline-construction-start-ok');
-        if (constructionStartOkCheck) constructionStartOkCheck.disabled = true;
+        var reviewerConfirmedCheck = td.querySelector('.design-inline-reviewer-confirmed');
+        if (reviewerConfirmedCheck) reviewerConfirmedCheck.disabled = true;
+        var finalApprovedCheck = td.querySelector('.design-inline-final-approved');
+        if (finalApprovedCheck) finalApprovedCheck.disabled = true;
       }
     }
     // ???????? ??? ?????? ?????
@@ -4021,8 +4024,10 @@
           if (completionCheck) completionCheck.disabled = false;
           var constructionReportCheck = detailRow.querySelector('.design-inline-has-construction-report');
           if (constructionReportCheck) constructionReportCheck.disabled = false;
-          var constructionStartOkCheck = detailRow.querySelector('.design-inline-construction-start-ok');
-          if (constructionStartOkCheck) constructionStartOkCheck.disabled = false;
+          var reviewerConfirmedCheck2 = detailRow.querySelector('.design-inline-reviewer-confirmed');
+          if (reviewerConfirmedCheck2) reviewerConfirmedCheck2.disabled = false;
+          var finalApprovedCheck2 = detailRow.querySelector('.design-inline-final-approved');
+          if (finalApprovedCheck2) finalApprovedCheck2.disabled = false;
           detailRow.querySelectorAll('button[type="submit"], .btn-primary.design-detail-save-top-inline').forEach(function (btn) {
             btn.disabled = false;
           });
@@ -4064,8 +4069,11 @@
       if (completionEl) c.hasCompletionCert = completionEl.checked;
       var constructionReportEl = sel('.design-inline-has-construction-report');
       if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
-      var constructionStartOkEl = sel('.design-inline-construction-start-ok');
-      if (constructionStartOkEl) c.constructionStartOk = constructionStartOkEl.checked;
+      var reviewerConfirmedEl = sel('.design-inline-reviewer-confirmed');
+      if (reviewerConfirmedEl) c.designReviewerConfirmed = reviewerConfirmedEl.checked;
+      var finalApprovedEl = sel('.design-inline-final-approved');
+      if (finalApprovedEl) c.designFinalApproved = finalApprovedEl.checked;
+      c.constructionStartOk = !!(c.designReviewerConfirmed && c.designFinalApproved);
       saveContracts(contracts);
       renderDesign();
       renderConstruction();
@@ -4112,7 +4120,9 @@
     c.completionCertAttachment = (sel('.design-inline-completion-attachment', 'design-inline-completion-attachment') || {}).value.trim() || '';
     c.hasConstructionStartReport = (sel('.design-inline-has-construction-report', 'design-inline-has-construction-report') || {}).checked || false;
     c.hasCompletionCert = (sel('.design-inline-has-completion-cert', 'design-inline-has-completion-cert') || {}).checked || false;
-    c.constructionStartOk = (sel('.design-inline-construction-start-ok', 'design-inline-construction-start-ok') || {}).checked || false;
+    c.designReviewerConfirmed = (sel('.design-inline-reviewer-confirmed') || {}).checked || false;
+    c.designFinalApproved = (sel('.design-inline-final-approved') || {}).checked || false;
+    c.constructionStartOk = !!(c.designReviewerConfirmed && c.designFinalApproved);
     // ???????? ?? ????????????, ??? ???????????? ???????? ????? ??????????? ??? ???
     if (c.constructionStartOk && !c.designPermitDesigner && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var curEmp = window.seumAuth.currentEmployee;
