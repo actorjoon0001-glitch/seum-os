@@ -3072,9 +3072,10 @@
         }
       })();
       tbodyContracts.innerHTML = contracts.map(function (c) {
+        var _amountUnit = c.amountUnit === 'manwon' ? '만원' : '원';
         function amountCell(amount, date, type) {
           if (amount != null && String(amount).trim() !== '') {
-            var label = formatMoney(amount) + '원';
+            var label = formatMoney(amount) + _amountUnit;
             if (date) label += ' (' + formatDate(date) + ')';
             return '<span class="payment-label">' + label + '</span> <button type="button" class="btn btn-xs btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">수정</button>';
           }
@@ -3097,7 +3098,7 @@
           var parts = addr.trim().split(/\s+/);
           return parts.slice(0, 2).join(' ');
         })();
-        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + _amountUnit + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
       }).join('') || (getContractSearchKeyword()
         ? '<tr><td colspan="14" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
         : '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>');
@@ -7933,6 +7934,7 @@
           extraNote: '',
           customerName: customerName,
           phone: phone,
+          amountUnit: 'manwon',
           supplyAmount: supplyAmount,
           vatAmount: vatAmount,
           totalAmount: totalAmount,
@@ -8069,8 +8071,9 @@
     }
     if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
     var label = '';
+    var _payUnit = c.amountUnit === 'manwon' ? '만원' : '원';
     if (amount != null && String(amount).trim() !== '') {
-      label = formatMoney(amount) + '원';
+      label = formatMoney(amount) + _payUnit;
     }
     if (receivedAt) {
       label += (label ? ' ' : '') + '(' + formatDate(receivedAt) + ')';
