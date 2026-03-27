@@ -7163,6 +7163,8 @@
     document.getElementById('contract-inline-model').value = c.contractModel || '';
     document.getElementById('contract-inline-model-name').value = c.contractModelName || '';
     document.getElementById('contract-inline-sales-person').value = c.salesPerson || '';
+    var inlinePhoneEl = document.getElementById('contract-inline-phone');
+    if (inlinePhoneEl) inlinePhoneEl.value = c.phone || '';
     document.getElementById('contract-inline-attachment').value = c.contractAttachment || '';
     if (typeof window.syncContractAttachCard === 'function') window.syncContractAttachCard();
     if (typeof window.syncExtraAttachList === 'function') window.syncExtraAttachList();
@@ -7256,6 +7258,8 @@
     c.contractModel = document.getElementById('contract-inline-model').value || '';
     c.contractModelName = document.getElementById('contract-inline-model-name').value.trim();
     c.salesPerson = document.getElementById('contract-inline-sales-person').value.trim();
+    var inlinePhoneSave = document.getElementById('contract-inline-phone');
+    if (inlinePhoneSave) c.phone = inlinePhoneSave.value.trim();
     c.contractAttachment = document.getElementById('contract-inline-attachment').value.trim();
     c.siteAddress = document.getElementById('contract-inline-site-address').value.trim();
     var inlineInstallChecked = document.querySelector('input[name="contract-inline-install-type"]:checked');
