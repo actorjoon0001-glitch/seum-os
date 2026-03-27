@@ -7555,8 +7555,8 @@ table tbody tr.active td {
 .signup-card .auth-link:hover {
   color: #93C5FD;
 }
-/* 생년월일 date 입력 달력 아이콘 흰색 (다크 배경 가독성) */
-.signup-card input[type="date"]::-webkit-calendar-picker-indicator {
+/* date 입력 달력 아이콘 흰색 (다크 배경 가독성) */
+input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 0.9;
   cursor: pointer;
