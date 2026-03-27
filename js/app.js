@@ -10020,16 +10020,39 @@
         }
       });
       // 인쇄 불필요 요소 제거
-      clone.querySelectorAll('.no-print, .btn-section-print, .btn-section-print').forEach(function (el) { el.remove(); });
+      clone.querySelectorAll('.no-print, .btn-section-print').forEach(function (el) { el.remove(); });
+      // 보고 목록 카드, 미리보기 박스, 상세 카드 제거
+      ['#ceo-daily-preview-box','#ceo-weekly-preview-box','#ceo-monthly-preview-box',
+       '#ceo-daily-detail','#ceo-weekly-detail','#ceo-monthly-detail'].forEach(function(sel) {
+        var el = clone.querySelector(sel); if (el) el.remove();
+      });
+      ['#tbody-ceo-daily','#tbody-ceo-weekly','#tbody-ceo-monthly'].forEach(function(sel) {
+        var el = clone.querySelector(sel);
+        if (el) { var card = el.closest('.card'); if (card) card.remove(); }
+      });
       var w = window.open('', '_blank', 'width=820,height=1100');
       if (!w) return;
       w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>인쇄</title><style>' +
-        '@page{size:A4 portrait;margin:15mm}' +
-        'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:13px;line-height:1.5}' +
-        'h2{font-size:1.4rem;margin:0 0 2mm}h3{font-size:1.1rem;margin:2mm 0}h4{font-size:1rem;margin:2mm 0}' +
-        'p{margin:0 0 2mm;color:#555}' +
+        '@page{size:A4 portrait;margin:12mm}' +
+        'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12px;line-height:1.4}' +
+        'h2{font-size:1.3rem;margin:0 0 2mm}h3{font-size:1rem;margin:1mm 0}h4{font-size:0.95rem;margin:1mm 0}' +
+        'p{margin:0 0 1mm;color:#555}' +
         'button,input[type=button],input[type=submit],.btn{display:none!important}' +
-        '.card{border:1px solid #ccc;border-radius:4px;padding:4mm;margin-bottom:5mm;break-inside:avoid}' +
+        '.hidden{display:none!important}' +
+        '.card{border:1px solid #ccc;border-radius:4px;padding:3mm 4mm;margin-bottom:4mm;break-inside:avoid}' +
+        '.main-header{margin-bottom:3mm}.section-desc{font-size:0.8rem;color:#555}' +
+        '.form-row{display:flex;gap:3mm;margin-bottom:3mm;grid-column:span 2}' +
+        '.form-actions{display:none!important}' +
+        '#form-ceo-daily,#form-ceo-weekly,#form-ceo-monthly{display:grid;grid-template-columns:1fr 1fr;gap:2mm 4mm}' +
+        '.ceo-block{border:1px solid #ddd;padding:2mm 3mm;margin-bottom:0;break-inside:avoid}' +
+        '.ceo-block:has(textarea){grid-column:span 2}' +
+        '.ceo-block-title{font-weight:700;margin-bottom:1mm;font-size:0.85rem}' +
+        '.ceo-row{display:flex;gap:2mm;margin-bottom:0.5mm;align-items:center}' +
+        '.ceo-label{min-width:6rem;font-size:0.78rem;color:#555;flex-shrink:0}' +
+        '.ceo-sub-label{min-width:5rem;font-size:0.75rem;color:#555;flex-shrink:0}' +
+        '.ceo-input{border:none;border-bottom:1px solid #ccc;flex:1;padding:0;font-size:0.82rem;background:transparent}' +
+        'textarea.ceo-input,textarea{border:1px solid #ccc;width:100%;box-sizing:border-box;padding:1mm 2mm;font-size:0.82rem;background:transparent;resize:none;min-height:10mm;font-family:inherit}' +
+        '.ceo-preview-box{display:none!important}' +
         '.ceo-db-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:5mm}' +
         '.ceo-db-kpi-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
         '.ceo-db-kpi-label{font-size:0.75rem;color:#555;margin-bottom:1mm}' +
@@ -10048,14 +10071,6 @@
         '.ceo-db-cw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}' +
         '.ceo-db-cw-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
         '.ceo-db-cw-num{font-size:1.3rem;font-weight:700}.ceo-db-cw-label{font-size:0.75rem;color:#555}' +
-        '.ceo-block{border:1px solid #ddd;padding:3mm 4mm;margin-bottom:3mm;break-inside:avoid}' +
-        '.ceo-block-title{font-weight:700;margin-bottom:2mm}' +
-        '.ceo-row{display:flex;gap:3mm;margin-bottom:1mm;align-items:center}' +
-        '.ceo-label{min-width:6rem;font-size:0.8rem;color:#555;flex-shrink:0}' +
-        '.ceo-sub-label{min-width:5rem;font-size:0.78rem;color:#555;flex-shrink:0}' +
-        '.ceo-input{border:none;border-bottom:1px solid #ccc;flex:1;padding:0;font-size:0.85rem;background:transparent}' +
-        '.main-header{margin-bottom:4mm}.section-desc{font-size:0.82rem;color:#555}' +
-        '.ceo-preview-box{background:#f9f9f9;border:1px solid #ddd;padding:3mm;white-space:pre-wrap;font-size:0.82rem}' +
         '.accent-blue{color:#2563eb!important}.accent-green{color:#16a34a!important}.accent-orange{color:#d97706!important}.accent-red{color:#dc2626!important}' +
         '</style></head><body>' + clone.innerHTML + '</body></html>');
       w.document.close();
