@@ -3537,7 +3537,8 @@
       var constructionMgrCell = constructionOnlyReview
         ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
         : (c.constructionManager || '-');
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+      var _dDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || (getDesignSearchKeyword()
       ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
       : '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>');
@@ -3673,7 +3674,7 @@
     var summaryBar = '<div class="design-detail-summary-bar">' +
       '<span class="design-detail-summary-item"><strong>고객명</strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
       '<span class="design-detail-summary-item"><strong>유형</strong> ' + escapeAttr(projectType) + '</span>' +
-      '<span class="design-detail-summary-item"><strong>계약금액</strong> ' + escapeAttr(formatMoney(c.totalAmount)) + '원</span>' +
+      '<span class="design-detail-summary-item"><strong>계약금액</strong> ' + escapeAttr(formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000)))) + '만원</span>' +
       '<span class="design-detail-summary-item"><strong>계약금 입금일</strong> ' + escapeAttr(formatDate(c.depositReceivedAt)) + '</span>' +
       '<span class="design-detail-summary-item"><strong>설계 진행 상태</strong> ' + escapeAttr(statusLabel) + '</span>' +
       '<span class="design-detail-summary-item"><strong>착공 준비완료</strong> ' + (c.constructionStartOk ? 'Y' : '-') + '</span>' +
@@ -4877,7 +4878,8 @@
       var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">삭제</button>';
       var contractDateStr = formatDate(c.contractDate);
       var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
-      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+      var _cDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _cDivisor)) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
     }).join('') || (getConstructionSearchKeyword()
       ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
       : '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>');
@@ -5577,7 +5579,7 @@
       var p3 = paymentCellWithConfirm(c, 'progress3');
       var balance = paymentCellWithConfirm(c, 'balance');
       var summary = paymentSummaryHtml(c);
-      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
+      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000))) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
     }).join('') || '<tr><td colspan="10">정산 데이터가 없습니다.</td></tr>';
     renderSettlementIncentive();
   }
@@ -7187,7 +7189,7 @@
     var titleEl = document.getElementById('contract-detail-customer');
     var subtitleEl = document.getElementById('contract-detail-subtitle');
     if (titleEl) titleEl.textContent = (c.customerName || '-') + ' 계약 상세';
-    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' | ' + (c.contractModelName || c.contractModel || '-') + ' | ' + formatMoney(c.totalAmount) + '원';
+    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' | ' + (c.contractModelName || c.contractModel || '-') + ' | ' + formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000))) + '만원';
     document.getElementById('contract-inline-id').value = c.id;
     document.getElementById('contract-inline-showroom').value = c.showroomId || '';
     var inlineModelShowroomEl = document.getElementById('contract-inline-model-showroom');
@@ -8049,12 +8051,13 @@
   function paymentSummaryHtml(c) {
     var nums = getPaymentSummaryNumbers(c);
     if (nums.total <= 0) return '<span class="payment-none">-</span>';
+    var _sDivisor = (c && c.amountUnit === 'manwon') ? 1 : 10000;
     var pct = Math.min(100, Math.max(0, nums.receivedPct));
     return '<div class="payment-status">' +
-      '<div class="payment-total">총액 ' + formatMoney(String(nums.total)) + '원</div>' +
+      '<div class="payment-total">총액 ' + formatMoney(String(Math.round(nums.total / _sDivisor))) + '만원</div>' +
       '<div class="payment-rate"><span class="payment-rate-label">입금율</span><div class="payment-rate-bar"><div class="payment-rate-fill" style="width:' + pct + '%"></div></div><span class="payment-rate-pct">' + pct + '%</span></div>' +
-      '<div class="payment-row received"><span>입금액</span><span class="amount">' + formatMoney(String(nums.received)) + '원</span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
-      '<div class="payment-row remaining"><span>잔액</span><span class="amount">' + formatMoney(String(nums.remaining)) + '원</span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
+      '<div class="payment-row received"><span>입금액</span><span class="amount">' + formatMoney(String(Math.round(nums.received / _sDivisor))) + '만원</span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
+      '<div class="payment-row remaining"><span>잔액</span><span class="amount">' + formatMoney(String(Math.round(nums.remaining / _sDivisor))) + '만원</span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
       '</div>';
   }
 
