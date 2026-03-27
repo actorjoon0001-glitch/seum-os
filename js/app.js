@@ -176,6 +176,13 @@
     return role === 'master' || permission === 'master';
   }
 
+  function isManager() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var permission = (cur.permission || '').toLowerCase();
+    return permission === 'manager';
+  }
+
   function isSuperAdmin() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur || !cur.email) return false;
@@ -3031,8 +3038,9 @@
       var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
       var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      // ????? ?????? "?? ????? ???????????
-      if (userTeam === '영업' && curUser) {
+      // 영업팀(비관리자)은 소속 전시장 계약만 노출, 매니저도 동일하게 소속 전시장 전체 노출
+      var isManagerRole = (typeof isManager === 'function' && isManager());
+      if ((userTeam === '영업' || isManagerRole) && curUser && !isAdminRole) {
         var myShowroomId = resolveShowroomId(curUser);
         if (myShowroomId) {
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
@@ -5614,7 +5622,8 @@
     var leaveSelect = document.getElementById('leave-employee-id');
     if (tbodyEmp) {
       tbodyEmp.innerHTML = employees.map(function (e) {
-        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
+        var permLabel = e.permission === 'manager' ? '매니저' : (e.permission === 'admin' ? '관리자' : '-');
+        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + permLabel + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
       }).join('') || '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
     }
     if (leaveSelect) {
@@ -8305,6 +8314,8 @@
           document.getElementById('employee-name').value = emp.name || '';
           document.getElementById('employee-team').value = emp.team || '';
           document.getElementById('employee-showroom').value = emp.showroomId || '';
+          var empPermEl = document.getElementById('employee-permission');
+          if (empPermEl) empPermEl.value = emp.permission || '';
           document.getElementById('employee-phone').value = emp.phone || '';
           document.getElementById('employee-join-date').value = emp.joinDate || '';
           document.getElementById('employee-memo').value = emp.memo || '';
@@ -9315,10 +9326,12 @@
         e.preventDefault();
         var empId = document.getElementById('employee-id').value;
         var employees = getEmployees();
+        var empPermSave = document.getElementById('employee-permission');
         var payload = {
           name: document.getElementById('employee-name').value.trim(),
           team: document.getElementById('employee-team').value,
           showroomId: document.getElementById('employee-showroom').value,
+          permission: empPermSave ? empPermSave.value : '',
           phone: document.getElementById('employee-phone').value.trim(),
           joinDate: document.getElementById('employee-join-date').value,
           memo: document.getElementById('employee-memo').value.trim()
@@ -9902,6 +9915,7 @@
   window.renderDesign = renderDesign;
   window.isAdmin = isAdmin;
   window.isMaster = isMaster;
+  window.isManager = isManager;
   window.formatDate = formatDate;
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
