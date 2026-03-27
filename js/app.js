@@ -164,8 +164,14 @@
     if (!cur) return false;
     var role = (cur.role || '').toLowerCase();
     var permission = (cur.permission || '').toLowerCase();
-    // ??? ?? ???? role=admin ??? ?? permission=admin ??? ???
-    return role === 'admin' || permission === 'admin';
+    if (role === 'admin' || permission === 'admin') return true;
+    // Supabase RPC가 permission을 반환하지 않는 경우 localStorage에서 보완 조회
+    try {
+      var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || ''); });
+      if (myEmp && (myEmp.permission || '').toLowerCase() === 'admin') return true;
+    } catch (e) {}
+    return false;
   }
 
   function isMaster() {
