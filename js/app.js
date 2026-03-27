@@ -7849,12 +7849,13 @@
         var vatAmount = document.getElementById('contract-vat').value;
         var totalAmount = document.getElementById('contract-total').value;
         var contractDate = document.getElementById('contract-date').value;
-        var depositAmount = document.getElementById('contract-deposit-amount').value.trim() || null;
+        function manWonToWon(v) { var n = parseFloat(v); return (!v || isNaN(n)) ? null : String(Math.round(n * 10000)); }
+        var depositAmount = manWonToWon(document.getElementById('contract-deposit-amount').value);
         var depositDate = document.getElementById('contract-deposit-date').value || null;
-        var progress1Amount = document.getElementById('contract-progress1-amount').value.trim() || null;
-        var progress2Amount = document.getElementById('contract-progress2-amount').value.trim() || null;
-        var progress3Amount = document.getElementById('contract-progress3-amount').value.trim() || null;
-        var balanceAmount = document.getElementById('contract-balance-amount').value.trim() || null;
+        var progress1Amount = manWonToWon(document.getElementById('contract-progress1-amount').value);
+        var progress2Amount = manWonToWon(document.getElementById('contract-progress2-amount').value);
+        var progress3Amount = manWonToWon(document.getElementById('contract-progress3-amount').value);
+        var balanceAmount = manWonToWon(document.getElementById('contract-balance-amount').value);
         // ??????? ???? ?? ?????????????????showroom ??
         if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
           var cur = window.seumAuth.currentEmployee;
@@ -8063,7 +8064,9 @@
     var currentDate = '';
     if (c && cfg) {
       if (c[cfg.amount] != null && String(c[cfg.amount]).trim() !== '') {
-        currentAmount = String(c[cfg.amount]);
+        // 저장값은 원 단위이므로 입력 필드(만원)에 맞게 ÷10000
+        var rawAmt = parseFloat(c[cfg.amount]);
+        currentAmount = isNaN(rawAmt) ? '' : String(rawAmt / 10000);
       }
       if (c[cfg.receivedAt]) {
         currentDate = c[cfg.receivedAt];
@@ -8217,7 +8220,7 @@
         e.preventDefault();
         var contractId = document.getElementById('payment-contract-id').value;
         var type = document.getElementById('payment-type').value;
-        var amount = document.getElementById('payment-amount').value;
+        var amount = String(Math.round(parseFloat(document.getElementById('payment-amount').value || 0) * 10000));
         var dateInput = document.getElementById('payment-date');
         var date = dateInput ? dateInput.value : '';
         var contracts = getContracts();
