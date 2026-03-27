@@ -278,6 +278,13 @@
     if (el) el.classList.toggle('hidden', !canAccessTeamSection('design-worklog'));
   }
 
+  function updateConstructionRestrictedNavVisibility() {
+    ['construction-worklog', 'procurement'].forEach(function (sec) {
+      var el = document.querySelector('[data-section="' + sec + '"]');
+      if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
+    });
+  }
+
   function updateAdminNavVisibility() {
     var section = document.getElementById('nav-section-admin');
     // ??? ????? admin/master/????????? ????? ???.
@@ -9970,6 +9977,7 @@
     updateManageNavVisibility();
     updateCeoNavVisibility();
     updateDesignWorklogNavVisibility();
+    updateConstructionRestrictedNavVisibility();
     initCeoReports();
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
@@ -9977,6 +9985,7 @@
       updateManageNavVisibility();
       updateCeoNavVisibility();
       updateDesignWorklogNavVisibility();
+      updateConstructionRestrictedNavVisibility();
       if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
       // ????? ????? ?? ???? ???????? ????????? ????????? ?????
       if (typeof renderDashboard === 'function') renderDashboard();
