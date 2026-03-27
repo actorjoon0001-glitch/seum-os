@@ -6003,21 +6003,21 @@
     var cDone = allContracts.filter(function (c) { return c.constructionProgress === '완료'; }).length;
 
     // 입금 건수
-    var depOk = allContracts.filter(function (c) { return c.depositConfirmed; }).length;
+    var depOk = allContracts.filter(function (c) { return !!(c.depositConfirmed || c.depositReceivedAt); }).length;
     var progPend = allContracts.filter(function (c) {
       return (c.progress1Amount && !c.progress1Confirmed) || (c.progress2Amount && !c.progress2Confirmed) || (c.progress3Amount && !c.progress3Confirmed);
     }).length;
     var balPend = allContracts.filter(function (c) { return c.balanceAmount && !c.balanceConfirmed; }).length;
     var unpaid = allContracts.filter(function (c) { return c.depositAmount && !c.depositConfirmed; }).length;
 
-    // 입금 금액 (계약금/중도금/잔금 필드는 항상 만원 단위로 저장됨)
-    function _normPay(c, field) { return Number(c[field]) || 0; }
+    // 입금 금액 (paymentCellWithConfirm과 동일한 단위 정규화 사용)
+    function _normPay(c, field) { var v = Number(c[field]) || 0; return c.amountUnit === 'manwon' ? v : Math.round(v / 10000); }
+    // depositReceivedAt이 있으면 수령 완료로 간주 (paymentCellWithConfirm과 동일 로직)
+    function _depConfirmed(c) { return !!(c.depositConfirmed || c.depositReceivedAt); }
     var depAmt = 0, depUnpaidAmt = 0, progPendAmt = 0, balPendAmt = 0, totalCollected = 0, totalUnpaid = 0;
     allContracts.forEach(function (c) {
       var dA = _normPay(c, 'depositAmount');
-      // depositReceivedAt이 있으면 수령 완료로 간주 (paymentCellWithConfirm과 동일 로직)
-      var depConfirmed = !!(c.depositConfirmed || c.depositReceivedAt);
-      if (depConfirmed) { depAmt += dA; totalCollected += dA; }
+      if (_depConfirmed(c)) { depAmt += dA; totalCollected += dA; }
       else if (c.depositAmount) { depUnpaidAmt += dA; totalUnpaid += dA; }
       ['progress1', 'progress2', 'progress3'].forEach(function (p) {
         var pA = _normPay(c, p + 'Amount');
