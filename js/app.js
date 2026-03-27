@@ -9818,6 +9818,8 @@
 
   window.getContracts = getContracts;
   window.getShowroomName = getShowroomName;
+  window.showSection = showSection;
+  window.showDesignDetailPanel = showDesignDetailPanel;
   window.isAdmin = isAdmin;
   window.isMaster = isMaster;
   window.formatDate = formatDate;

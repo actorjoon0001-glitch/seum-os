@@ -749,6 +749,27 @@ button,
   min-width: 0;
   flex: 1;
 }
+.chat-goto-design-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid #3B82F6;
+  border-radius: 6px;
+  background: transparent;
+  color: #3B82F6;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-right: 6px;
+}
+.chat-goto-design-btn:hover {
+  background: #3B82F6;
+  color: #fff;
+}
+.chat-goto-design-btn.hidden {
+  display: none !important;
+}
+
 .chat-conversation-close-btn {
   flex-shrink: 0;
   width: 36px;
