@@ -495,7 +495,8 @@
       var names = [sales, design, construction].filter(function (s) { return (s || '').trim(); });
       var uniqueNames = names.filter(function (n, i) { return names.indexOf(n) === i; });
       var participantCount = uniqueNames.length;
-      var label = (c.customerName || '-') + ' · ' + (c.contractModelName || c.contractModel || '-');
+      var showroomLabel = c.showroomId ? (CHAT_CHANNEL_LABELS[c.showroomId] || c.showroomId) : '';
+      var label = (showroomLabel ? '[' + showroomLabel + '] ' : '') + (c.customerName || '-') + ' · ' + (c.contractModelName || c.contractModel || '-');
       list.push({ type: 'contract', id: c.id, label: label, participantCount: participantCount });
     });
 
