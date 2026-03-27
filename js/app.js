@@ -233,10 +233,12 @@
     // ???????: ?????+ ??? + ??? + ???
     if (sectionId === 'marketing') return isMarketing;
 
-    // ??? ???: leads/customers/contracts?????? ????????
-    if (sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts') {
-      // ?????????????: ?? ???? ?????/????? ????
-      if ((isDesign || isConstruction || isSettlement) && sectionId !== 'sales-contracts') return false;
+    // 방문예약 고객 / 고객관리: 영업팀 + master/admin만
+    if (sectionId === 'sales-leads' || sectionId === 'sales-customers') {
+      return isSales;
+    }
+    // 계약 목록: 영업/설계/시공/정산 등 전 팀
+    if (sectionId === 'sales-contracts') {
       return isSales || isDesign || isMarketing || isConstruction || isSettlement;
     }
 
@@ -280,6 +282,13 @@
 
   function updateConstructionRestrictedNavVisibility() {
     ['construction-worklog', 'procurement'].forEach(function (sec) {
+      var el = document.querySelector('[data-section="' + sec + '"]');
+      if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
+    });
+  }
+
+  function updateSalesRestrictedNavVisibility() {
+    ['sales-leads', 'sales-customers'].forEach(function (sec) {
       var el = document.querySelector('[data-section="' + sec + '"]');
       if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
     });
@@ -9978,6 +9987,7 @@
     updateCeoNavVisibility();
     updateDesignWorklogNavVisibility();
     updateConstructionRestrictedNavVisibility();
+    updateSalesRestrictedNavVisibility();
     initCeoReports();
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
@@ -9986,6 +9996,7 @@
       updateCeoNavVisibility();
       updateDesignWorklogNavVisibility();
       updateConstructionRestrictedNavVisibility();
+      updateSalesRestrictedNavVisibility();
       if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
       // ????? ????? ?? ???? ???????? ????????? ????????? ?????
       if (typeof renderDashboard === 'function') renderDashboard();
