@@ -549,35 +549,10 @@
     localStorage.setItem(STORAGE_VISITS, JSON.stringify(data));
   }
 
-  function migrateContractAmounts(contracts) {
-    var FIELDS = ['totalAmount', 'supplyAmount', 'vatAmount', 'depositAmount', 'progress1Amount', 'progress2Amount', 'progress3Amount', 'balanceAmount'];
-    // 10억 초과는 이중 변환 오류 → ÷10,000 (반복 실행해도 안전한 멱등 방식)
-    var MAX_REASONABLE = 1000000000;
-    var changed = false;
-    contracts.forEach(function (c) {
-      FIELDS.forEach(function (field) {
-        var v = c[field];
-        if (v == null || v === '' || isNaN(Number(v)) || Number(v) <= 0) return;
-        var n = Number(v);
-        // 10억 초과는 계속 ÷10,000 해서 10억 이하가 될 때까지 반복
-        while (n > MAX_REASONABLE) {
-          n = Math.round(n / 10000);
-          c[field] = String(n);
-          changed = true;
-        }
-      });
-    });
-    if (changed) {
-      localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts));
-    }
-    return contracts;
-  }
-
   function getContracts() {
     try {
       var raw = localStorage.getItem(STORAGE_CONTRACTS);
-      var contracts = raw ? JSON.parse(raw) : [];
-      return migrateContractAmounts(contracts);
+      return raw ? JSON.parse(raw) : [];
     } catch (e) {
       return [];
     }
@@ -3702,8 +3677,8 @@
       '<div class="design-detail-field"><label>담당 영업사원</label><div>' + escapeAttr(c.salesPerson || "-") + '</div></div>' +
       '<div class="design-detail-field"><label>시공 주소</label><div>' + escapeAttr(c.siteAddress || "-") + '</div></div>' +
       '<div class="design-detail-field"><label>설치 유형</label><div>' + escapeAttr(c.installType || "현장시공") + '</div></div>' +
-      '<div class="design-detail-field"><label>공급가</label><div>' + (c.supplyAmount ? formatMoney(c.supplyAmount) + '원' : '') + '</div></div>' +
-      '<div class="design-detail-field"><label>부가세</label><div>' + (c.vatAmount ? formatMoney(c.vatAmount) + '원' : '') + '</div></div>' +
+      '<div class="design-detail-field"><label>공급가(만원)</label><div>' + escapeAttr(c.supplyAmount || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>부가세(만원)</label><div>' + escapeAttr(c.vatAmount || "") + '</div></div>' +
       '<div class="design-detail-field"><label>기초공사 평수</label><div>' + escapeAttr(c.foundationPyeong || "") + '</div></div>' +
       '<div class="design-detail-field"><label>주택 평수</label><div>' + escapeAttr(c.housePyeong || "") + '</div></div>' +
       '<div class="design-detail-field"><label>옵션 요약</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
@@ -7911,17 +7886,16 @@
         var salesPerson = document.getElementById('contract-sales-person').value.trim();
         var customerName = document.getElementById('contract-name').value.trim();
         var phone = document.getElementById('contract-phone').value.trim();
-        var supplyAmount = manWonToWon(document.getElementById('contract-supply').value);
-        var vatAmount = manWonToWon(document.getElementById('contract-vat').value);
-        var totalAmount = manWonToWon(document.getElementById('contract-total').value);
+        var supplyAmount = document.getElementById('contract-supply').value || null;
+        var vatAmount = document.getElementById('contract-vat').value || null;
+        var totalAmount = document.getElementById('contract-total').value || null;
         var contractDate = document.getElementById('contract-date').value;
-        function manWonToWon(v) { var n = parseFloat(v); return (!v || isNaN(n)) ? null : String(Math.round(n * 10000)); }
-        var depositAmount = manWonToWon(document.getElementById('contract-deposit-amount').value);
+        var depositAmount = document.getElementById('contract-deposit-amount').value || null;
         var depositDate = document.getElementById('contract-deposit-date').value || null;
-        var progress1Amount = manWonToWon(document.getElementById('contract-progress1-amount').value);
-        var progress2Amount = manWonToWon(document.getElementById('contract-progress2-amount').value);
-        var progress3Amount = manWonToWon(document.getElementById('contract-progress3-amount').value);
-        var balanceAmount = manWonToWon(document.getElementById('contract-balance-amount').value);
+        var progress1Amount = document.getElementById('contract-progress1-amount').value || null;
+        var progress2Amount = document.getElementById('contract-progress2-amount').value || null;
+        var progress3Amount = document.getElementById('contract-progress3-amount').value || null;
+        var balanceAmount = document.getElementById('contract-balance-amount').value || null;
         // ??????? ???? ?? ?????????????????showroom ??
         if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
           var cur = window.seumAuth.currentEmployee;
@@ -8130,9 +8104,7 @@
     var currentDate = '';
     if (c && cfg) {
       if (c[cfg.amount] != null && String(c[cfg.amount]).trim() !== '') {
-        // 저장값은 원 단위이므로 입력 필드(만원)에 맞게 ÷10000
-        var rawAmt = parseFloat(c[cfg.amount]);
-        currentAmount = isNaN(rawAmt) ? '' : String(rawAmt / 10000);
+        currentAmount = String(c[cfg.amount]);
       }
       if (c[cfg.receivedAt]) {
         currentDate = c[cfg.receivedAt];
@@ -8172,7 +8144,7 @@
     var contracts = getContracts();
     var c = contracts.find(function (x) { return x.id === contractId; });
     if (!c) return;
-    var currentValue = (field === 'totalAmount' && c[field]) ? String(Math.round(parseFloat(c[field]) / 10000)) : ((c[field] != null) ? String(c[field]) : '');
+    var currentValue = (c[field] != null) ? String(c[field]) : '';
     document.getElementById('contract-field-contract-id').value = contractId;
     document.getElementById('contract-field-name').value = field;
     document.getElementById('modal-contract-field-title').textContent = meta.label + ' 수정';
@@ -8207,7 +8179,7 @@
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
         if (!c) return;
-        c[field] = (field === 'totalAmount' && newValue) ? String(Math.round(parseFloat(newValue) * 10000)) : newValue;
+        c[field] = newValue;
         saveContracts(contracts);
         modal.classList.add('hidden');
         renderSales();
@@ -8286,7 +8258,7 @@
         e.preventDefault();
         var contractId = document.getElementById('payment-contract-id').value;
         var type = document.getElementById('payment-type').value;
-        var amount = String(Math.round(parseFloat(document.getElementById('payment-amount').value || 0) * 10000));
+        var amount = document.getElementById('payment-amount').value || '';
         var dateInput = document.getElementById('payment-date');
         var date = dateInput ? dateInput.value : '';
         var contracts = getContracts();
