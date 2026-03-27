@@ -3464,12 +3464,13 @@
 
   function renderDesign() {
     var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
-    // ????? ?????? ??? ?????????? ????????????????
+    // 영업팀은 자기 전시장만, 어드민/마스터는 전체
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroom = (cur.showroom || '').trim();
-      if (team === '영업' && myShowroom) {
+      var _isAdminDesign = isAdmin() || isMaster() || isSuperAdmin();
+      if (team === '영업' && myShowroom && !_isAdminDesign) {
         contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroom; });
       }
     }
