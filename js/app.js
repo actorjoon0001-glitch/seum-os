@@ -5978,7 +5978,7 @@
     }
 
     var monthContracts = allContracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === thisMonth; });
-    var monthSales = monthContracts.reduce(function (s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+    var monthSales = monthContracts.reduce(function (s, c) { var v = Number(c.totalAmount) || 0; return s + (c.amountUnit === 'manwon' ? v : Math.round(v / 10000)); }, 0);
     var monthVisits = allVisits.filter(function (v) { return (v.visitDate || '').slice(0, 7) === thisMonth; }).length;
 
     var goals = getKpiGoals ? getKpiGoals() : {};
@@ -6010,12 +6010,14 @@
     var balPend = allContracts.filter(function (c) { return c.balanceAmount && !c.balanceConfirmed; }).length;
     var unpaid = allContracts.filter(function (c) { return c.depositAmount && !c.depositConfirmed; }).length;
 
-    // 입금 금액
-    function _normPay(c, field) { var v = Number(c[field]) || 0; return c.amountUnit === 'manwon' ? v : Math.round(v / 10000); }
+    // 입금 금액 (계약금/중도금/잔금 필드는 항상 만원 단위로 저장됨)
+    function _normPay(c, field) { return Number(c[field]) || 0; }
     var depAmt = 0, depUnpaidAmt = 0, progPendAmt = 0, balPendAmt = 0, totalCollected = 0, totalUnpaid = 0;
     allContracts.forEach(function (c) {
       var dA = _normPay(c, 'depositAmount');
-      if (c.depositConfirmed) { depAmt += dA; totalCollected += dA; }
+      // depositReceivedAt이 있으면 수령 완료로 간주 (paymentCellWithConfirm과 동일 로직)
+      var depConfirmed = !!(c.depositConfirmed || c.depositReceivedAt);
+      if (depConfirmed) { depAmt += dA; totalCollected += dA; }
       else if (c.depositAmount) { depUnpaidAmt += dA; totalUnpaid += dA; }
       ['progress1', 'progress2', 'progress3'].forEach(function (p) {
         var pA = _normPay(c, p + 'Amount');
@@ -6028,7 +6030,7 @@
     return {
       periodContract: periodContracts.length + '건',
       monthContract: monthContracts.length + '건',
-      monthSales: (monthSales / 10000).toFixed(0) + '만원',
+      monthSales: formatMoney(monthSales) + '만원',
       goalRate: rateC,
       srHq: srCounts.headquarters + '건',
       sr1: srCounts.showroom1 + '건',
