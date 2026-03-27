@@ -245,9 +245,9 @@
       return isDesign || isSales || isConstruction || isMarketing || isSettlement;
     }
 
-    // 설계업무일지 / 설계일정: 설계팀 + 관리자
-    if (sectionId === 'design-worklog' || sectionId === 'design-schedule') {
-      return isDesign || isSales || isConstruction || isMarketing || isSettlement;
+    // 설계업무일지: 설계팀 + master/admin만 접근
+    if (sectionId === 'design-worklog') {
+      return isDesign;
     }
 
     // ??? ???: ???, ???, ????? ??? + ????? ????(????? isSalesReadonly??? ?? ???)
@@ -271,6 +271,11 @@
     }
     // ????????? ?? ??? ???
     return true;
+  }
+
+  function updateDesignWorklogNavVisibility() {
+    var el = document.querySelector('[data-section="design-worklog"]');
+    if (el) el.classList.toggle('hidden', !canAccessTeamSection('design-worklog'));
   }
 
   function updateAdminNavVisibility() {
@@ -9964,12 +9969,14 @@
     updateAdminNavVisibility();
     updateManageNavVisibility();
     updateCeoNavVisibility();
+    updateDesignWorklogNavVisibility();
     initCeoReports();
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
       updateAdminNavVisibility();
       updateManageNavVisibility();
       updateCeoNavVisibility();
+      updateDesignWorklogNavVisibility();
       if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
       // ????? ????? ?? ???? ???????? ????????? ????????? ?????
       if (typeof renderDashboard === 'function') renderDashboard();
