@@ -239,6 +239,12 @@
       }
     }
 
+    var gotoDesignBtn = document.getElementById('chat-goto-design-btn');
+    if (gotoDesignBtn) {
+      gotoDesignBtn.classList.toggle('hidden', type !== 'contract');
+      gotoDesignBtn.setAttribute('data-contract-id', type === 'contract' ? id : '');
+    }
+
     renderChatRoomList();
 
     if (type === 'channel') {
@@ -538,6 +544,17 @@
       });
       var closeBtn = document.getElementById('chat-conversation-close-btn');
       if (closeBtn) closeBtn.addEventListener('click', function () { closeConversation(); });
+      var gotoDesignBtn = document.getElementById('chat-goto-design-btn');
+      if (gotoDesignBtn) {
+        gotoDesignBtn.addEventListener('click', function () {
+          var contractId = gotoDesignBtn.getAttribute('data-contract-id');
+          if (!contractId) return;
+          if (typeof window.showSection === 'function') window.showSection('design');
+          setTimeout(function () {
+            if (typeof window.showDesignDetailPanel === 'function') window.showDesignDetailPanel(contractId);
+          }, 100);
+        });
+      }
     } else {
       applyChatTabVisibility();
       var activeTab = panel.querySelector('.chat-tab.active');
