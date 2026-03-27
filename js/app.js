@@ -6002,13 +6002,28 @@
     var cActive = allContracts.filter(function (c) { var p = c.constructionProgress || ''; return p === '착공' || p === '진행중'; }).length;
     var cDone = allContracts.filter(function (c) { return c.constructionProgress === '완료'; }).length;
 
-    // 입금
+    // 입금 건수
     var depOk = allContracts.filter(function (c) { return c.depositConfirmed; }).length;
     var progPend = allContracts.filter(function (c) {
       return (c.progress1Amount && !c.progress1Confirmed) || (c.progress2Amount && !c.progress2Confirmed) || (c.progress3Amount && !c.progress3Confirmed);
     }).length;
     var balPend = allContracts.filter(function (c) { return c.balanceAmount && !c.balanceConfirmed; }).length;
     var unpaid = allContracts.filter(function (c) { return c.depositAmount && !c.depositConfirmed; }).length;
+
+    // 입금 금액
+    function _normPay(c, field) { var v = Number(c[field]) || 0; return c.amountUnit === 'manwon' ? v : Math.round(v / 10000); }
+    var depAmt = 0, depUnpaidAmt = 0, progPendAmt = 0, balPendAmt = 0, totalCollected = 0, totalUnpaid = 0;
+    allContracts.forEach(function (c) {
+      var dA = _normPay(c, 'depositAmount');
+      if (c.depositConfirmed) { depAmt += dA; totalCollected += dA; }
+      else if (c.depositAmount) { depUnpaidAmt += dA; totalUnpaid += dA; }
+      ['progress1', 'progress2', 'progress3'].forEach(function (p) {
+        var pA = _normPay(c, p + 'Amount');
+        if (pA) { if (c[p + 'Confirmed']) { totalCollected += pA; } else { progPendAmt += pA; totalUnpaid += pA; } }
+      });
+      var bA = _normPay(c, 'balanceAmount');
+      if (bA) { if (c.balanceConfirmed) { totalCollected += bA; } else { balPendAmt += bA; totalUnpaid += bA; } }
+    });
 
     return {
       periodContract: periodContracts.length + '건',
@@ -6030,9 +6045,15 @@
       constActive: cActive + '건',
       constDone: cDone + '건',
       payDeposit: depOk + '건',
+      payDepAmt: formatMoney(depAmt) + '만원',
       payProgress: progPend + '건',
+      payProgAmt: formatMoney(progPendAmt) + '만원',
       payBalance: balPend + '건',
-      payUnpaid: unpaid + '건'
+      payBalAmt: formatMoney(balPendAmt) + '만원',
+      payUnpaid: unpaid + '건',
+      payUnpaidAmt: formatMoney(depUnpaidAmt) + '만원',
+      payMonthTotal: formatMoney(totalCollected) + '만원',
+      payTotalUnpaid: formatMoney(totalUnpaid) + '만원'
     };
   }
 
@@ -6067,9 +6088,15 @@
     setCeoField(type, 'const-active', data.constActive);
     setCeoField(type, 'const-done', data.constDone);
     setCeoField(type, 'pay-deposit', data.payDeposit);
+    setCeoField(type, 'pay-dep-amt', data.payDepAmt);
     setCeoField(type, 'pay-progress', data.payProgress);
+    setCeoField(type, 'pay-prog-amt', data.payProgAmt);
     setCeoField(type, 'pay-balance', data.payBalance);
+    setCeoField(type, 'pay-bal-amt', data.payBalAmt);
     setCeoField(type, 'pay-unpaid', data.payUnpaid);
+    setCeoField(type, 'pay-unpaid-amt', data.payUnpaidAmt);
+    setCeoField(type, 'pay-month-total', data.payMonthTotal);
+    setCeoField(type, 'pay-total-unpaid', data.payTotalUnpaid);
     showToast('대시보드 데이터가 자동 입력되었습니다.');
   }
 
@@ -6120,10 +6147,12 @@
       '이슈 현장 : ' + g('const-issue'),
       '',
       '■ 입금 / 잔금 현황',
-      '계약금 입금 : ' + g('pay-deposit'),
-      '중도금 예정 : ' + g('pay-progress'),
-      '잔금 예정 : ' + g('pay-balance'),
-      '미입금 : ' + g('pay-unpaid'),
+      '계약금 수령 : ' + g('pay-deposit') + ' / ' + g('pay-dep-amt'),
+      '계약금 미수령 : ' + g('pay-unpaid') + ' / ' + g('pay-unpaid-amt'),
+      '중도금 예정 : ' + g('pay-progress') + ' / ' + g('pay-prog-amt'),
+      '잔금 예정 : ' + g('pay-balance') + ' / ' + g('pay-bal-amt'),
+      '총 수금액 : ' + g('pay-month-total'),
+      '전체 미수금 : ' + g('pay-total-unpaid'),
       '연체 : ' + g('pay-overdue'),
       '',
       '■ 매출 예측',
@@ -6145,7 +6174,7 @@
       'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
       'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
       'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
-      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'pay-deposit', 'pay-dep-amt', 'pay-unpaid', 'pay-unpaid-amt', 'pay-progress', 'pay-prog-amt', 'pay-balance', 'pay-bal-amt', 'pay-month-total', 'pay-total-unpaid', 'pay-overdue',
       'forecast-this', 'forecast-next', 'forecast-ongoing'];
     var result = {};
     fields.forEach(function (f) { result[f] = getCeoField(type, f); });
@@ -6162,7 +6191,7 @@
       'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
       'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
       'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
-      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'pay-deposit', 'pay-dep-amt', 'pay-unpaid', 'pay-unpaid-amt', 'pay-progress', 'pay-prog-amt', 'pay-balance', 'pay-bal-amt', 'pay-month-total', 'pay-total-unpaid', 'pay-overdue',
       'forecast-this', 'forecast-next', 'forecast-ongoing'];
     fields.forEach(function (f) { setCeoField(type, f, ''); });
     var issuesEl = document.getElementById('ceo-' + type + '-f-issues');

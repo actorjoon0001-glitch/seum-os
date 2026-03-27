@@ -2421,10 +2421,14 @@
           </div>
           <div class="ceo-block">
             <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
-            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-daily-f-pay-deposit" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-daily-f-pay-progress" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-daily-f-pay-balance" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-daily-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-bottom:0;"><span class="ceo-label"></span><span style="flex:1">건수</span><span style="flex:1">금액</span></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 수령</span><input type="text" id="ceo-daily-f-pay-deposit" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-dep-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 미수령</span><input type="text" id="ceo-daily-f-pay-unpaid" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-unpaid-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-daily-f-pay-progress" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-prog-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-daily-f-pay-balance" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-bal-amt" class="ceo-input" placeholder="-"></div>
+            <div style="border-top:1px dashed var(--border-color,#334155);margin:0.35rem 0;"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">총 수금액</span><input type="text" id="ceo-daily-f-pay-month-total" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">전체 미수금</span><input type="text" id="ceo-daily-f-pay-total-unpaid" class="ceo-input" placeholder="-"></div>
             <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-daily-f-pay-overdue" class="ceo-input" placeholder="-"></div>
           </div>
           <div class="ceo-block">
@@ -2534,10 +2538,14 @@
           </div>
           <div class="ceo-block">
             <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
-            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-weekly-f-pay-deposit" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-weekly-f-pay-progress" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-weekly-f-pay-balance" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-weekly-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-bottom:0;"><span class="ceo-label"></span><span style="flex:1">건수</span><span style="flex:1">금액</span></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 수령</span><input type="text" id="ceo-weekly-f-pay-deposit" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-dep-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 미수령</span><input type="text" id="ceo-weekly-f-pay-unpaid" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-unpaid-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-weekly-f-pay-progress" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-prog-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-weekly-f-pay-balance" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-bal-amt" class="ceo-input" placeholder="-"></div>
+            <div style="border-top:1px dashed var(--border-color,#334155);margin:0.35rem 0;"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">총 수금액</span><input type="text" id="ceo-weekly-f-pay-month-total" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">전체 미수금</span><input type="text" id="ceo-weekly-f-pay-total-unpaid" class="ceo-input" placeholder="-"></div>
             <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-weekly-f-pay-overdue" class="ceo-input" placeholder="-"></div>
           </div>
           <div class="ceo-block">
@@ -2647,10 +2655,14 @@
           </div>
           <div class="ceo-block">
             <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
-            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-monthly-f-pay-deposit" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-monthly-f-pay-progress" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-monthly-f-pay-balance" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-monthly-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-bottom:0;"><span class="ceo-label"></span><span style="flex:1">건수</span><span style="flex:1">금액</span></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 수령</span><input type="text" id="ceo-monthly-f-pay-deposit" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-dep-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 미수령</span><input type="text" id="ceo-monthly-f-pay-unpaid" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-unpaid-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-monthly-f-pay-progress" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-prog-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-monthly-f-pay-balance" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-bal-amt" class="ceo-input" placeholder="-"></div>
+            <div style="border-top:1px dashed var(--border-color,#334155);margin:0.35rem 0;"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">총 수금액</span><input type="text" id="ceo-monthly-f-pay-month-total" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">전체 미수금</span><input type="text" id="ceo-monthly-f-pay-total-unpaid" class="ceo-input" placeholder="-"></div>
             <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-monthly-f-pay-overdue" class="ceo-input" placeholder="-"></div>
           </div>
           <div class="ceo-block">
