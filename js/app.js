@@ -3641,8 +3641,8 @@
       '<div class="design-detail-field"><label>담당 영업사원</label><div>' + escapeAttr(c.salesPerson || "-") + '</div></div>' +
       '<div class="design-detail-field"><label>시공 주소</label><div>' + escapeAttr(c.siteAddress || "-") + '</div></div>' +
       '<div class="design-detail-field"><label>설치 유형</label><div>' + escapeAttr(c.installType || "현장시공") + '</div></div>' +
-      '<div class="design-detail-field"><label>공급가(만원)</label><div>' + escapeAttr(c.supplyAmount || "") + '</div></div>' +
-      '<div class="design-detail-field"><label>부가세(만원)</label><div>' + escapeAttr(c.vatAmount || "") + '</div></div>' +
+      '<div class="design-detail-field"><label>공급가</label><div>' + (c.supplyAmount ? formatMoney(c.supplyAmount) + '원' : '') + '</div></div>' +
+      '<div class="design-detail-field"><label>부가세</label><div>' + (c.vatAmount ? formatMoney(c.vatAmount) + '원' : '') + '</div></div>' +
       '<div class="design-detail-field"><label>기초공사 평수</label><div>' + escapeAttr(c.foundationPyeong || "") + '</div></div>' +
       '<div class="design-detail-field"><label>주택 평수</label><div>' + escapeAttr(c.housePyeong || "") + '</div></div>' +
       '<div class="design-detail-field"><label>옵션 요약</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
@@ -7845,9 +7845,9 @@
         var salesPerson = document.getElementById('contract-sales-person').value.trim();
         var customerName = document.getElementById('contract-name').value.trim();
         var phone = document.getElementById('contract-phone').value.trim();
-        var supplyAmount = document.getElementById('contract-supply').value;
-        var vatAmount = document.getElementById('contract-vat').value;
-        var totalAmount = document.getElementById('contract-total').value;
+        var supplyAmount = manWonToWon(document.getElementById('contract-supply').value);
+        var vatAmount = manWonToWon(document.getElementById('contract-vat').value);
+        var totalAmount = manWonToWon(document.getElementById('contract-total').value);
         var contractDate = document.getElementById('contract-date').value;
         function manWonToWon(v) { var n = parseFloat(v); return (!v || isNaN(n)) ? null : String(Math.round(n * 10000)); }
         var depositAmount = manWonToWon(document.getElementById('contract-deposit-amount').value);
@@ -8106,7 +8106,7 @@
     var contracts = getContracts();
     var c = contracts.find(function (x) { return x.id === contractId; });
     if (!c) return;
-    var currentValue = (c[field] != null) ? String(c[field]) : '';
+    var currentValue = (field === 'totalAmount' && c[field]) ? String(Math.round(parseFloat(c[field]) / 10000)) : ((c[field] != null) ? String(c[field]) : '');
     document.getElementById('contract-field-contract-id').value = contractId;
     document.getElementById('contract-field-name').value = field;
     document.getElementById('modal-contract-field-title').textContent = meta.label + ' 수정';
@@ -8141,7 +8141,7 @@
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
         if (!c) return;
-        c[field] = newValue;
+        c[field] = (field === 'totalAmount' && newValue) ? String(Math.round(parseFloat(newValue) * 10000)) : newValue;
         saveContracts(contracts);
         modal.classList.add('hidden');
         renderSales();
