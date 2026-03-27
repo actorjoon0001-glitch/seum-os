@@ -2361,49 +2361,6 @@
       .ceo-sub-label{min-width:5rem;font-size:0.82rem;color:var(--text-muted,#94a3b8);}
       .ceo-preview-box{margin-top:1.5rem;padding:1rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:8px;}
     </style>
-    <style>
-      @media print {
-        @page { size: A4 portrait; margin: 15mm; }
-        /* 사이드바, 네비, 버튼 등 UI 요소 숨김 */
-        .sidebar, .top-bar, .nav-section, .btn-section-print, .no-print,
-        .form-actions, #filter-bar, .contract-filter-bar { display: none !important; }
-        /* 인쇄 대상 아닌 섹션 숨김 */
-        .content-section:not(.print-target) { display: none !important; }
-        /* 레이아웃 평탄화 */
-        html, body, .app-layout, .main-content, .main-content-inner { display: block !important; padding: 0 !important; margin: 0 !important; background: #fff !important; width: 100% !important; overflow: visible !important; }
-        /* 인쇄 대상 섹션 스타일 */
-        .print-target { display: block !important; width: 100% !important; background: #fff !important; color: #111 !important; }
-        .print-target * { color: #111 !important; background: transparent !important; border-color: #ccc !important; box-shadow: none !important; }
-        .print-target .card { border: 1px solid #ccc !important; padding: 4mm !important; margin-bottom: 6mm !important; break-inside: avoid; border-radius: 0 !important; }
-        .print-target h2, .print-target h3, .print-target h4 { font-size: 1rem; margin-bottom: 3mm; }
-        .print-target h2 { font-size: 1.3rem; }
-        /* KPI 그리드 */
-        .print-target .ceo-db-kpi-grid { display: grid !important; grid-template-columns: repeat(4,1fr) !important; gap: 3mm !important; margin-bottom: 6mm !important; }
-        .print-target .ceo-db-kpi-card { border: 1px solid #ccc !important; padding: 3mm !important; border-radius: 2mm !important; }
-        .print-target .ceo-db-kpi-value { font-size: 1.3rem !important; font-weight: 700 !important; }
-        /* 진행 현황 그리드 */
-        .print-target .ceo-db-progress-grid { display: grid !important; grid-template-columns: repeat(4,1fr) !important; gap: 3mm !important; margin-bottom: 6mm !important; }
-        .print-target .ceo-db-progress-card { border: 1px solid #ccc !important; padding: 3mm !important; text-align: center !important; }
-        .print-target .ceo-db-prog-num { font-size: 1.5rem !important; font-weight: 700 !important; }
-        /* 하단 2단 그리드 */
-        .print-target .ceo-db-bottom-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 4mm !important; }
-        .print-target .ceo-db-section-title { font-weight: 700 !important; margin: 4mm 0 2mm !important; }
-        /* 테이블 */
-        .print-target table { width: 100% !important; border-collapse: collapse !important; }
-        .print-target th, .print-target td { border: 1px solid #999 !important; padding: 2mm 3mm !important; font-size: 0.78rem !important; }
-        .print-target th { background: #f0f0f0 !important; font-weight: 600 !important; }
-        /* 보고 양식 */
-        .print-target .ceo-block { border: 1px solid #ddd !important; padding: 3mm 4mm !important; margin-bottom: 3mm !important; break-inside: avoid; }
-        .print-target .ceo-block-title { font-weight: 700 !important; margin-bottom: 2mm !important; }
-        .print-target .ceo-row { display: flex !important; gap: 3mm !important; margin-bottom: 1mm !important; }
-        .print-target .ceo-label, .print-target .ceo-sub-label { min-width: 6rem !important; font-size: 0.8rem !important; }
-        .print-target .ceo-input { border: none !important; border-bottom: 1px solid #ccc !important; background: transparent !important; padding: 0 !important; font-size: 0.85rem !important; }
-        .print-target .ceo-preview-box { background: #f9f9f9 !important; border: 1px solid #ddd !important; padding: 3mm !important; }
-        /* 시공 보고 그리드 */
-        .print-target .ceo-db-cw-grid { display: grid !important; grid-template-columns: repeat(4,1fr) !important; gap: 3mm !important; margin-bottom: 4mm !important; }
-        .print-target .ceo-db-cw-card { border: 1px solid #ccc !important; padding: 3mm !important; text-align: center !important; }
-      }
-    </style>
 
     <!-- 대표님 일일 보고 -->
     <section id="section-ceo-daily" class="content-section">
