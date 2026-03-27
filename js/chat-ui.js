@@ -549,9 +549,17 @@
         gotoDesignBtn.addEventListener('click', function () {
           var contractId = gotoDesignBtn.getAttribute('data-contract-id');
           if (!contractId) return;
+          // 필터 초기화: 년/월 필터와 검색어를 비워 해당 계약이 테이블에 렌더링되도록
+          var monthEl = document.getElementById('filter-month');
+          var searchEl = document.getElementById('design-search-input');
+          if (monthEl) monthEl.value = '';
+          if (searchEl) searchEl.value = '';
           if (typeof window.showSection === 'function') window.showSection('design');
           setTimeout(function () {
-            if (typeof window.showDesignDetailPanel === 'function') window.showDesignDetailPanel(contractId);
+            if (typeof window.renderDesign === 'function') window.renderDesign();
+            setTimeout(function () {
+              if (typeof window.showDesignDetailPanel === 'function') window.showDesignDetailPanel(contractId);
+            }, 50);
           }, 100);
         });
       }
