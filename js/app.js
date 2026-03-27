@@ -514,10 +514,29 @@
     localStorage.setItem(STORAGE_VISITS, JSON.stringify(data));
   }
 
+  function migrateContractAmounts(contracts) {
+    var THRESHOLD = 10000000; // 1천만원 미만이면 만원 단위로 저장된 구 데이터
+    var changed = false;
+    contracts.forEach(function (c) {
+      ['totalAmount', 'supplyAmount', 'vatAmount'].forEach(function (field) {
+        var v = c[field];
+        if (v != null && v !== '' && !isNaN(Number(v)) && Number(v) > 0 && Number(v) < THRESHOLD) {
+          c[field] = String(Math.round(Number(v) * 10000));
+          changed = true;
+        }
+      });
+    });
+    if (changed) {
+      localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts));
+    }
+    return contracts;
+  }
+
   function getContracts() {
     try {
       var raw = localStorage.getItem(STORAGE_CONTRACTS);
-      return raw ? JSON.parse(raw) : [];
+      var contracts = raw ? JSON.parse(raw) : [];
+      return migrateContractAmounts(contracts);
     } catch (e) {
       return [];
     }
