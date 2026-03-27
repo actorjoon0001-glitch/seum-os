@@ -9837,6 +9837,7 @@
   window.getShowroomName = getShowroomName;
   window.showSection = showSection;
   window.showDesignDetailPanel = showDesignDetailPanel;
+  window.renderDesign = renderDesign;
   window.isAdmin = isAdmin;
   window.isMaster = isMaster;
   window.formatDate = formatDate;
