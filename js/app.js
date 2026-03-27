@@ -3046,7 +3046,7 @@
       var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
       var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
-      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
       // 영업팀(비관리자)은 소속 전시장 계약만 노출, 매니저도 동일하게 소속 전시장 전체 노출
       var isManagerRole = (typeof isManager === 'function' && isManager());
       if ((userTeam === '영업' || isManagerRole) && curUser && !isAdminRole) {
