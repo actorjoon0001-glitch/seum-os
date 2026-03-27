@@ -497,7 +497,7 @@
       var participantCount = uniqueNames.length;
       var showroomLabel = c.showroomId ? (CHAT_CHANNEL_LABELS[c.showroomId] || c.showroomId) : '';
       var label = (showroomLabel ? '[' + showroomLabel + '] ' : '') + (c.customerName || '-') + ' · ' + (c.contractModelName || c.contractModel || '-');
-      list.push({ type: 'contract', id: c.id, label: label, participantCount: participantCount });
+      list.push({ type: 'contract', id: c.id, label: label, participantCount: participantCount, showroomId: c.showroomId || '' });
     });
 
     list.sort(function (a, b) {

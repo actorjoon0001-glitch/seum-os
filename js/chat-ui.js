@@ -9,6 +9,8 @@
   var selectedChatRoom = { type: 'channel', id: 'all' };
   /** 대화창 열림 여부 (같은 방 재클릭 시 닫기용) */
   var isChatOpen = false;
+  /** 계약 채팅 전시장 필터 */
+  var selectedContractShowroomFilter = 'all';
 
   function renderContractChat(contractId, listId) {
     var resolvedListId = listId || 'contract-chat-message-list';
@@ -153,8 +155,25 @@
 
     if (contractsEl) {
       var contractList = typeof window.getContractChatRoomList === 'function' ? window.getContractChatRoomList() : [];
+
+      // 전시장 필터 버튼 렌더
+      var filterEl = document.getElementById('chat-contract-showroom-filter');
+      if (filterEl) {
+        var showroomIds = ['all'];
+        var seen = {};
+        contractList.forEach(function (r) { if (r.showroomId && !seen[r.showroomId]) { seen[r.showroomId] = true; showroomIds.push(r.showroomId); } });
+        var filterLabels = { all: '전체', headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+        var filterHtml = showroomIds.map(function (sid) {
+          var flabel = filterLabels[sid] || sid;
+          var isActive = selectedContractShowroomFilter === sid;
+          return '<button type="button" class="chat-showroom-filter-btn' + (isActive ? ' active' : '') + '" data-showroom="' + window.escapeChatText(sid) + '">' + window.escapeChatText(flabel) + '</button>';
+        }).join('');
+        filterEl.innerHTML = filterHtml;
+      }
+
       var contractHtml = '';
       contractList.forEach(function (room) {
+        if (selectedContractShowroomFilter !== 'all' && room.showroomId !== selectedContractShowroomFilter) return;
         if (searchVal && room.label.toLowerCase().indexOf(searchVal) === -1) return;
         var active = isChatOpen && selectedChatRoom.type === 'contract' && selectedChatRoom.id === room.id;
         var unread = typeof window.getContractChatUnreadCount === 'function' ? window.getContractChatUnreadCount(room.id) : 0;
@@ -498,6 +517,12 @@
       var searchEl = document.getElementById('chat-room-search');
       if (searchEl) searchEl.addEventListener('input', function () { renderChatRoomList(); });
       panel.addEventListener('click', function (e) {
+        var filterBtn = e.target.closest('.chat-showroom-filter-btn');
+        if (filterBtn) {
+          selectedContractShowroomFilter = filterBtn.getAttribute('data-showroom') || 'all';
+          renderChatRoomList();
+          return;
+        }
         var item = e.target.closest('.chat-room-item');
         if (!item) return;
         var type = item.getAttribute('data-type');
