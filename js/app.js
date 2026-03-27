@@ -3722,12 +3722,14 @@
       '</div>' +
       '</div>' +
       '<h4 class="design-detail-card-title permit-status-title">허가 / 착공 현황</h4>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-no-permit-required"' + (c.noPermitRequired ? ' checked' : '') + '> 인허가 필요없음</label>' +
+      '<label class="design-detail-check-item permit-toggle-label"><input type="checkbox" class="design-inline-permit-required"' + (c.permitRequired ? ' checked' : '') + '> 인허가 필요</label>' +
+      '<div class="permit-steps-wrap' + (c.permitRequired ? '' : ' hidden') + '">' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-design-consult-inprogress"' + (c.designConsultInProgress ? ' checked' : '') + '> 건축 설계 협의 진행중</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-permit-inprogress"' + (c.permitInProgress ? ' checked' : '') + '> 건축 인허가 진행중</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축 허가서 완료</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공 신고서 완료</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용 승인서 완료</label>' +
+      '</div>' +
       '<div class="start-ready-box">' +
       '<div class="design-approval-readonly">' +
       '<span class="design-approval-readonly-item' + (c.salesConfirmed ? ' confirmed' : '') + '">영업팀 확인 ' + (c.salesConfirmed ? '✓' : '✗') + '</span>' +
@@ -3930,7 +3932,7 @@
       if (!canDesign) {
         var designerInput = td.querySelector('.design-inline-designer');
         if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
-        ['.design-inline-no-permit-required', '.design-inline-design-consult-inprogress',
+        ['.design-inline-permit-required', '.design-inline-design-consult-inprogress',
           '.design-inline-permit-inprogress', '.design-inline-has-permit',
           '.design-inline-has-construction-report', '.design-inline-has-completion-cert'
         ].forEach(function (cls) { var el = td.querySelector(cls); if (el) el.disabled = true; });
@@ -4066,8 +4068,8 @@
       function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
       c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
       c.designPermitDesigner = (sel('.design-inline-designer') || {}).value ? sel('.design-inline-designer').value.trim() : '';
-      var noPermitEl = sel('.design-inline-no-permit-required');
-      if (noPermitEl) c.noPermitRequired = noPermitEl.checked;
+      var permitRequiredEl = sel('.design-inline-permit-required');
+      if (permitRequiredEl) c.permitRequired = permitRequiredEl.checked;
       var designConsultEl = sel('.design-inline-design-consult-inprogress');
       if (designConsultEl) c.designConsultInProgress = designConsultEl.checked;
       var permitInProgressEl = sel('.design-inline-permit-inprogress');
@@ -4120,7 +4122,7 @@
     c.designContactName = (sel('.design-inline-contact-name', 'design-inline-contact-name') || {}).value.trim() || '';
     c.designContactPhone = (sel('.design-inline-contact-phone', 'design-inline-contact-phone') || {}).value.trim() || '';
     c.designPermitDesigner = (sel('.design-inline-designer', 'design-inline-designer') || {}).value.trim() || '';
-    c.noPermitRequired = (sel('.design-inline-no-permit-required') || {}).checked || false;
+    c.permitRequired = (sel('.design-inline-permit-required') || {}).checked || false;
     c.designConsultInProgress = (sel('.design-inline-design-consult-inprogress') || {}).checked || false;
     c.permitInProgress = (sel('.design-inline-permit-inprogress') || {}).checked || false;
     c.hasPermitCert = (sel('.design-inline-has-permit', 'design-inline-has-permit') || {}).checked || false;
@@ -4162,6 +4164,11 @@
 
   function initDesignDetailPanel() {
     document.addEventListener('change', function (e) {
+      if (e.target.classList.contains('design-inline-permit-required')) {
+        var form = e.target.closest('form');
+        var stepsWrap = form && form.querySelector('.permit-steps-wrap');
+        if (stepsWrap) stepsWrap.classList.toggle('hidden', !e.target.checked);
+      }
       if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
         var form = e.target.closest('form');
         var wrap = form && form.querySelector('.design-inline-house-wrap');
