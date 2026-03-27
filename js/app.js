@@ -518,7 +518,7 @@
     var THRESHOLD = 10000000; // 1천만원 미만이면 만원 단위로 저장된 구 데이터
     var changed = false;
     contracts.forEach(function (c) {
-      ['totalAmount', 'supplyAmount', 'vatAmount'].forEach(function (field) {
+      ['totalAmount', 'supplyAmount', 'vatAmount', 'depositAmount', 'progress1Amount', 'progress2Amount', 'progress3Amount', 'balanceAmount'].forEach(function (field) {
         var v = c[field];
         if (v != null && v !== '' && !isNaN(Number(v)) && Number(v) > 0 && Number(v) < THRESHOLD) {
           c[field] = String(Math.round(Number(v) * 10000));
