@@ -3616,8 +3616,11 @@
     if (!c) return '';
     var statusMap = { none: '미착수', in_progress: '설계 중', done: '완료' };
     var statusLabel = statusMap[c.designStatus || 'none'] || '-';
-    var projectType = c.projectType || '-';
-    var houseWrapHidden = (c.projectType || '') !== '주택' ? ' hidden' : '';
+    // 영업팀 주택유형 → 설계팀 유형 자동 매핑 (projectType이 없을 때만)
+    var contractModelMap = { '체류형쉼터': '체류형쉼터', '컨테이너/농막': '체류형쉼터', '전원주택': '주택', '기타': '' };
+    var effectiveProjectType = c.projectType || (c.contractModel ? (contractModelMap[c.contractModel] !== undefined ? contractModelMap[c.contractModel] : '') : '');
+    var projectType = effectiveProjectType || '-';
+    var houseWrapHidden = effectiveProjectType !== '주택' ? ' hidden' : '';
     var summaryBar = '<div class="design-detail-summary-bar">' +
       '<span class="design-detail-summary-item"><strong>고객명</strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
       '<span class="design-detail-summary-item"><strong>유형</strong> ' + escapeAttr(projectType) + '</span>' +
@@ -3672,7 +3675,7 @@
     var cardDrawing = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">도면 관리</h4>' +
       '<div class="design-detail-card-body">' +
-      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="체류형쉼터"' + (c.projectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="주택"' + (c.projectType === '주택' ? ' selected' : '') + '>주택</option></select></label>' +
+      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="체류형쉼터"' + (effectiveProjectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="주택"' + (effectiveProjectType === '주택' ? ' selected' : '') + '>주택</option></select></label>' +
       '<div class="design-discussion-card">' +
       '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 1차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
       '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
