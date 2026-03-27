@@ -3773,13 +3773,15 @@
       '</div>' +
       '</div>' +
       '<h4 class="design-detail-card-title permit-status-title">허가 / 착공 현황</h4>' +
-      '<label class="design-detail-check-item permit-toggle-label"><input type="checkbox" class="design-inline-permit-required"' + (c.permitRequired ? ' checked' : '') + '> 인허가 필요</label>' +
-      '<div class="permit-steps-wrap' + (c.permitRequired ? '' : ' hidden') + '">' +
+      '<div class="permit-steps-wrap' + (effectiveProjectType === '전원주택' ? '' : ' hidden') + '">' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-design-consult-inprogress"' + (c.designConsultInProgress ? ' checked' : '') + '> 건축 설계 협의 진행중</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-permit-inprogress"' + (c.permitInProgress ? ' checked' : '') + '> 건축 인허가 진행중</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축 허가서 완료</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공 신고서 완료</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용 승인서 완료</label>' +
+      '</div>' +
+      '<div class="shelter-permit-wrap' + (effectiveProjectType === '체류형쉼터' ? '' : ' hidden') + '">' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-temporary-building-cert"' + (c.hasTemporaryBuildingCert ? ' checked' : '') + '> 가설 건축물 필증</label>' +
       '</div>' +
       '<div class="start-ready-box">' +
       '<div class="design-approval-readonly">' +
@@ -4131,6 +4133,8 @@
       if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
       var completionEl = sel('.design-inline-has-completion-cert');
       if (completionEl) c.hasCompletionCert = completionEl.checked;
+      var tempBuildingEl = sel('.design-inline-has-temporary-building-cert');
+      if (tempBuildingEl) c.hasTemporaryBuildingCert = tempBuildingEl.checked;
       c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
       saveContracts(contracts);
       renderDesign();
@@ -4181,6 +4185,7 @@
     c.completionCertAttachment = (sel('.design-inline-completion-attachment', 'design-inline-completion-attachment') || {}).value.trim() || '';
     c.hasConstructionStartReport = (sel('.design-inline-has-construction-report', 'design-inline-has-construction-report') || {}).checked || false;
     c.hasCompletionCert = (sel('.design-inline-has-completion-cert', 'design-inline-has-completion-cert') || {}).checked || false;
+    c.hasTemporaryBuildingCert = (sel('.design-inline-has-temporary-building-cert') || {}).checked || false;
     c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
     // ???????? ?? ????????????, ??? ???????????? ???????? ????? ??????????? ??? ???
     if (c.constructionStartOk && !c.designPermitDesigner && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
@@ -4215,16 +4220,14 @@
 
   function initDesignDetailPanel() {
     document.addEventListener('change', function (e) {
-      if (e.target.classList.contains('design-inline-permit-required')) {
-        var form = e.target.closest('form');
-        var stepsWrap = form && form.querySelector('.permit-steps-wrap');
-        if (stepsWrap) stepsWrap.classList.toggle('hidden', !e.target.checked);
-      }
       if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
         var container = e.target.closest('form') || e.target.closest('.design-detail-inner') || e.target.closest('.design-detail-row');
-        var wrap = container ? container.querySelector('.design-inline-house-wrap') : null;
-        if (!wrap) wrap = document.querySelector('.design-inline-house-wrap');
+        var wrap = container ? container.querySelector('.design-inline-house-wrap') : document.querySelector('.design-inline-house-wrap');
         if (wrap) wrap.classList.toggle('hidden', e.target.value !== '전원주택');
+        var permitWrap = container ? container.querySelector('.permit-steps-wrap') : document.querySelector('.permit-steps-wrap');
+        if (permitWrap) permitWrap.classList.toggle('hidden', e.target.value !== '전원주택');
+        var shelterWrap = container ? container.querySelector('.shelter-permit-wrap') : document.querySelector('.shelter-permit-wrap');
+        if (shelterWrap) shelterWrap.classList.toggle('hidden', e.target.value !== '체류형쉼터');
       }
       if (e.target.classList.contains('design-inline-drawing-file') ||
         e.target.classList.contains('design-inline-drawing-file-2') ||
