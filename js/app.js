@@ -6230,7 +6230,7 @@
 
   function calcExpenseTotal() {
     var total = 0;
-    document.querySelectorAll('#expense-items-body .expense-amount').forEach(function (el) { total += Number(el.value) || 0; });
+    document.querySelectorAll('#expense-items-body .expense-amount').forEach(function (el) { total += Number(el.value.replace(/,/g, '')) || 0; });
     var sumCell = document.getElementById('expense-sum-cell');
     var dispEl = document.getElementById('expense-total-display');
     var korEl = document.getElementById('expense-total-korean');
@@ -6260,15 +6260,21 @@
     var tr = document.createElement('tr');
     tr.innerHTML =
       '<td><textarea class="expense-cell-input expense-desc" rows="2" placeholder="적/요 입력"></textarea></td>' +
-      '<td><input type="number" class="expense-cell-input expense-amount" style="text-align:right;" placeholder="0"></td>' +
+      '<td><input type="text" inputmode="numeric" class="expense-cell-input expense-amount" style="text-align:right;" placeholder="0"></td>' +
       '<td><input type="text" class="expense-cell-input expense-note" placeholder="비고/계좌"></td>' +
       '<td class="no-print" style="text-align:center;"><button type="button" class="expense-del-btn" title="삭제">✕</button></td>';
     var descEl = tr.querySelector('.expense-desc');
     var amtEl = tr.querySelector('.expense-amount');
     var noteEl = tr.querySelector('.expense-note');
     if (data.description) descEl.value = data.description;
-    if (data.amount) amtEl.value = data.amount;
+    if (data.amount) amtEl.value = Number(data.amount).toLocaleString();
     if (data.note) noteEl.value = data.note;
+    amtEl.addEventListener('focus', function () { amtEl.value = amtEl.value.replace(/,/g, ''); });
+    amtEl.addEventListener('blur', function () {
+      var raw = Number(amtEl.value.replace(/,/g, '')) || 0;
+      amtEl.value = raw > 0 ? raw.toLocaleString() : '';
+      calcExpenseTotal();
+    });
     amtEl.addEventListener('input', calcExpenseTotal);
     tr.querySelector('.expense-del-btn').addEventListener('click', function () { tr.remove(); calcExpenseTotal(); });
     tbody.appendChild(tr);
@@ -6280,7 +6286,7 @@
       var desc = tr.querySelector('.expense-desc');
       var amt = tr.querySelector('.expense-amount');
       var note = tr.querySelector('.expense-note');
-      var a = Number(amt ? amt.value : 0) || 0;
+      var a = Number(amt ? amt.value.replace(/,/g, '') : 0) || 0;
       var d = desc ? desc.value.trim() : '';
       if (d || a) items.push({ description: d, amount: a, note: note ? note.value.trim() : '', rowNum: num++ });
     });
