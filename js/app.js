@@ -2186,7 +2186,16 @@
     var showroomsEl = document.getElementById('sales-performance-showrooms');
     if (!overallEl || !showroomsEl) return;
 
-    var top3 = getOverallTop3();
+    var _isPrivileged = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    var _myShowroomId = getMyShowroomId();
+
+    // 전체 top3: 비관리자는 본인 전시장 계약만 기준
+    var top3Source = getOverallTopSales();
+    if (!_isPrivileged && _myShowroomId) {
+      top3Source = top3Source.filter(function (r) { return (r.showroomId || '') === _myShowroomId; });
+    }
+    var top3 = top3Source.slice(0, 3).map(function (r, i) { return Object.assign({}, r, { rank: i + 1 }); });
+
     if (top3.length === 0) {
       overallEl.innerHTML = '<p class="sales-performance-empty">이번 달 계약 데이터가 없습니다.</p>';
     } else {
@@ -2210,7 +2219,11 @@
       overallEl.innerHTML = firstHtml + '<ul class="sales-performance-sub-list">' + subList + '</ul>';
     }
 
+    // 전시장별 카드: 비관리자는 본인 전시장만
     var perShowroom = getTopPerShowroom();
+    if (!_isPrivileged && _myShowroomId) {
+      perShowroom = perShowroom.filter(function (item) { return (item.showroomId || '') === _myShowroomId; });
+    }
     showroomsEl.innerHTML = perShowroom.map(function (item) {
       if (!item.top) {
         return '<div class="card sales-performance-showroom-card">' +
