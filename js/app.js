@@ -6212,7 +6212,64 @@
   function getExpenseReports() {
     try { return JSON.parse(localStorage.getItem('seum_expense_reports') || '[]'); } catch (e) { return []; }
   }
-  function saveExpenseReports(data) { localStorage.setItem('seum_expense_reports', JSON.stringify(data)); }
+
+  function saveExpenseReports(data) {
+    localStorage.setItem('seum_expense_reports', JSON.stringify(data));
+    try {
+      var supa = window.seumSupabase;
+      if (!supa || !Array.isArray(data)) return;
+      var rows = data.map(function (r) {
+        return {
+          local_id: r.id || null,
+          report_date: r.date || null,
+          author: r.author || null,
+          total_amount: r.totalAmount || 0,
+          payload: r
+        };
+      });
+      supa.from('expense_reports').upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) { if (res && res.error) console.error('Supabase expense_reports sync error:', res.error); })
+        .catch(function (err) { console.error('Supabase expense_reports sync failed:', err); });
+    } catch (e) { console.error('saveExpenseReports exception:', e); }
+  }
+
+  function deleteExpenseFromSupabase(localId) {
+    try {
+      var supa = window.seumSupabase;
+      if (supa && localId) {
+        supa.from('expense_reports').delete().eq('local_id', localId)
+          .then(function (res) { if (res && res.error) console.error('Supabase expense delete error:', res.error); })
+          .catch(function (err) { console.error('Supabase expense delete failed:', err); });
+      }
+    } catch (e) { console.error('deleteExpenseFromSupabase exception:', e); }
+  }
+
+  function syncExpenseReportsFromSupabase() {
+    try {
+      var supa = window.seumSupabase;
+      if (!supa) return;
+      supa.from('expense_reports').select('local_id,payload').order('created_at', { ascending: false })
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('Supabase expense_reports load error:', res.error);
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            if (row.payload && typeof row.payload === 'object') return row.payload;
+            try { return JSON.parse(row.payload); } catch (e) { return null; }
+          }).filter(Boolean);
+          var local = getExpenseReports();
+          // 원격 기준으로 병합 (local_id로 중복 제거)
+          var merged = {};
+          remote.forEach(function (r) { if (r.id) merged[r.id] = r; });
+          local.forEach(function (r) { if (r.id && !merged[r.id]) merged[r.id] = r; });
+          var result = Object.values(merged);
+          localStorage.setItem('seum_expense_reports', JSON.stringify(result));
+          renderExpenseList();
+        })
+        .catch(function (err) { console.error('syncExpenseReportsFromSupabase failed:', err); });
+    } catch (e) { console.error('syncExpenseReportsFromSupabase exception:', e); }
+  }
 
   function numberToKorean(num) {
     num = Math.floor(Math.abs(Number(num) || 0));
@@ -6488,13 +6545,16 @@
         }
         if (delBtn) {
           if (!confirm('삭제하시겠습니까?')) return;
-          saveExpenseReports(getExpenseReports().filter(function (x) { return x.id !== delBtn.getAttribute('data-exp-del'); }));
+          var delId = delBtn.getAttribute('data-exp-del');
+          saveExpenseReports(getExpenseReports().filter(function (x) { return x.id !== delId; }));
+          deleteExpenseFromSupabase(delId);
           renderExpenseList();
           showToast('삭제되었습니다.');
         }
       });
     }
     renderExpenseList();
+    syncExpenseReportsFromSupabase();
   }
 
   function initCeoReports() {
