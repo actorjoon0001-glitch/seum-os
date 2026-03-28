@@ -6262,7 +6262,6 @@
       '<td><textarea class="expense-cell-input expense-desc" rows="2" placeholder="적/요 입력"></textarea></td>' +
       '<td><input type="number" class="expense-cell-input expense-amount" style="text-align:right;" placeholder="0"></td>' +
       '<td><input type="text" class="expense-cell-input expense-note" placeholder="비고/계좌"></td>' +
-      '<td style="text-align:center;font-size:0.8rem;">' + rowNum + '</td>' +
       '<td class="no-print" style="text-align:center;"><button type="button" class="expense-del-btn" title="삭제">✕</button></td>';
     var descEl = tr.querySelector('.expense-desc');
     var amtEl = tr.querySelector('.expense-amount');
