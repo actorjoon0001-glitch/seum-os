@@ -1073,9 +1073,17 @@
   }
 
   function renderDashboard() {
-    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    var _dashIsPrivileged = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    var _dashMyShowroom = getMyShowroomId();
+    var _allContracts = getContracts();
+    var _allVisits = getVisits();
+    if (!_dashIsPrivileged && _dashMyShowroom) {
+      _allContracts = _allContracts.filter(function (c) { return (c.showroomId || '') === _dashMyShowroom; });
+      _allVisits = _allVisits.filter(function (v) { return (v.showroomId || '') === _dashMyShowroom; });
+    }
+    var contracts = filterByShowroom(_allContracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
-    var visits = filterByShowroom(getVisits(), 'showroomId');
+    var visits = filterByShowroom(_allVisits, 'showroomId');
     visits = filterByYearMonth(visits, 'visitDate');
     var monthContracts = (getFilterYear() || getFilterMonth())
       ? contracts
