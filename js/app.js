@@ -6206,6 +6206,292 @@
     if (previewBox) previewBox.classList.add('hidden');
   }
 
+  // ========================
+  // 지출결의서
+  // ========================
+  function getExpenseReports() {
+    try { return JSON.parse(localStorage.getItem('seum_expense_reports') || '[]'); } catch (e) { return []; }
+  }
+  function saveExpenseReports(data) { localStorage.setItem('seum_expense_reports', JSON.stringify(data)); }
+
+  function numberToKorean(num) {
+    num = Math.floor(Math.abs(Number(num) || 0));
+    if (num === 0) return '영';
+    var u = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+    function g(n) {
+      if (!n) return '';
+      var th = Math.floor(n / 1000), h = Math.floor((n % 1000) / 100), t = Math.floor((n % 100) / 10), o = n % 10;
+      return (th ? (th === 1 ? '' : u[th]) + '천' : '') + (h ? (h === 1 ? '' : u[h]) + '백' : '') + (t ? (t === 1 ? '' : u[t]) + '십' : '') + (o ? u[o] : '');
+    }
+    var jo = Math.floor(num / 1000000000000), eok = Math.floor((num % 1000000000000) / 100000000);
+    var man = Math.floor((num % 100000000) / 10000), rest = num % 10000;
+    return (jo ? g(jo) + '조' : '') + (eok ? g(eok) + '억' : '') + (man ? g(man) + '만' : '') + (rest ? g(rest) : '');
+  }
+
+  function calcExpenseTotal() {
+    var total = 0;
+    document.querySelectorAll('#expense-items-body .expense-amount').forEach(function (el) { total += Number(el.value) || 0; });
+    var sumCell = document.getElementById('expense-sum-cell');
+    var dispEl = document.getElementById('expense-total-display');
+    var korEl = document.getElementById('expense-total-korean');
+    if (sumCell) sumCell.textContent = '₩' + total.toLocaleString();
+    if (dispEl) dispEl.textContent = total.toLocaleString();
+    if (korEl) korEl.textContent = total > 0 ? numberToKorean(total) + '원정' : '';
+    return total;
+  }
+
+  function updateExpenseFooter() {
+    var dateEl = document.getElementById('expense-date');
+    var authorEl = document.getElementById('expense-author');
+    var fd = document.getElementById('expense-footer-date');
+    var fa = document.getElementById('expense-footer-author');
+    if (fd && dateEl && dateEl.value) {
+      var d = new Date(dateEl.value + 'T00:00:00');
+      fd.textContent = d.getFullYear() + ' 년 \u2003' + (d.getMonth() + 1) + ' 월 \u2003' + d.getDate() + ' 일';
+    }
+    if (fa && authorEl) fa.textContent = authorEl.value;
+  }
+
+  function addExpenseRow(data) {
+    data = data || {};
+    var tbody = document.getElementById('expense-items-body');
+    if (!tbody) return;
+    var rowNum = data.rowNum || (tbody.querySelectorAll('tr').length + 1);
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><textarea class="expense-cell-input expense-desc" rows="2" placeholder="적/요 입력"></textarea></td>' +
+      '<td><input type="number" class="expense-cell-input expense-amount" style="text-align:right;" placeholder="0"></td>' +
+      '<td><input type="text" class="expense-cell-input expense-note" placeholder="비고/계좌"></td>' +
+      '<td style="text-align:center;font-size:0.8rem;">' + rowNum + '</td>' +
+      '<td class="no-print" style="text-align:center;"><button type="button" class="expense-del-btn" title="삭제">✕</button></td>';
+    var descEl = tr.querySelector('.expense-desc');
+    var amtEl = tr.querySelector('.expense-amount');
+    var noteEl = tr.querySelector('.expense-note');
+    if (data.description) descEl.value = data.description;
+    if (data.amount) amtEl.value = data.amount;
+    if (data.note) noteEl.value = data.note;
+    amtEl.addEventListener('input', calcExpenseTotal);
+    tr.querySelector('.expense-del-btn').addEventListener('click', function () { tr.remove(); calcExpenseTotal(); });
+    tbody.appendChild(tr);
+  }
+
+  function collectExpenseItems() {
+    var items = [], num = 1;
+    document.querySelectorAll('#expense-items-body tr').forEach(function (tr) {
+      var desc = tr.querySelector('.expense-desc');
+      var amt = tr.querySelector('.expense-amount');
+      var note = tr.querySelector('.expense-note');
+      var a = Number(amt ? amt.value : 0) || 0;
+      var d = desc ? desc.value.trim() : '';
+      if (d || a) items.push({ description: d, amount: a, note: note ? note.value.trim() : '', rowNum: num++ });
+    });
+    return items;
+  }
+
+  function loadExpenseToForm(r) {
+    if (!r) return;
+    var dateEl = document.getElementById('expense-date');
+    var authorEl = document.getElementById('expense-author');
+    if (dateEl) dateEl.value = r.date || '';
+    if (authorEl) authorEl.value = r.author || '';
+    var tbody = document.getElementById('expense-items-body');
+    if (tbody) tbody.innerHTML = '';
+    (r.items || []).forEach(function (item) { addExpenseRow(item); });
+    // 빈 행 3개 추가
+    for (var i = 0; i < 3; i++) addExpenseRow();
+    calcExpenseTotal();
+    updateExpenseFooter();
+  }
+
+  function renderExpenseList() {
+    var tbody = document.getElementById('tbody-expense');
+    if (!tbody) return;
+    var reports = getExpenseReports().slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    if (!reports.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">저장된 지출결의서가 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = reports.map(function (r) {
+      return '<tr>' +
+        '<td>' + (r.date || '-') + '</td>' +
+        '<td>' + (r.author || '-') + '</td>' +
+        '<td style="text-align:right;">₩' + (r.totalAmount || 0).toLocaleString() + '</td>' +
+        '<td style="text-align:center;">' + (r.items ? r.items.length : 0) + '건</td>' +
+        '<td>' + (r.createdAt ? r.createdAt.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="btn btn-sm btn-secondary" data-exp-load="' + r.id + '">불러오기</button> ' +
+          '<button class="btn btn-sm" style="background:none;border:none;color:#dc2626;cursor:pointer;" data-exp-del="' + r.id + '">삭제</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function parseExpenseExcel(jsonData) {
+    var dateVal = '', authorVal = '';
+    var items = [];
+
+    for (var i = 0; i < jsonData.length; i++) {
+      var row = jsonData[i];
+      // 발의일자 / 작성자 찾기
+      for (var j = 0; j < row.length; j++) {
+        var cell = String(row[j] || '');
+        if (!dateVal && (cell.includes('발의일자') || cell.includes('발 의 일 자'))) {
+          var dc = row[j + 1];
+          if (dc != null && dc !== '') {
+            if (typeof dc === 'number') {
+              // Excel 날짜 시리얼
+              try { var xd = window.XLSX.SSF.parse_date_code(dc); if (xd) dateVal = xd.y + '-' + String(xd.m).padStart(2,'0') + '-' + String(xd.d).padStart(2,'0'); } catch(e) {}
+            } else {
+              var ds = String(dc).replace(/년/g,'-').replace(/월/g,'-').replace(/일/g,'').replace(/\./g,'-').replace(/\s/g,'');
+              var dm = ds.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+              if (dm) dateVal = dm[1] + '-' + String(dm[2]).padStart(2,'0') + '-' + String(dm[3]).padStart(2,'0');
+            }
+          }
+        }
+        if (!authorVal && (cell.includes('작성자') || cell.includes('작 성 자'))) {
+          authorVal = String(row[j + 1] || '').trim();
+        }
+      }
+
+      // 데이터 행: J열(인덱스9) 기준으로 숫자 금액 있는 행 파싱
+      // 열 구성: A-C=적요(0-2), J=금액(9), K-M=비고(10-12), N=번호(13)
+      var amtCol = -1;
+      for (var k = 0; k < row.length; k++) {
+        var v = row[k];
+        if (typeof v === 'number' && v > 0 && v === Math.floor(v) && v < 1000000000) {
+          amtCol = k; break;
+        }
+        if (typeof v === 'string' && /^[\d,]+$/.test(v.trim()) && Number(v.replace(/,/g,'')) > 0) {
+          amtCol = k; break;
+        }
+      }
+      if (amtCol < 0) continue;
+
+      var descParts = [];
+      for (var d = 0; d < amtCol && d < 10; d++) {
+        var dc2 = String(row[d] || '').trim();
+        if (dc2 && dc2.length > 1 && !/^(적|요|금액|비고|합계|결재|발의|작성|결재금액|번호|담당|부장|이사|대표)/.test(dc2)) descParts.push(dc2);
+      }
+      var descStr = descParts.join(' ').trim();
+      if (!descStr || descStr.length < 3) continue;
+      // 헤더/합계 행 제외
+      if (/합계|금액|비고|발의|작성|결재/.test(descStr)) continue;
+
+      var rawAmt = row[amtCol];
+      var amt = typeof rawAmt === 'number' ? rawAmt : Number(String(rawAmt).replace(/,/g,'')) || 0;
+      var noteParts = [];
+      for (var n = amtCol + 1; n < row.length && n < amtCol + 5; n++) {
+        var nc = String(row[n] || '').trim();
+        if (nc) noteParts.push(nc);
+      }
+
+      items.push({ description: descStr, amount: amt, note: noteParts.join(' ').trim(), rowNum: items.length + 1 });
+    }
+
+    // 폼에 채우기
+    var dateEl = document.getElementById('expense-date');
+    var authorEl = document.getElementById('expense-author');
+    if (dateEl && dateVal) dateEl.value = dateVal;
+    if (authorEl && authorVal) authorEl.value = authorVal;
+    var tbody = document.getElementById('expense-items-body');
+    if (tbody) tbody.innerHTML = '';
+    if (items.length) {
+      items.forEach(function (item) { addExpenseRow(item); });
+      for (var ei = 0; ei < 3; ei++) addExpenseRow();
+      showToast(items.length + '개 항목을 불러왔습니다.');
+    } else {
+      for (var ei2 = 0; ei2 < 10; ei2++) addExpenseRow();
+      showToast('항목을 자동 인식하지 못했습니다. 직접 입력해주세요.');
+    }
+    calcExpenseTotal();
+    updateExpenseFooter();
+  }
+
+  function initExpenseReport() {
+    var dateEl = document.getElementById('expense-date');
+    if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+    var authorEl = document.getElementById('expense-author');
+    if (authorEl && !authorEl.value && window.seumAuth && window.seumAuth.currentEmployee) {
+      authorEl.value = window.seumAuth.currentEmployee.name || '';
+    }
+    // 초기 빈 행
+    var tbody = document.getElementById('expense-items-body');
+    if (tbody && !tbody.children.length) for (var i = 0; i < 10; i++) addExpenseRow();
+    calcExpenseTotal();
+    updateExpenseFooter();
+
+    if (dateEl) dateEl.addEventListener('change', updateExpenseFooter);
+    if (authorEl) authorEl.addEventListener('input', updateExpenseFooter);
+
+    var btnAdd = document.getElementById('btn-expense-add-row');
+    if (btnAdd) btnAdd.addEventListener('click', function () { addExpenseRow(); });
+
+    var btnClear = document.getElementById('btn-expense-clear');
+    if (btnClear) btnClear.addEventListener('click', function () {
+      if (!confirm('입력 내용을 초기화하시겠습니까?')) return;
+      if (tbody) tbody.innerHTML = '';
+      if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+      if (authorEl) authorEl.value = (window.seumAuth && window.seumAuth.currentEmployee && window.seumAuth.currentEmployee.name) || '';
+      for (var i = 0; i < 10; i++) addExpenseRow();
+      calcExpenseTotal(); updateExpenseFooter();
+    });
+
+    var btnUpload = document.getElementById('btn-expense-upload-excel');
+    var inputExcel = document.getElementById('input-expense-excel');
+    if (btnUpload && inputExcel) {
+      btnUpload.addEventListener('click', function () { inputExcel.click(); });
+      inputExcel.addEventListener('change', function (e) {
+        var file = e.target.files[0]; if (!file) return;
+        if (!window.XLSX) { showToast('엑셀 라이브러리 로드 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+          try {
+            var wb = window.XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+            var ws = wb.Sheets[wb.SheetNames[0]];
+            var jsonData = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+            parseExpenseExcel(jsonData);
+          } catch (err) { showToast('엑셀 파일 읽기 오류: ' + err.message); }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+      });
+    }
+
+    var form = document.getElementById('form-expense');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var dv = dateEl ? dateEl.value : '';
+        if (!dv) { showToast('발의일자를 입력해주세요.'); return; }
+        var items = collectExpenseItems().filter(function (it) { return it.description || it.amount; });
+        var total = items.reduce(function (s, it) { return s + (it.amount || 0); }, 0);
+        var reports = getExpenseReports();
+        reports.push({ id: id(), date: dv, author: authorEl ? authorEl.value : '', totalAmount: total, items: items, createdAt: new Date().toISOString() });
+        saveExpenseReports(reports);
+        renderExpenseList();
+        showToast('지출결의서가 저장되었습니다.');
+      });
+    }
+
+    var tbodyEl = document.getElementById('tbody-expense');
+    if (tbodyEl) {
+      tbodyEl.addEventListener('click', function (e) {
+        var loadBtn = e.target.closest('[data-exp-load]');
+        var delBtn = e.target.closest('[data-exp-del]');
+        if (loadBtn) {
+          var r = getExpenseReports().find(function (x) { return x.id === loadBtn.getAttribute('data-exp-load'); });
+          if (r) { loadExpenseToForm(r); document.getElementById('expense-print-area').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        }
+        if (delBtn) {
+          if (!confirm('삭제하시겠습니까?')) return;
+          saveExpenseReports(getExpenseReports().filter(function (x) { return x.id !== delBtn.getAttribute('data-exp-del'); }));
+          renderExpenseList();
+          showToast('삭제되었습니다.');
+        }
+      });
+    }
+    renderExpenseList();
+  }
+
   function initCeoReports() {
     ['daily', 'weekly', 'monthly'].forEach(function (type) {
       // 날짜 초기값
@@ -6708,7 +6994,7 @@
     if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
       return;
     }
-    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard') && !canSeeCeoSection()) {
+    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
       return;
     }
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
@@ -6747,7 +7033,8 @@
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
     if (sectionId === 'ceo-weekly') renderCeoReport('weekly');
     if (sectionId === 'ceo-monthly') renderCeoReport('monthly');
-    if (sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly') {
+    if (sectionId === 'ceo-expense') renderExpenseList();
+    if (sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-expense') {
       var ceoSub = document.getElementById('nav-ceo-sub');
       var ceoGroup = document.getElementById('sidebar-group-ceo');
       var ceoBtn = document.getElementById('nav-ceo-toggle');
@@ -10023,6 +10310,7 @@
     updateConstructionRestrictedNavVisibility();
     updateSalesRestrictedNavVisibility();
     initCeoReports();
+    initExpenseReport();
 
     // 섹션 인쇄 버튼 (새 창 방식)
     document.addEventListener('click', function (e) {
@@ -10103,6 +10391,11 @@
         '.ceo-db-cw-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
         '.ceo-db-cw-num{font-size:1.3rem;font-weight:700}.ceo-db-cw-label{font-size:0.75rem;color:#555}' +
         '.accent-blue{color:#2563eb!important}.accent-green{color:#16a34a!important}.accent-orange{color:#d97706!important}.accent-red{color:#dc2626!important}' +
+        '.expense-approval-table{border-collapse:collapse;font-size:0.78rem}.expense-approval-table th,.expense-approval-table td{border:1px solid #999;padding:3px 8px;text-align:center}' +
+        '.expense-info-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:4mm}.expense-info-table th,.expense-info-table td{border:1px solid #999;padding:2mm 3mm}.expense-info-table th{background:#f5f5f5;font-weight:700;white-space:nowrap}' +
+        '.expense-info-input{background:transparent;border:none;width:100%;font-size:0.88rem;font-family:inherit}' +
+        '.expense-items-table{width:100%;border-collapse:collapse;font-size:0.82rem}.expense-items-table th,.expense-items-table td{border:1px solid #999;padding:1.5mm 2mm;vertical-align:top}.expense-items-table th{background:#f5f5f5;font-weight:700;text-align:center}' +
+        '.expense-cell-input{background:transparent;border:none;width:100%;font-family:inherit;font-size:0.82rem}' +
         '</style></head><body>' + clone.innerHTML + '</body></html>');
       w.document.close();
       w.focus();

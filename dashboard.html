@@ -179,6 +179,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-daily">일일 보고</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-weekly">주간 보고</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-monthly">월간 보고</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-expense">지출결의서</a>
           </div>
         </div>
       </div>
@@ -2360,6 +2361,19 @@
       .ceo-input{flex:1;padding:0.3rem 0.5rem;font-size:0.9rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:6px;color:var(--text-primary,#e2e8f0);}
       .ceo-sub-label{min-width:5rem;font-size:0.82rem;color:var(--text-muted,#94a3b8);}
       .ceo-preview-box{margin-top:1.5rem;padding:1rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:8px;}
+
+      /* 지출결의서 */
+      .expense-approval-table{border-collapse:collapse;font-size:0.78rem;}
+      .expense-approval-table th,.expense-approval-table td{border:1px solid var(--border-color,#334155);padding:3px 8px;text-align:center;}
+      .expense-info-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0.25rem;}
+      .expense-info-table th,.expense-info-table td{border:1px solid var(--border-color,#334155);padding:0.35rem 0.6rem;}
+      .expense-info-table th{background:var(--bg-secondary,#1e293b);font-weight:700;width:13%;white-space:nowrap;}
+      .expense-info-input{background:transparent;border:none;width:100%;color:var(--text-primary,#e2e8f0);font-size:0.88rem;font-family:inherit;}
+      .expense-items-table{width:100%;border-collapse:collapse;font-size:0.84rem;}
+      .expense-items-table th,.expense-items-table td{border:1px solid var(--border-color,#334155);padding:0.3rem 0.4rem;vertical-align:middle;}
+      .expense-items-table th{background:var(--bg-secondary,#1e293b);font-weight:700;text-align:center;}
+      .expense-cell-input{background:transparent;border:none;width:100%;color:var(--text-primary,#e2e8f0);font-size:0.83rem;font-family:inherit;resize:vertical;}
+      .expense-del-btn{background:none;border:none;cursor:pointer;color:#dc2626;font-size:1rem;padding:0 4px;}
     </style>
 
     <!-- 대표님 일일 보고 -->
@@ -2712,6 +2726,111 @@
         <pre id="ceo-monthly-detail-content" style="white-space:pre-wrap;font-family:inherit;margin-top:0.75rem;line-height:1.7;"></pre>
       </div>
     </section>
+
+    <!-- ===== 지출결의서 섹션 ===== -->
+    <section id="section-ceo-expense" class="content-section">
+      <header class="main-header">
+        <h2>지출결의서</h2>
+        <p class="section-desc">지출결의서를 작성하고 관리합니다.</p>
+        <div style="display:flex;gap:0.5rem;">
+          <button type="button" class="btn btn-secondary no-print" id="btn-expense-upload-excel">📂 엑셀 업로드</button>
+          <input type="file" id="input-expense-excel" accept=".xlsx,.xls" style="display:none">
+          <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="expense-print-area">🖨 인쇄</button>
+        </div>
+      </header>
+
+      <!-- 인쇄 영역 -->
+      <div id="expense-print-area" class="card">
+        <!-- 제목 + 결재란 -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem;">
+          <h3 style="font-size:1.6rem;letter-spacing:0.4em;margin:0;align-self:center;">지 출 결 의 서</h3>
+          <table class="expense-approval-table">
+            <thead><tr>
+              <th>담 당</th><th>부 장</th><th>이 사</th><th colspan="2">대 표 이 사</th>
+            </tr></thead>
+            <tbody><tr>
+              <td style="height:44px;min-width:52px;"></td>
+              <td style="min-width:52px;"></td>
+              <td style="min-width:52px;"></td>
+              <td colspan="2" style="min-width:80px;"></td>
+            </tr></tbody>
+          </table>
+        </div>
+        <p style="font-size:0.82rem;color:var(--text-muted,#94a3b8);margin-bottom:0.75rem;">아래와 같이 지출결의서를 제출하오니 승인하여 주시기 바랍니다.</p>
+
+        <form id="form-expense">
+          <!-- 발의일자 / 작성자 / 결재금액 -->
+          <table class="expense-info-table">
+            <tbody>
+              <tr>
+                <th>발 의 일 자</th>
+                <td><input type="date" id="expense-date" class="expense-info-input"></td>
+                <th>작 성 자</th>
+                <td><input type="text" id="expense-author" class="expense-info-input" placeholder="이름"></td>
+              </tr>
+              <tr>
+                <th>결 재 금 액</th>
+                <td id="expense-total-korean" style="font-size:0.88rem;"></td>
+                <th>원 정</th>
+                <td style="white-space:nowrap;">₩ <span id="expense-total-display" style="font-weight:700;"></span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 항목 테이블 -->
+          <div class="table-wrap" style="margin:0.75rem 0;">
+            <table class="expense-items-table">
+              <thead>
+                <tr>
+                  <th style="width:42%">적 &nbsp;/ &nbsp;요</th>
+                  <th style="width:13%">금 &nbsp;&nbsp;&nbsp; 액</th>
+                  <th style="width:36%">비 &nbsp;&nbsp;&nbsp; 고</th>
+                  <th style="width:5%">번호</th>
+                  <th style="width:4%" class="no-print"></th>
+                </tr>
+              </thead>
+              <tbody id="expense-items-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td style="text-align:center;font-weight:700;">합 &nbsp;&nbsp;&nbsp; 계</td>
+                  <td id="expense-sum-cell" style="text-align:right;font-weight:700;">₩0</td>
+                  <td colspan="3"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- 하단 -->
+          <div style="text-align:center;font-size:0.85rem;line-height:2;margin-top:0.5rem;">
+            <p>위 금액을 영수(청구) 합니다.</p>
+            <p id="expense-footer-date"></p>
+            <p style="margin-top:0.5rem;">청 구 자 &nbsp;&nbsp;&nbsp; <span id="expense-footer-author"></span> &nbsp;&nbsp; (인)</p>
+            <p style="margin-top:0.4rem;letter-spacing:0.25em;font-weight:700;">주 식 회 사 &nbsp; 세 움 디 자 인 하 우 징</p>
+          </div>
+
+          <div class="form-actions no-print" style="margin-top:1rem;">
+            <button type="button" class="btn btn-secondary" id="btn-expense-add-row">+ 행 추가</button>
+            <button type="button" class="btn btn-secondary" id="btn-expense-clear">초기화</button>
+            <button type="submit" class="btn btn-primary">저장</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 저장 목록 -->
+      <div class="card no-print">
+        <h3>저장된 지출결의서</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>발의일자</th><th>작성자</th><th>결재금액</th><th>항목 수</th><th>저장시각</th><th>관리</th></tr>
+            </thead>
+            <tbody id="tbody-expense"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <!-- ===== /지출결의서 섹션 ===== -->
+
     <!-- ===== CEO 대시보드 섹션 ===== -->
     <section id="section-ceo-dashboard" class="content-section">
       <header class="main-header">
