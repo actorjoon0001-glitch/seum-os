@@ -1198,7 +1198,15 @@
   function getMyShowroomId() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur) return '';
-    return resolveShowroomId(cur);
+    var sid = resolveShowroomId(cur);
+    if (sid) return sid;
+    // currentEmployee에 showroom이 없으면 localStorage 직원 목록에서 보완
+    try {
+      var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || '') || (e.id && e.id === cur.id); });
+      if (myEmp) return resolveShowroomId(myEmp);
+    } catch (e) {}
+    return '';
   }
 
   /** ??? ???????? ??? ???. ?? ??? ?????? ???(??? ??????? ???? */
