@@ -3032,9 +3032,9 @@
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroomId = resolveShowroomId(cur);
-      // 영업팀(비관리자)은 소속 전시장만 노출
+      // master/admin이 아닌 모든 사용자는 소속 전시장만 노출
       var _isAdminHere = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      if (team === '영업' && myShowroomId && !_isAdminHere) {
+      if (myShowroomId && !_isAdminHere) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
         contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
       }
@@ -3060,9 +3060,8 @@
       var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
       var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      // 영업팀(비관리자)은 소속 전시장 계약만 노출, 매니저도 동일하게 소속 전시장 전체 노출
-      var isManagerRole = (typeof isManager === 'function' && isManager());
-      if ((userTeam === '영업' || isManagerRole) && curUser && !isAdminRole) {
+      // master/admin이 아닌 모든 사용자는 소속 전시장 계약만 노출
+      if (curUser && !isAdminRole) {
         var myShowroomId = resolveShowroomId(curUser);
         if (myShowroomId) {
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
@@ -5737,6 +5736,62 @@
 
   function saveCeoReports(reports) {
     localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(reports));
+    try {
+      var supa = window.seumSupabase;
+      if (!supa || !Array.isArray(reports)) return;
+      var rows = reports.map(function (r) {
+        return {
+          local_id: r.id || null,
+          report_type: r.type || null,
+          report_date: r.date || null,
+          title: r.title || null,
+          author: r.author || null,
+          content: r.content || null,
+          fields: r.fields || null,
+          payload: r
+        };
+      });
+      supa.from('ceo_reports').upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) { if (res && res.error) console.error('Supabase ceo_reports sync error:', res.error); })
+        .catch(function (err) { console.error('Supabase ceo_reports sync failed:', err); });
+    } catch (e) { console.error('saveCeoReports exception:', e); }
+  }
+
+  function deleteCeoReportFromSupabase(localId) {
+    try {
+      var supa = window.seumSupabase;
+      if (supa && localId) {
+        supa.from('ceo_reports').delete().eq('local_id', localId)
+          .then(function (res) { if (res && res.error) console.error('Supabase ceo_reports delete error:', res.error); })
+          .catch(function (err) { console.error('Supabase ceo_reports delete failed:', err); });
+      }
+    } catch (e) { console.error('deleteCeoReportFromSupabase exception:', e); }
+  }
+
+  function syncCeoReportsFromSupabase() {
+    try {
+      var supa = window.seumSupabase;
+      if (!supa) return;
+      supa.from('ceo_reports').select('local_id,payload').order('created_at', { ascending: false })
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('Supabase ceo_reports load error:', res.error);
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            if (row.payload && typeof row.payload === 'object') return row.payload;
+            try { return JSON.parse(row.payload); } catch (e) { return null; }
+          }).filter(Boolean);
+          var local = getCeoReports();
+          var merged = {};
+          remote.forEach(function (r) { if (r.id) merged[r.id] = r; });
+          local.forEach(function (r) { if (r.id && !merged[r.id]) merged[r.id] = r; });
+          var result = Object.values(merged);
+          localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(result));
+          ['daily', 'weekly', 'monthly'].forEach(function (t) { renderCeoReport(t); });
+        })
+        .catch(function (err) { console.error('syncCeoReportsFromSupabase failed:', err); });
+    } catch (e) { console.error('syncCeoReportsFromSupabase exception:', e); }
   }
 
   function esc(str) {
@@ -6660,6 +6715,7 @@
             var dtype = deleteBtn.getAttribute('data-ceo-type');
             if (!confirm('이 보고를 삭제하시겠습니까?')) return;
             saveCeoReports(getCeoReports().filter(function (r) { return r.id !== did; }));
+            deleteCeoReportFromSupabase(did);
             renderCeoReport(dtype);
             var detail2 = document.getElementById('ceo-' + dtype + '-detail');
             if (detail2) detail2.classList.add('hidden');
@@ -10375,6 +10431,7 @@
     updateConstructionRestrictedNavVisibility();
     updateSalesRestrictedNavVisibility();
     initCeoReports();
+    syncCeoReportsFromSupabase();
     initExpenseReport();
 
     // 섹션 인쇄 버튼 (새 창 방식)
