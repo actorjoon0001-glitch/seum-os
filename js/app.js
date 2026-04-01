@@ -3285,13 +3285,21 @@
 
   function goToDesignDetail(contractId) {
     if (!contractId) return;
+    // 필터 초기화 (연/월·검색어가 걸려 있으면 row가 보이지 않음)
+    var yearEl = document.getElementById('filter-year');
+    var monthEl = document.getElementById('filter-month');
+    var searchEl = document.getElementById('design-search-input');
+    if (yearEl) yearEl.value = '';
+    if (monthEl) monthEl.value = '';
+    if (searchEl) searchEl.value = '';
     showSection('design');
     renderDesign();
     var tbody = document.getElementById('tbody-design');
     if (!tbody) return;
     var row = tbody.querySelector('.design-row[data-contract-id="' + contractId + '"]');
     if (!row) {
-      window.alert('계약 목록에서 해당 계약을 찾을 수 없습니다.\n(필터 조건에 의해 숨겨진 계약일 수 있습니다.)');
+      // depositReceivedAt 없는 계약이면 설계 목록에 표시되지 않음
+      window.alert('해당 계약은 설계팀 목록에 표시되지 않습니다.\n(계약금 수령 전이거나 전시장 필터 조건에 맞지 않습니다.)');
       return;
     }
     showDesignDetailPanel(contractId, true);
