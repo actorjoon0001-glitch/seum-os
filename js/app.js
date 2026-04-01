@@ -185,13 +185,14 @@
   function isManager() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
     var permission = (cur.permission || '').toLowerCase();
-    if (permission === 'manager') return true;
+    if (role === 'manager' || permission === 'manager') return true;
     // Supabase RPC가 permission을 반환하지 않는 경우 localStorage에서 보완 조회
     try {
       var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
       var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || ''); });
-      if (myEmp && (myEmp.permission || '').toLowerCase() === 'manager') return true;
+      if (myEmp && ((myEmp.permission || '').toLowerCase() === 'manager' || (myEmp.role || '').toLowerCase() === 'manager')) return true;
     } catch (e) {}
     return false;
   }
@@ -9430,7 +9431,7 @@
         var role = row.querySelector('.admin-emp-role') && row.querySelector('.admin-emp-role').value;
         var showroom = row.querySelector('.admin-emp-showroom') && row.querySelector('.admin-emp-showroom').value;
         saveBtn.disabled = true;
-        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null }).eq('id', id)
+        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null, permission: role || null }).eq('id', id)
           .then(function (res) {
             if (res.error) throw res.error;
             renderAdminEmployees();
