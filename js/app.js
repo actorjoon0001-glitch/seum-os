@@ -259,6 +259,11 @@
       return isDesign;
     }
 
+    // 우선순위: 설계팀 + master/admin만 접근
+    if (sectionId === 'design-priority') {
+      return isDesign;
+    }
+
     // ??? ???: ???, ???, ????? ??? + ????? ????(????? isSalesReadonly??? ?? ???)
     if (sectionId === 'construction') {
       return isConstruction || isDesign || isMarketing || isSettlement || isSales;
@@ -3190,6 +3195,75 @@
   }
 
   // =====================================================================
+  // 설계팀 우선순위 - 렌더
+  // =====================================================================
+  function renderDesignPriority() {
+    var wrap = document.getElementById('design-priority-wrap');
+    if (!wrap) return;
+
+    var contracts = getContracts();
+
+    // 건축허가 완료 + 허가 완료일이 모두 있는 계약만
+    var list = contracts.filter(function (c) {
+      return c.hasPermitCert && c.permitCertDate;
+    });
+
+    // 정렬: 허가 완료일 빠른 순 → 계약일 오래된 순 → 설계 미착수/설계대기 우선
+    list.sort(function (a, b) {
+      var dA = a.permitCertDate || '';
+      var dB = b.permitCertDate || '';
+      if (dA !== dB) return dA < dB ? -1 : 1;
+      var cA = a.contractDate || '';
+      var cB = b.contractDate || '';
+      if (cA !== cB) return cA < cB ? -1 : 1;
+      var sA = (a.designStatus || 'none').toLowerCase();
+      var sB = (b.designStatus || 'none').toLowerCase();
+      var earlyA = sA === 'none' || sA === '' ? 0 : 1;
+      var earlyB = sB === 'none' || sB === '' ? 0 : 1;
+      return earlyA - earlyB;
+    });
+
+    var statusMap = { none: '미착수', '': '미착수', in_progress: '설계 중', done: '완료' };
+    var statusCls = { none: 'status-none', '': 'status-none', in_progress: 'status-in_progress', done: 'status-done' };
+
+    var html = '<div class="design-priority-header">' +
+      '<span>건축허가 완료 계약 목록</span>' +
+      '<span class="design-priority-count">총 ' + list.length + '건</span>' +
+      '</div>';
+
+    if (list.length === 0) {
+      html += '<p style="color:#9ca3af;padding:1.5rem 0;">건축허가 완료 계약이 없습니다.</p>';
+    } else {
+      html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
+        '<th>#</th><th>허가 완료일</th><th>고객명</th><th>모델명</th><th>지역</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th>' +
+        '</tr></thead><tbody>';
+      list.forEach(function (c, i) {
+        var shortAddr = (function () {
+          var a = c.siteAddress || '';
+          if (!a) return '-';
+          var p = a.trim().split(/\s+/);
+          return p.slice(0, 2).join(' ');
+        })();
+        var st = (c.designStatus || 'none').toLowerCase();
+        var stLabel = statusMap[st] || st;
+        var stCls = statusCls[st] || 'status-none';
+        html += '<tr>' +
+          '<td class="design-priority-rank">' + (i + 1) + '</td>' +
+          '<td class="design-priority-date">' + escapeHtml(c.permitCertDate || '-') + '</td>' +
+          '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
+          '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
+          '<td>' + escapeHtml(shortAddr) + '</td>' +
+          '<td>' + escapeHtml(c.designPermitDesigner || c.designContactName || '-') + '</td>' +
+          '<td><span class="design-priority-status ' + stCls + '">' + escapeHtml(stLabel) + '</span></td>' +
+          '<td>' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    wrap.innerHTML = html;
+  }
+
+  // =====================================================================
   // 설계 업무일지 - 렌더
   // =====================================================================
   function renderDesignWorklog() {
@@ -3802,7 +3876,7 @@
       '<div class="permit-steps-wrap' + (effectiveProjectType === '전원주택' ? '' : ' hidden') + '">' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-design-consult-inprogress"' + (c.designConsultInProgress ? ' checked' : '') + '> 건축 설계 협의 진행중</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-permit-inprogress"' + (c.permitInProgress ? ' checked' : '') + '> 건축 인허가 진행중</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축 허가서 완료</label>' +
+      '<div class="permit-cert-wrap"><label class="permit-cert-label"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축허가 완료</label><input type="date" class="design-inline-permit-cert-date" value="' + escapeAttr(c.permitCertDate || '') + '" title="허가 완료일"></div>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공 신고서 완료</label>' +
       '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용 승인서 완료</label>' +
       '</div>' +
@@ -4013,6 +4087,7 @@
         if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
         ['.design-inline-permit-required', '.design-inline-design-consult-inprogress',
           '.design-inline-permit-inprogress', '.design-inline-has-permit',
+          '.design-inline-permit-cert-date',
           '.design-inline-has-construction-report', '.design-inline-has-completion-cert'
         ].forEach(function (cls) { var el = td.querySelector(cls); if (el) el.disabled = true; });
         var constructionStartOkCheck = td.querySelector('.design-inline-construction-start-ok');
@@ -4106,6 +4181,8 @@
           if (designerInput) { designerInput.readOnly = false; designerInput.removeAttribute('readonly'); designerInput.disabled = false; }
           var permitCheck = detailRow.querySelector('.design-inline-has-permit');
           if (permitCheck) permitCheck.disabled = false;
+          var permitDateInput = detailRow.querySelector('.design-inline-permit-cert-date');
+          if (permitDateInput) permitDateInput.disabled = false;
           var completionCheck = detailRow.querySelector('.design-inline-has-completion-cert');
           if (completionCheck) completionCheck.disabled = false;
           var constructionReportCheck = detailRow.querySelector('.design-inline-has-construction-report');
@@ -4155,6 +4232,8 @@
       if (permitInProgressEl) c.permitInProgress = permitInProgressEl.checked;
       var permitEl = sel('.design-inline-has-permit');
       if (permitEl) c.hasPermitCert = permitEl.checked;
+      var permitCertDateEl = sel('.design-inline-permit-cert-date');
+      if (permitCertDateEl) c.permitCertDate = permitCertDateEl.value || '';
       var constructionReportEl = sel('.design-inline-has-construction-report');
       if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
       var completionEl = sel('.design-inline-has-completion-cert');
@@ -4207,6 +4286,12 @@
     c.designConsultInProgress = (sel('.design-inline-design-consult-inprogress') || {}).checked || false;
     c.permitInProgress = (sel('.design-inline-permit-inprogress') || {}).checked || false;
     c.hasPermitCert = (sel('.design-inline-has-permit', 'design-inline-has-permit') || {}).checked || false;
+    c.permitCertDate = ((sel('.design-inline-permit-cert-date') || {}).value || '').trim();
+    if (c.hasPermitCert && !c.permitCertDate) {
+      window.alert('건축허가 완료 시 허가 완료일을 입력해 주세요.');
+      return;
+    }
+    if (!c.hasPermitCert) c.permitCertDate = '';
     c.permitAttachment = (sel('.design-inline-permit-attachment', 'design-inline-permit-attachment') || {}).value.trim() || '';
     c.completionCertAttachment = (sel('.design-inline-completion-attachment', 'design-inline-completion-attachment') || {}).value.trim() || '';
     c.hasConstructionStartReport = (sel('.design-inline-has-construction-report', 'design-inline-has-construction-report') || {}).checked || false;
@@ -7147,7 +7232,7 @@
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
       sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
-      sectionId === 'construction-worklog') &&
+      sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
       return;
@@ -7161,6 +7246,7 @@
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'design-worklog') renderDesignWorklog();
     if (sectionId === 'design-schedule') renderDesignSchedule();
+    if (sectionId === 'design-priority') renderDesignPriority();
     if (sectionId === 'announcements') renderAnnouncementsPage();
     if (sectionId === 'admin-approval') renderAdminApproval();
     if (sectionId === 'admin-employees') renderAdminEmployees();
@@ -8433,6 +8519,7 @@
           designContactName: '',
           designContactPhone: '',
           hasPermitCert: false,
+          permitCertDate: '',
           permitAttachment: '',
           completionCertAttachment: '',
           hasConstructionStartReport: false,
