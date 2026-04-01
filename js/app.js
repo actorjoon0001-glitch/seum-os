@@ -3202,6 +3202,7 @@
     if (!wrap) return;
 
     var contracts = getContracts();
+    var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
 
     // 건축허가 완료 + 허가 완료일이 모두 있는 계약만
     var list = contracts.filter(function (c) {
@@ -3235,7 +3236,7 @@
       html += '<p style="color:#9ca3af;padding:1.5rem 0;">건축허가 완료 계약이 없습니다.</p>';
     } else {
       html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
-        '<th>#</th><th>허가 완료일</th><th>고객명</th><th>모델명</th><th>지역</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th>' +
+        '<th>#</th><th>허가 완료일</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th></th>' +
         '</tr></thead><tbody>';
       list.forEach(function (c, i) {
         var shortAddr = (function () {
@@ -3247,20 +3248,60 @@
         var st = (c.designStatus || 'none').toLowerCase();
         var stLabel = statusMap[st] || st;
         var stCls = statusCls[st] || 'status-none';
-        html += '<tr>' +
+        var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
+        var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
+        html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
           '<td class="design-priority-rank">' + (i + 1) + '</td>' +
           '<td class="design-priority-date">' + escapeHtml(c.permitCertDate || '-') + '</td>' +
           '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
           '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
+          '<td>' + escapeHtml(showroomLabel) + '</td>' +
           '<td>' + escapeHtml(shortAddr) + '</td>' +
-          '<td>' + escapeHtml(c.designPermitDesigner || c.designContactName || '-') + '</td>' +
+          '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
+          '<td>' + escapeHtml(designer) + '</td>' +
           '<td><span class="design-priority-status ' + stCls + '">' + escapeHtml(stLabel) + '</span></td>' +
-          '<td>' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+          '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+          '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
           '</tr>';
       });
       html += '</tbody></table></div>';
     }
     wrap.innerHTML = html;
+
+    // 이벤트: 버튼 클릭 또는 행 클릭 → 계약 상세로 이동
+    wrap.querySelectorAll('.priority-goto-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        goToDesignDetail(btn.getAttribute('data-contract-id'));
+      });
+    });
+    wrap.querySelectorAll('.design-priority-row').forEach(function (tr) {
+      tr.addEventListener('click', function (e) {
+        if (e.target.closest('.priority-goto-btn')) return;
+        goToDesignDetail(tr.getAttribute('data-contract-id'));
+      });
+    });
+  }
+
+  function goToDesignDetail(contractId) {
+    if (!contractId) return;
+    showSection('design');
+    renderDesign();
+    var tbody = document.getElementById('tbody-design');
+    if (!tbody) return;
+    var row = tbody.querySelector('.design-row[data-contract-id="' + contractId + '"]');
+    if (!row) {
+      window.alert('계약 목록에서 해당 계약을 찾을 수 없습니다.\n(필터 조건에 의해 숨겨진 계약일 수 있습니다.)');
+      return;
+    }
+    showDesignDetailPanel(contractId, true);
+    setTimeout(function () {
+      var detail = tbody.querySelector('.design-detail-row[data-detail-for="' + contractId + '"]');
+      var target = detail || row;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      row.classList.add('design-row-highlight');
+      setTimeout(function () { row.classList.remove('design-row-highlight'); }, 2000);
+    }, 80);
   }
 
   // =====================================================================
@@ -7286,7 +7327,7 @@
         if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'design' || sectionId === 'design-worklog' || sectionId === 'design-schedule') {
+    if (sectionId === 'design' || sectionId === 'design-worklog' || sectionId === 'design-schedule' || sectionId === 'design-priority') {
       var desSub = document.getElementById('nav-design-sub');
       var desGroup = document.getElementById('sidebar-group-design');
       if (desSub && desGroup) {
