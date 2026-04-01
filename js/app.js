@@ -3998,16 +3998,16 @@
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
-      var canDesign = team === '설계';
+      var canDesign = team === '설계' || team === '영업';
       var canSales = team === '영업';
       var canConstruction = team === '시공';
       var designMemo = td.querySelector('.design-status-memo-design');
       var salesMemo = td.querySelector('.design-status-memo-sales');
       var constructionMemo = td.querySelector('.design-status-memo-construction');
-      if (designMemo && !canDesign) designMemo.readOnly = true;
+      if (designMemo && team !== '설계') designMemo.readOnly = true;
       if (salesMemo && !canSales) salesMemo.readOnly = true;
       if (constructionMemo && !canConstruction) constructionMemo.readOnly = true;
-      // 설계팀만 설계 담당자 입력란 및 허가/착공 현황 체크박스 편집 가능
+      // 설계팀 + 영업팀: 설계 담당자 입력란 및 허가/착공 현황 체크박스 편집 가능
       if (!canDesign) {
         var designerInput = td.querySelector('.design-inline-designer');
         if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
