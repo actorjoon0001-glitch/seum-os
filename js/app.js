@@ -3075,6 +3075,12 @@
     var contracts = filterByShowroom(contractsAll, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
     contracts = getFilteredContracts(contracts);
+    // 기본 정렬: 계약일 오래된 순 (오름차순)
+    contracts.sort(function (a, b) {
+      var dA = a.contractDate || '';
+      var dB = b.contractDate || '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
     var tbodyLeads = document.getElementById('tbody-leads');
     var tbodyContracts = document.getElementById('tbody-contracts');
     if (tbodyLeads) {
@@ -3107,7 +3113,7 @@
           if (_safe) _safe.appendChild(_p);
         }
       })();
-      tbodyContracts.innerHTML = contracts.map(function (c) {
+      tbodyContracts.innerHTML = contracts.map(function (c, i) {
         var _amountDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
         function amountCell(amount, date, type) {
           if (amount != null && String(amount).trim() !== '') {
@@ -3135,10 +3141,10 @@
           var parts = addr.trim().split(/\s+/);
           return parts.slice(0, 2).join(' ');
         })();
-        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _amountDivisor)) + '만원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _amountDivisor)) + '만원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
       }).join('') || (getContractSearchKeyword()
-        ? '<tr><td colspan="14" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-        : '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>');
+        ? '<tr><td colspan="15" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+        : '<tr><td colspan="15">계약 데이터가 없습니다.</td></tr>');
       updateContractFilterResult(contracts, contracts);
       if (expandedContractId) {
         var exists = contracts.some(function (c) { return c.id === expandedContractId; });
