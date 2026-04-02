@@ -637,6 +637,36 @@ button,
   color: #fff;
 }
 
+.chat-contract-month-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 10px 6px;
+}
+
+.chat-month-filter-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.chat-month-filter-btn:hover {
+  background: #1C2537;
+  color: #e5e7eb;
+}
+
+.chat-month-filter-btn.active {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+
 .chat-room-items {
   display: flex;
   flex-direction: column;

@@ -9,6 +9,10 @@
   var selectedChatRoom = { type: 'channel', id: 'all' };
   /** 대화창 열림 여부 (같은 방 재클릭 시 닫기용) */
   var isChatOpen = false;
+  /** 계약 채팅 전시장 필터 */
+  var selectedContractShowroomFilter = 'all';
+  /** 계약 채팅 월별 필터 ('' = 전체) */
+  var selectedContractMonthFilter = '';
 
   function renderContractChat(contractId, listId) {
     var resolvedListId = listId || 'contract-chat-message-list';
@@ -153,8 +157,48 @@
 
     if (contractsEl) {
       var contractList = typeof window.getContractChatRoomList === 'function' ? window.getContractChatRoomList() : [];
+
+      // 전시장 필터 버튼 렌더
+      var filterEl = document.getElementById('chat-contract-showroom-filter');
+      if (filterEl) {
+        var showroomIds = ['all'];
+        var seen = {};
+        contractList.forEach(function (r) { if (r.showroomId && !seen[r.showroomId]) { seen[r.showroomId] = true; showroomIds.push(r.showroomId); } });
+        var filterLabels = { all: '전체', headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+        var filterHtml = showroomIds.map(function (sid) {
+          var flabel = filterLabels[sid] || sid;
+          var isActive = selectedContractShowroomFilter === sid;
+          return '<button type="button" class="chat-showroom-filter-btn' + (isActive ? ' active' : '') + '" data-showroom="' + window.escapeChatText(sid) + '">' + window.escapeChatText(flabel) + '</button>';
+        }).join('');
+        filterEl.innerHTML = filterHtml;
+      }
+
+      // 월별 필터 버튼 렌더
+      var monthFilterEl = document.getElementById('chat-contract-month-filter');
+      if (monthFilterEl) {
+        var months = [];
+        var seenMonths = {};
+        contractList.forEach(function (r) {
+          var d = r.contractDate || '';
+          if (d && d.length >= 7) {
+            var ym = d.slice(0, 7); // "YYYY-MM"
+            if (!seenMonths[ym]) { seenMonths[ym] = true; months.push(ym); }
+          }
+        });
+        months.sort();
+        var monthHtml = months.map(function (ym) {
+          var parts = ym.split('-');
+          var mlabel = parts[0] + '년 ' + parseInt(parts[1], 10) + '월';
+          var isActive = selectedContractMonthFilter === ym;
+          return '<button type="button" class="chat-month-filter-btn' + (isActive ? ' active' : '') + '" data-month="' + window.escapeChatText(ym) + '">' + window.escapeChatText(mlabel) + '</button>';
+        }).join('');
+        monthFilterEl.innerHTML = monthHtml;
+      }
+
       var contractHtml = '';
       contractList.forEach(function (room) {
+        if (selectedContractShowroomFilter !== 'all' && room.showroomId !== selectedContractShowroomFilter) return;
+        if (selectedContractMonthFilter && (room.contractDate || '').slice(0, 7) !== selectedContractMonthFilter) return;
         if (searchVal && room.label.toLowerCase().indexOf(searchVal) === -1) return;
         var active = isChatOpen && selectedChatRoom.type === 'contract' && selectedChatRoom.id === room.id;
         var unread = typeof window.getContractChatUnreadCount === 'function' ? window.getContractChatUnreadCount(room.id) : 0;
@@ -218,6 +262,12 @@
         var participantNames = getContractChatParticipantNames(id);
         metaEl.textContent = participantNames.length ? '참여: ' + participantNames.join(', ') : '계약 채팅';
       }
+    }
+
+    var gotoDesignBtn = document.getElementById('chat-goto-design-btn');
+    if (gotoDesignBtn) {
+      gotoDesignBtn.classList.toggle('hidden', type !== 'contract');
+      gotoDesignBtn.setAttribute('data-contract-id', type === 'contract' ? id : '');
     }
 
     renderChatRoomList();
@@ -498,6 +548,19 @@
       var searchEl = document.getElementById('chat-room-search');
       if (searchEl) searchEl.addEventListener('input', function () { renderChatRoomList(); });
       panel.addEventListener('click', function (e) {
+        var filterBtn = e.target.closest('.chat-showroom-filter-btn');
+        if (filterBtn) {
+          selectedContractShowroomFilter = filterBtn.getAttribute('data-showroom') || 'all';
+          renderChatRoomList();
+          return;
+        }
+        var monthBtn = e.target.closest('.chat-month-filter-btn');
+        if (monthBtn) {
+          var clickedMonth = monthBtn.getAttribute('data-month') || '';
+          selectedContractMonthFilter = selectedContractMonthFilter === clickedMonth ? '' : clickedMonth;
+          renderChatRoomList();
+          return;
+        }
         var item = e.target.closest('.chat-room-item');
         if (!item) return;
         var type = item.getAttribute('data-type');
@@ -513,6 +576,27 @@
       });
       var closeBtn = document.getElementById('chat-conversation-close-btn');
       if (closeBtn) closeBtn.addEventListener('click', function () { closeConversation(); });
+      var gotoDesignBtn = document.getElementById('chat-goto-design-btn');
+      if (gotoDesignBtn) {
+        gotoDesignBtn.addEventListener('click', function () {
+          var contractId = gotoDesignBtn.getAttribute('data-contract-id');
+          if (!contractId) return;
+          // 필터 초기화: 전시장·월 필터와 검색어를 비워 해당 계약이 테이블에 렌더링되도록
+          var showroomEl = document.getElementById('filter-showroom');
+          var monthEl = document.getElementById('filter-month');
+          var searchEl = document.getElementById('design-search-input');
+          if (showroomEl) showroomEl.value = '';
+          if (monthEl) monthEl.value = '';
+          if (searchEl) searchEl.value = '';
+          if (typeof window.showSection === 'function') window.showSection('design');
+          setTimeout(function () {
+            if (typeof window.renderDesign === 'function') window.renderDesign();
+            setTimeout(function () {
+              if (typeof window.showDesignDetailPanel === 'function') window.showDesignDetailPanel(contractId);
+            }, 50);
+          }, 100);
+        });
+      }
     } else {
       applyChatTabVisibility();
       var activeTab = panel.querySelector('.chat-tab.active');
