@@ -4564,6 +4564,22 @@ textarea.form-input {
   border-color: rgba(239, 68, 68, 0.5) !important;
   background: rgba(239, 68, 68, 0.04) !important;
 }
+.design-priority-done-section {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  background: rgba(16, 185, 129, 0.02) !important;
+  margin-top: 2rem;
+}
+.design-priority-done-title {
+  color: #34d399;
+  font-weight: 700;
+}
+.done-count {
+  background: #059669 !important;
+}
+.design-priority-done-row td {
+  text-decoration: none;
+  color: #6b7280 !important;
+}
 .design-priority-urgent-title {
   color: #f87171;
   font-weight: 700;
