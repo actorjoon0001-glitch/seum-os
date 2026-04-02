@@ -3632,12 +3632,53 @@
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
     contracts = getFilteredDesignContracts(contracts);
-    // 기본 정렬: 계약일 오래된 순 (오름차순)
+
+    // ── 유형 분류 헬퍼 ──
+    function getContractTypeKey(c) {
+      var t = (c.projectType || '').trim();
+      if (t === '컨테이너/농막') return '컨테이너/농막';
+      if (t === '체류형쉼터') return '체류형쉼터';
+      if (t === '전원주택') return '전원주택(인허가)';
+      return '기타';
+    }
+    var TYPE_ORDER = { '컨테이너/농막': 0, '체류형쉼터': 1, '전원주택(인허가)': 2, '기타': 3 };
+    var TYPE_BADGE_CLS = { '컨테이너/농막': 'badge-container', '체류형쉼터': 'badge-shelter', '전원주택(인허가)': 'badge-house', '기타': 'badge-etc' };
+
+    // ── 탭 + 건수 렌더 ──
+    var tabsEl = document.getElementById('design-type-tabs');
+    if (tabsEl) {
+      var allTypes = ['컨테이너/농막', '체류형쉼터', '전원주택(인허가)', '기타'];
+      var typeCounts = { '컨테이너/농막': 0, '체류형쉼터': 0, '전원주택(인허가)': 0, '기타': 0 };
+      contracts.forEach(function (c) { typeCounts[getContractTypeKey(c)]++; });
+      var total = contracts.length;
+      var tabHtml = '<button type="button" class="design-type-tab' + (designTypeFilter === 'all' ? ' active' : '') + '" data-type="all">전체 <span class="tab-count">' + total + '</span></button>';
+      allTypes.forEach(function (t) {
+        tabHtml += '<button type="button" class="design-type-tab' + (designTypeFilter === t ? ' active' : '') + '" data-type="' + escapeAttr(t) + '">' + escapeHtml(t) + ' <span class="tab-count">' + typeCounts[t] + '</span></button>';
+      });
+      tabsEl.innerHTML = tabHtml;
+      tabsEl.querySelectorAll('.design-type-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          designTypeFilter = btn.getAttribute('data-type') || 'all';
+          renderDesign();
+        });
+      });
+    }
+
+    // ── 유형 필터 적용 ──
+    if (designTypeFilter !== 'all') {
+      contracts = contracts.filter(function (c) { return getContractTypeKey(c) === designTypeFilter; });
+    }
+
+    // ── 정렬: 유형 순 → 계약일 오름차순 ──
     contracts.sort(function (a, b) {
+      var tA = TYPE_ORDER[getContractTypeKey(a)];
+      var tB = TYPE_ORDER[getContractTypeKey(b)];
+      if (tA !== tB) return tA - tB;
       var dA = a.contractDate || '';
       var dB = b.contractDate || '';
       return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
+
     var tbody = document.getElementById('tbody-design');
     if (!tbody) return;
     var salesReadonly = isSalesReadonly();
@@ -3699,10 +3740,12 @@
         ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
         : (c.constructionManager || '-');
       var _dDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+      var typeKey = getContractTypeKey(c);
+      var typeBadge = '<span class="design-type-badge ' + TYPE_BADGE_CLS[typeKey] + '">' + escapeHtml(typeKey) + '</span>';
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + typeBadge + '</td><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || (getDesignSearchKeyword()
-      ? '<tr><td colspan="17" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-      : '<tr><td colspan="17">설계 데이터가 없습니다.</td></tr>');
+      ? '<tr><td colspan="18" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="18">설계 데이터가 없습니다.</td></tr>');
     updateDesignFilterResult(contracts);
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
@@ -3716,6 +3759,7 @@
   }
 
   var expandedDesignId = null;
+  var designTypeFilter = 'all'; // 설계팀 유형 탭 필터
 
   function formatOptionsSummary(options) {
     if (!options) return '';
