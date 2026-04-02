@@ -607,6 +607,66 @@ button,
   text-transform: uppercase;
 }
 
+.chat-contract-showroom-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 10px 6px;
+}
+
+.chat-showroom-filter-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.chat-showroom-filter-btn:hover {
+  background: #1C2537;
+  color: #e5e7eb;
+}
+
+.chat-showroom-filter-btn.active {
+  background: #3B82F6;
+  border-color: #3B82F6;
+  color: #fff;
+}
+
+.chat-contract-month-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 10px 6px;
+}
+
+.chat-month-filter-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.chat-month-filter-btn:hover {
+  background: #1C2537;
+  color: #e5e7eb;
+}
+
+.chat-month-filter-btn.active {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
+}
+
 .chat-room-items {
   display: flex;
   flex-direction: column;
@@ -719,6 +779,27 @@ button,
   min-width: 0;
   flex: 1;
 }
+.chat-goto-design-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid #3B82F6;
+  border-radius: 6px;
+  background: transparent;
+  color: #3B82F6;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-right: 6px;
+}
+.chat-goto-design-btn:hover {
+  background: #3B82F6;
+  color: #fff;
+}
+.chat-goto-design-btn.hidden {
+  display: none !important;
+}
+
 .chat-conversation-close-btn {
   flex-shrink: 0;
   width: 36px;
@@ -3685,6 +3766,22 @@ textarea.form-input {
   text-decoration: underline;
 }
 
+.contract-attach-card-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #6B7280;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 4px;
+  transition: color 0.15s;
+}
+.contract-attach-card-remove:hover {
+  color: #EF4444;
+}
+
 .contract-extra-attach-card {
   border: 2px dashed rgba(79, 140, 255, 0.5);
   border-radius: 10px;
@@ -4365,6 +4462,193 @@ textarea.form-input {
 }
 .start-ready-box .design-detail-check-item {
   color: #86EFAC !important;
+}
+.design-approval-readonly {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* 설계팀 유형 탭 */
+.design-type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+.design-type-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.design-type-tab:hover { background: #1e293b; color: #e2e8f0; }
+.design-type-tab.active {
+  background: #1e40af;
+  border-color: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+}
+.design-type-tab .tab-count {
+  background: rgba(255,255,255,0.18);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.75rem;
+}
+.design-type-tab.active .tab-count { background: rgba(255,255,255,0.25); }
+
+/* 유형 뱃지 */
+.design-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-container  { background: rgba(59,130,246,0.18); color: #93c5fd; }
+.badge-shelter    { background: rgba(34,197,94,0.18);  color: #86efac; }
+.badge-house      { background: rgba(249,115,22,0.18); color: #fdba74; }
+.badge-etc        { background: rgba(107,114,128,0.18); color: #9ca3af; }
+
+/* 건축허가 완료일 날짜 입력 */
+.permit-cert-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.permit-cert-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: #D1D5DB;
+  font-size: 0.875rem;
+}
+.permit-cert-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  cursor: pointer;
+}
+.design-inline-permit-cert-date {
+  background: #1e293b;
+  border: 1px solid #374151;
+  color: #e2e8f0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  height: 26px;
+}
+.design-inline-permit-cert-date:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 우선순위 섹션 */
+.design-priority-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.design-priority-count {
+  background: #3b82f6;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.design-priority-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.design-priority-table th {
+  background: #1e293b;
+  color: #94a3b8;
+  font-weight: 600;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+}
+.design-priority-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1e293b;
+  color: #d1d5db;
+  vertical-align: middle;
+}
+.design-priority-table tr:hover td {
+  background: rgba(59, 130, 246, 0.06);
+}
+.design-priority-rank {
+  font-weight: 700;
+  color: #60a5fa;
+  font-size: 0.95rem;
+}
+.design-priority-date {
+  font-weight: 600;
+  color: #34d399;
+  white-space: nowrap;
+}
+.design-priority-status {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-block;
+  white-space: nowrap;
+}
+.design-priority-status.status-none { background: rgba(239,68,68,0.15); color: #fca5a5; }
+.design-priority-status.status-in_progress { background: rgba(59,130,246,0.15); color: #93c5fd; }
+.design-priority-status.status-done { background: rgba(34,197,94,0.15); color: #86efac; }
+
+/* 우선순위 행 강조 (계약 상세 이동 후) */
+@keyframes design-row-highlight-fade {
+  0%   { background: rgba(59,130,246,0.25); }
+  100% { background: transparent; }
+}
+.design-row-highlight {
+  animation: design-row-highlight-fade 2s ease-out forwards;
+}
+
+/* 우선순위 리스트 행 hover */
+.design-priority-row:hover td {
+  background: rgba(59,130,246,0.1);
+}
+.priority-goto-btn {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+}
+
+.design-approval-readonly-item {
+  font-size: 12px;
+  color: #6B7280;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: rgba(0,0,0,0.2);
+}
+.design-approval-readonly-item.confirmed {
+  color: #86EFAC;
+  border-color: rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.1);
+}
+.design-approval-readonly-item.final {
+  font-weight: 600;
+}
+.design-approval-readonly-item.final.confirmed {
+  color: #34D399;
+  border-color: rgba(52,211,153,0.6);
+  background: rgba(52,211,153,0.15);
 }
 
 /* 설계팀 상세 · 계약 채팅 카드 (오른쪽 하단) — 강조·가독성 개선 */
@@ -7462,8 +7746,8 @@ table tbody tr.active td {
 .signup-card .auth-link:hover {
   color: #93C5FD;
 }
-/* 생년월일 date 입력 달력 아이콘 흰색 (다크 배경 가독성) */
-.signup-card input[type="date"]::-webkit-calendar-picker-indicator {
+/* date 입력 달력 아이콘 흰색 (다크 배경 가독성) */
+input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   opacity: 0.9;
   cursor: pointer;
@@ -8870,4 +9154,620 @@ table tbody tr.active td {
   .ceo-db-progress-grid { grid-template-columns: repeat(2, 1fr); }
   .ceo-db-kpi-value { font-size: 2rem; }
   .ceo-db-prog-num { font-size: 2.2rem; }
+}
+
+/* =====================================================================
+   발주팀 (Procurement) 스타일
+   ===================================================================== */
+
+/* 탭 바 */
+.procurement-tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  background: #1e293b;
+  border-radius: 10px 10px 0 0;
+  padding: 0.5rem 0.75rem 0;
+  margin-bottom: 0;
+  border-bottom: 2px solid #334155;
+  flex-wrap: wrap;
+}
+.procurement-tab-btn {
+  padding: 0.55rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  margin-bottom: -2px;
+  white-space: nowrap;
+}
+.procurement-tab-btn:hover {
+  color: #e2e8f0;
+  background: #273449;
+}
+.procurement-tab-btn.active {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+  background: #1e293b;
+  font-weight: 700;
+}
+
+/* 탭 패널 */
+.procurement-tab-panel { padding-top: 1.2rem; }
+.procurement-tab-panel.hidden { display: none; }
+
+/* 카드 헤더 */
+.procurement-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.procurement-card-header h3 { margin: 0; }
+
+/* 검색/필터 바 */
+.procurement-search-bar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.procurement-search-bar .contract-search-input { flex: 1; min-width: 180px; }
+.procurement-filter-select {
+  padding: 0.45rem 0.8rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+/* 폼 래퍼 */
+.procurement-form-wrap {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.procurement-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.85rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.procurement-form-field { display: flex; flex-direction: column; gap: 0.35rem; }
+.procurement-form-field label { font-size: 0.82rem; color: #94a3b8; font-weight: 500; }
+.procurement-form-field input,
+.procurement-form-field select {
+  padding: 0.45rem 0.75rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+.procurement-form-field input:focus,
+.procurement-form-field select:focus { outline: none; border-color: #60a5fa; }
+.procurement-form-actions { display: flex; gap: 0.6rem; }
+
+/* 모델 그룹 */
+.procurement-model-group {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+.procurement-model-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.2rem;
+  background: #273449;
+  border-bottom: 1px solid #334155;
+  flex-wrap: wrap;
+}
+.procurement-model-header strong { font-size: 1rem; color: #e2e8f0; }
+.procurement-model-meta { background: #1e40af; color: #bfdbfe; font-size: 0.78rem; padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 600; }
+.procurement-model-cost { font-size: 0.88rem; color: #94a3b8; }
+.procurement-model-cost strong { color: #60a5fa; font-size: 0.95rem; }
+
+/* 업체 카드 그리드 */
+.vendor-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.vendor-card {
+  background: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  padding: 1.2rem 1rem;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, transform 0.1s, background 0.15s;
+}
+.vendor-card:hover { border-color: #60a5fa; transform: translateY(-2px); }
+.vendor-card-name { font-weight: 700; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 0.5rem; }
+.vendor-card-count { font-size: 0.8rem; color: #94a3b8; }
+.vendor-card-pending { border-color: #475569; }
+.vendor-card-partial { border-color: #d97706; background: #1c1a0a; }
+.vendor-card-partial .vendor-card-count { color: #fbbf24; }
+.vendor-card-done { border-color: #16a34a; background: #0a1a10; }
+.vendor-card-done .vendor-card-count { color: #4ade80; }
+.vendor-card-disabled { opacity: 0.4; cursor: default; }
+
+/* 업체 발주 디테일 헤더 */
+.vendor-order-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0 0.85rem;
+  border-top: 1px solid #334155;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* 발주 상태 select */
+.procurement-status-select {
+  padding: 0.3rem 0.5rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+/* 발주 상태 배지 */
+.badge-blue   { background: #1e40af; color: #bfdbfe; }
+.badge-yellow { background: #78350f; color: #fde68a; }
+.badge-green  { background: #14532d; color: #86efac; }
+.badge-gray   { background: #374151; color: #d1d5db; }
+
+/* 원가/분석 강조 */
+.procurement-highlight { color: #60a5fa; font-weight: 700; }
+.procurement-over { color: #f87171; font-weight: 600; }
+.procurement-under { color: #4ade80; font-weight: 600; }
+.text-right { text-align: right; }
+
+/* 위험 버튼 */
+.btn-danger { background: #7f1d1d; color: #fca5a5; border: 1px solid #991b1b; }
+.btn-danger:hover { background: #991b1b; }
+
+/* 발주서 미리보기 */
+.order-print-preview { margin-top: 1rem; }
+.order-form-sheet {
+  background: #fff;
+  color: #111;
+  padding: 28px 32px;
+  border-radius: 8px;
+  max-width: 800px;
+  font-family: "맑은 고딕", sans-serif;
+}
+.order-form-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  margin-bottom: 22px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #333;
+  color: #111;
+}
+.order-form-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+  margin-bottom: 18px;
+  border: 1px solid #ccc;
+  padding: 14px;
+}
+.order-form-meta-row { display: flex; gap: 10px; align-items: flex-end; }
+.order-form-label { font-weight: 700; min-width: 72px; color: #444; font-size: 13px; }
+.order-form-value { border-bottom: 1px solid #888; flex: 1; padding-bottom: 2px; font-size: 14px; color: #111; }
+.order-form-table { width: 100%; border-collapse: collapse; }
+.order-form-table th,
+.order-form-table td { border: 1px solid #999; padding: 7px 9px; font-size: 13px; color: #111; }
+.order-form-table th { background: #f0f0f0; text-align: center; font-weight: 700; }
+.order-form-footer { margin-top: 14px; font-size: 12px; color: #666; text-align: right; }
+
+/* 반응형 */
+@media (max-width: 900px) {
+  .vendor-card-grid { grid-template-columns: repeat(3, 1fr); }
+  .order-form-meta-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .procurement-tab-bar { padding: 0.4rem 0.4rem 0; gap: 0.15rem; }
+  .procurement-tab-btn { padding: 0.45rem 0.75rem; font-size: 0.82rem; }
+  .procurement-form-grid { grid-template-columns: 1fr 1fr; }
+  .vendor-card-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .procurement-tab-btn { padding: 0.4rem 0.5rem; font-size: 0.78rem; }
+  .procurement-form-grid { grid-template-columns: 1fr; }
+  .vendor-card-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* =====================================================================
+   설계 업무일지 (Design Worklog)
+   ===================================================================== */
+.dw-action-bar {
+   시공 업무일지 (Construction Worklog)
+   ===================================================================== */
+.cw-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.cw-summary-card {
+  background: #1e2035;
+  border: 1px solid #2e3150;
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  text-align: center;
+}
+.cw-summary-num {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 0.25rem;
+}
+.cw-summary-label {
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+.cw-accent-blue .cw-summary-num  { color: #60a5fa; }
+.cw-accent-green .cw-summary-num { color: #34d399; }
+.cw-accent-red .cw-summary-num   { color: #f87171; }
+.cw-accent-orange .cw-summary-num{ color: #fb923c; }
+.cw-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.dw-filter-bar {
+}
+.cw-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+.dw-filter-bar input,
+.dw-filter-bar select {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  outline: none;
+  background: #fff;
+}
+.dw-filter-bar input:focus,
+.dw-filter-bar select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+.dw-form-wrap {
+  background: #f8f9fe;
+  border: 1px solid #e0e2f0;
+  border-radius: 10px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.2rem;
+}
+.dw-form-grid {
+.cw-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem 1rem;
+}
+.dw-form-grid label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  gap: 0.3rem;
+}
+.dw-form-grid input,
+.dw-form-grid select,
+.dw-form-grid textarea {
+  padding: 0.42rem 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.dw-form-grid input:focus,
+.dw-form-grid select:focus,
+.dw-form-grid textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+.dw-form-actions {
+.cw-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.cw-form-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d1d5db;
+}
+.cw-form-field input,
+.cw-form-field select,
+.cw-form-field textarea {
+  padding: 0.42rem 0.7rem;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #1e2035;
+  color: #e5e7eb;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.cw-form-field input:focus,
+.cw-form-field select:focus,
+.cw-form-field textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+.cw-form-field-wide { grid-column: 1 / -1; }
+.cw-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
+/* Stage badge */
+.dw-stage-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+.cw-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.cw-photo-count { font-size: 0.78rem; color: #9ca3af; }
+.cw-photo-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+.cw-photo-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #374151;
+  cursor: pointer;
+}
+.cw-proc-badge {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dw-stage-consult   { background: #ede9fe; color: #5b21b6; }
+.dw-stage-draft1    { background: #dbeafe; color: #1d4ed8; }
+.dw-stage-draft2    { background: #e0f2fe; color: #0369a1; }
+.dw-stage-draft3    { background: #dcfce7; color: #15803d; }
+.dw-stage-final     { background: #fef9c3; color: #854d0e; }
+.dw-stage-complete  { background: #d1fae5; color: #065f46; }
+.dw-stage-transfer  { background: #fee2e2; color: #b91c1c; }
+/* Transfer badge */
+.dw-transferred-badge {
+.cw-proc-foundation  { background: #fef3c7; color: #92400e; }
+.cw-proc-frame       { background: #dbeafe; color: #1e40af; }
+.cw-proc-insulation  { background: #e0f2fe; color: #0369a1; }
+.cw-proc-exterior    { background: #ede9fe; color: #5b21b6; }
+.cw-proc-window      { background: #fce7f3; color: #9d174d; }
+.cw-proc-electric    { background: #fef9c3; color: #713f12; }
+.cw-proc-plumbing    { background: #ecfdf5; color: #065f46; }
+.cw-proc-interior    { background: #f0fdf4; color: #15803d; }
+.cw-proc-finish      { background: #f3f4f6; color: #374151; }
+.cw-proc-done        { background: #d1fae5; color: #065f46; }
+.cw-issue-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+.dw-file-link {
+  color: #6366f1;
+  text-decoration: underline;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+.dw-file-link:hover { color: #4338ca; }
+.dw-action-cell {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.dw-transfer-btn {
+  font-size: 0.72rem;
+  padding: 0.18rem 0.45rem;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dw-transfer-btn:hover { background: #fde68a; }
+/* Schedule view */
+.dw-schedule-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+.dw-month-group {
+  margin-bottom: 1.4rem;
+}
+.dw-month-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #4f46e5;
+  padding: 0.4rem 0.8rem;
+  background: #eef2ff;
+  border-radius: 6px;
+  margin-bottom: 0.6rem;
+  display: inline-block;
+}
+.dw-schedule-card {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.4rem;
+  transition: box-shadow 0.15s;
+}
+.dw-schedule-card:hover { box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1); }
+.dw-schedule-date {
+  font-size: 0.8rem;
+  color: #6b7280;
+  min-width: 5.5rem;
+  white-space: nowrap;
+}
+.dw-schedule-info {
+  flex: 1;
+}
+.dw-schedule-customer {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #111827;
+}
+.dw-schedule-address {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.1rem;
+}
+.dw-schedule-meta {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-top: 0.15rem;
+}
+@media (max-width: 768px) {
+  .dw-form-grid { grid-template-columns: 1fr 1fr; }
+  .dw-action-bar { gap: 0.4rem; }
+}
+@media (max-width: 500px) {
+  .dw-form-grid { grid-template-columns: 1fr; }
+  .dw-schedule-card { flex-direction: column; gap: 0.4rem; }
+  font-weight: 700;
+}
+.cw-delay-badge {
+  display: inline-block;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  background: #fff7ed;
+  color: #c2410c;
+  font-weight: 700;
+  border: 1px solid #fed7aa;
+  margin-left: 0.25rem;
+}
+.cw-progress-cell { min-width: 100px; }
+.cw-progress-wrap {
+  background: #374151;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 0.2rem;
+}
+.cw-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+.cw-prog-low  { background: #f87171; }
+.cw-prog-mid  { background: #fb923c; }
+.cw-prog-done { background: #34d399; }
+.cw-progress-pct { font-size: 0.75rem; color: #9ca3af; }
+.cw-site-cell { font-weight: 600; }
+.cw-photo-count-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cw-photo-count-badge:hover { background: #bfdbfe; }
+.cw-action-cell {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.ceo-db-cw-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+.ceo-db-cw-card {
+  background: #1e2035;
+  border: 1px solid #2e3150;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+.ceo-db-cw-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #60a5fa;
+  line-height: 1.1;
+}
+.ceo-db-cw-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.15rem;
+}
+.ceo-db-cw-card-green .ceo-db-cw-num  { color: #34d399; }
+.ceo-db-cw-card-red .ceo-db-cw-num    { color: #f87171; }
+.ceo-db-cw-card-orange .ceo-db-cw-num { color: #fb923c; }
+@media (max-width: 900px) {
+  .cw-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .cw-form-grid { grid-template-columns: 1fr 1fr; }
+  .ceo-db-cw-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 500px) {
+  .cw-summary-grid { grid-template-columns: 1fr 1fr; }
+  .cw-form-grid { grid-template-columns: 1fr; }
+  .ceo-db-cw-grid { grid-template-columns: 1fr 1fr; }
 }

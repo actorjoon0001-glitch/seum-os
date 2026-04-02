@@ -83,6 +83,7 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     if ('serviceWorker' in navigator) {
@@ -120,14 +121,35 @@
             <span class="nav-arrow">▶</span>
           </button>
           <div class="nav-submenu sidebar-sub collapsed" id="nav-sales-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-contracts">계약 목록</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-leads">방문예약 고객</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-customers">고객 관리</a>
-            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-contracts">계약 목록</a>
           </div>
         </div>
 
-        <a href="#" class="nav-item" data-section="design">설계팀</a>
-        <a href="#" class="nav-item" data-section="construction">시공팀</a>
+        <div class="nav-group sidebar-group" id="sidebar-group-design">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-design-toggle" aria-expanded="false">
+            <span>설계팀</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-design-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design">계약 목록</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-priority">우선순위</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-worklog">설계업무일지</a>
+          </div>
+        </div>
+
+        <div class="nav-group sidebar-group" id="sidebar-group-construction">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-construction-toggle" aria-expanded="false">
+            <span>시공팀</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-construction-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction">시공현황</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction-worklog">시공업무일지</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="procurement">발주팀</a>
+          </div>
+        </div>
 
         <div class="nav-group sidebar-group" id="sidebar-group-settlement">
           <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-settlement-toggle" aria-expanded="false">
@@ -158,6 +180,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-daily">일일 보고</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-weekly">주간 보고</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-monthly">월간 보고</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="ceo-expense">지출결의서</a>
           </div>
         </div>
       </div>
@@ -256,12 +279,12 @@
         <article class="kpi-card">
           <h3 class="kpi-title">계약총액</h3>
           <p class="kpi-value" id="kpi-total-amount">0</p>
-          <span class="kpi-unit">억원</span>
+          <span class="kpi-unit">만원</span>
         </article>
         <article class="kpi-card">
           <h3 class="kpi-title">받은 계약금</h3>
           <p class="kpi-value" id="kpi-deposit-received">0</p>
-          <span class="kpi-unit">억원</span>
+          <span class="kpi-unit">만원</span>
         </article>
       </div>
       <div class="dashboard-charts">
@@ -659,10 +682,10 @@
                   <option value="BB">BLACK(검정)+BROWN(갈색)</option>
                 </select>
               </label>
-              <label>모델 이름 (자동 생성) <input type="text" id="contract-model-name" placeholder="예: 세움FOREST15R" readonly></label>
+              <label>모델 이름 (자동 생성) <input type="text" id="contract-model-name" placeholder="예: 세움FOREST15R"></label>
               <label>담당 영업사원 <input type="text" id="contract-sales-person" placeholder="성명"></label>
               <label>계약자명 <input type="text" id="contract-name" required></label>
-              <label>연락처 <input type="tel" id="contract-phone" required></label>
+              <label>건축주 연락처 <input type="tel" id="contract-phone" required></label>
               <label>공급가(만원) <input type="number" id="contract-supply" min="0" step="1" required></label>
               <label>부가세(만원) <input type="number" id="contract-vat" min="0" step="1" readonly></label>
               <label>계약총액(만원) <input type="number" id="contract-total" min="0" step="1" readonly></label>
@@ -703,6 +726,7 @@
           <table class="data-table contract-list-table">
             <thead>
               <tr>
+                <th>번호</th>
                 <th>전시장</th>
                 <th>주택유형</th>
                 <th>모델</th>
@@ -742,6 +766,7 @@
                 <label>주택 유형 <select id="contract-inline-model"><option value="">선택</option><option value="컨테이너/농막">컨테이너/농막</option><option value="체류형쉼터">체류형쉼터</option><option value="전원주택">전원주택</option><option value="기타">기타</option></select></label>
                 <label>모델 이름 <input type="text" id="contract-inline-model-name" placeholder="예: S3500, S6850"></label>
                 <label>담당 영업사원 <input type="text" id="contract-inline-sales-person" placeholder="성명"></label>
+                <label>건축주 연락처 <input type="tel" id="contract-inline-phone" placeholder="010-0000-0000"></label>
                 <label class="contract-attach-label">계약서 첨부</label>
                 <div class="contract-attach-card" id="contract-attach-card">
                   <div class="contract-attach-card-placeholder" id="contract-attach-card-placeholder">
@@ -750,6 +775,7 @@
                   <div class="contract-attach-card-file hidden" id="contract-attach-card-file">
                     <span class="contract-attach-card-filename" id="contract-attach-card-filename"></span>
                     <a href="#" target="_blank" rel="noopener" class="contract-attach-card-view" id="contract-attach-card-view">보기</a>
+                    <button type="button" class="contract-attach-card-remove" id="contract-attach-card-remove" title="첨부 파일 삭제">×</button>
                   </div>
                   <input type="text" id="contract-inline-attachment" class="contract-attach-value-input" aria-hidden="true" tabindex="-1">
                   <input type="file" id="contract-inline-attachment-file" class="contract-attach-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.hwp,.zip" hidden>
@@ -991,13 +1017,155 @@
       </div>
     </section>
 
+    <!-- 우선순위 섹션 -->
+    <section id="section-design-priority" class="content-section">
+      <header class="main-header">
+        <h2>우선순위</h2>
+        <p class="section-desc">건축허가 완료 후 설계 진행 우선순위 목록입니다.</p>
+      </header>
+      <div class="card">
+        <div id="design-priority-wrap">
+          <p style="color:#9ca3af;">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 설계업무일지 섹션 -->
+    <section id="section-design-worklog" class="content-section">
+      <header class="main-header">
+        <h2>설계 업무일지</h2>
+        <p class="section-desc">설계 업무를 등록하고 진행 단계를 관리합니다.</p>
+      </header>
+
+      <!-- 액션 바 -->
+      <div class="dw-action-bar">
+        <button type="button" class="btn btn-primary" id="btn-add-dw">+ 업무 등록</button>
+        <label class="btn btn-secondary dw-excel-label" id="btn-excel-upload-label" tabindex="0">
+          📂 엑셀 업로드
+          <input type="file" id="dw-excel-input" accept=".xlsx,.xls,.csv" hidden>
+        </label>
+      </div>
+
+      <!-- 업무 등록/수정 폼 -->
+      <div id="dw-form-wrap" class="card hidden">
+        <h3 id="dw-form-title" style="margin-top:0;margin-bottom:1rem;color:#60a5fa;">업무 등록</h3>
+        <form id="form-dw">
+          <input type="hidden" id="dw-edit-id">
+          <div class="dw-form-grid">
+            <div class="dw-form-field">
+              <label for="dw-customer">고객명 *</label>
+              <input type="text" id="dw-customer" placeholder="고객명" required>
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-address">주소 *</label>
+              <input type="text" id="dw-address" placeholder="주소" required>
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-size">크기</label>
+              <input type="text" id="dw-size" placeholder="예: 33평, 100㎡">
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-task">작업</label>
+              <input type="text" id="dw-task" placeholder="작업 내용">
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-date">날짜 *</label>
+              <input type="date" id="dw-date" required>
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-manager">담당자</label>
+              <input type="text" id="dw-manager" placeholder="담당자명">
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-stage">설계단계 *</label>
+              <select id="dw-stage" required>
+                <option value="">선택</option>
+                <option value="상담설계">상담설계</option>
+                <option value="1차도면">1차도면</option>
+                <option value="2차도면">2차도면</option>
+                <option value="3차도면">3차도면</option>
+                <option value="최종도면">최종도면</option>
+                <option value="설계완료">설계완료</option>
+                <option value="시공이관">시공이관</option>
+              </select>
+            </div>
+            <div class="dw-form-field">
+              <label for="dw-memo">비고</label>
+              <input type="text" id="dw-memo" placeholder="비고">
+            </div>
+            <div class="dw-form-field dw-form-field-wide">
+              <label>도면파일</label>
+              <div class="dw-file-row">
+                <input type="text" id="dw-drawing-url" placeholder="파일명 또는 URL">
+                <label class="btn btn-sm btn-secondary dw-file-label">
+                  파일 첨부
+                  <input type="file" id="dw-drawing-file" accept=".pdf,.dwg,.png,.jpg,.jpeg,.zip" hidden>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="dw-form-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-dw">취소</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 필터 + 테이블 -->
+      <div class="card">
+        <div class="dw-filter-bar">
+          <div class="contract-search-wrap" style="flex:1;min-width:200px;max-width:320px;">
+            <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+              <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="dw-search" class="contract-search-input" placeholder="주소, 고객명 검색" autocomplete="off">
+            <button type="button" class="contract-search-clear hidden" id="dw-search-clear" title="검색어 초기화">✕</button>
+          </div>
+          <select id="dw-stage-filter" class="procurement-filter-select">
+            <option value="">전체 단계</option>
+            <option value="상담설계">상담설계</option>
+            <option value="1차도면">1차도면</option>
+            <option value="2차도면">2차도면</option>
+            <option value="3차도면">3차도면</option>
+            <option value="최종도면">최종도면</option>
+            <option value="설계완료">설계완료</option>
+            <option value="시공이관">시공이관</option>
+          </select>
+          <span id="dw-filter-result" class="contract-filter-result"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>고객명</th>
+                <th>주소</th>
+                <th>크기</th>
+                <th>작업</th>
+                <th>설계단계</th>
+                <th>담당자</th>
+                <th>도면파일</th>
+                <th>비고</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-dw"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 도면관리 섹션 (기존 설계팀 내용) -->
     <section id="section-design" class="content-section">
       <header class="main-header">
-        <h2>설계팀</h2>
+        <h2>도면관리</h2>
         <p class="section-desc">계약서 접수 시 체류형쉼터/주택 구분, 주택 시 인허가·착공 관리</p>
       </header>
       <div class="card">
         <h3>협의도면 · 인허가 진행 현황 (계약금 수령 건)</h3>
+        <!-- 유형별 탭 -->
+        <div id="design-type-tabs" class="design-type-tabs"></div>
         <!-- 설계팀 검색 필터 -->
         <div class="contract-filter-bar" id="design-filter-bar">
           <div class="filter-item filter-item-search">
@@ -1017,6 +1185,8 @@
           <table class="data-table design-list-table">
             <thead>
               <tr>
+                <th>번호</th>
+                <th>유형</th>
                 <th>전시장</th>
                 <th>주택유형</th>
                 <th>모델</th>
@@ -1074,6 +1244,191 @@
               <button type="submit" class="btn btn-primary">저장</button>
             </div>
           </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- 설계일정 섹션 -->
+    <section id="section-design-schedule" class="content-section">
+      <header class="main-header">
+        <h2>설계 일정</h2>
+        <p class="section-desc">설계 업무일지 기반으로 담당자별 일정을 확인합니다.</p>
+      </header>
+      <div class="card">
+        <div class="dw-filter-bar" style="margin-bottom:1.25rem;">
+          <select id="schedule-stage-filter" class="procurement-filter-select">
+            <option value="">전체 단계</option>
+            <option value="상담설계">상담설계</option>
+            <option value="1차도면">1차도면</option>
+            <option value="2차도면">2차도면</option>
+            <option value="3차도면">3차도면</option>
+            <option value="최종도면">최종도면</option>
+            <option value="설계완료">설계완료</option>
+            <option value="시공이관">시공이관</option>
+          </select>
+          <select id="schedule-manager-filter" class="procurement-filter-select">
+            <option value="">전체 담당자</option>
+          </select>
+        </div>
+        <div id="design-schedule-list"></div>
+      </div>
+    </section>
+    <!-- 시공 업무일지 섹션 -->
+    <section id="section-construction-worklog" class="content-section">
+      <header class="main-header">
+        <h2>시공 업무일지</h2>
+        <p class="section-desc">현장별 시공 업무일지를 작성하고 진행 상황을 대표님께 보고합니다.</p>
+      </header>
+
+      <!-- 요약 카드 -->
+      <div class="cw-summary-grid">
+        <div class="cw-summary-card cw-accent-blue">
+          <div class="cw-summary-num" id="cw-count-active">0</div>
+          <div class="cw-summary-label">진행중 현장</div>
+        </div>
+        <div class="cw-summary-card cw-accent-green">
+          <div class="cw-summary-num" id="cw-count-done">0</div>
+          <div class="cw-summary-label">완료 현장</div>
+        </div>
+        <div class="cw-summary-card cw-accent-red">
+          <div class="cw-summary-num" id="cw-count-issues">0</div>
+          <div class="cw-summary-label">문제 현장</div>
+        </div>
+        <div class="cw-summary-card cw-accent-orange">
+          <div class="cw-summary-num" id="cw-count-today">0</div>
+          <div class="cw-summary-label">오늘 시공 보고</div>
+        </div>
+      </div>
+
+      <!-- 액션 바 -->
+      <div class="cw-action-bar">
+        <button type="button" class="btn btn-primary" id="btn-add-cw">+ 업무 등록</button>
+      </div>
+
+      <!-- 업무 등록/수정 폼 -->
+      <div id="cw-form-wrap" class="card hidden">
+        <h3 id="cw-form-title" style="margin-top:0;margin-bottom:1rem;color:#60a5fa;">업무 등록</h3>
+        <form id="form-cw">
+          <input type="hidden" id="cw-edit-id">
+          <div class="cw-form-grid">
+            <div class="cw-form-field">
+              <label for="cw-date">날짜 *</label>
+              <input type="date" id="cw-date" required>
+            </div>
+            <div class="cw-form-field">
+              <label for="cw-site-name">현장명 *</label>
+              <input type="text" id="cw-site-name" placeholder="현장명" required>
+            </div>
+            <div class="cw-form-field">
+              <label for="cw-address">주소</label>
+              <input type="text" id="cw-address" placeholder="현장 주소">
+            </div>
+            <div class="cw-form-field">
+              <label for="cw-process">작업공정 *</label>
+              <select id="cw-process" required>
+                <option value="">선택</option>
+                <option value="기초">기초</option>
+                <option value="골조">골조</option>
+                <option value="단열">단열</option>
+                <option value="외장">외장</option>
+                <option value="창호">창호</option>
+                <option value="전기">전기</option>
+                <option value="설비">설비</option>
+                <option value="내장">내장</option>
+                <option value="마감">마감</option>
+                <option value="완료">완료</option>
+              </select>
+            </div>
+            <div class="cw-form-field">
+              <label for="cw-progress">진행률 (%)</label>
+              <input type="number" id="cw-progress" min="0" max="100" placeholder="0~100">
+            </div>
+            <div class="cw-form-field">
+              <label for="cw-crew">투입인원 (명)</label>
+              <input type="number" id="cw-crew" min="0" placeholder="명">
+            </div>
+            <div class="cw-form-field cw-form-field-wide">
+              <label for="cw-content">작업내용</label>
+              <textarea id="cw-content" rows="2" placeholder="오늘 수행한 작업 내용"></textarea>
+            </div>
+            <div class="cw-form-field cw-form-field-wide">
+              <label for="cw-special">특이사항</label>
+              <textarea id="cw-special" rows="2" placeholder="특이사항"></textarea>
+            </div>
+            <div class="cw-form-field cw-form-field-wide">
+              <label for="cw-issues">문제사항</label>
+              <textarea id="cw-issues" rows="2" placeholder="문제사항 (있을 경우 입력)"></textarea>
+            </div>
+            <div class="cw-form-field cw-form-field-wide">
+              <label for="cw-tomorrow">내일계획</label>
+              <textarea id="cw-tomorrow" rows="2" placeholder="내일 작업 계획"></textarea>
+            </div>
+            <div class="cw-form-field cw-form-field-wide">
+              <label>사진 업로드</label>
+              <div class="cw-photo-row">
+                <label class="btn btn-sm btn-secondary cw-photo-label">
+                  사진 선택
+                  <input type="file" id="cw-photos" accept="image/*" multiple hidden>
+                </label>
+                <span class="cw-photo-count" id="cw-photo-count"></span>
+              </div>
+              <div class="cw-photo-preview" id="cw-photo-preview"></div>
+              <input type="hidden" id="cw-photos-data">
+            </div>
+          </div>
+          <div class="cw-form-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-cw">취소</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 필터 + 테이블 -->
+      <div class="card">
+        <div class="cw-filter-bar">
+          <div class="contract-search-wrap" style="flex:1;min-width:180px;max-width:280px;">
+            <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+              <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="cw-search" class="contract-search-input" placeholder="현장명 검색" autocomplete="off">
+          </div>
+          <select id="cw-process-filter" class="procurement-filter-select">
+            <option value="">전체 공정</option>
+            <option value="기초">기초</option>
+            <option value="골조">골조</option>
+            <option value="단열">단열</option>
+            <option value="외장">외장</option>
+            <option value="창호">창호</option>
+            <option value="전기">전기</option>
+            <option value="설비">설비</option>
+            <option value="내장">내장</option>
+            <option value="마감">마감</option>
+            <option value="완료">완료</option>
+          </select>
+          <select id="cw-issue-filter" class="procurement-filter-select">
+            <option value="">전체</option>
+            <option value="issues">문제현장만</option>
+          </select>
+          <span id="cw-filter-result" class="contract-filter-result"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>현장명</th>
+                <th>주소</th>
+                <th>공정</th>
+                <th>진행률</th>
+                <th>투입인원</th>
+                <th>문제</th>
+                <th>사진</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-cw"></tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -1138,6 +1493,308 @@
             </thead>
             <tbody id="construction-detail-tbody"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 발주팀 섹션 -->
+    <section id="section-procurement" class="content-section">
+      <header class="main-header">
+        <h2>발주팀</h2>
+        <p class="section-desc">현장 발주 생성부터 업체별 자재 발주, 기준 수량 관리, 발주서 출력까지 통합 관리합니다.</p>
+      </header>
+
+      <div class="procurement-tab-bar">
+        <button type="button" class="procurement-tab-btn active" data-tab="field-order">현장발주</button>
+        <button type="button" class="procurement-tab-btn" data-tab="vendor-order">업체별발주</button>
+        <button type="button" class="procurement-tab-btn" data-tab="std-qty">기준수량관리</button>
+        <button type="button" class="procurement-tab-btn" data-tab="materials">자재관리</button>
+        <button type="button" class="procurement-tab-btn" data-tab="pyeong-analysis">평당자재분석</button>
+        <button type="button" class="procurement-tab-btn" data-tab="print">발주서출력</button>
+      </div>
+
+      <!-- ① 현장발주 탭 -->
+      <div id="procurement-tab-field-order" class="procurement-tab-panel active">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>현장 발주 목록</h3>
+            <button type="button" class="btn btn-primary" id="btn-new-field-order">+ 현장 발주 생성</button>
+          </div>
+          <div id="field-order-form-wrap" class="procurement-form-wrap hidden">
+            <h4 style="margin:0 0 1rem;color:#60a5fa;">현장 발주 정보 입력</h4>
+            <form id="form-field-order" class="procurement-form">
+              <input type="hidden" id="field-order-edit-id">
+              <div class="procurement-form-grid">
+                <div class="procurement-form-field">
+                  <label for="fo-site-name">현장명 *</label>
+                  <input type="text" id="fo-site-name" placeholder="현장명" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-model-name">모델명 *</label>
+                  <input type="text" id="fo-model-name" placeholder="예: STAY" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-pyeong">평수 *</label>
+                  <input type="number" id="fo-pyeong" placeholder="24" min="1" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-address">현장주소 *</label>
+                  <input type="text" id="fo-address" placeholder="현장 주소" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-foreman">반장명</label>
+                  <input type="text" id="fo-foreman" placeholder="반장명">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-foreman-phone">반장 연락처</label>
+                  <input type="tel" id="fo-foreman-phone" placeholder="010-0000-0000">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-manager">담당자</label>
+                  <input type="text" id="fo-manager" placeholder="담당자명">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="fo-order-date">발주일</label>
+                  <input type="date" id="fo-order-date">
+                </div>
+              </div>
+              <div class="procurement-form-actions">
+                <button type="submit" class="btn btn-primary">저장 (업체별 발주 자동 생성)</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-field-order">취소</button>
+              </div>
+            </form>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>현장명</th>
+                  <th>모델명</th>
+                  <th>평수</th>
+                  <th>현장주소</th>
+                  <th>반장</th>
+                  <th>연락처</th>
+                  <th>담당자</th>
+                  <th>발주일</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-field-orders"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 업체별발주 탭 -->
+      <div id="procurement-tab-vendor-order" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>업체별 발주</h3>
+            <select id="vendor-site-selector" class="procurement-filter-select" style="min-width:220px;">
+              <option value="">현장 선택</option>
+            </select>
+          </div>
+          <div class="vendor-card-grid" id="vendor-card-grid"></div>
+          <div id="vendor-order-detail" class="hidden">
+            <div class="vendor-order-detail-header">
+              <strong id="vendor-order-vendor-name" style="font-size:1rem;color:#e2e8f0;"></strong>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-close-vendor-detail">닫기</button>
+              <button type="button" class="btn btn-sm btn-primary" id="btn-print-vendor-order">발주서 출력</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>품목</th>
+                    <th>규격</th>
+                    <th>기준수량</th>
+                    <th>실제수량</th>
+                    <th>단위</th>
+                    <th>상태</th>
+                    <th>비고</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-vendor-order-items"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ③ 기준수량관리 탭 -->
+      <div id="procurement-tab-std-qty" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>모델별 기준 수량</h3>
+            <button type="button" class="btn btn-primary" id="btn-add-std-qty">+ 기준 수량 추가</button>
+          </div>
+          <div id="std-qty-form-wrap" class="procurement-form-wrap hidden">
+            <form id="form-std-qty" class="procurement-form">
+              <input type="hidden" id="std-qty-edit-id">
+              <div class="procurement-form-grid">
+                <div class="procurement-form-field">
+                  <label for="sq-model">모델명 *</label>
+                  <input type="text" id="sq-model" placeholder="예: STAY" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-vendor">업체 *</label>
+                  <select id="sq-vendor" required>
+                    <option value="">업체 선택</option>
+                    <option value="삼원목재">삼원목재</option>
+                    <option value="로자메탈사이딩">로자메탈사이딩</option>
+                    <option value="철물자재">철물자재</option>
+                    <option value="대한전기">대한전기</option>
+                    <option value="장원EPS">장원EPS</option>
+                  </select>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-material">자재명 *</label>
+                  <select id="sq-material" required>
+                    <option value="">자재 선택</option>
+                  </select>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-qty">기준 수량 *</label>
+                  <input type="number" id="sq-qty" placeholder="0" min="0" step="0.01" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-unit">단위</label>
+                  <input type="text" id="sq-unit" placeholder="EA, m², 장 등">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="sq-spec">규격</label>
+                  <input type="text" id="sq-spec" placeholder="규격/사이즈">
+                </div>
+              </div>
+              <div class="procurement-form-actions">
+                <button type="submit" class="btn btn-primary">저장</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-std-qty">취소</button>
+              </div>
+            </form>
+          </div>
+          <div class="procurement-search-bar">
+            <input type="text" id="sq-model-filter" placeholder="모델명 검색" class="contract-search-input" style="max-width:200px;">
+            <select id="sq-vendor-filter" class="procurement-filter-select">
+              <option value="">전체 업체</option>
+              <option value="삼원목재">삼원목재</option>
+              <option value="로자메탈사이딩">로자메탈사이딩</option>
+              <option value="철물자재">철물자재</option>
+              <option value="대한전기">대한전기</option>
+              <option value="장원EPS">장원EPS</option>
+            </select>
+          </div>
+          <div id="std-qty-list"></div>
+        </div>
+      </div>
+
+      <!-- ④ 자재관리 탭 -->
+      <div id="procurement-tab-materials" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>자재 마스터</h3>
+            <button type="button" class="btn btn-primary" id="btn-add-material">+ 자재 추가</button>
+          </div>
+          <div id="material-form-wrap" class="procurement-form-wrap hidden">
+            <form id="form-material" class="procurement-form">
+              <input type="hidden" id="material-edit-id">
+              <div class="procurement-form-grid">
+                <div class="procurement-form-field">
+                  <label for="material-name">자재명 *</label>
+                  <input type="text" id="material-name" placeholder="자재명" required>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-vendor-name">업체</label>
+                  <select id="material-vendor-name">
+                    <option value="">선택</option>
+                    <option value="삼원목재">삼원목재</option>
+                    <option value="로자메탈사이딩">로자메탈사이딩</option>
+                    <option value="철물자재">철물자재</option>
+                    <option value="대한전기">대한전기</option>
+                    <option value="장원EPS">장원EPS</option>
+                  </select>
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-unit">단위</label>
+                  <input type="text" id="material-unit" placeholder="EA, m², 장 등">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-spec">규격</label>
+                  <input type="text" id="material-spec" placeholder="규격/사이즈">
+                </div>
+                <div class="procurement-form-field">
+                  <label for="material-price">단가 (원)</label>
+                  <input type="number" id="material-price" placeholder="0" min="0">
+                </div>
+              </div>
+              <div class="procurement-form-actions">
+                <button type="submit" class="btn btn-primary">저장</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancel-material">취소</button>
+              </div>
+            </form>
+          </div>
+          <div class="procurement-search-bar">
+            <input type="text" id="material-search" placeholder="자재명 검색" class="contract-search-input">
+            <select id="material-vendor-filter" class="procurement-filter-select">
+              <option value="">전체 업체</option>
+              <option value="삼원목재">삼원목재</option>
+              <option value="로자메탈사이딩">로자메탈사이딩</option>
+              <option value="철물자재">철물자재</option>
+              <option value="대한전기">대한전기</option>
+              <option value="장원EPS">장원EPS</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>자재명</th>
+                  <th>업체</th>
+                  <th>단위</th>
+                  <th>규격</th>
+                  <th>단가</th>
+                  <th>작업</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-materials"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑤ 평당자재분석 탭 -->
+      <div id="procurement-tab-pyeong-analysis" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>평당 자재 분석</h3>
+            <select id="pyeong-model-select" class="procurement-filter-select" style="min-width:200px;">
+              <option value="">모델 선택</option>
+            </select>
+          </div>
+          <div id="pyeong-analysis-result"></div>
+        </div>
+      </div>
+
+      <!-- ⑥ 발주서출력 탭 -->
+      <div id="procurement-tab-print" class="procurement-tab-panel hidden">
+        <div class="card">
+          <div class="procurement-card-header">
+            <h3>발주서 출력</h3>
+            <div style="display:flex;gap:0.7rem;align-items:center;flex-wrap:wrap;">
+              <select id="print-site-select" class="procurement-filter-select" style="min-width:180px;">
+                <option value="">현장 선택</option>
+              </select>
+              <select id="print-vendor-select" class="procurement-filter-select" style="min-width:180px;">
+                <option value="">업체 선택</option>
+                <option value="삼원목재">삼원목재</option>
+                <option value="로자메탈사이딩">로자메탈사이딩</option>
+                <option value="철물자재">철물자재</option>
+                <option value="대한전기">대한전기</option>
+                <option value="장원EPS">장원EPS</option>
+              </select>
+              <button type="button" class="btn btn-primary" id="btn-do-print">🖨 인쇄 / PDF 저장</button>
+            </div>
+          </div>
+          <div id="order-print-preview" class="order-print-preview"></div>
         </div>
       </div>
     </section>
@@ -1458,6 +2115,7 @@
             <label>이름 <input type="text" id="employee-name" required></label>
             <label>소속 팀 <select id="employee-team"><option value="">선택</option><option value="마케팅">마케팅</option><option value="영업">영업</option><option value="설계">설계</option><option value="시공">시공</option><option value="정산">정산</option><option value="경영">경영</option><option value="본사">본사</option></select></label>
             <label>전시장 <select id="employee-showroom"><option value="">해당없음</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option></select></label>
+            <label>권한 <select id="employee-permission"><option value="">기본</option><option value="manager">매니저</option><option value="admin">관리자</option></select></label>
             <label>연락처 <input type="tel" id="employee-phone" placeholder="010-0000-0000"></label>
             <label>입사일 <input type="date" id="employee-join-date"></label>
             <label>비고 <input type="text" id="employee-memo" placeholder="직급, 담당 업무 등"></label>
@@ -1470,7 +2128,7 @@
         <div class="table-wrap">
           <table class="data-table">
             <thead>
-              <tr><th>이름</th><th>소속 팀</th><th>전시장</th><th>연락처</th><th>입사일</th><th>비고</th><th>작업</th></tr>
+              <tr><th>이름</th><th>소속 팀</th><th>전시장</th><th>권한</th><th>연락처</th><th>입사일</th><th>비고</th><th>작업</th></tr>
             </thead>
             <tbody id="tbody-employees"></tbody>
           </table>
@@ -1722,6 +2380,19 @@
       .ceo-input{flex:1;padding:0.3rem 0.5rem;font-size:0.9rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:6px;color:var(--text-primary,#e2e8f0);}
       .ceo-sub-label{min-width:5rem;font-size:0.82rem;color:var(--text-muted,#94a3b8);}
       .ceo-preview-box{margin-top:1.5rem;padding:1rem;background:var(--bg-secondary,#1e293b);border:1px solid var(--border-color,#334155);border-radius:8px;}
+
+      /* 지출결의서 */
+      .expense-approval-table{border-collapse:collapse;font-size:0.78rem;}
+      .expense-approval-table th,.expense-approval-table td{border:1px solid var(--border-color,#334155);padding:3px 8px;text-align:center;}
+      .expense-info-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:0.25rem;}
+      .expense-info-table th,.expense-info-table td{border:1px solid var(--border-color,#334155);padding:0.35rem 0.6rem;}
+      .expense-info-table th{background:var(--bg-secondary,#1e293b);font-weight:700;width:13%;white-space:nowrap;}
+      .expense-info-input{background:transparent;border:none;width:100%;color:var(--text-primary,#e2e8f0);font-size:0.88rem;font-family:inherit;}
+      .expense-items-table{width:100%;border-collapse:collapse;font-size:0.84rem;}
+      .expense-items-table th,.expense-items-table td{border:1px solid var(--border-color,#334155);padding:0.3rem 0.4rem;vertical-align:middle;}
+      .expense-items-table th{background:var(--bg-secondary,#1e293b);font-weight:700;text-align:center;}
+      .expense-cell-input{background:transparent;border:none;width:100%;color:var(--text-primary,#e2e8f0);font-size:0.83rem;font-family:inherit;resize:vertical;}
+      .expense-del-btn{background:none;border:none;cursor:pointer;color:#dc2626;font-size:1rem;padding:0 4px;}
     </style>
 
     <!-- 대표님 일일 보고 -->
@@ -1729,6 +2400,7 @@
       <header class="main-header">
         <h2>일일 보고</h2>
         <p class="section-desc">비서님이 대표님께 매일의 업무 현황을 보고합니다.</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-daily">🖨 인쇄</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -1782,10 +2454,14 @@
           </div>
           <div class="ceo-block">
             <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
-            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-daily-f-pay-deposit" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-daily-f-pay-progress" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-daily-f-pay-balance" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-daily-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-bottom:0;"><span class="ceo-label"></span><span style="flex:1">건수</span><span style="flex:1">금액</span></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 수령</span><input type="text" id="ceo-daily-f-pay-deposit" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-dep-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 미수령</span><input type="text" id="ceo-daily-f-pay-unpaid" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-unpaid-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-daily-f-pay-progress" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-prog-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-daily-f-pay-balance" class="ceo-input" placeholder="-"><input type="text" id="ceo-daily-f-pay-bal-amt" class="ceo-input" placeholder="-"></div>
+            <div style="border-top:1px dashed var(--border-color,#334155);margin:0.35rem 0;"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">총 수금액</span><input type="text" id="ceo-daily-f-pay-month-total" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">전체 미수금</span><input type="text" id="ceo-daily-f-pay-total-unpaid" class="ceo-input" placeholder="-"></div>
             <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-daily-f-pay-overdue" class="ceo-input" placeholder="-"></div>
           </div>
           <div class="ceo-block">
@@ -1841,6 +2517,7 @@
       <header class="main-header">
         <h2>주간 보고</h2>
         <p class="section-desc">비서님이 대표님께 주간 업무 현황을 보고합니다.</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-weekly">🖨 인쇄</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -1894,10 +2571,14 @@
           </div>
           <div class="ceo-block">
             <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
-            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-weekly-f-pay-deposit" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-weekly-f-pay-progress" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-weekly-f-pay-balance" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-weekly-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-bottom:0;"><span class="ceo-label"></span><span style="flex:1">건수</span><span style="flex:1">금액</span></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 수령</span><input type="text" id="ceo-weekly-f-pay-deposit" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-dep-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 미수령</span><input type="text" id="ceo-weekly-f-pay-unpaid" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-unpaid-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-weekly-f-pay-progress" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-prog-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-weekly-f-pay-balance" class="ceo-input" placeholder="-"><input type="text" id="ceo-weekly-f-pay-bal-amt" class="ceo-input" placeholder="-"></div>
+            <div style="border-top:1px dashed var(--border-color,#334155);margin:0.35rem 0;"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">총 수금액</span><input type="text" id="ceo-weekly-f-pay-month-total" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">전체 미수금</span><input type="text" id="ceo-weekly-f-pay-total-unpaid" class="ceo-input" placeholder="-"></div>
             <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-weekly-f-pay-overdue" class="ceo-input" placeholder="-"></div>
           </div>
           <div class="ceo-block">
@@ -1953,6 +2634,7 @@
       <header class="main-header">
         <h2>월간 보고</h2>
         <p class="section-desc">비서님이 대표님께 월간 업무 현황을 보고합니다.</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-monthly">🖨 인쇄</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -2006,10 +2688,14 @@
           </div>
           <div class="ceo-block">
             <div class="ceo-block-title">■ 입금 / 잔금 현황</div>
-            <div class="ceo-row"><span class="ceo-label">계약금 입금</span><input type="text" id="ceo-monthly-f-pay-deposit" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-monthly-f-pay-progress" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-monthly-f-pay-balance" class="ceo-input" placeholder="-"></div>
-            <div class="ceo-row"><span class="ceo-label">미입금</span><input type="text" id="ceo-monthly-f-pay-unpaid" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row" style="font-size:0.75rem;color:var(--text-muted,#94a3b8);margin-bottom:0;"><span class="ceo-label"></span><span style="flex:1">건수</span><span style="flex:1">금액</span></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 수령</span><input type="text" id="ceo-monthly-f-pay-deposit" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-dep-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">계약금 미수령</span><input type="text" id="ceo-monthly-f-pay-unpaid" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-unpaid-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">중도금 예정</span><input type="text" id="ceo-monthly-f-pay-progress" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-prog-amt" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label">잔금 예정</span><input type="text" id="ceo-monthly-f-pay-balance" class="ceo-input" placeholder="-"><input type="text" id="ceo-monthly-f-pay-bal-amt" class="ceo-input" placeholder="-"></div>
+            <div style="border-top:1px dashed var(--border-color,#334155);margin:0.35rem 0;"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">총 수금액</span><input type="text" id="ceo-monthly-f-pay-month-total" class="ceo-input" placeholder="-"></div>
+            <div class="ceo-row"><span class="ceo-label" style="font-weight:700">전체 미수금</span><input type="text" id="ceo-monthly-f-pay-total-unpaid" class="ceo-input" placeholder="-"></div>
             <div class="ceo-row"><span class="ceo-label">연체</span><input type="text" id="ceo-monthly-f-pay-overdue" class="ceo-input" placeholder="-"></div>
           </div>
           <div class="ceo-block">
@@ -2059,11 +2745,116 @@
         <pre id="ceo-monthly-detail-content" style="white-space:pre-wrap;font-family:inherit;margin-top:0.75rem;line-height:1.7;"></pre>
       </div>
     </section>
+
+    <!-- ===== 지출결의서 섹션 ===== -->
+    <section id="section-ceo-expense" class="content-section">
+      <header class="main-header">
+        <h2>지출결의서</h2>
+        <p class="section-desc">지출결의서를 작성하고 관리합니다.</p>
+        <div style="display:flex;gap:0.5rem;">
+          <button type="button" class="btn btn-secondary no-print" id="btn-expense-upload-excel">📂 엑셀 업로드</button>
+          <input type="file" id="input-expense-excel" accept=".xlsx,.xls" style="display:none">
+          <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="expense-print-area">🖨 인쇄</button>
+        </div>
+      </header>
+
+      <!-- 인쇄 영역 -->
+      <div id="expense-print-area" class="card">
+        <!-- 제목 + 결재란 -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem;">
+          <h3 style="font-size:1.6rem;letter-spacing:0.4em;margin:0;align-self:center;">지 출 결 의 서</h3>
+          <table class="expense-approval-table">
+            <thead><tr>
+              <th>담 당</th><th>부 장</th><th>이 사</th><th colspan="2">대 표 이 사</th>
+            </tr></thead>
+            <tbody><tr>
+              <td style="height:44px;min-width:52px;"></td>
+              <td style="min-width:52px;"></td>
+              <td style="min-width:52px;"></td>
+              <td colspan="2" style="min-width:80px;"></td>
+            </tr></tbody>
+          </table>
+        </div>
+        <p style="font-size:0.82rem;color:var(--text-muted,#94a3b8);margin-bottom:0.75rem;">아래와 같이 지출결의서를 제출하오니 승인하여 주시기 바랍니다.</p>
+
+        <form id="form-expense">
+          <!-- 발의일자 / 작성자 / 결재금액 -->
+          <table class="expense-info-table">
+            <tbody>
+              <tr>
+                <th>발 의 일 자</th>
+                <td><input type="date" id="expense-date" class="expense-info-input"></td>
+                <th>작 성 자</th>
+                <td><input type="text" id="expense-author" class="expense-info-input" placeholder="이름"></td>
+              </tr>
+              <tr>
+                <th>결 재 금 액</th>
+                <td id="expense-total-korean" style="font-size:0.88rem;"></td>
+                <th>원 정</th>
+                <td style="white-space:nowrap;">₩ <span id="expense-total-display" style="font-weight:700;"></span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 항목 테이블 -->
+          <div class="table-wrap" style="margin:0.75rem 0;">
+            <table class="expense-items-table">
+              <thead>
+                <tr>
+                  <th style="width:46%">적 &nbsp;/ &nbsp;요</th>
+                  <th style="width:14%">금 &nbsp;&nbsp;&nbsp; 액</th>
+                  <th style="width:36%">비 &nbsp;&nbsp;&nbsp; 고</th>
+                  <th style="width:4%" class="no-print"></th>
+                </tr>
+              </thead>
+              <tbody id="expense-items-body"></tbody>
+              <tfoot>
+                <tr>
+                  <td style="text-align:center;font-weight:700;">합 &nbsp;&nbsp;&nbsp; 계</td>
+                  <td id="expense-sum-cell" style="text-align:right;font-weight:700;">₩0</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- 하단 -->
+          <div style="text-align:center;font-size:0.85rem;line-height:2;margin-top:0.5rem;">
+            <p>위 금액을 영수(청구) 합니다.</p>
+            <p id="expense-footer-date"></p>
+            <p style="margin-top:0.5rem;">청 구 자 &nbsp;&nbsp;&nbsp; <span id="expense-footer-author"></span> &nbsp;&nbsp; (인)</p>
+            <p style="margin-top:0.4rem;letter-spacing:0.25em;font-weight:700;">주 식 회 사 &nbsp; 세 움 디 자 인 하 우 징</p>
+          </div>
+
+          <div class="form-actions no-print" style="margin-top:1rem;">
+            <button type="button" class="btn btn-secondary" id="btn-expense-add-row">+ 행 추가</button>
+            <button type="button" class="btn btn-secondary" id="btn-expense-clear">초기화</button>
+            <button type="submit" class="btn btn-primary">저장</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 저장 목록 -->
+      <div class="card no-print">
+        <h3>저장된 지출결의서</h3>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>발의일자</th><th>작성자</th><th>결재금액</th><th>항목 수</th><th>저장시각</th><th>관리</th></tr>
+            </thead>
+            <tbody id="tbody-expense"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <!-- ===== /지출결의서 섹션 ===== -->
+
     <!-- ===== CEO 대시보드 섹션 ===== -->
     <section id="section-ceo-dashboard" class="content-section">
       <header class="main-header">
         <h2>대표 대시보드</h2>
         <p class="section-desc">CEO 전용 KPI 종합 현황판</p>
+        <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-dashboard">🖨 A4 인쇄</button>
       </header>
 
       <!-- KPI 카드 4개 -->
@@ -2150,6 +2941,38 @@
           </div>
         </div>
       </div>
+
+      <!-- 오늘 시공 보고 -->
+      <div class="ceo-db-section-title" style="margin-top:1.5rem;">오늘 시공 보고</div>
+      <div class="ceo-db-cw-grid" id="ceo-db-cw-stats">
+        <div class="ceo-db-cw-card">
+          <div class="ceo-db-cw-num" id="ceo-db-cw-active">—</div>
+          <div class="ceo-db-cw-label">진행중 현장</div>
+        </div>
+        <div class="ceo-db-cw-card ceo-db-cw-card-green">
+          <div class="ceo-db-cw-num" id="ceo-db-cw-done">—</div>
+          <div class="ceo-db-cw-label">완료 현장</div>
+        </div>
+        <div class="ceo-db-cw-card ceo-db-cw-card-red">
+          <div class="ceo-db-cw-num" id="ceo-db-cw-issues">—</div>
+          <div class="ceo-db-cw-label">문제 현장</div>
+        </div>
+        <div class="ceo-db-cw-card ceo-db-cw-card-orange">
+          <div class="ceo-db-cw-num" id="ceo-db-cw-today">—</div>
+          <div class="ceo-db-cw-label">오늘 보고 건수</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0.75rem;" id="ceo-db-cw-today-card">
+        <h3 class="ceo-db-card-title">오늘 시공 현장 보고</h3>
+        <div class="table-wrap">
+          <table class="ceo-db-table">
+            <thead>
+              <tr><th>현장명</th><th>공정</th><th>진행률</th><th>투입인원</th><th>문제사항</th></tr>
+            </thead>
+            <tbody id="ceo-db-cw-today-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
     <!-- ===== /CEO 대시보드 섹션 ===== -->
   </main>
@@ -2162,6 +2985,7 @@
           <div class="chat-conversation-title" id="chat-conversation-title">채팅방을 선택하세요</div>
           <div class="chat-conversation-meta" id="chat-conversation-meta"></div>
         </div>
+        <button type="button" class="chat-goto-design-btn hidden" id="chat-goto-design-btn" title="도면관리에서 열기">도면관리</button>
         <button type="button" class="chat-conversation-close-btn" id="chat-conversation-close-btn" title="채팅창 닫기" aria-label="채팅창 닫기">&times;</button>
       </div>
       <div class="chat-messages-wrap">
@@ -2212,6 +3036,8 @@
         </div>
         <div class="chat-room-section">
           <div class="chat-room-section-title">계약 채팅</div>
+          <div id="chat-contract-showroom-filter" class="chat-contract-showroom-filter"></div>
+          <div id="chat-contract-month-filter" class="chat-contract-month-filter"></div>
           <div id="chat-room-contracts" class="chat-room-items"></div>
         </div>
       </div>

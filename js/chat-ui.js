@@ -11,6 +11,8 @@
   var isChatOpen = false;
   /** 계약 채팅 전시장 필터 */
   var selectedContractShowroomFilter = 'all';
+  /** 계약 채팅 월별 필터 ('' = 전체) */
+  var selectedContractMonthFilter = '';
 
   function renderContractChat(contractId, listId) {
     var resolvedListId = listId || 'contract-chat-message-list';
@@ -171,9 +173,32 @@
         filterEl.innerHTML = filterHtml;
       }
 
+      // 월별 필터 버튼 렌더
+      var monthFilterEl = document.getElementById('chat-contract-month-filter');
+      if (monthFilterEl) {
+        var months = [];
+        var seenMonths = {};
+        contractList.forEach(function (r) {
+          var d = r.contractDate || '';
+          if (d && d.length >= 7) {
+            var ym = d.slice(0, 7); // "YYYY-MM"
+            if (!seenMonths[ym]) { seenMonths[ym] = true; months.push(ym); }
+          }
+        });
+        months.sort();
+        var monthHtml = months.map(function (ym) {
+          var parts = ym.split('-');
+          var mlabel = parts[0] + '년 ' + parseInt(parts[1], 10) + '월';
+          var isActive = selectedContractMonthFilter === ym;
+          return '<button type="button" class="chat-month-filter-btn' + (isActive ? ' active' : '') + '" data-month="' + window.escapeChatText(ym) + '">' + window.escapeChatText(mlabel) + '</button>';
+        }).join('');
+        monthFilterEl.innerHTML = monthHtml;
+      }
+
       var contractHtml = '';
       contractList.forEach(function (room) {
         if (selectedContractShowroomFilter !== 'all' && room.showroomId !== selectedContractShowroomFilter) return;
+        if (selectedContractMonthFilter && (room.contractDate || '').slice(0, 7) !== selectedContractMonthFilter) return;
         if (searchVal && room.label.toLowerCase().indexOf(searchVal) === -1) return;
         var active = isChatOpen && selectedChatRoom.type === 'contract' && selectedChatRoom.id === room.id;
         var unread = typeof window.getContractChatUnreadCount === 'function' ? window.getContractChatUnreadCount(room.id) : 0;
@@ -526,6 +551,13 @@
         var filterBtn = e.target.closest('.chat-showroom-filter-btn');
         if (filterBtn) {
           selectedContractShowroomFilter = filterBtn.getAttribute('data-showroom') || 'all';
+          renderChatRoomList();
+          return;
+        }
+        var monthBtn = e.target.closest('.chat-month-filter-btn');
+        if (monthBtn) {
+          var clickedMonth = monthBtn.getAttribute('data-month') || '';
+          selectedContractMonthFilter = selectedContractMonthFilter === clickedMonth ? '' : clickedMonth;
           renderChatRoomList();
           return;
         }
