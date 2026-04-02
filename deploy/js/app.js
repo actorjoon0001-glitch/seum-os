@@ -24,6 +24,12 @@
   var STORAGE_INCENTIVE_PERCENTS = 'seum_incentive_percents';
   var STORAGE_CUSTOMERS = 'seum_customers';
   var STORAGE_CEO_REPORTS = 'seum_ceo_reports';
+  var STORAGE_DESIGN_WORKLOG = 'seum_design_worklog';
+  var STORAGE_CONSTRUCTION_WORKLOG = 'seum_construction_worklog';
+  var STORAGE_PROCUREMENT_MATERIALS = 'seum_procurement_materials';
+  var STORAGE_PROCUREMENT_SITES = 'seum_procurement_sites';
+  var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
+  var STORAGE_PROCUREMENT_STD_QTY = 'seum_procurement_std_qty';
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '본사 전시장' },
@@ -158,8 +164,14 @@
     if (!cur) return false;
     var role = (cur.role || '').toLowerCase();
     var permission = (cur.permission || '').toLowerCase();
-    // ??? ?? ???? role=admin ??? ?? permission=admin ??? ???
-    return role === 'admin' || permission === 'admin';
+    if (role === 'admin' || permission === 'admin') return true;
+    // Supabase RPC가 permission을 반환하지 않는 경우 localStorage에서 보완 조회
+    try {
+      var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || ''); });
+      if (myEmp && (myEmp.permission || '').toLowerCase() === 'admin') return true;
+    } catch (e) {}
+    return false;
   }
 
   function isMaster() {
@@ -168,6 +180,21 @@
     var role = (cur.role || '').toLowerCase();
     var permission = (cur.permission || '').toLowerCase();
     return role === 'master' || permission === 'master';
+  }
+
+  function isManager() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    if (role === 'manager' || permission === 'manager') return true;
+    // Supabase RPC가 permission을 반환하지 않는 경우 localStorage에서 보완 조회
+    try {
+      var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || ''); });
+      if (myEmp && ((myEmp.permission || '').toLowerCase() === 'manager' || (myEmp.role || '').toLowerCase() === 'manager')) return true;
+    } catch (e) {}
+    return false;
   }
 
   function isSuperAdmin() {
@@ -213,10 +240,12 @@
     // ???????: ?????+ ??? + ??? + ???
     if (sectionId === 'marketing') return isMarketing;
 
-    // ??? ???: leads/customers/contracts?????? ????????
-    if (sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts') {
-      // ?????????????: ?? ???? ?????/????? ????
-      if ((isDesign || isConstruction || isSettlement) && sectionId !== 'sales-contracts') return false;
+    // 방문예약 고객 / 고객관리: 영업팀 + master/admin만
+    if (sectionId === 'sales-leads' || sectionId === 'sales-customers') {
+      return isSales;
+    }
+    // 계약 목록: 영업/설계/시공/정산 등 전 팀
+    if (sectionId === 'sales-contracts') {
       return isSales || isDesign || isMarketing || isConstruction || isSettlement;
     }
 
@@ -225,9 +254,29 @@
       return isDesign || isSales || isConstruction || isMarketing || isSettlement;
     }
 
+    // 설계업무일지: 설계팀 + master/admin만 접근
+    if (sectionId === 'design-worklog') {
+      return isDesign;
+    }
+
+    // 우선순위: 설계팀 + 영업팀 + master/admin 접근
+    if (sectionId === 'design-priority') {
+      return isDesign || isSales;
+    }
+
     // ??? ???: ???, ???, ????? ??? + ????? ????(????? isSalesReadonly??? ?? ???)
     if (sectionId === 'construction') {
       return isConstruction || isDesign || isMarketing || isSettlement || isSales;
+    }
+
+    // 시공 업무일지: 시공팀 + 관리자만 접근
+    if (sectionId === 'construction-worklog') {
+      return isConstruction;
+    }
+
+    // 발주팀: 시공팀 + 관리자만 접근
+    if (sectionId === 'procurement') {
+      return isConstruction;
     }
 
     // ?????: ??? ?? + ???/???/??? ???? ????????
@@ -236,6 +285,25 @@
     }
     // ????????? ?? ??? ???
     return true;
+  }
+
+  function updateDesignWorklogNavVisibility() {
+    var el = document.querySelector('[data-section="design-worklog"]');
+    if (el) el.classList.toggle('hidden', !canAccessTeamSection('design-worklog'));
+  }
+
+  function updateConstructionRestrictedNavVisibility() {
+    ['construction-worklog', 'procurement'].forEach(function (sec) {
+      var el = document.querySelector('[data-section="' + sec + '"]');
+      if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
+    });
+  }
+
+  function updateSalesRestrictedNavVisibility() {
+    ['sales-leads', 'sales-customers'].forEach(function (sec) {
+      var el = document.querySelector('[data-section="' + sec + '"]');
+      if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
+    });
   }
 
   function updateAdminNavVisibility() {
@@ -365,11 +433,16 @@
   //  설계팀 검색 필터 헬퍼
   // ────────────────────────────────────────────────────────────
 
+  /** 설계팀 검색 입력창에서 키워드를 가져옴 */
   function getDesignSearchKeyword() {
     var el = document.getElementById('design-search-input');
     return el ? el.value.trim() : '';
   }
 
+  /**
+   * 설계팀 검색 대상 필드
+   * 향후 확장: 아래 fieldsGetter 배열에 필드 추가
+   */
   function matchesDesignKeyword(contract, keyword) {
     if (!keyword) return true;
     var kw = keyword.toLowerCase();
@@ -385,12 +458,17 @@
     return fields.some(function (f) { return f.toLowerCase().indexOf(kw) !== -1; });
   }
 
+  /**
+   * 연/월/전시장 필터 이후에 설계팀 키워드 필터 추가 적용
+   * 향후 필드별 분리 검색으로 쉽게 확장 가능
+   */
   function getFilteredDesignContracts(contracts) {
     var keyword = getDesignSearchKeyword();
     if (!keyword) return contracts;
     return contracts.filter(function (c) { return matchesDesignKeyword(c, keyword); });
   }
 
+  /** 설계팀 검색 결과 요약 문구 업데이트 */
   function updateDesignFilterResult(filtered) {
     var el = document.getElementById('design-filter-result');
     if (!el) return;
@@ -404,7 +482,8 @@
     if (year)     parts.push(year + '년');
     if (month)    parts.push(month + '월');
     if (keyword)  parts.push('"' + keyword + '"');
-    el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + filtered.length + '건';
+    var count = filtered.length;
+    el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + count + '건';
     var clearBtn = document.getElementById('design-search-clear');
     if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
   }
@@ -413,11 +492,16 @@
   //  시공팀 검색 필터 헬퍼
   // ────────────────────────────────────────────────────────────
 
+  /** 시공팀 검색 입력창에서 키워드를 가져옴 */
   function getConstructionSearchKeyword() {
     var el = document.getElementById('construction-search-input');
     return el ? el.value.trim() : '';
   }
 
+  /**
+   * 시공팀 검색 대상 필드
+   * 향후 확장: 아래 fields 배열에 필드 추가
+   */
   function matchesConstructionKeyword(contract, keyword) {
     if (!keyword) return true;
     var kw = keyword.toLowerCase();
@@ -434,12 +518,17 @@
     return fields.some(function (f) { return f.toLowerCase().indexOf(kw) !== -1; });
   }
 
+  /**
+   * 연/월/전시장 필터 이후에 시공팀 키워드 필터 추가 적용
+   * 향후 필드별 분리 검색으로 쉽게 확장 가능
+   */
   function getFilteredConstructionContracts(contracts) {
     var keyword = getConstructionSearchKeyword();
     if (!keyword) return contracts;
     return contracts.filter(function (c) { return matchesConstructionKeyword(c, keyword); });
   }
 
+  /** 시공팀 검색 결과 요약 문구 업데이트 */
   function updateConstructionFilterResult(filtered) {
     var el = document.getElementById('construction-filter-result');
     if (!el) return;
@@ -453,7 +542,8 @@
     if (year)     parts.push(year + '년');
     if (month)    parts.push(month + '월');
     if (keyword)  parts.push('"' + keyword + '"');
-    el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + filtered.length + '건';
+    var count = filtered.length;
+    el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + count + '건';
     var clearBtn = document.getElementById('construction-search-clear');
     if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
   }
@@ -989,26 +1079,38 @@
   }
 
   function renderDashboard() {
-    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    var _dashIsPrivileged = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    var _dashMyShowroom = getMyShowroomId();
+    var _allContracts = getContracts();
+    var _allVisits = getVisits();
+    if (!_dashIsPrivileged && _dashMyShowroom) {
+      _allContracts = _allContracts.filter(function (c) { return (c.showroomId || '') === _dashMyShowroom; });
+      _allVisits = _allVisits.filter(function (v) { return (v.showroomId || '') === _dashMyShowroom; });
+    }
+    var contracts = filterByShowroom(_allContracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
-    var visits = filterByShowroom(getVisits(), 'showroomId');
+    var visits = filterByShowroom(_allVisits, 'showroomId');
     visits = filterByYearMonth(visits, 'visitDate');
     var monthContracts = (getFilterYear() || getFilterMonth())
       ? contracts
       : contracts.filter(function (c) { return c.contractDate && c.contractDate.slice(0, 7) === thisMonth(); });
+    function toManwon(c, field) {
+      var v = Number(c[field]) || 0;
+      return c.amountUnit === 'manwon' ? v : Math.round(v / 10000);
+    }
     var totalAmount = monthContracts.reduce(function (sum, c) {
-      return sum + (Number(c.totalAmount) || 0);
+      return sum + toManwon(c, 'totalAmount');
     }, 0);
     var totalDeposit = contracts.reduce(function (sum, c) {
-      return sum + (Number(c.depositAmount) || 0);
+      return sum + toManwon(c, 'depositAmount');
     }, 0);
 
     var elCount = document.getElementById('kpi-contract-count');
     var elAmount = document.getElementById('kpi-total-amount');
     var elDeposit = document.getElementById('kpi-deposit-received');
     if (elCount) elCount.textContent = monthContracts.length;
-    if (elAmount) elAmount.textContent = (totalAmount / 10000).toFixed(1);
-    if (elDeposit) elDeposit.textContent = (totalDeposit / 10000).toFixed(1);
+    if (elAmount) elAmount.textContent = totalAmount.toLocaleString();
+    if (elDeposit) elDeposit.textContent = totalDeposit.toLocaleString();
     renderDashboardCharts();
 
     var leadsWaiting = visits.filter(function (v) { return v.status !== '영업배정'; }).length;
@@ -1101,12 +1203,16 @@
   /** ??? ???????? ?????id (id ??? ?????? ????? ?????) */
   function getMyShowroomId() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
-    var raw = cur && (cur.showroom || '').trim();
-    if (!raw) return '';
-    var byId = SHOWROOMS.some(function (s) { return (s.id || '') === raw; });
-    if (byId) return raw;
-    var byName = SHOWROOMS.find(function (s) { return (s.name || '') === raw; });
-    return byName ? (byName.id || '') : raw;
+    if (!cur) return '';
+    var sid = resolveShowroomId(cur);
+    if (sid) return sid;
+    // currentEmployee에 showroom이 없으면 localStorage 직원 목록에서 보완
+    try {
+      var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || '') || (e.id && e.id === cur.id); });
+      if (myEmp) return resolveShowroomId(myEmp);
+    } catch (e) {}
+    return '';
   }
 
   /** ??? ???????? ??? ???. ?? ??? ?????? ???(??? ??????? ???? */
@@ -2016,7 +2122,8 @@
       var name = c.salesPerson || '-';
       if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
       byPerson[name].count += 1;
-      byPerson[name].amount += Number(c.totalAmount) || 0;
+      var amt = Number(c.totalAmount) || 0;
+      byPerson[name].amount += c.amountUnit === 'manwon' ? amt : Math.round(amt / 10000);
     });
     var list = Object.keys(byPerson).map(function (name) {
       var row = byPerson[name];
@@ -2056,7 +2163,8 @@
       var name = c.salesPerson || '-';
       if (!byPerson[name]) byPerson[name] = { count: 0, amount: 0 };
       byPerson[name].count += 1;
-      byPerson[name].amount += Number(c.totalAmount) || 0;
+      var amt = Number(c.totalAmount) || 0;
+      byPerson[name].amount += c.amountUnit === 'manwon' ? amt : Math.round(amt / 10000);
     });
     var list = Object.keys(byPerson).map(function (name) {
       var row = byPerson[name];
@@ -2100,7 +2208,16 @@
     var showroomsEl = document.getElementById('sales-performance-showrooms');
     if (!overallEl || !showroomsEl) return;
 
-    var top3 = getOverallTop3();
+    var _isPrivileged = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    var _myShowroomId = getMyShowroomId();
+
+    // 전체 top3: 비관리자는 본인 전시장 계약만 기준
+    var top3Source = getOverallTopSales();
+    if (!_isPrivileged && _myShowroomId) {
+      top3Source = top3Source.filter(function (r) { return (r.showroomId || '') === _myShowroomId; });
+    }
+    var top3 = top3Source.slice(0, 3).map(function (r, i) { return Object.assign({}, r, { rank: i + 1 }); });
+
     if (top3.length === 0) {
       overallEl.innerHTML = '<p class="sales-performance-empty">이번 달 계약 데이터가 없습니다.</p>';
     } else {
@@ -2110,7 +2227,7 @@
         '<div class="sales-performance-first-body">' +
           '<span class="sales-performance-name">' + escapeHtml(first.name || '-') + '</span>' +
           '<span class="sales-performance-count">' + first.count + '건</span>' +
-          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '원</span>' +
+          '<span class="sales-performance-amount">' + formatMoney(first.amount) + '만원</span>' +
           '<span class="sales-performance-showroom">' + escapeHtml(first.showroomName || '-') + '</span>' +
         '</div></div>';
       var subList = top3.slice(1).map(function (row) {
@@ -2118,13 +2235,17 @@
         return '<li class="sales-performance-sub-item">' +
           '<span class="sales-performance-sub-medal" aria-hidden="true">' + icon + '</span>' +
           '<span class="sales-performance-sub-name">' + escapeHtml(row.name || '-') + '</span>' +
-          '<span class="sales-performance-sub-stats">' + row.count + '건 | ' + formatMoney(row.amount) + '원</span>' +
+          '<span class="sales-performance-sub-stats">' + row.count + '건 | ' + formatMoney(row.amount) + '만원</span>' +
           '</li>';
       }).join('');
       overallEl.innerHTML = firstHtml + '<ul class="sales-performance-sub-list">' + subList + '</ul>';
     }
 
+    // 전시장별 카드: 비관리자는 본인 전시장만
     var perShowroom = getTopPerShowroom();
+    if (!_isPrivileged && _myShowroomId) {
+      perShowroom = perShowroom.filter(function (item) { return (item.showroomId || '') === _myShowroomId; });
+    }
     showroomsEl.innerHTML = perShowroom.map(function (item) {
       if (!item.top) {
         return '<div class="card sales-performance-showroom-card">' +
@@ -2136,7 +2257,7 @@
         '<span class="sales-performance-showroom-label">' + escapeHtml(item.showroomName) + '</span>' +
         '<span class="sales-performance-showroom-name">' + escapeHtml(t.name) + '</span>' +
         '<span class="sales-performance-showroom-count">' + t.count + '건</span>' +
-        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '원</span>' +
+        '<span class="sales-performance-showroom-amount">' + formatMoney(t.amount) + '만원</span>' +
         '</div>';
     }).join('');
   }
@@ -2942,8 +3063,9 @@
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroomId = resolveShowroomId(cur);
-      // ????? ?????? ??? ?????????? ??????????? ???????
-      if (team === '영업' && myShowroomId) {
+      // master/admin이 아닌 모든 사용자는 소속 전시장만 노출
+      var _isAdminHere = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      if (myShowroomId && !_isAdminHere) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
         contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
       }
@@ -2953,6 +3075,12 @@
     var contracts = filterByShowroom(contractsAll, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
     contracts = getFilteredContracts(contracts);
+    // 기본 정렬: 계약일 오래된 순 (오름차순)
+    contracts.sort(function (a, b) {
+      var dA = a.contractDate || '';
+      var dB = b.contractDate || '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
     var tbodyLeads = document.getElementById('tbody-leads');
     var tbodyContracts = document.getElementById('tbody-contracts');
     if (tbodyLeads) {
@@ -2968,9 +3096,9 @@
       var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
       var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
-      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      // ????? ?????? "?? ????? ???????????
-      if (userTeam === '영업' && curUser) {
+      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      // master/admin이 아닌 모든 사용자는 소속 전시장 계약만 노출
+      if (curUser && !isAdminRole) {
         var myShowroomId = resolveShowroomId(curUser);
         if (myShowroomId) {
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
@@ -2985,10 +3113,12 @@
           if (_safe) _safe.appendChild(_p);
         }
       })();
-      tbodyContracts.innerHTML = contracts.map(function (c) {
+      tbodyContracts.innerHTML = contracts.map(function (c, i) {
+        var _amountDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
         function amountCell(amount, date, type) {
           if (amount != null && String(amount).trim() !== '') {
-            var label = formatMoney(amount) + '원';
+            var displayAmt = Math.round(Number(amount) / _amountDivisor);
+            var label = formatMoney(displayAmt) + '만원';
             if (date) label += ' (' + formatDate(date) + ')';
             return '<span class="payment-label">' + label + '</span> <button type="button" class="btn btn-xs btn-secondary" data-payment="' + type + '" data-id="' + c.id + '">수정</button>';
           }
@@ -3011,10 +3141,10 @@
           var parts = addr.trim().split(/\s+/);
           return parts.slice(0, 2).join(' ');
         })();
-        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(c.totalAmount) + '원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
+        return '<tr class="contract-row" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + getShowroomName(c.showroomId) + editFieldBtn('showroomId') + '</td><td>' + houseType + editFieldBtn('contractModel') + '</td><td>' + modelName + editFieldBtn('contractModelName') + '</td><td>' + formatDate(c.contractDate) + editFieldBtn('contractDate') + '</td><td>' + (c.customerName || '-') + editFieldBtn('customerName') + '</td><td>' + shortAddr + '</td><td>' + salesPerson + editFieldBtn('salesPerson') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _amountDivisor)) + '만원' + editFieldBtn('totalAmount') + '</td><td>' + deposit + '</td><td>' + p1 + '</td><td>' + p2 + '</td><td>' + p3 + '</td><td>' + balance + '</td><td>' + detailBtn + deleteBtn + '</td></tr>';
       }).join('') || (getContractSearchKeyword()
-        ? '<tr><td colspan="14" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-        : '<tr><td colspan="14">계약 데이터가 없습니다.</td></tr>');
+        ? '<tr><td colspan="15" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+        : '<tr><td colspan="15">계약 데이터가 없습니다.</td></tr>');
       updateContractFilterResult(contracts, contracts);
       if (expandedContractId) {
         var exists = contracts.some(function (c) { return c.id === expandedContractId; });
@@ -3048,20 +3178,507 @@
     }).join('') || '<tr><td colspan="8">고객 데이터가 없습니다.</td></tr>';
   }
 
+  // =====================================================================
+  // 설계 업무일지 - 상수 & Storage Helpers
+  // =====================================================================
+  var DW_STAGES = ['상담설계', '1차도면', '2차도면', '3차도면', '최종도면', '설계완료', '시공이관'];
+
+  var DW_STAGE_COLOR = {
+    '상담설계': 'dw-stage-consult',
+    '1차도면':  'dw-stage-d1',
+    '2차도면':  'dw-stage-d2',
+    '3차도면':  'dw-stage-d3',
+    '최종도면': 'dw-stage-final',
+    '설계완료': 'dw-stage-done',
+    '시공이관': 'dw-stage-transfer'
+  };
+
+  function getDesignWorklog() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_DESIGN_WORKLOG) || '[]'); } catch (e) { return []; }
+  }
+  function saveDesignWorklog(list) {
+    localStorage.setItem(STORAGE_DESIGN_WORKLOG, JSON.stringify(list));
+  }
+
+  // =====================================================================
+  // 설계팀 우선순위 - 렌더
+  // =====================================================================
+  function renderDesignPriority() {
+    var wrap = document.getElementById('design-priority-wrap');
+    if (!wrap) return;
+
+    var contracts = getContracts();
+    var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+
+    // 건축허가 완료 + 허가 완료일이 모두 있는 계약만
+    var list = contracts.filter(function (c) {
+      return c.hasPermitCert && c.permitCertDate;
+    });
+
+    // 정렬: 허가 완료일 빠른 순 → 계약일 오래된 순 → 설계 미착수/설계대기 우선
+    list.sort(function (a, b) {
+      var dA = a.permitCertDate || '';
+      var dB = b.permitCertDate || '';
+      if (dA !== dB) return dA < dB ? -1 : 1;
+      var cA = a.contractDate || '';
+      var cB = b.contractDate || '';
+      if (cA !== cB) return cA < cB ? -1 : 1;
+      var sA = (a.designStatus || 'none').toLowerCase();
+      var sB = (b.designStatus || 'none').toLowerCase();
+      var earlyA = sA === 'none' || sA === '' ? 0 : 1;
+      var earlyB = sB === 'none' || sB === '' ? 0 : 1;
+      return earlyA - earlyB;
+    });
+
+    var statusMap = { none: '미착수', '': '미착수', in_progress: '설계 중', done: '완료' };
+    var statusCls = { none: 'status-none', '': 'status-none', in_progress: 'status-in_progress', done: 'status-done' };
+
+    var html = '<div class="design-priority-header">' +
+      '<span>건축허가 완료 계약 목록</span>' +
+      '<span class="design-priority-count">총 ' + list.length + '건</span>' +
+      '</div>';
+
+    if (list.length === 0) {
+      html += '<p style="color:#9ca3af;padding:1.5rem 0;">건축허가 완료 계약이 없습니다.</p>';
+    } else {
+      html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
+        '<th>#</th><th>허가 완료일</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th></th>' +
+        '</tr></thead><tbody>';
+      list.forEach(function (c, i) {
+        var shortAddr = (function () {
+          var a = c.siteAddress || '';
+          if (!a) return '-';
+          var p = a.trim().split(/\s+/);
+          return p.slice(0, 2).join(' ');
+        })();
+        var st = (c.designStatus || 'none').toLowerCase();
+        var stLabel = statusMap[st] || st;
+        var stCls = statusCls[st] || 'status-none';
+        var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
+        var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
+        html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
+          '<td class="design-priority-rank">' + (i + 1) + '</td>' +
+          '<td class="design-priority-date">' + escapeHtml(c.permitCertDate || '-') + '</td>' +
+          '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
+          '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
+          '<td>' + escapeHtml(showroomLabel) + '</td>' +
+          '<td>' + escapeHtml(shortAddr) + '</td>' +
+          '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
+          '<td>' + escapeHtml(designer) + '</td>' +
+          '<td><span class="design-priority-status ' + stCls + '">' + escapeHtml(stLabel) + '</span></td>' +
+          '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+          '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    wrap.innerHTML = html;
+
+    // 이벤트: 버튼 클릭 또는 행 클릭 → 계약 상세로 이동
+    wrap.querySelectorAll('.priority-goto-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        goToDesignDetail(btn.getAttribute('data-contract-id'));
+      });
+    });
+    wrap.querySelectorAll('.design-priority-row').forEach(function (tr) {
+      tr.addEventListener('click', function (e) {
+        if (e.target.closest('.priority-goto-btn')) return;
+        goToDesignDetail(tr.getAttribute('data-contract-id'));
+      });
+    });
+  }
+
+  function goToDesignDetail(contractId) {
+    if (!contractId) return;
+    // 필터 초기화 (연/월·검색어가 걸려 있으면 row가 보이지 않음)
+    var yearEl = document.getElementById('filter-year');
+    var monthEl = document.getElementById('filter-month');
+    var searchEl = document.getElementById('design-search-input');
+    if (yearEl) yearEl.value = '';
+    if (monthEl) monthEl.value = '';
+    if (searchEl) searchEl.value = '';
+    showSection('design');
+    renderDesign();
+    var tbody = document.getElementById('tbody-design');
+    if (!tbody) return;
+    var row = tbody.querySelector('.design-row[data-contract-id="' + contractId + '"]');
+    if (!row) {
+      // depositReceivedAt 없는 계약이면 설계 목록에 표시되지 않음
+      window.alert('해당 계약은 설계팀 목록에 표시되지 않습니다.\n(계약금 수령 전이거나 전시장 필터 조건에 맞지 않습니다.)');
+      return;
+    }
+    showDesignDetailPanel(contractId, true);
+    setTimeout(function () {
+      var detail = tbody.querySelector('.design-detail-row[data-detail-for="' + contractId + '"]');
+      var target = detail || row;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      row.classList.add('design-row-highlight');
+      setTimeout(function () { row.classList.remove('design-row-highlight'); }, 2000);
+    }, 80);
+  }
+
+  // =====================================================================
+  // 설계 업무일지 - 렌더
+  // =====================================================================
+  function renderDesignWorklog() {
+    var logs = getDesignWorklog();
+    var keyword = ((document.getElementById('dw-search') || {}).value || '').toLowerCase();
+    var stageFilter = (document.getElementById('dw-stage-filter') || {}).value || '';
+    if (keyword) {
+      logs = logs.filter(function (l) {
+        return (l.address || '').toLowerCase().indexOf(keyword) !== -1 ||
+               (l.customerName || '').toLowerCase().indexOf(keyword) !== -1;
+      });
+    }
+    if (stageFilter) {
+      logs = logs.filter(function (l) { return l.stage === stageFilter; });
+    }
+    // 날짜 내림차순 정렬
+    logs = logs.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+    var tbody = document.getElementById('tbody-dw');
+    if (!tbody) return;
+    tbody.innerHTML = logs.map(function (l) {
+      var stageClass = DW_STAGE_COLOR[l.stage] || '';
+      var stageHtml = '<span class="dw-stage-badge ' + stageClass + '">' + escapeHtml(l.stage || '-') + '</span>';
+      var drawingHtml = l.drawingUrl
+        ? '<a href="' + escapeAttr(l.drawingUrl) + '" target="_blank" class="dw-file-link" title="' + escapeAttr(l.drawingUrl) + '">' +
+            (l.drawingUrl.length > 16 ? l.drawingUrl.slice(0, 15) + '…' : l.drawingUrl) + '</a>'
+        : '-';
+      var transferBtn = l.stage !== '시공이관'
+        ? '<button type="button" class="btn btn-sm dw-transfer-btn" data-id="' + escapeAttr(l.id) + '" title="시공팀으로 이관">시공이관</button> '
+        : '<span class="dw-transferred-badge">이관완료</span> ';
+      return '<tr>' +
+        '<td>' + (l.date || '-') + '</td>' +
+        '<td>' + escapeHtml(l.customerName || '-') + '</td>' +
+        '<td>' + escapeHtml(l.address || '-') + '</td>' +
+        '<td>' + escapeHtml(l.size || '-') + '</td>' +
+        '<td>' + escapeHtml(l.task || '-') + '</td>' +
+        '<td>' + stageHtml + '</td>' +
+        '<td>' + escapeHtml(l.manager || '-') + '</td>' +
+        '<td>' + drawingHtml + '</td>' +
+        '<td>' + escapeHtml(l.memo || '-') + '</td>' +
+        '<td class="dw-action-cell">' + transferBtn +
+          '<button type="button" class="btn btn-sm btn-secondary btn-edit-dw" data-id="' + escapeAttr(l.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm btn-danger btn-delete-dw" data-id="' + escapeAttr(l.id) + '">삭제</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="10" class="no-result-msg">업무일지 데이터가 없습니다. 업무를 등록하거나 엑셀을 업로드하세요.</td></tr>';
+
+    // 필터 결과 카운트
+    var resultEl = document.getElementById('dw-filter-result');
+    if (resultEl) resultEl.textContent = '총 ' + logs.length + '건';
+
+    // 검색 초기화 버튼
+    var clearBtn = document.getElementById('dw-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
+
+    // 미초기화 시 이벤트 등록
+    if (!designWorklogInitialized) {
+      designWorklogInitialized = true;
+      initDesignWorklogEvents();
+    }
+  }
+
+  // =====================================================================
+  // 설계 일정 - 렌더
+  // =====================================================================
+  function renderDesignSchedule() {
+    var logs = getDesignWorklog();
+    var stageFilter = (document.getElementById('schedule-stage-filter') || {}).value || '';
+    var managerFilter = (document.getElementById('schedule-manager-filter') || {}).value || '';
+
+    // 담당자 select 채우기
+    var managerSel = document.getElementById('schedule-manager-filter');
+    if (managerSel) {
+      var managers = [];
+      logs.forEach(function (l) { if (l.manager && managers.indexOf(l.manager) === -1) managers.push(l.manager); });
+      var prevVal = managerSel.value;
+      managerSel.innerHTML = '<option value="">전체 담당자</option>' + managers.map(function (m) {
+        return '<option value="' + escapeAttr(m) + '"' + (prevVal === m ? ' selected' : '') + '>' + escapeHtml(m) + '</option>';
+      }).join('');
+      if (prevVal) managerSel.value = prevVal;
+    }
+
+    if (stageFilter) logs = logs.filter(function (l) { return l.stage === stageFilter; });
+    if (managerFilter) logs = logs.filter(function (l) { return l.manager === managerFilter; });
+
+    // 날짜 오름차순
+    logs = logs.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+
+    // 월별 그룹화
+    var monthGroups = {};
+    logs.forEach(function (l) {
+      var month = (l.date || '').slice(0, 7) || '날짜 없음';
+      if (!monthGroups[month]) monthGroups[month] = [];
+      monthGroups[month].push(l);
+    });
+
+    var container = document.getElementById('design-schedule-list');
+    if (!container) return;
+    var months = Object.keys(monthGroups).sort();
+    if (!months.length) {
+      container.innerHTML = '<p class="no-result-msg">등록된 일정이 없습니다.</p>';
+      return;
+    }
+    container.innerHTML = months.map(function (month) {
+      var items = monthGroups[month];
+      var rows = items.map(function (l) {
+        var stageClass = DW_STAGE_COLOR[l.stage] || '';
+        return '<tr>' +
+          '<td>' + (l.date || '-') + '</td>' +
+          '<td>' + escapeHtml(l.customerName || '-') + '</td>' +
+          '<td>' + escapeHtml(l.address || '-') + '</td>' +
+          '<td>' + escapeHtml(l.task || '-') + '</td>' +
+          '<td><span class="dw-stage-badge ' + stageClass + '">' + escapeHtml(l.stage || '-') + '</span></td>' +
+          '<td>' + escapeHtml(l.manager || '-') + '</td>' +
+          '</tr>';
+      }).join('');
+      var ym = month.split('-');
+      var label = ym.length === 2 ? ym[0] + '년 ' + parseInt(ym[1], 10) + '월' : month;
+      return '<div class="dw-month-group">' +
+        '<div class="dw-month-header"><span class="dw-month-label">' + label + '</span><span class="dw-month-count">' + items.length + '건</span></div>' +
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr><th>날짜</th><th>고객명</th><th>주소</th><th>작업</th><th>설계단계</th><th>담당자</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
+    }).join('');
+
+    // 필터 이벤트 (한 번만)
+    var sf = document.getElementById('schedule-stage-filter');
+    var mf = document.getElementById('schedule-manager-filter');
+    if (sf && !sf._dwBound) { sf._dwBound = true; sf.addEventListener('change', renderDesignSchedule); }
+    if (mf && !mf._dwBound) { mf._dwBound = true; mf.addEventListener('change', renderDesignSchedule); }
+  }
+
+  // =====================================================================
+  // 설계 업무일지 - 이벤트 초기화
+  // =====================================================================
+  var designWorklogInitialized = false;
+
+  function initDesignWorklogEvents() {
+    // 업무 등록 버튼
+    var btnAdd = document.getElementById('btn-add-dw');
+    if (btnAdd) btnAdd.addEventListener('click', function () {
+      document.getElementById('dw-edit-id').value = '';
+      document.getElementById('form-dw').reset();
+      document.getElementById('dw-form-title').textContent = '업무 등록';
+      document.getElementById('dw-form-wrap').classList.remove('hidden');
+    });
+
+    // 취소 버튼
+    var btnCancel = document.getElementById('btn-cancel-dw');
+    if (btnCancel) btnCancel.addEventListener('click', function () {
+      document.getElementById('dw-form-wrap').classList.add('hidden');
+    });
+
+    // 도면파일 첨부 → 파일명을 URL 필드에 표시
+    var dwFileInput = document.getElementById('dw-drawing-file');
+    if (dwFileInput) dwFileInput.addEventListener('change', function () {
+      if (dwFileInput.files && dwFileInput.files[0]) {
+        document.getElementById('dw-drawing-url').value = dwFileInput.files[0].name;
+      }
+    });
+
+    // 업무 등록/수정 폼 저장
+    var formDw = document.getElementById('form-dw');
+    if (formDw) formDw.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('dw-edit-id').value;
+      var entry = {
+        customerName: document.getElementById('dw-customer').value.trim(),
+        address: document.getElementById('dw-address').value.trim(),
+        size: document.getElementById('dw-size').value.trim(),
+        task: document.getElementById('dw-task').value.trim(),
+        date: document.getElementById('dw-date').value,
+        manager: document.getElementById('dw-manager').value.trim(),
+        stage: document.getElementById('dw-stage').value,
+        memo: document.getElementById('dw-memo').value.trim(),
+        drawingUrl: document.getElementById('dw-drawing-url').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      if (!entry.customerName || !entry.address || !entry.date || !entry.stage) return;
+      var logs = getDesignWorklog();
+      if (editId) {
+        logs = logs.map(function (l) { return l.id === editId ? Object.assign({}, l, entry) : l; });
+      } else {
+        entry.id = id();
+        entry.createdAt = new Date().toISOString();
+        logs.push(entry);
+      }
+      saveDesignWorklog(logs);
+      document.getElementById('dw-form-wrap').classList.add('hidden');
+      renderDesignWorklog();
+      showToast(editId ? '수정됐습니다.' : '업무일지가 등록됐습니다.');
+    });
+
+    // 검색 & 필터
+    var dwSearch = document.getElementById('dw-search');
+    if (dwSearch) dwSearch.addEventListener('input', renderDesignWorklog);
+    var dwSearchClear = document.getElementById('dw-search-clear');
+    if (dwSearchClear) dwSearchClear.addEventListener('click', function () {
+      document.getElementById('dw-search').value = '';
+      renderDesignWorklog();
+    });
+    var dwStageFilter = document.getElementById('dw-stage-filter');
+    if (dwStageFilter) dwStageFilter.addEventListener('change', renderDesignWorklog);
+
+    // 테이블 이벤트 위임 (수정/삭제/시공이관)
+    var tbodyDw = document.getElementById('tbody-dw');
+    if (tbodyDw) tbodyDw.addEventListener('click', function (e) {
+      var editBtn = e.target.closest('.btn-edit-dw');
+      var delBtn = e.target.closest('.btn-delete-dw');
+      var transferBtn = e.target.closest('.dw-transfer-btn');
+
+      if (editBtn) {
+        var lid = editBtn.getAttribute('data-id');
+        var log = getDesignWorklog().find(function (l) { return l.id === lid; });
+        if (!log) return;
+        document.getElementById('dw-edit-id').value = log.id;
+        document.getElementById('dw-customer').value = log.customerName || '';
+        document.getElementById('dw-address').value = log.address || '';
+        document.getElementById('dw-size').value = log.size || '';
+        document.getElementById('dw-task').value = log.task || '';
+        document.getElementById('dw-date').value = log.date || '';
+        document.getElementById('dw-manager').value = log.manager || '';
+        document.getElementById('dw-stage').value = log.stage || '';
+        document.getElementById('dw-memo').value = log.memo || '';
+        document.getElementById('dw-drawing-url').value = log.drawingUrl || '';
+        document.getElementById('dw-form-title').textContent = '업무 수정';
+        document.getElementById('dw-form-wrap').classList.remove('hidden');
+        document.getElementById('dw-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      if (delBtn) {
+        if (!confirm('업무일지를 삭제하시겠습니까?')) return;
+        var did = delBtn.getAttribute('data-id');
+        saveDesignWorklog(getDesignWorklog().filter(function (l) { return l.id !== did; }));
+        renderDesignWorklog();
+        showToast('삭제됐습니다.');
+      }
+
+      if (transferBtn) {
+        var tid = transferBtn.getAttribute('data-id');
+        var logs = getDesignWorklog().map(function (l) {
+          return l.id === tid ? Object.assign({}, l, { stage: '시공이관', updatedAt: new Date().toISOString() }) : l;
+        });
+        saveDesignWorklog(logs);
+        renderDesignWorklog();
+        showToast('시공팀으로 이관됐습니다.');
+      }
+    });
+
+    // 엑셀 업로드
+    var excelInput = document.getElementById('dw-excel-input');
+    if (excelInput) excelInput.addEventListener('change', function () {
+      var file = excelInput.files && excelInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        try {
+          var XLSX = window.XLSX;
+          if (!XLSX) { showToast('엑셀 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도하세요.', 'error'); return; }
+          var wb = XLSX.read(ev.target.result, { type: 'binary', cellDates: true });
+          var ws = wb.Sheets[wb.SheetNames[0]];
+          var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          var COL_MAP = {
+            '주소': 'address', '고객명': 'customerName', '크기': 'size',
+            '작업': 'task', '날짜': 'date', '비고': 'memo',
+            '담당자': 'manager', '설계단계': 'stage', '도면파일': 'drawingUrl'
+          };
+          var imported = rows.filter(function (r) { return r['고객명'] || r['주소']; }).map(function (r) {
+            var entry = { id: id(), createdAt: new Date().toISOString() };
+            Object.keys(COL_MAP).forEach(function (col) {
+              var val = r[col];
+              if (col === '날짜' && val instanceof Date) {
+                val = val.toISOString().slice(0, 10);
+              } else if (col === '날짜' && typeof val === 'number') {
+                // Excel serial date
+                var d = new Date((val - 25569) * 86400 * 1000);
+                val = d.toISOString().slice(0, 10);
+              }
+              entry[COL_MAP[col]] = String(val || '').trim();
+            });
+            // 설계단계 유효성 검사
+            if (DW_STAGES.indexOf(entry.stage) === -1) entry.stage = '상담설계';
+            return entry;
+          });
+          if (!imported.length) { showToast('가져올 데이터가 없습니다. 열 이름을 확인하세요.', 'error'); return; }
+          var logs = getDesignWorklog().concat(imported);
+          saveDesignWorklog(logs);
+          renderDesignWorklog();
+          showToast(imported.length + '건을 업로드했습니다.');
+        } catch (err) {
+          showToast('엑셀 파싱 오류: ' + err.message, 'error');
+        }
+        excelInput.value = '';
+      };
+      reader.readAsBinaryString(file);
+    });
+  }
+
   function renderDesign() {
     var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
-    // ????? ?????? ??? ?????????? ????????????????
+    // master/admin이 아닌 모든 사용자는 본인 전시장만
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
-      var team = (cur.team || '').trim();
-      var myShowroom = (cur.showroom || '').trim();
-      if (team === '영업' && myShowroom) {
-        contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroom; });
+      var _isAdminDesign = isAdmin() || isMaster() || isSuperAdmin();
+      var myShowroomDesign = resolveShowroomId(cur);
+      if (myShowroomDesign && !_isAdminDesign) {
+        contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomDesign; });
       }
     }
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
     contracts = getFilteredDesignContracts(contracts);
+
+    // ── 유형 분류 헬퍼 ──
+    function getContractTypeKey(c) {
+      var t = (c.projectType || c.contractModel || '').trim();
+      if (t === '컨테이너/농막') return '컨테이너/농막';
+      if (t === '체류형쉼터') return '체류형쉼터';
+      if (t === '전원주택') return '전원주택(인허가)';
+      return '기타';
+    }
+    var TYPE_ORDER = { '컨테이너/농막': 0, '체류형쉼터': 1, '전원주택(인허가)': 2, '기타': 3 };
+    var TYPE_BADGE_CLS = { '컨테이너/농막': 'badge-container', '체류형쉼터': 'badge-shelter', '전원주택(인허가)': 'badge-house', '기타': 'badge-etc' };
+
+    // ── 탭 + 건수 렌더 ──
+    var tabsEl = document.getElementById('design-type-tabs');
+    if (tabsEl) {
+      var allTypes = ['컨테이너/농막', '체류형쉼터', '전원주택(인허가)', '기타'];
+      var typeCounts = { '컨테이너/농막': 0, '체류형쉼터': 0, '전원주택(인허가)': 0, '기타': 0 };
+      contracts.forEach(function (c) { typeCounts[getContractTypeKey(c)]++; });
+      var total = contracts.length;
+      var tabHtml = '<button type="button" class="design-type-tab' + (designTypeFilter === 'all' ? ' active' : '') + '" data-type="all">전체 <span class="tab-count">' + total + '</span></button>';
+      allTypes.forEach(function (t) {
+        tabHtml += '<button type="button" class="design-type-tab' + (designTypeFilter === t ? ' active' : '') + '" data-type="' + escapeAttr(t) + '">' + escapeHtml(t) + ' <span class="tab-count">' + typeCounts[t] + '</span></button>';
+      });
+      tabsEl.innerHTML = tabHtml;
+      tabsEl.querySelectorAll('.design-type-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          designTypeFilter = btn.getAttribute('data-type') || 'all';
+          renderDesign();
+        });
+      });
+    }
+
+    // ── 유형 필터 적용 ──
+    if (designTypeFilter !== 'all') {
+      contracts = contracts.filter(function (c) { return getContractTypeKey(c) === designTypeFilter; });
+    }
+
+    // ── 정렬: 유형 순 → 계약일 오름차순 ──
+    contracts.sort(function (a, b) {
+      var tA = TYPE_ORDER[getContractTypeKey(a)];
+      var tB = TYPE_ORDER[getContractTypeKey(b)];
+      if (tA !== tB) return tA - tB;
+      var dA = a.contractDate || '';
+      var dB = b.contractDate || '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
+
     var tbody = document.getElementById('tbody-design');
     if (!tbody) return;
     var salesReadonly = isSalesReadonly();
@@ -3081,7 +3698,7 @@
       negotiated: '협의 완료',
       done: '설계 완료'
     };
-    tbody.innerHTML = contracts.map(function (c) {
+    tbody.innerHTML = contracts.map(function (c, i) {
       var status = c.designStatus || 'none';
       var statusLabel = statusMap[status] || '미착수';
       var select = '<select class="design-status-select design-progress-select" data-id="' + c.id + '"' + (salesReadonly ? ' disabled' : '') + '>' +
@@ -3122,11 +3739,13 @@
       var constructionMgrCell = constructionOnlyReview
         ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
         : (c.constructionManager || '-');
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
-    }).join('') || '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>';
+      var _dDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
+      var typeKey = getContractTypeKey(c);
+      var typeBadge = '<span class="design-type-badge ' + TYPE_BADGE_CLS[typeKey] + '">' + escapeHtml(typeKey) + '</span>';
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + typeBadge + '</td><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || (getDesignSearchKeyword()
-      ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-      : '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>');
+      ? '<tr><td colspan="18" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="18">설계 데이터가 없습니다.</td></tr>');
     updateDesignFilterResult(contracts);
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
@@ -3140,6 +3759,7 @@
   }
 
   var expandedDesignId = null;
+  var designTypeFilter = 'all'; // 설계팀 유형 탭 필터
 
   function formatOptionsSummary(options) {
     if (!options) return '';
@@ -3252,12 +3872,14 @@
     if (!c) return '';
     var statusMap = { none: '미착수', in_progress: '설계 중', done: '완료' };
     var statusLabel = statusMap[c.designStatus || 'none'] || '-';
-    var projectType = c.projectType || '-';
-    var houseWrapHidden = (c.projectType || '') !== '주택' ? ' hidden' : '';
+    // 영업팀 contractModel을 항상 기준으로 사용 (기존 projectType 무시)
+    var effectiveProjectType = c.contractModel || '';
+    var projectType = effectiveProjectType || '-';
+    var houseWrapHidden = effectiveProjectType !== '전원주택' ? ' hidden' : '';
     var summaryBar = '<div class="design-detail-summary-bar">' +
       '<span class="design-detail-summary-item"><strong>고객명</strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
       '<span class="design-detail-summary-item"><strong>유형</strong> ' + escapeAttr(projectType) + '</span>' +
-      '<span class="design-detail-summary-item"><strong>계약금액</strong> ' + escapeAttr(formatMoney(c.totalAmount)) + '원</span>' +
+      '<span class="design-detail-summary-item"><strong>계약금액</strong> ' + escapeAttr(formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000)))) + '만원</span>' +
       '<span class="design-detail-summary-item"><strong>계약금 입금일</strong> ' + escapeAttr(formatDate(c.depositReceivedAt)) + '</span>' +
       '<span class="design-detail-summary-item"><strong>설계 진행 상태</strong> ' + escapeAttr(statusLabel) + '</span>' +
       '<span class="design-detail-summary-item"><strong>착공 준비완료</strong> ' + (c.constructionStartOk ? 'Y' : '-') + '</span>' +
@@ -3282,9 +3904,18 @@
       '<div class="design-detail-field"><label>옵션 요약</label><div>' + escapeAttr(formatOptionsSummary(c.options)) + '</div></div>' +
       buildDesignRequestViewHtml(c) +
       '</div></div>';
+    var extraLinks = '';
+    if (Array.isArray(c.extraAttachments) && c.extraAttachments.length > 0) {
+      extraLinks = c.extraAttachments.map(function (f) {
+        var name = (f.name || (f.url || '').split('/').pop().replace(/^\d+_/, '') || '파일');
+        return '<div style="margin-bottom:2px"><a href="' + escapeAttr(f.url || '') + '" target="_blank" rel="noopener">' + escapeAttr(name) + '</a></div>';
+      }).join('');
+    }
     var cardSalesContract = '<div class="design-detail-card design-detail-sales-contract-view">' +
       '<h4 class="design-detail-card-title">영업팀 계약서 (읽기)</h4>' +
-      '<div class="design-detail-card-body"><p class="design-detail-view-only">' + linkOrText(c.contractAttachment) + '</p></div></div>';
+      '<div class="design-detail-card-body"><p class="design-detail-view-only">' + linkOrText(c.contractAttachment) + '</p>' +
+      (extraLinks ? '<p class="design-detail-view-only" style="margin-top:6px"><span style="font-size:11px;color:#9ca3af;display:block;margin-bottom:4px">추가 자료</span>' + extraLinks + '</p>' : '') +
+      '</div></div>';
     var d1DesignMemo = c.designDrawing1DesignMemo || '';
     var d1SalesMemo = c.designDrawing1SalesMemo || '';
     var d1Final = !!c.designDrawing1Final;
@@ -3299,7 +3930,7 @@
     var cardDrawing = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">도면 관리</h4>' +
       '<div class="design-detail-card-body">' +
-      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="체류형쉼터"' + (c.projectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="주택"' + (c.projectType === '주택' ? ' selected' : '') + '>주택</option></select></label>' +
+      '<label class="design-detail-field">유형 <select class="design-inline-project-type"><option value="">선택</option><option value="컨테이너/농막"' + (effectiveProjectType === '컨테이너/농막' ? ' selected' : '') + '>컨테이너/농막</option><option value="체류형쉼터"' + (effectiveProjectType === '체류형쉼터' ? ' selected' : '') + '>체류형쉼터</option><option value="전원주택"' + (effectiveProjectType === '전원주택' ? ' selected' : '') + '>전원주택</option><option value="기타"' + (effectiveProjectType === '기타' ? ' selected' : '') + '>기타</option></select></label>' +
       '<div class="design-discussion-card">' +
       '<div class="design-discussion-header"><span class="design-discussion-title">설계 협의 1차</span><label class="checkbox-label design-discussion-final-header"><input type="checkbox" class="design-inline-drawing-1-final design-inline-drawing-final"' + (d1Final ? ' checked' : '') + '> 최종 확정</label><span class="design-discussion-final-badge' + (d1Final ? '' : '" style=\\"display:none\\""') + '">최종 확정</span></div>' +
       '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.designDrawingAttachment) + '</div></div>' +
@@ -3347,11 +3978,23 @@
       '</div>' +
       '</div>' +
       '<h4 class="design-detail-card-title permit-status-title">허가 / 착공 현황</h4>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축허가서 수령</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용승인서</label>' +
-      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공신고서</label>' +
+      '<div class="permit-steps-wrap' + (effectiveProjectType === '전원주택' ? '' : ' hidden') + '">' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-design-consult-inprogress"' + (c.designConsultInProgress ? ' checked' : '') + '> 건축 설계 협의 진행중</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-permit-inprogress"' + (c.permitInProgress ? ' checked' : '') + '> 건축 인허가 진행중</label>' +
+      '<div class="permit-cert-wrap"><label class="permit-cert-label"><input type="checkbox" class="design-inline-has-permit"' + (c.hasPermitCert ? ' checked' : '') + '> 건축허가 완료</label><input type="date" class="design-inline-permit-cert-date" value="' + escapeAttr(c.permitCertDate || '') + '" title="허가 완료일"></div>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-construction-report"' + (c.hasConstructionStartReport ? ' checked' : '') + '> 착공 신고서 완료</label>' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-completion-cert"' + (c.hasCompletionCert ? ' checked' : '') + '> 사용 승인서 완료</label>' +
+      '</div>' +
+      '<div class="shelter-permit-wrap' + (effectiveProjectType === '체류형쉼터' ? '' : ' hidden') + '">' +
+      '<label class="design-detail-check-item"><input type="checkbox" class="design-inline-has-temporary-building-cert"' + (c.hasTemporaryBuildingCert ? ' checked' : '') + '> 가설 건축물 필증</label>' +
+      '</div>' +
       '<div class="start-ready-box">' +
-      '<label class="design-detail-check-item highlight"><input type="checkbox" class="design-inline-construction-start-ok"' + (c.constructionStartOk ? ' checked' : '') + '> 착공 준비완료 (시공팀 인계 준비 완료)</label>' +
+      '<div class="design-approval-readonly">' +
+      '<span class="design-approval-readonly-item' + (c.salesConfirmed ? ' confirmed' : '') + '">영업팀 확인 ' + (c.salesConfirmed ? '✓' : '✗') + '</span>' +
+      '<span class="design-approval-readonly-item' + (c.designConfirmed ? ' confirmed' : '') + '">설계팀 확인 ' + (c.designConfirmed ? '✓' : '✗') + '</span>' +
+      '<span class="design-approval-readonly-item' + (c.constructionConfirmed ? ' confirmed' : '') + '">시공팀 확인 ' + (c.constructionConfirmed ? '✓' : '✗') + '</span>' +
+      '<span class="design-approval-readonly-item final' + (c.finalApproved ? ' confirmed' : '') + '">최종 승인 ' + (c.finalApproved ? '✓' : '✗') + '</span>' +
+      '</div>' +
       '</div>' +
       '<div class="design-detail-memo-grid">' +
       '<label class="design-detail-field"><span>설계팀 메모</span><textarea class="design-status-memo design-status-memo-design" rows="3" placeholder="설계 진행 상황 메모, 특이 사항 기록">' + escapeAttr(c.designStatusMemoDesign || '') + '</textarea></label>' +
@@ -3534,25 +4177,24 @@
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
-      var canDesign = team === '설계';
+      var canDesign = team === '설계' || team === '영업';
       var canSales = team === '영업';
       var canConstruction = team === '시공';
       var designMemo = td.querySelector('.design-status-memo-design');
       var salesMemo = td.querySelector('.design-status-memo-sales');
       var constructionMemo = td.querySelector('.design-status-memo-construction');
-      if (designMemo && !canDesign) designMemo.readOnly = true;
+      if (designMemo && team !== '설계') designMemo.readOnly = true;
       if (salesMemo && !canSales) salesMemo.readOnly = true;
       if (constructionMemo && !canConstruction) constructionMemo.readOnly = true;
-      // 설계팀만 설계 담당자 입력란 및 허가/착공 현황 체크박스 편집 가능
+      // 설계팀 + 영업팀: 설계 담당자 입력란 및 허가/착공 현황 체크박스 편집 가능
       if (!canDesign) {
         var designerInput = td.querySelector('.design-inline-designer');
         if (designerInput) { designerInput.readOnly = true; designerInput.disabled = true; }
-        var permitCheck = td.querySelector('.design-inline-has-permit');
-        if (permitCheck) permitCheck.disabled = true;
-        var completionCheck = td.querySelector('.design-inline-has-completion-cert');
-        if (completionCheck) completionCheck.disabled = true;
-        var constructionReportCheck = td.querySelector('.design-inline-has-construction-report');
-        if (constructionReportCheck) constructionReportCheck.disabled = true;
+        ['.design-inline-permit-required', '.design-inline-design-consult-inprogress',
+          '.design-inline-permit-inprogress', '.design-inline-has-permit',
+          '.design-inline-permit-cert-date',
+          '.design-inline-has-construction-report', '.design-inline-has-completion-cert'
+        ].forEach(function (cls) { var el = td.querySelector(cls); if (el) el.disabled = true; });
         var constructionStartOkCheck = td.querySelector('.design-inline-construction-start-ok');
         if (constructionStartOkCheck) constructionStartOkCheck.disabled = true;
       }
@@ -3644,6 +4286,8 @@
           if (designerInput) { designerInput.readOnly = false; designerInput.removeAttribute('readonly'); designerInput.disabled = false; }
           var permitCheck = detailRow.querySelector('.design-inline-has-permit');
           if (permitCheck) permitCheck.disabled = false;
+          var permitDateInput = detailRow.querySelector('.design-inline-permit-cert-date');
+          if (permitDateInput) permitDateInput.disabled = false;
           var completionCheck = detailRow.querySelector('.design-inline-has-completion-cert');
           if (completionCheck) completionCheck.disabled = false;
           var constructionReportCheck = detailRow.querySelector('.design-inline-has-construction-report');
@@ -3685,14 +4329,23 @@
       function sel(cls, id) { return (form.querySelector && form.querySelector(cls)) || (id && form.querySelector && form.querySelector('#' + id)); }
       c.designStatusMemoDesign = (sel('.design-status-memo-design') || {}).value ? sel('.design-status-memo-design').value.trim() : '';
       c.designPermitDesigner = (sel('.design-inline-designer') || {}).value ? sel('.design-inline-designer').value.trim() : '';
+      var permitRequiredEl = sel('.design-inline-permit-required');
+      if (permitRequiredEl) c.permitRequired = permitRequiredEl.checked;
+      var designConsultEl = sel('.design-inline-design-consult-inprogress');
+      if (designConsultEl) c.designConsultInProgress = designConsultEl.checked;
+      var permitInProgressEl = sel('.design-inline-permit-inprogress');
+      if (permitInProgressEl) c.permitInProgress = permitInProgressEl.checked;
       var permitEl = sel('.design-inline-has-permit');
       if (permitEl) c.hasPermitCert = permitEl.checked;
-      var completionEl = sel('.design-inline-has-completion-cert');
-      if (completionEl) c.hasCompletionCert = completionEl.checked;
+      var permitCertDateEl = sel('.design-inline-permit-cert-date');
+      if (permitCertDateEl) c.permitCertDate = permitCertDateEl.value || '';
       var constructionReportEl = sel('.design-inline-has-construction-report');
       if (constructionReportEl) c.hasConstructionStartReport = constructionReportEl.checked;
-      var constructionStartOkEl = sel('.design-inline-construction-start-ok');
-      if (constructionStartOkEl) c.constructionStartOk = constructionStartOkEl.checked;
+      var completionEl = sel('.design-inline-has-completion-cert');
+      if (completionEl) c.hasCompletionCert = completionEl.checked;
+      var tempBuildingEl = sel('.design-inline-has-temporary-building-cert');
+      if (tempBuildingEl) c.hasTemporaryBuildingCert = tempBuildingEl.checked;
+      c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
       saveContracts(contracts);
       renderDesign();
       renderConstruction();
@@ -3734,12 +4387,22 @@
     c.designContactName = (sel('.design-inline-contact-name', 'design-inline-contact-name') || {}).value.trim() || '';
     c.designContactPhone = (sel('.design-inline-contact-phone', 'design-inline-contact-phone') || {}).value.trim() || '';
     c.designPermitDesigner = (sel('.design-inline-designer', 'design-inline-designer') || {}).value.trim() || '';
+    c.permitRequired = (sel('.design-inline-permit-required') || {}).checked || false;
+    c.designConsultInProgress = (sel('.design-inline-design-consult-inprogress') || {}).checked || false;
+    c.permitInProgress = (sel('.design-inline-permit-inprogress') || {}).checked || false;
     c.hasPermitCert = (sel('.design-inline-has-permit', 'design-inline-has-permit') || {}).checked || false;
+    c.permitCertDate = ((sel('.design-inline-permit-cert-date') || {}).value || '').trim();
+    if (c.hasPermitCert && !c.permitCertDate) {
+      window.alert('건축허가 완료 시 허가 완료일을 입력해 주세요.');
+      return;
+    }
+    if (!c.hasPermitCert) c.permitCertDate = '';
     c.permitAttachment = (sel('.design-inline-permit-attachment', 'design-inline-permit-attachment') || {}).value.trim() || '';
     c.completionCertAttachment = (sel('.design-inline-completion-attachment', 'design-inline-completion-attachment') || {}).value.trim() || '';
     c.hasConstructionStartReport = (sel('.design-inline-has-construction-report', 'design-inline-has-construction-report') || {}).checked || false;
     c.hasCompletionCert = (sel('.design-inline-has-completion-cert', 'design-inline-has-completion-cert') || {}).checked || false;
-    c.constructionStartOk = (sel('.design-inline-construction-start-ok', 'design-inline-construction-start-ok') || {}).checked || false;
+    c.hasTemporaryBuildingCert = (sel('.design-inline-has-temporary-building-cert') || {}).checked || false;
+    c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
     // ???????? ?? ????????????, ??? ???????????? ???????? ????? ??????????? ??? ???
     if (c.constructionStartOk && !c.designPermitDesigner && typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var curEmp = window.seumAuth.currentEmployee;
@@ -3774,9 +4437,13 @@
   function initDesignDetailPanel() {
     document.addEventListener('change', function (e) {
       if (e.target.classList.contains('design-inline-project-type') || e.target.id === 'design-inline-project-type') {
-        var form = e.target.closest('form');
-        var wrap = form && form.querySelector('.design-inline-house-wrap');
-        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '주택');
+        var container = e.target.closest('form') || e.target.closest('.design-detail-inner') || e.target.closest('.design-detail-row');
+        var wrap = container ? container.querySelector('.design-inline-house-wrap') : document.querySelector('.design-inline-house-wrap');
+        if (wrap) wrap.classList.toggle('hidden', e.target.value !== '전원주택');
+        var permitWrap = container ? container.querySelector('.permit-steps-wrap') : document.querySelector('.permit-steps-wrap');
+        if (permitWrap) permitWrap.classList.toggle('hidden', e.target.value !== '전원주택');
+        var shelterWrap = container ? container.querySelector('.shelter-permit-wrap') : document.querySelector('.shelter-permit-wrap');
+        if (shelterWrap) shelterWrap.classList.toggle('hidden', e.target.value !== '체류형쉼터');
       }
       if (e.target.classList.contains('design-inline-drawing-file') ||
         e.target.classList.contains('design-inline-drawing-file-2') ||
@@ -4119,6 +4786,284 @@
     saveContracts(contracts);
   }
 
+  // =====================================================================
+  // 시공 업무일지
+  // =====================================================================
+  var CW_PROCESSES = ['기초', '골조', '단열', '외장', '창호', '전기', '설비', '내장', '마감', '완료'];
+  var CW_PROCESS_COLOR = {
+    '기초': 'cw-proc-foundation',
+    '골조': 'cw-proc-frame',
+    '단열': 'cw-proc-insulation',
+    '외장': 'cw-proc-exterior',
+    '창호': 'cw-proc-window',
+    '전기': 'cw-proc-electric',
+    '설비': 'cw-proc-plumbing',
+    '내장': 'cw-proc-interior',
+    '마감': 'cw-proc-finish',
+    '완료': 'cw-proc-done'
+  };
+
+  function getConstructionWorklog() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_CONSTRUCTION_WORKLOG) || '[]'); } catch (e) { return []; }
+  }
+  function saveConstructionWorklog(list) {
+    localStorage.setItem(STORAGE_CONSTRUCTION_WORKLOG, JSON.stringify(list));
+  }
+
+  function cwProgressBar(pct) {
+    var p = Math.min(100, Math.max(0, Number(pct) || 0));
+    var cls = p >= 100 ? 'cw-prog-done' : p >= 60 ? 'cw-prog-mid' : 'cw-prog-low';
+    return '<div class="cw-progress-wrap"><div class="cw-progress-bar ' + cls + '" style="width:' + p + '%"></div></div>' +
+           '<span class="cw-progress-pct">' + p + '%</span>';
+  }
+
+  function renderConstructionWorklog() {
+    var logs = getConstructionWorklog();
+    var keyword = ((document.getElementById('cw-search') || {}).value || '').toLowerCase();
+    var processFilter = (document.getElementById('cw-process-filter') || {}).value || '';
+    var issueFilter = (document.getElementById('cw-issue-filter') || {}).value || '';
+
+    if (keyword) {
+      logs = logs.filter(function (l) {
+        return (l.siteName || '').toLowerCase().indexOf(keyword) !== -1;
+      });
+    }
+    if (processFilter) {
+      logs = logs.filter(function (l) { return l.process === processFilter; });
+    }
+    if (issueFilter === 'issues') {
+      logs = logs.filter(function (l) { return l.issues && l.issues.trim(); });
+    }
+
+    // 날짜 내림차순
+    logs = logs.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+
+    // 요약 카드 업데이트
+    var allLogs = getConstructionWorklog();
+    var today10 = new Date().toISOString().slice(0, 10);
+    var sites = {};
+    allLogs.forEach(function (l) {
+      if (!l.siteName) return;
+      if (!sites[l.siteName] || l.date > sites[l.siteName].date) sites[l.siteName] = l;
+    });
+    var siteArr = Object.values ? Object.values(sites) : Object.keys(sites).map(function(k){ return sites[k]; });
+    var activeCount = siteArr.filter(function (l) { return l.process !== '완료'; }).length;
+    var doneCount = siteArr.filter(function (l) { return l.process === '완료'; }).length;
+    var issueCount = siteArr.filter(function (l) { return l.issues && l.issues.trim(); }).length;
+    var todayCount = allLogs.filter(function (l) { return l.date === today10; }).length;
+    var elA = document.getElementById('cw-count-active'); if (elA) elA.textContent = activeCount;
+    var elD = document.getElementById('cw-count-done'); if (elD) elD.textContent = doneCount;
+    var elI = document.getElementById('cw-count-issues'); if (elI) elI.textContent = issueCount;
+    var elT = document.getElementById('cw-count-today'); if (elT) elT.textContent = todayCount;
+
+    var tbody = document.getElementById('tbody-cw');
+    if (!tbody) return;
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:2rem;">등록된 업무일지가 없습니다.</td></tr>';
+      var fr = document.getElementById('cw-filter-result'); if (fr) fr.textContent = '0건';
+      return;
+    }
+
+    tbody.innerHTML = logs.map(function (l) {
+      var procClass = CW_PROCESS_COLOR[l.process] || '';
+      var procBadge = '<span class="cw-proc-badge ' + procClass + '">' + escapeHtml(l.process || '-') + '</span>';
+      var issueBadge = (l.issues && l.issues.trim())
+        ? '<span class="cw-issue-badge">문제</span>'
+        : '<span style="color:#9ca3af;">-</span>';
+      var photoHtml = (l.photos && l.photos.length)
+        ? '<span class="cw-photo-count-badge" data-id="' + escapeAttr(l.id) + '">' + l.photos.length + '장</span>'
+        : '-';
+      return '<tr>' +
+        '<td>' + (l.date || '-') + '</td>' +
+        '<td class="cw-site-cell">' + escapeHtml(l.siteName || '-') +
+          (l.delayed ? ' <span class="cw-delay-badge">지연</span>' : '') + '</td>' +
+        '<td>' + escapeHtml(l.address || '-') + '</td>' +
+        '<td>' + procBadge + '</td>' +
+        '<td class="cw-progress-cell">' + cwProgressBar(l.progress) + '</td>' +
+        '<td style="text-align:center;">' + (l.crew || '-') + '명</td>' +
+        '<td>' + issueBadge + '</td>' +
+        '<td>' + photoHtml + '</td>' +
+        '<td class="cw-action-cell">' +
+          '<button type="button" class="btn btn-sm btn-secondary cw-edit-btn" data-id="' + escapeAttr(l.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm cw-delete-btn" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" data-id="' + escapeAttr(l.id) + '">삭제</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    var filterResult = document.getElementById('cw-filter-result');
+    if (filterResult) filterResult.textContent = logs.length + '건';
+  }
+
+  var constructionWorklogInitialized = false;
+  function initConstructionWorklogEvents() {
+    if (constructionWorklogInitialized) return;
+    constructionWorklogInitialized = true;
+
+    var addBtn = document.getElementById('btn-add-cw');
+    var formWrap = document.getElementById('cw-form-wrap');
+    var cancelBtn = document.getElementById('btn-cancel-cw');
+    var formTitle = document.getElementById('cw-form-title');
+    var form = document.getElementById('form-cw');
+    var editId = document.getElementById('cw-edit-id');
+
+    function openForm(title) {
+      if (formTitle) formTitle.textContent = title;
+      if (formWrap) formWrap.classList.remove('hidden');
+      var dateEl = document.getElementById('cw-date');
+      if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+    }
+    function closeForm() {
+      if (formWrap) formWrap.classList.add('hidden');
+      if (form) form.reset();
+      if (editId) editId.value = '';
+      var preview = document.getElementById('cw-photo-preview');
+      if (preview) preview.innerHTML = '';
+      var photosData = document.getElementById('cw-photos-data');
+      if (photosData) photosData.value = '';
+      var photoCount = document.getElementById('cw-photo-count');
+      if (photoCount) photoCount.textContent = '';
+    }
+
+    if (addBtn) addBtn.addEventListener('click', function () { openForm('업무 등록'); });
+    if (cancelBtn) cancelBtn.addEventListener('click', closeForm);
+
+    // 사진 업로드 미리보기
+    var photoInput = document.getElementById('cw-photos');
+    if (photoInput) {
+      photoInput.addEventListener('change', function () {
+        var files = Array.prototype.slice.call(this.files || []);
+        if (!files.length) return;
+        var preview = document.getElementById('cw-photo-preview');
+        var photosData = document.getElementById('cw-photos-data');
+        var photoCount = document.getElementById('cw-photo-count');
+        var existing = [];
+        try { existing = JSON.parse((photosData && photosData.value) || '[]'); } catch (e) { existing = []; }
+        var pending = files.length;
+        files.forEach(function (f) {
+          var reader = new FileReader();
+          reader.onload = function (ev) {
+            existing.push({ name: f.name, data: ev.target.result });
+            pending--;
+            if (pending === 0) {
+              if (photosData) photosData.value = JSON.stringify(existing);
+              if (photoCount) photoCount.textContent = existing.length + '장 선택됨';
+              if (preview) {
+                preview.innerHTML = existing.map(function (p) {
+                  return '<img src="' + p.data + '" class="cw-photo-thumb" title="' + escapeAttr(p.name) + '" alt="' + escapeAttr(p.name) + '">';
+                }).join('');
+              }
+            }
+          };
+          reader.readAsDataURL(f);
+        });
+        this.value = '';
+      });
+    }
+
+    // 폼 저장
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var logs = getConstructionWorklog();
+        var id = (editId && editId.value) || '';
+        var photos = [];
+        try { photos = JSON.parse((document.getElementById('cw-photos-data') || {}).value || '[]'); } catch (ex) { photos = []; }
+        var entry = {
+          id: id || id(),
+          date: (document.getElementById('cw-date') || {}).value || '',
+          siteName: (document.getElementById('cw-site-name') || {}).value || '',
+          address: (document.getElementById('cw-address') || {}).value || '',
+          process: (document.getElementById('cw-process') || {}).value || '',
+          progress: (document.getElementById('cw-progress') || {}).value || '',
+          crew: (document.getElementById('cw-crew') || {}).value || '',
+          content: (document.getElementById('cw-content') || {}).value || '',
+          special: (document.getElementById('cw-special') || {}).value || '',
+          issues: (document.getElementById('cw-issues') || {}).value || '',
+          tomorrow: (document.getElementById('cw-tomorrow') || {}).value || '',
+          photos: photos,
+          delayed: false
+        };
+        if (id) {
+          var idx = logs.findIndex ? logs.findIndex(function (l) { return l.id === id; }) : -1;
+          if (idx === -1) { for (var i = 0; i < logs.length; i++) { if (logs[i].id === id) { idx = i; break; } } }
+          if (idx !== -1) {
+            entry.photos = entry.photos.length ? entry.photos : (logs[idx].photos || []);
+            logs[idx] = entry;
+          }
+        } else {
+          logs.push(entry);
+        }
+        saveConstructionWorklog(logs);
+        closeForm();
+        renderConstructionWorklog();
+        showToast(id ? '업무일지를 수정했습니다.' : '업무일지를 등록했습니다.', 'success');
+      });
+    }
+
+    // 검색 / 필터
+    var searchEl = document.getElementById('cw-search');
+    var procFilter = document.getElementById('cw-process-filter');
+    var issueFilter = document.getElementById('cw-issue-filter');
+    if (searchEl) searchEl.addEventListener('input', renderConstructionWorklog);
+    if (procFilter) procFilter.addEventListener('change', renderConstructionWorklog);
+    if (issueFilter) issueFilter.addEventListener('change', renderConstructionWorklog);
+
+    // 테이블 위임 (수정/삭제/사진보기)
+    var tbody = document.getElementById('tbody-cw');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('[data-id]') : null;
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        var logs = getConstructionWorklog();
+        var log = null;
+        for (var i = 0; i < logs.length; i++) { if (logs[i].id === id) { log = logs[i]; break; } }
+        if (!log) return;
+
+        if (btn.classList.contains('cw-edit-btn')) {
+          openForm('업무 수정');
+          document.getElementById('cw-edit-id').value = id;
+          document.getElementById('cw-date').value = log.date || '';
+          document.getElementById('cw-site-name').value = log.siteName || '';
+          document.getElementById('cw-address').value = log.address || '';
+          document.getElementById('cw-process').value = log.process || '';
+          document.getElementById('cw-progress').value = log.progress || '';
+          document.getElementById('cw-crew').value = log.crew || '';
+          document.getElementById('cw-content').value = log.content || '';
+          document.getElementById('cw-special').value = log.special || '';
+          document.getElementById('cw-issues').value = log.issues || '';
+          document.getElementById('cw-tomorrow').value = log.tomorrow || '';
+          var photosData = document.getElementById('cw-photos-data');
+          var photos = log.photos || [];
+          if (photosData) photosData.value = JSON.stringify(photos);
+          var photoCount = document.getElementById('cw-photo-count');
+          if (photoCount) photoCount.textContent = photos.length ? photos.length + '장 첨부됨' : '';
+          var preview = document.getElementById('cw-photo-preview');
+          if (preview) {
+            preview.innerHTML = photos.map(function (p) {
+              return '<img src="' + (p.data || '') + '" class="cw-photo-thumb" title="' + escapeAttr(p.name || '') + '" alt="' + escapeAttr(p.name || '') + '">';
+            }).join('');
+          }
+          formWrap.scrollIntoView({ behavior: 'smooth' });
+        } else if (btn.classList.contains('cw-delete-btn') || btn.getAttribute('class') && btn.getAttribute('class').indexOf('cw-delete') !== -1) {
+          if (!window.confirm('"' + escapeHtml(log.siteName) + '" 업무일지를 삭제하시겠습니까?')) return;
+          var newLogs = logs.filter(function (l) { return l.id !== id; });
+          saveConstructionWorklog(newLogs);
+          renderConstructionWorklog();
+          showToast('삭제했습니다.', 'info');
+        } else if (btn.classList.contains('cw-photo-count-badge')) {
+          var photos2 = log.photos || [];
+          if (!photos2.length) return;
+          var html = photos2.map(function (p) {
+            return '<div style="margin-bottom:0.5rem;"><img src="' + (p.data || '') + '" style="max-width:100%;border-radius:6px;" alt="' + escapeAttr(p.name || '') + '"><div style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">' + escapeHtml(p.name || '') + '</div></div>';
+          }).join('');
+          var win = window.open('', '_blank', 'width=600,height=800,scrollbars=yes');
+          if (win) { win.document.write('<body style="background:#1a1a2e;padding:1rem;">' + html + '</body>'); win.document.close(); }
+        }
+      });
+    }
+  }
+
   function renderConstruction() {
     var contracts = getContracts().filter(function (c) {
       return !!c.constructionStartOk;
@@ -4153,8 +5098,8 @@
       var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">삭제</button>';
       var contractDateStr = formatDate(c.contractDate);
       var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
-      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
-    }).join('') || '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>';
+      var _cDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _cDivisor)) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
     }).join('') || (getConstructionSearchKeyword()
       ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
       : '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>');
@@ -4170,6 +5115,678 @@
     }
   }
 
+  // =====================================================================
+  // 발주팀 - 업체 템플릿 & 상수
+  // =====================================================================
+  var PROCUREMENT_VENDORS = [
+    { name: '삼원목재', materials: ['다루끼', '투바이', '석고보드', '방수석고', '편백루바', 'OSB합판', '타이벡', '몰딩', '코너몰딩', '바닥피스', '직결피스'] },
+    { name: '로자메탈사이딩', materials: ['타카핀', 'ST', 'DT', 'T', 'F'] },
+    { name: '철물자재', materials: ['단열방화문', '고무바킹', '실리콘', '우레탄폼', '감바천', '자바라', '디지털도어락', '레바키', '크레인고리'] },
+    { name: '대한전기', materials: ['분전함', '통신함', '환풍기', '화재감지기', '콘센트', '스위치', '전선', '조명'] },
+    { name: '장원EPS', materials: ['스티로폼', 'EPS'] }
+  ];
+  var ORDER_STATUS_OPTIONS = ['발주전', '발주완료', '입고완료', '현장투입'];
+  var activeProcurementSiteId = '';
+  var activeVendorName = '';
+
+  // =====================================================================
+  // 발주팀 - Storage Helpers
+  // =====================================================================
+  function getProcurementMaterials() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_MATERIALS) || '[]'); } catch (e) { return []; } }
+  function saveProcurementMaterials(list) { localStorage.setItem(STORAGE_PROCUREMENT_MATERIALS, JSON.stringify(list)); }
+  function getProcurementSites() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_SITES) || '[]'); } catch (e) { return []; } }
+  function saveProcurementSites(list) { localStorage.setItem(STORAGE_PROCUREMENT_SITES, JSON.stringify(list)); }
+  function getProcurementOrderItems() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_ORDER_ITEMS) || '[]'); } catch (e) { return []; } }
+  function saveProcurementOrderItems(list) { localStorage.setItem(STORAGE_PROCUREMENT_ORDER_ITEMS, JSON.stringify(list)); }
+  function getProcurementStdQty() { try { return JSON.parse(localStorage.getItem(STORAGE_PROCUREMENT_STD_QTY) || '[]'); } catch (e) { return []; } }
+  function saveProcurementStdQty(list) { localStorage.setItem(STORAGE_PROCUREMENT_STD_QTY, JSON.stringify(list)); }
+
+  // =====================================================================
+  // 발주팀 - 발주 항목 자동 생성 (현장 생성 시)
+  // =====================================================================
+  function generateOrderItemsForSite(site) {
+    var existing = getProcurementOrderItems().filter(function (it) { return it.siteId === site.id; });
+    if (existing.length) return;
+    var stdQtys = getProcurementStdQty().filter(function (sq) { return sq.modelName === site.modelName; });
+    var newItems = [];
+    if (stdQtys.length) {
+      stdQtys.forEach(function (sq) {
+        newItems.push({ id: id(), siteId: site.id, vendorName: sq.vendorName, materialName: sq.materialName, spec: sq.spec || '', standardQty: sq.quantity || 0, actualQty: null, unit: sq.unit || '', memo: '', status: '발주전' });
+      });
+    } else {
+      PROCUREMENT_VENDORS.forEach(function (v) {
+        v.materials.forEach(function (mat) {
+          newItems.push({ id: id(), siteId: site.id, vendorName: v.name, materialName: mat, spec: '', standardQty: 0, actualQty: null, unit: '', memo: '', status: '발주전' });
+        });
+      });
+    }
+    saveProcurementOrderItems(getProcurementOrderItems().concat(newItems));
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 현장발주
+  // =====================================================================
+  function renderFieldOrderTab() {
+    var sites = getProcurementSites();
+    var tbody = document.getElementById('tbody-field-orders');
+    if (!tbody) return;
+    tbody.innerHTML = sites.map(function (s) {
+      return '<tr>' +
+        '<td><a href="#" class="po-site-link" data-site-id="' + escapeAttr(s.id) + '">' + escapeHtml(s.siteName) + '</a></td>' +
+        '<td>' + escapeHtml(s.modelName) + '</td>' +
+        '<td>' + (s.pyeong || '-') + '평</td>' +
+        '<td>' + escapeHtml(s.siteAddress || '-') + '</td>' +
+        '<td>' + escapeHtml(s.foremanName || '-') + '</td>' +
+        '<td>' + escapeHtml(s.foremanPhone || '-') + '</td>' +
+        '<td>' + escapeHtml(s.manager || '-') + '</td>' +
+        '<td>' + (s.orderDate || '-') + '</td>' +
+        '<td>' +
+          '<button type="button" class="btn btn-sm btn-secondary btn-edit-field-order" data-id="' + escapeAttr(s.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm btn-danger btn-delete-field-order" data-id="' + escapeAttr(s.id) + '">삭제</button>' +
+        '</td></tr>';
+    }).join('') || '<tr><td colspan="9" class="no-result-msg">현장 발주 데이터가 없습니다. 새 현장 발주를 생성하세요.</td></tr>';
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 업체별발주
+  // =====================================================================
+  function renderVendorOrderTab() {
+    var sites = getProcurementSites();
+    var sel = document.getElementById('vendor-site-selector');
+    if (sel) {
+      var prevVal = activeProcurementSiteId || sel.value;
+      sel.innerHTML = '<option value="">현장 선택</option>' + sites.map(function (s) {
+        return '<option value="' + escapeAttr(s.id) + '"' + (prevVal === s.id ? ' selected' : '') + '>' +
+          escapeHtml(s.siteName) + ' (' + escapeHtml(s.modelName) + ' ' + (s.pyeong || '-') + '평)</option>';
+      }).join('');
+      if (!activeProcurementSiteId && sel.value) activeProcurementSiteId = sel.value;
+    }
+    renderVendorCards();
+  }
+
+  function renderVendorCards() {
+    var grid = document.getElementById('vendor-card-grid');
+    if (!grid) return;
+    var siteId = activeProcurementSiteId;
+    var allItems = getProcurementOrderItems().filter(function (it) { return it.siteId === siteId; });
+    grid.innerHTML = PROCUREMENT_VENDORS.map(function (v) {
+      var vendorItems = allItems.filter(function (it) { return it.vendorName === v.name; });
+      var total = vendorItems.length;
+      var ordered = vendorItems.filter(function (it) { return it.status !== '발주전'; }).length;
+      var statusClass = !siteId ? 'vendor-card-disabled' :
+        ordered === total && total > 0 ? 'vendor-card-done' :
+        ordered > 0 ? 'vendor-card-partial' : 'vendor-card-pending';
+      return '<div class="vendor-card ' + statusClass + '" data-vendor="' + escapeAttr(v.name) + '">' +
+        '<div class="vendor-card-name">' + escapeHtml(v.name) + '</div>' +
+        '<div class="vendor-card-count">' + (siteId ? (ordered + '/' + total + ' 발주') : '현장 선택') + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderVendorItems(siteId, vendorName) {
+    var detail = document.getElementById('vendor-order-detail');
+    var nameEl = document.getElementById('vendor-order-vendor-name');
+    if (!detail || !nameEl) return;
+    if (!siteId) { detail.classList.add('hidden'); return; }
+    detail.classList.remove('hidden');
+    nameEl.textContent = vendorName + ' - 발주 목록';
+    var items = getProcurementOrderItems().filter(function (it) {
+      return it.siteId === siteId && it.vendorName === vendorName;
+    });
+    var tbody = document.getElementById('tbody-vendor-order-items');
+    if (!tbody) return;
+    tbody.innerHTML = items.map(function (item) {
+      var statusSel = '<select class="vendor-item-status-select procurement-status-select" data-id="' + escapeAttr(item.id) + '">' +
+        ORDER_STATUS_OPTIONS.map(function (s) {
+          return '<option value="' + s + '"' + (item.status === s ? ' selected' : '') + '>' + s + '</option>';
+        }).join('') + '</select>';
+      return '<tr>' +
+        '<td>' + escapeHtml(item.materialName) + '</td>' +
+        '<td><input type="text" class="vendor-item-spec-input" data-id="' + escapeAttr(item.id) + '" value="' + escapeAttr(item.spec || '') + '" placeholder="규격" style="width:80px;"></td>' +
+        '<td class="text-right">' + (item.standardQty || 0) + '</td>' +
+        '<td><input type="number" class="vendor-item-qty-input" data-id="' + escapeAttr(item.id) + '" value="' + (item.actualQty != null ? item.actualQty : '') + '" placeholder="-" min="0" step="0.01" style="width:70px;"></td>' +
+        '<td><input type="text" class="vendor-item-unit-input" data-id="' + escapeAttr(item.id) + '" value="' + escapeAttr(item.unit || '') + '" placeholder="단위" style="width:55px;"></td>' +
+        '<td>' + statusSel + '</td>' +
+        '<td><input type="text" class="vendor-item-memo-input" data-id="' + escapeAttr(item.id) + '" value="' + escapeAttr(item.memo || '') + '" placeholder="비고" style="width:100px;"></td>' +
+        '</tr>';
+    }).join('') || '<tr><td colspan="7" class="no-result-msg">발주 항목이 없습니다.</td></tr>';
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 기준수량관리
+  // =====================================================================
+  function renderStdQtyTab() {
+    var stdQtys = getProcurementStdQty();
+    var modelFilter = ((document.getElementById('sq-model-filter') || {}).value || '').toLowerCase();
+    var vendorFilter = (document.getElementById('sq-vendor-filter') || {}).value || '';
+    if (modelFilter) stdQtys = stdQtys.filter(function (sq) { return (sq.modelName || '').toLowerCase().indexOf(modelFilter) !== -1; });
+    if (vendorFilter) stdQtys = stdQtys.filter(function (sq) { return sq.vendorName === vendorFilter; });
+    var groups = {};
+    stdQtys.forEach(function (sq) {
+      var key = (sq.modelName || '') + '||' + (sq.vendorName || '');
+      if (!groups[key]) groups[key] = { modelName: sq.modelName, vendorName: sq.vendorName, items: [] };
+      groups[key].items.push(sq);
+    });
+    var container = document.getElementById('std-qty-list');
+    if (!container) return;
+    var keys = Object.keys(groups);
+    if (!keys.length) { container.innerHTML = '<p class="no-result-msg">기준 수량 데이터가 없습니다.</p>'; return; }
+    container.innerHTML = keys.map(function (k) {
+      var g = groups[k];
+      var rows = g.items.map(function (sq) {
+        return '<tr>' +
+          '<td>' + escapeHtml(sq.materialName || '-') + '</td>' +
+          '<td>' + escapeHtml(sq.spec || '-') + '</td>' +
+          '<td class="text-right">' + (sq.quantity || 0) + '</td>' +
+          '<td>' + escapeHtml(sq.unit || '-') + '</td>' +
+          '<td><button type="button" class="btn btn-sm btn-danger btn-delete-std-qty" data-id="' + escapeAttr(sq.id) + '">삭제</button></td>' +
+          '</tr>';
+      }).join('');
+      return '<div class="procurement-model-group">' +
+        '<div class="procurement-model-header">' +
+          '<strong>' + escapeHtml(g.modelName) + '</strong>' +
+          '<span class="procurement-model-meta">' + escapeHtml(g.vendorName) + '</span>' +
+          '<span class="procurement-model-cost">' + g.items.length + '개 자재</span>' +
+        '</div>' +
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr><th>자재명</th><th>규격</th><th>기준 수량</th><th>단위</th><th>작업</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
+    }).join('');
+  }
+
+  function populateSqMaterialSelect(vendorName) {
+    var sel = document.getElementById('sq-material');
+    if (!sel) return;
+    var v = PROCUREMENT_VENDORS.find(function (vv) { return vv.name === vendorName; });
+    sel.innerHTML = '<option value="">자재 선택</option>' + (v ? v.materials : []).map(function (m) {
+      return '<option value="' + escapeAttr(m) + '">' + escapeHtml(m) + '</option>';
+    }).join('');
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 자재관리
+  // =====================================================================
+  function renderMaterialsTab() {
+    var materials = getProcurementMaterials();
+    var keyword = ((document.getElementById('material-search') || {}).value || '').toLowerCase();
+    var vendorFilter = (document.getElementById('material-vendor-filter') || {}).value || '';
+    if (keyword) materials = materials.filter(function (m) {
+      return (m.name || '').toLowerCase().indexOf(keyword) !== -1 || (m.vendor || '').toLowerCase().indexOf(keyword) !== -1;
+    });
+    if (vendorFilter) materials = materials.filter(function (m) { return m.vendor === vendorFilter; });
+    var tbody = document.getElementById('tbody-materials');
+    if (!tbody) return;
+    tbody.innerHTML = materials.map(function (m) {
+      return '<tr>' +
+        '<td>' + escapeHtml(m.name || '') + '</td>' +
+        '<td>' + escapeHtml(m.vendor || '-') + '</td>' +
+        '<td>' + escapeHtml(m.unit || '-') + '</td>' +
+        '<td>' + escapeHtml(m.spec || '-') + '</td>' +
+        '<td class="text-right">' + (m.price ? formatMoney(m.price) + '원' : '-') + '</td>' +
+        '<td>' +
+          '<button type="button" class="btn btn-sm btn-secondary btn-edit-material" data-id="' + escapeAttr(m.id) + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm btn-danger btn-delete-material" data-id="' + escapeAttr(m.id) + '">삭제</button>' +
+        '</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="no-result-msg">자재 데이터가 없습니다.</td></tr>';
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 평당자재분석
+  // =====================================================================
+  function renderPyeongAnalysisTab() {
+    var stdQtys = getProcurementStdQty();
+    var sel = document.getElementById('pyeong-model-select');
+    if (sel) {
+      var models = [];
+      stdQtys.forEach(function (sq) { if (models.indexOf(sq.modelName) === -1) models.push(sq.modelName); });
+      var prevVal = sel.value;
+      sel.innerHTML = '<option value="">모델 선택</option>' + models.map(function (m) {
+        return '<option value="' + escapeAttr(m) + '"' + (prevVal === m ? ' selected' : '') + '>' + escapeHtml(m) + '</option>';
+      }).join('');
+    }
+    renderPyeongAnalysisResult(sel ? sel.value : '');
+  }
+
+  function renderPyeongAnalysisResult(modelName) {
+    var el = document.getElementById('pyeong-analysis-result');
+    if (!el) return;
+    if (!modelName) { el.innerHTML = '<p class="no-result-msg">모델을 선택하세요.</p>'; return; }
+    var stdQtys = getProcurementStdQty().filter(function (sq) { return sq.modelName === modelName; });
+    var sites = getProcurementSites().filter(function (s) { return s.modelName === modelName; });
+    var pyeong = sites.length ? sites[0].pyeong : 0;
+    if (!stdQtys.length) { el.innerHTML = '<p class="no-result-msg">해당 모델의 기준 수량이 없습니다.</p>'; return; }
+    var vendorGroups = {};
+    stdQtys.forEach(function (sq) {
+      if (!vendorGroups[sq.vendorName]) vendorGroups[sq.vendorName] = [];
+      vendorGroups[sq.vendorName].push(sq);
+    });
+    el.innerHTML = Object.keys(vendorGroups).map(function (vName) {
+      var items = vendorGroups[vName];
+      var rows = items.map(function (sq) {
+        var perPyeong = pyeong > 0 ? (sq.quantity / pyeong).toFixed(2) : '-';
+        return '<tr>' +
+          '<td>' + escapeHtml(sq.materialName) + '</td>' +
+          '<td>' + escapeHtml(sq.unit || '-') + '</td>' +
+          '<td class="text-right">' + (sq.quantity || 0) + '</td>' +
+          '<td class="text-right procurement-highlight">' + perPyeong + (pyeong > 0 ? ' / 평' : '') + '</td>' +
+          '</tr>';
+      }).join('');
+      return '<div class="procurement-model-group" style="margin-bottom:1rem;">' +
+        '<div class="procurement-model-header">' +
+          '<strong>' + escapeHtml(vName) + '</strong>' +
+          (pyeong ? '<span class="procurement-model-meta">' + escapeHtml(modelName) + ' ' + pyeong + '평 기준</span>' : '') +
+        '</div>' +
+        '<div class="table-wrap"><table class="data-table">' +
+          '<thead><tr><th>자재명</th><th>단위</th><th>기준 수량</th><th>평당 사용량</th></tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table></div></div>';
+    }).join('');
+  }
+
+  // =====================================================================
+  // 발주팀 - Tab: 발주서출력
+  // =====================================================================
+  function renderOrderPrintTab() {
+    var sites = getProcurementSites();
+    var siteSel = document.getElementById('print-site-select');
+    if (siteSel) {
+      var prevVal = siteSel.value;
+      siteSel.innerHTML = '<option value="">현장 선택</option>' + sites.map(function (s) {
+        return '<option value="' + escapeAttr(s.id) + '"' + (prevVal === s.id ? ' selected' : '') + '>' + escapeHtml(s.siteName) + '</option>';
+      }).join('');
+      if (prevVal) siteSel.value = prevVal;
+    }
+    renderOrderPrintPreview();
+  }
+
+  function renderOrderPrintPreview() {
+    var siteId = (document.getElementById('print-site-select') || {}).value || '';
+    var vendorName = (document.getElementById('print-vendor-select') || {}).value || '';
+    var el = document.getElementById('order-print-preview');
+    if (!el) return;
+    if (!siteId || !vendorName) {
+      el.innerHTML = '<p class="no-result-msg">현장과 업체를 선택하면 발주서 미리보기가 표시됩니다.</p>';
+      return;
+    }
+    var site = getProcurementSites().find(function (s) { return s.id === siteId; });
+    if (!site) { el.innerHTML = '<p class="no-result-msg">현장 정보를 찾을 수 없습니다.</p>'; return; }
+    var items = getProcurementOrderItems().filter(function (it) { return it.siteId === siteId && it.vendorName === vendorName; });
+    var today = new Date();
+    var dateStr = site.orderDate || (today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0'));
+    var rowsHtml = items.map(function (item, i) {
+      var qty = item.actualQty != null ? item.actualQty : item.standardQty;
+      return '<tr>' +
+        '<td style="text-align:center;">' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(item.materialName) + '</td>' +
+        '<td>' + escapeHtml(item.spec || '') + '</td>' +
+        '<td style="text-align:center;">' + (qty || '') + '</td>' +
+        '<td>' + escapeHtml(item.unit || '') + '</td>' +
+        '<td>' + escapeHtml(item.memo || '') + '</td>' +
+        '</tr>';
+    }).join('');
+    el.innerHTML =
+      '<div class="order-form-sheet" id="order-form-printable">' +
+        '<div class="order-form-title">자  재  발  주  서</div>' +
+        '<div class="order-form-meta-grid">' +
+          '<div class="order-form-meta-row"><span class="order-form-label">발주업체</span><span class="order-form-value">' + escapeHtml(vendorName) + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">현장주소</span><span class="order-form-value">' + escapeHtml(site.siteAddress || '-') + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">발 주 일</span><span class="order-form-value">' + dateStr + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">반  장</span><span class="order-form-value">' + escapeHtml(site.foremanName || '-') + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">연락처</span><span class="order-form-value">' + escapeHtml(site.foremanPhone || '-') + '</span></div>' +
+          '<div class="order-form-meta-row"><span class="order-form-label">담당자</span><span class="order-form-value">' + escapeHtml(site.manager || '-') + '</span></div>' +
+        '</div>' +
+        '<table class="order-form-table">' +
+          '<thead><tr><th style="width:5%">No.</th><th style="width:30%">품목</th><th style="width:25%">규격</th><th style="width:12%">수량</th><th style="width:10%">단위</th><th style="width:18%">비고</th></tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>' +
+        '<div class="order-form-footer">모델명: ' + escapeHtml(site.modelName || '-') + '  /  ' + (site.pyeong || '-') + '평</div>' +
+      '</div>';
+  }
+
+  // =====================================================================
+  // 발주팀 - Main Render & Event Init
+  // =====================================================================
+  var procurementInitialized = false;
+
+  function renderProcurement() {
+    renderFieldOrderTab();
+    renderVendorOrderTab();
+    renderStdQtyTab();
+    renderMaterialsTab();
+    renderPyeongAnalysisTab();
+    renderOrderPrintTab();
+    if (!procurementInitialized) {
+      procurementInitialized = true;
+      initProcurementEvents();
+    }
+  }
+
+  function initProcurementEvents() {
+    // ---- 탭 전환 ----
+    document.querySelectorAll('.procurement-tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
+        btn.classList.add('active');
+        var panel = document.getElementById('procurement-tab-' + btn.getAttribute('data-tab'));
+        if (panel) { panel.classList.remove('hidden'); panel.classList.add('active'); }
+        var tab = btn.getAttribute('data-tab');
+        if (tab === 'vendor-order') renderVendorOrderTab();
+        if (tab === 'std-qty') renderStdQtyTab();
+        if (tab === 'pyeong-analysis') renderPyeongAnalysisTab();
+        if (tab === 'print') renderOrderPrintTab();
+      });
+    });
+
+    // ---- 현장발주 ----
+    var btnNewFO = document.getElementById('btn-new-field-order');
+    if (btnNewFO) btnNewFO.addEventListener('click', function () {
+      document.getElementById('field-order-edit-id').value = '';
+      document.getElementById('form-field-order').reset();
+      document.getElementById('field-order-form-wrap').classList.remove('hidden');
+    });
+    var btnCancelFO = document.getElementById('btn-cancel-field-order');
+    if (btnCancelFO) btnCancelFO.addEventListener('click', function () {
+      document.getElementById('field-order-form-wrap').classList.add('hidden');
+    });
+    var formFO = document.getElementById('form-field-order');
+    if (formFO) formFO.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('field-order-edit-id').value;
+      var siteData = {
+        siteName: document.getElementById('fo-site-name').value.trim(),
+        modelName: document.getElementById('fo-model-name').value.trim(),
+        pyeong: parseFloat(document.getElementById('fo-pyeong').value) || 0,
+        siteAddress: document.getElementById('fo-address').value.trim(),
+        foremanName: document.getElementById('fo-foreman').value.trim(),
+        foremanPhone: document.getElementById('fo-foreman-phone').value.trim(),
+        manager: document.getElementById('fo-manager').value.trim(),
+        orderDate: document.getElementById('fo-order-date').value,
+        createdAt: new Date().toISOString()
+      };
+      if (!siteData.siteName || !siteData.modelName) return;
+      var sites = getProcurementSites();
+      if (editId) {
+        sites = sites.map(function (s) { return s.id === editId ? Object.assign({}, s, siteData) : s; });
+        saveProcurementSites(sites);
+      } else {
+        siteData.id = id();
+        sites.push(siteData);
+        saveProcurementSites(sites);
+        generateOrderItemsForSite(siteData);
+      }
+      document.getElementById('field-order-form-wrap').classList.add('hidden');
+      renderFieldOrderTab();
+      showToast(editId ? '수정됐습니다.' : '현장 발주가 생성됐습니다. 업체별발주 탭에서 자재를 확인하세요.');
+    });
+
+    var tbodyFO = document.getElementById('tbody-field-orders');
+    if (tbodyFO) tbodyFO.addEventListener('click', function (e) {
+      var editBtn = e.target.closest('.btn-edit-field-order');
+      var delBtn = e.target.closest('.btn-delete-field-order');
+      var siteLink = e.target.closest('.po-site-link');
+      if (siteLink) {
+        e.preventDefault();
+        activeProcurementSiteId = siteLink.getAttribute('data-site-id');
+        document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
+        var vBtn = document.querySelector('.procurement-tab-btn[data-tab="vendor-order"]');
+        if (vBtn) vBtn.classList.add('active');
+        var vPanel = document.getElementById('procurement-tab-vendor-order');
+        if (vPanel) { vPanel.classList.remove('hidden'); vPanel.classList.add('active'); }
+        renderVendorOrderTab();
+      }
+      if (editBtn) {
+        var sid = editBtn.getAttribute('data-id');
+        var site = getProcurementSites().find(function (s) { return s.id === sid; });
+        if (!site) return;
+        document.getElementById('field-order-edit-id').value = site.id;
+        document.getElementById('fo-site-name').value = site.siteName || '';
+        document.getElementById('fo-model-name').value = site.modelName || '';
+        document.getElementById('fo-pyeong').value = site.pyeong || '';
+        document.getElementById('fo-address').value = site.siteAddress || '';
+        document.getElementById('fo-foreman').value = site.foremanName || '';
+        document.getElementById('fo-foreman-phone').value = site.foremanPhone || '';
+        document.getElementById('fo-manager').value = site.manager || '';
+        document.getElementById('fo-order-date').value = site.orderDate || '';
+        document.getElementById('field-order-form-wrap').classList.remove('hidden');
+      }
+      if (delBtn) {
+        if (!confirm('현장 발주를 삭제하면 발주 항목도 모두 삭제됩니다.')) return;
+        var did = delBtn.getAttribute('data-id');
+        saveProcurementSites(getProcurementSites().filter(function (s) { return s.id !== did; }));
+        saveProcurementOrderItems(getProcurementOrderItems().filter(function (it) { return it.siteId !== did; }));
+        if (activeProcurementSiteId === did) activeProcurementSiteId = '';
+        renderFieldOrderTab();
+        showToast('삭제됐습니다.');
+      }
+    });
+
+    // ---- 업체별발주 ----
+    var vendorSiteSel = document.getElementById('vendor-site-selector');
+    if (vendorSiteSel) vendorSiteSel.addEventListener('change', function () {
+      activeProcurementSiteId = vendorSiteSel.value;
+      activeVendorName = '';
+      document.getElementById('vendor-order-detail').classList.add('hidden');
+      renderVendorCards();
+    });
+
+    var vendorGrid = document.getElementById('vendor-card-grid');
+    if (vendorGrid) vendorGrid.addEventListener('click', function (e) {
+      var card = e.target.closest('.vendor-card');
+      if (!card) return;
+      if (!activeProcurementSiteId) { showToast('현장을 먼저 선택하세요.', 'error'); return; }
+      activeVendorName = card.getAttribute('data-vendor');
+      renderVendorItems(activeProcurementSiteId, activeVendorName);
+    });
+
+    var btnCloseVD = document.getElementById('btn-close-vendor-detail');
+    if (btnCloseVD) btnCloseVD.addEventListener('click', function () {
+      document.getElementById('vendor-order-detail').classList.add('hidden');
+      activeVendorName = '';
+    });
+
+    var btnPrintVO = document.getElementById('btn-print-vendor-order');
+    if (btnPrintVO) btnPrintVO.addEventListener('click', function () {
+      document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
+      var pBtn = document.querySelector('.procurement-tab-btn[data-tab="print"]');
+      if (pBtn) pBtn.classList.add('active');
+      var pPanel = document.getElementById('procurement-tab-print');
+      if (pPanel) { pPanel.classList.remove('hidden'); pPanel.classList.add('active'); }
+      renderOrderPrintTab();
+      setTimeout(function () {
+        var pss = document.getElementById('print-site-select');
+        var pvs = document.getElementById('print-vendor-select');
+        if (pss) pss.value = activeProcurementSiteId;
+        if (pvs) pvs.value = activeVendorName;
+        renderOrderPrintPreview();
+      }, 50);
+    });
+
+    // 발주 항목 인라인 편집 (이벤트 위임)
+    var vendorDetail = document.getElementById('vendor-order-detail');
+    if (vendorDetail) {
+      vendorDetail.addEventListener('change', function (e) {
+        var statusSel = e.target.closest('.vendor-item-status-select');
+        if (statusSel) {
+          var iid = statusSel.getAttribute('data-id');
+          saveProcurementOrderItems(getProcurementOrderItems().map(function (it) {
+            return it.id === iid ? Object.assign({}, it, { status: statusSel.value }) : it;
+          }));
+          renderVendorCards();
+          showToast('상태가 변경됐습니다.');
+        }
+      });
+      vendorDetail.addEventListener('blur', function (e) {
+        var qtyInput = e.target.closest('.vendor-item-qty-input');
+        var specInput = e.target.closest('.vendor-item-spec-input');
+        var unitInput = e.target.closest('.vendor-item-unit-input');
+        var memoInput = e.target.closest('.vendor-item-memo-input');
+        var target = qtyInput || specInput || unitInput || memoInput;
+        if (!target) return;
+        var iid = target.getAttribute('data-id');
+        saveProcurementOrderItems(getProcurementOrderItems().map(function (it) {
+          if (it.id !== iid) return it;
+          var upd = Object.assign({}, it);
+          if (qtyInput) upd.actualQty = parseFloat(qtyInput.value) || 0;
+          if (specInput) upd.spec = specInput.value;
+          if (unitInput) upd.unit = unitInput.value;
+          if (memoInput) upd.memo = memoInput.value;
+          return upd;
+        }));
+      }, true);
+    }
+
+    // ---- 기준수량관리 ----
+    var btnAddSQ = document.getElementById('btn-add-std-qty');
+    if (btnAddSQ) btnAddSQ.addEventListener('click', function () {
+      document.getElementById('std-qty-edit-id').value = '';
+      document.getElementById('form-std-qty').reset();
+      populateSqMaterialSelect('');
+      document.getElementById('std-qty-form-wrap').classList.remove('hidden');
+    });
+    var btnCancelSQ = document.getElementById('btn-cancel-std-qty');
+    if (btnCancelSQ) btnCancelSQ.addEventListener('click', function () {
+      document.getElementById('std-qty-form-wrap').classList.add('hidden');
+    });
+    var sqVendorSel = document.getElementById('sq-vendor');
+    if (sqVendorSel) sqVendorSel.addEventListener('change', function () {
+      populateSqMaterialSelect(sqVendorSel.value);
+    });
+    var formSQ = document.getElementById('form-std-qty');
+    if (formSQ) formSQ.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var modelName = document.getElementById('sq-model').value.trim();
+      var vendorName = document.getElementById('sq-vendor').value;
+      var materialName = document.getElementById('sq-material').value;
+      var qty = parseFloat(document.getElementById('sq-qty').value) || 0;
+      var unit = document.getElementById('sq-unit').value.trim();
+      var spec = document.getElementById('sq-spec').value.trim();
+      if (!modelName || !vendorName || !materialName) return;
+      var list = getProcurementStdQty();
+      list.push({ id: id(), modelName: modelName, vendorName: vendorName, materialName: materialName, quantity: qty, unit: unit, spec: spec });
+      saveProcurementStdQty(list);
+      document.getElementById('std-qty-form-wrap').classList.add('hidden');
+      renderStdQtyTab();
+      showToast('기준 수량이 저장됐습니다.');
+    });
+    var sqModelFilter = document.getElementById('sq-model-filter');
+    if (sqModelFilter) sqModelFilter.addEventListener('input', renderStdQtyTab);
+    var sqVendorFilter = document.getElementById('sq-vendor-filter');
+    if (sqVendorFilter) sqVendorFilter.addEventListener('change', renderStdQtyTab);
+    var stdQtyList = document.getElementById('std-qty-list');
+    if (stdQtyList) stdQtyList.addEventListener('click', function (e) {
+      var delBtn = e.target.closest('.btn-delete-std-qty');
+      if (delBtn) {
+        if (!confirm('기준 수량을 삭제하시겠습니까?')) return;
+        saveProcurementStdQty(getProcurementStdQty().filter(function (sq) { return sq.id !== delBtn.getAttribute('data-id'); }));
+        renderStdQtyTab();
+        showToast('삭제됐습니다.');
+      }
+    });
+
+    // ---- 자재관리 ----
+    var btnAddMat = document.getElementById('btn-add-material');
+    if (btnAddMat) btnAddMat.addEventListener('click', function () {
+      document.getElementById('material-edit-id').value = '';
+      document.getElementById('form-material').reset();
+      document.getElementById('material-form-wrap').classList.remove('hidden');
+    });
+    var btnCancelMat = document.getElementById('btn-cancel-material');
+    if (btnCancelMat) btnCancelMat.addEventListener('click', function () {
+      document.getElementById('material-form-wrap').classList.add('hidden');
+    });
+    var formMat = document.getElementById('form-material');
+    if (formMat) formMat.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('material-edit-id').value;
+      var matData = {
+        name: document.getElementById('material-name').value.trim(),
+        vendor: document.getElementById('material-vendor-name').value,
+        unit: document.getElementById('material-unit').value.trim(),
+        spec: document.getElementById('material-spec').value.trim(),
+        price: parseFloat(document.getElementById('material-price').value) || 0
+      };
+      if (!matData.name) return;
+      var mats = getProcurementMaterials();
+      if (editId) {
+        mats = mats.map(function (m) { return m.id === editId ? Object.assign({}, m, matData) : m; });
+      } else {
+        matData.id = id();
+        mats.push(matData);
+      }
+      saveProcurementMaterials(mats);
+      document.getElementById('material-form-wrap').classList.add('hidden');
+      renderMaterialsTab();
+      showToast('자재가 저장됐습니다.');
+    });
+    var matSearch = document.getElementById('material-search');
+    if (matSearch) matSearch.addEventListener('input', renderMaterialsTab);
+    var matVendorFilter = document.getElementById('material-vendor-filter');
+    if (matVendorFilter) matVendorFilter.addEventListener('change', renderMaterialsTab);
+    var tbodyMats = document.getElementById('tbody-materials');
+    if (tbodyMats) tbodyMats.addEventListener('click', function (e) {
+      var editBtn = e.target.closest('.btn-edit-material');
+      var delBtn = e.target.closest('.btn-delete-material');
+      if (editBtn) {
+        var mid = editBtn.getAttribute('data-id');
+        var mat = getProcurementMaterials().find(function (m) { return m.id === mid; });
+        if (!mat) return;
+        document.getElementById('material-edit-id').value = mat.id;
+        document.getElementById('material-name').value = mat.name || '';
+        document.getElementById('material-vendor-name').value = mat.vendor || '';
+        document.getElementById('material-unit').value = mat.unit || '';
+        document.getElementById('material-spec').value = mat.spec || '';
+        document.getElementById('material-price').value = mat.price || 0;
+        document.getElementById('material-form-wrap').classList.remove('hidden');
+      }
+      if (delBtn) {
+        if (!confirm('자재를 삭제하시겠습니까?')) return;
+        saveProcurementMaterials(getProcurementMaterials().filter(function (m) { return m.id !== delBtn.getAttribute('data-id'); }));
+        renderMaterialsTab();
+        showToast('삭제됐습니다.');
+      }
+    });
+
+    // ---- 평당자재분석 ----
+    var pyeongModelSel = document.getElementById('pyeong-model-select');
+    if (pyeongModelSel) pyeongModelSel.addEventListener('change', function () {
+      renderPyeongAnalysisResult(pyeongModelSel.value);
+    });
+
+    // ---- 발주서출력 ----
+    var printSiteSel = document.getElementById('print-site-select');
+    if (printSiteSel) printSiteSel.addEventListener('change', renderOrderPrintPreview);
+    var printVendorSel = document.getElementById('print-vendor-select');
+    if (printVendorSel) printVendorSel.addEventListener('change', renderOrderPrintPreview);
+    var btnDoPrint = document.getElementById('btn-do-print');
+    if (btnDoPrint) btnDoPrint.addEventListener('click', function () {
+      var printable = document.getElementById('order-form-printable');
+      if (!printable) { showToast('현장과 업체를 선택하세요.', 'error'); return; }
+      var w = window.open('', '_blank', 'width=800,height=1000');
+      if (!w) return;
+      w.document.write(
+        '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>자재 발주서</title>' +
+        '<style>body{font-family:"맑은 고딕",sans-serif;background:#fff;color:#111;margin:0;padding:24px;max-width:800px;}' +
+        '.order-form-title{text-align:center;font-size:22px;font-weight:bold;margin-bottom:20px;letter-spacing:6px;border-bottom:2px solid #111;padding-bottom:10px;}' +
+        '.order-form-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;margin-bottom:18px;border:1px solid #ccc;padding:12px;}' +
+        '.order-form-meta-row{display:flex;gap:12px;align-items:flex-end;}' +
+        '.order-form-label{font-weight:600;min-width:70px;color:#333;font-size:13px;}' +
+        '.order-form-value{border-bottom:1px solid #888;flex:1;padding-bottom:2px;font-size:14px;}' +
+        'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #999;padding:7px 9px;font-size:13px;}' +
+        'th{background:#f5f5f5;text-align:center;font-weight:600;}' +
+        '.order-form-footer{margin-top:14px;font-size:12px;color:#666;text-align:right;}' +
+        '@media print{body{padding:10px;}}</style>' +
+        '</head><body>' + printable.outerHTML + '</body></html>'
+      );
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 300);
+    });
+  }
+
   function renderSettlement() {
     var contracts = filterByShowroom(getContracts(), 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
@@ -4182,7 +5799,7 @@
       var p3 = paymentCellWithConfirm(c, 'progress3');
       var balance = paymentCellWithConfirm(c, 'balance');
       var summary = paymentSummaryHtml(c);
-      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(c.totalAmount) + '원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
+      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000))) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
     }).join('') || '<tr><td colspan="10">정산 데이터가 없습니다.</td></tr>';
     renderSettlementIncentive();
   }
@@ -4250,7 +5867,8 @@
     var leaveSelect = document.getElementById('leave-employee-id');
     if (tbodyEmp) {
       tbodyEmp.innerHTML = employees.map(function (e) {
-        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
+        var permLabel = e.permission === 'manager' ? '매니저' : (e.permission === 'admin' ? '관리자' : '-');
+        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + permLabel + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
       }).join('') || '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
     }
     if (leaveSelect) {
@@ -4333,6 +5951,62 @@
 
   function saveCeoReports(reports) {
     localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(reports));
+    try {
+      var supa = window.seumSupabase;
+      if (!supa || !Array.isArray(reports)) return;
+      var rows = reports.map(function (r) {
+        return {
+          local_id: r.id || null,
+          report_type: r.type || null,
+          report_date: r.date || null,
+          title: r.title || null,
+          author: r.author || null,
+          content: r.content || null,
+          fields: r.fields || null,
+          payload: r
+        };
+      });
+      supa.from('ceo_reports').upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) { if (res && res.error) console.error('Supabase ceo_reports sync error:', res.error); })
+        .catch(function (err) { console.error('Supabase ceo_reports sync failed:', err); });
+    } catch (e) { console.error('saveCeoReports exception:', e); }
+  }
+
+  function deleteCeoReportFromSupabase(localId) {
+    try {
+      var supa = window.seumSupabase;
+      if (supa && localId) {
+        supa.from('ceo_reports').delete().eq('local_id', localId)
+          .then(function (res) { if (res && res.error) console.error('Supabase ceo_reports delete error:', res.error); })
+          .catch(function (err) { console.error('Supabase ceo_reports delete failed:', err); });
+      }
+    } catch (e) { console.error('deleteCeoReportFromSupabase exception:', e); }
+  }
+
+  function syncCeoReportsFromSupabase() {
+    try {
+      var supa = window.seumSupabase;
+      if (!supa) return;
+      supa.from('ceo_reports').select('local_id,payload').order('created_at', { ascending: false })
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('Supabase ceo_reports load error:', res.error);
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            if (row.payload && typeof row.payload === 'object') return row.payload;
+            try { return JSON.parse(row.payload); } catch (e) { return null; }
+          }).filter(Boolean);
+          var local = getCeoReports();
+          var merged = {};
+          remote.forEach(function (r) { if (r.id) merged[r.id] = r; });
+          local.forEach(function (r) { if (r.id && !merged[r.id]) merged[r.id] = r; });
+          var result = Object.values(merged);
+          localStorage.setItem(STORAGE_CEO_REPORTS, JSON.stringify(result));
+          ['daily', 'weekly', 'monthly'].forEach(function (t) { renderCeoReport(t); });
+        })
+        .catch(function (err) { console.error('syncCeoReportsFromSupabase failed:', err); });
+    } catch (e) { console.error('syncCeoReportsFromSupabase exception:', e); }
   }
 
   function esc(str) {
@@ -4451,6 +6125,43 @@
       return (c.customerName || c.name || '고객') + ' (' + (c.showroom || c.showroomId || '-') + ')';
     });
 
+    // 오늘 시공 보고 (업무일지)
+    var cwLogs = getConstructionWorklog();
+    var cwToday10 = today.toISOString().slice(0, 10);
+    var cwSites = {};
+    cwLogs.forEach(function (l) {
+      if (!l.siteName) return;
+      if (!cwSites[l.siteName] || l.date > cwSites[l.siteName].date) cwSites[l.siteName] = l;
+    });
+    var cwSiteArr = Object.keys(cwSites).map(function (k) { return cwSites[k]; });
+    var cwActiveCount = cwSiteArr.filter(function (l) { return l.process !== '완료'; }).length;
+    var cwDoneCount = cwSiteArr.filter(function (l) { return l.process === '완료'; }).length;
+    var cwIssueCount = cwSiteArr.filter(function (l) { return l.issues && l.issues.trim(); }).length;
+    var cwTodayCount = cwLogs.filter(function (l) { return l.date === cwToday10; }).length;
+    var elCwA = document.getElementById('ceo-db-cw-active'); if (elCwA) elCwA.textContent = cwActiveCount;
+    var elCwD = document.getElementById('ceo-db-cw-done'); if (elCwD) elCwD.textContent = cwDoneCount;
+    var elCwI = document.getElementById('ceo-db-cw-issues'); if (elCwI) elCwI.textContent = cwIssueCount;
+    var elCwT = document.getElementById('ceo-db-cw-today'); if (elCwT) elCwT.textContent = cwTodayCount;
+
+    var cwTodayLogs = cwLogs.filter(function (l) { return l.date === cwToday10; });
+    var cwTbody = document.getElementById('ceo-db-cw-today-tbody');
+    if (cwTbody) {
+      if (!cwTodayLogs.length) {
+        cwTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:1rem;">오늘 보고된 현장이 없습니다.</td></tr>';
+      } else {
+        cwTbody.innerHTML = cwTodayLogs.map(function (l) {
+          var pct = Math.min(100, Math.max(0, Number(l.progress) || 0));
+          return '<tr>' +
+            '<td>' + escapeHtml(l.siteName || '-') + '</td>' +
+            '<td>' + escapeHtml(l.process || '-') + '</td>' +
+            '<td>' + pct + '%</td>' +
+            '<td>' + (l.crew || '-') + '명</td>' +
+            '<td>' + (l.issues && l.issues.trim() ? '<span style="color:#ef4444;font-weight:600;">⚠ ' + escapeHtml(l.issues.slice(0, 30)) + '</span>' : '-') + '</td>' +
+          '</tr>';
+        }).join('');
+      }
+    }
+
     // 더미 데이터: 실 데이터가 없을 때 예시 표시
     if (!allContracts.length) {
       if (elTotal) elTotal.textContent = '8.40억';
@@ -4537,7 +6248,7 @@
     }
 
     var monthContracts = allContracts.filter(function (c) { return (c.contractDate || '').slice(0, 7) === thisMonth; });
-    var monthSales = monthContracts.reduce(function (s, c) { return s + (Number(c.totalAmount) || 0); }, 0);
+    var monthSales = monthContracts.reduce(function (s, c) { var v = Number(c.totalAmount) || 0; return s + (c.amountUnit === 'manwon' ? v : Math.round(v / 10000)); }, 0);
     var monthVisits = allVisits.filter(function (v) { return (v.visitDate || '').slice(0, 7) === thisMonth; }).length;
 
     var goals = getKpiGoals ? getKpiGoals() : {};
@@ -4561,18 +6272,35 @@
     var cActive = allContracts.filter(function (c) { var p = c.constructionProgress || ''; return p === '착공' || p === '진행중'; }).length;
     var cDone = allContracts.filter(function (c) { return c.constructionProgress === '완료'; }).length;
 
-    // 입금
-    var depOk = allContracts.filter(function (c) { return c.depositConfirmed; }).length;
+    // 입금 건수
+    var depOk = allContracts.filter(function (c) { return !!(c.depositConfirmed || c.depositReceivedAt); }).length;
     var progPend = allContracts.filter(function (c) {
       return (c.progress1Amount && !c.progress1Confirmed) || (c.progress2Amount && !c.progress2Confirmed) || (c.progress3Amount && !c.progress3Confirmed);
     }).length;
     var balPend = allContracts.filter(function (c) { return c.balanceAmount && !c.balanceConfirmed; }).length;
     var unpaid = allContracts.filter(function (c) { return c.depositAmount && !c.depositConfirmed; }).length;
 
+    // 입금 금액 (paymentCellWithConfirm과 동일한 단위 정규화 사용)
+    function _normPay(c, field) { var v = Number(c[field]) || 0; return c.amountUnit === 'manwon' ? v : Math.round(v / 10000); }
+    // depositReceivedAt이 있으면 수령 완료로 간주 (paymentCellWithConfirm과 동일 로직)
+    function _depConfirmed(c) { return !!(c.depositConfirmed || c.depositReceivedAt); }
+    var depAmt = 0, depUnpaidAmt = 0, progPendAmt = 0, balPendAmt = 0, totalCollected = 0, totalUnpaid = 0;
+    allContracts.forEach(function (c) {
+      var dA = _normPay(c, 'depositAmount');
+      if (_depConfirmed(c)) { depAmt += dA; totalCollected += dA; }
+      else if (c.depositAmount) { depUnpaidAmt += dA; totalUnpaid += dA; }
+      ['progress1', 'progress2', 'progress3'].forEach(function (p) {
+        var pA = _normPay(c, p + 'Amount');
+        if (pA) { if (c[p + 'Confirmed']) { totalCollected += pA; } else { progPendAmt += pA; totalUnpaid += pA; } }
+      });
+      var bA = _normPay(c, 'balanceAmount');
+      if (bA) { if (c.balanceConfirmed) { totalCollected += bA; } else { balPendAmt += bA; totalUnpaid += bA; } }
+    });
+
     return {
       periodContract: periodContracts.length + '건',
       monthContract: monthContracts.length + '건',
-      monthSales: (monthSales / 10000).toFixed(0) + '만원',
+      monthSales: formatMoney(monthSales) + '만원',
       goalRate: rateC,
       srHq: srCounts.headquarters + '건',
       sr1: srCounts.showroom1 + '건',
@@ -4589,9 +6317,15 @@
       constActive: cActive + '건',
       constDone: cDone + '건',
       payDeposit: depOk + '건',
+      payDepAmt: formatMoney(depAmt) + '만원',
       payProgress: progPend + '건',
+      payProgAmt: formatMoney(progPendAmt) + '만원',
       payBalance: balPend + '건',
-      payUnpaid: unpaid + '건'
+      payBalAmt: formatMoney(balPendAmt) + '만원',
+      payUnpaid: unpaid + '건',
+      payUnpaidAmt: formatMoney(depUnpaidAmt) + '만원',
+      payMonthTotal: formatMoney(totalCollected) + '만원',
+      payTotalUnpaid: formatMoney(totalUnpaid) + '만원'
     };
   }
 
@@ -4626,9 +6360,15 @@
     setCeoField(type, 'const-active', data.constActive);
     setCeoField(type, 'const-done', data.constDone);
     setCeoField(type, 'pay-deposit', data.payDeposit);
+    setCeoField(type, 'pay-dep-amt', data.payDepAmt);
     setCeoField(type, 'pay-progress', data.payProgress);
+    setCeoField(type, 'pay-prog-amt', data.payProgAmt);
     setCeoField(type, 'pay-balance', data.payBalance);
+    setCeoField(type, 'pay-bal-amt', data.payBalAmt);
     setCeoField(type, 'pay-unpaid', data.payUnpaid);
+    setCeoField(type, 'pay-unpaid-amt', data.payUnpaidAmt);
+    setCeoField(type, 'pay-month-total', data.payMonthTotal);
+    setCeoField(type, 'pay-total-unpaid', data.payTotalUnpaid);
     showToast('대시보드 데이터가 자동 입력되었습니다.');
   }
 
@@ -4679,10 +6419,12 @@
       '이슈 현장 : ' + g('const-issue'),
       '',
       '■ 입금 / 잔금 현황',
-      '계약금 입금 : ' + g('pay-deposit'),
-      '중도금 예정 : ' + g('pay-progress'),
-      '잔금 예정 : ' + g('pay-balance'),
-      '미입금 : ' + g('pay-unpaid'),
+      '계약금 수령 : ' + g('pay-deposit') + ' / ' + g('pay-dep-amt'),
+      '계약금 미수령 : ' + g('pay-unpaid') + ' / ' + g('pay-unpaid-amt'),
+      '중도금 예정 : ' + g('pay-progress') + ' / ' + g('pay-prog-amt'),
+      '잔금 예정 : ' + g('pay-balance') + ' / ' + g('pay-bal-amt'),
+      '총 수금액 : ' + g('pay-month-total'),
+      '전체 미수금 : ' + g('pay-total-unpaid'),
       '연체 : ' + g('pay-overdue'),
       '',
       '■ 매출 예측',
@@ -4704,7 +6446,7 @@
       'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
       'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
       'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
-      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'pay-deposit', 'pay-dep-amt', 'pay-unpaid', 'pay-unpaid-amt', 'pay-progress', 'pay-prog-amt', 'pay-balance', 'pay-bal-amt', 'pay-month-total', 'pay-total-unpaid', 'pay-overdue',
       'forecast-this', 'forecast-next', 'forecast-ongoing'];
     var result = {};
     fields.forEach(function (f) { result[f] = getCeoField(type, f); });
@@ -4721,7 +6463,7 @@
       'period-visit', 'month-visit', 'consult', 'contract-expected', 'estimate',
       'design-wait', 'design-progress', 'design-done', 'design-revision', 'design-none',
       'const-wait', 'const-active', 'const-done', 'const-delay', 'const-issue',
-      'pay-deposit', 'pay-progress', 'pay-balance', 'pay-unpaid', 'pay-overdue',
+      'pay-deposit', 'pay-dep-amt', 'pay-unpaid', 'pay-unpaid-amt', 'pay-progress', 'pay-prog-amt', 'pay-balance', 'pay-bal-amt', 'pay-month-total', 'pay-total-unpaid', 'pay-overdue',
       'forecast-this', 'forecast-next', 'forecast-ongoing'];
     fields.forEach(function (f) { setCeoField(type, f, ''); });
     var issuesEl = document.getElementById('ceo-' + type + '-f-issues');
@@ -4732,6 +6474,357 @@
     if (titleEl) titleEl.value = '';
     var previewBox = document.getElementById('ceo-' + type + '-preview-box');
     if (previewBox) previewBox.classList.add('hidden');
+  }
+
+  // ========================
+  // 지출결의서
+  // ========================
+  function getExpenseReports() {
+    try { return JSON.parse(localStorage.getItem('seum_expense_reports') || '[]'); } catch (e) { return []; }
+  }
+
+  function saveExpenseReports(data) {
+    localStorage.setItem('seum_expense_reports', JSON.stringify(data));
+    try {
+      var supa = window.seumSupabase;
+      if (!supa || !Array.isArray(data)) return;
+      var rows = data.map(function (r) {
+        return {
+          local_id: r.id || null,
+          report_date: r.date || null,
+          author: r.author || null,
+          total_amount: r.totalAmount || 0,
+          payload: r
+        };
+      });
+      supa.from('expense_reports').upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) { if (res && res.error) console.error('Supabase expense_reports sync error:', res.error); })
+        .catch(function (err) { console.error('Supabase expense_reports sync failed:', err); });
+    } catch (e) { console.error('saveExpenseReports exception:', e); }
+  }
+
+  function deleteExpenseFromSupabase(localId) {
+    try {
+      var supa = window.seumSupabase;
+      if (supa && localId) {
+        supa.from('expense_reports').delete().eq('local_id', localId)
+          .then(function (res) { if (res && res.error) console.error('Supabase expense delete error:', res.error); })
+          .catch(function (err) { console.error('Supabase expense delete failed:', err); });
+      }
+    } catch (e) { console.error('deleteExpenseFromSupabase exception:', e); }
+  }
+
+  function syncExpenseReportsFromSupabase() {
+    try {
+      var supa = window.seumSupabase;
+      if (!supa) return;
+      supa.from('expense_reports').select('local_id,payload').order('created_at', { ascending: false })
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('Supabase expense_reports load error:', res.error);
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            if (row.payload && typeof row.payload === 'object') return row.payload;
+            try { return JSON.parse(row.payload); } catch (e) { return null; }
+          }).filter(Boolean);
+          var local = getExpenseReports();
+          // 원격 기준으로 병합 (local_id로 중복 제거)
+          var merged = {};
+          remote.forEach(function (r) { if (r.id) merged[r.id] = r; });
+          local.forEach(function (r) { if (r.id && !merged[r.id]) merged[r.id] = r; });
+          var result = Object.values(merged);
+          localStorage.setItem('seum_expense_reports', JSON.stringify(result));
+          renderExpenseList();
+        })
+        .catch(function (err) { console.error('syncExpenseReportsFromSupabase failed:', err); });
+    } catch (e) { console.error('syncExpenseReportsFromSupabase exception:', e); }
+  }
+
+  function numberToKorean(num) {
+    num = Math.floor(Math.abs(Number(num) || 0));
+    if (num === 0) return '영';
+    var u = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+    function g(n) {
+      if (!n) return '';
+      var th = Math.floor(n / 1000), h = Math.floor((n % 1000) / 100), t = Math.floor((n % 100) / 10), o = n % 10;
+      return (th ? (th === 1 ? '' : u[th]) + '천' : '') + (h ? (h === 1 ? '' : u[h]) + '백' : '') + (t ? (t === 1 ? '' : u[t]) + '십' : '') + (o ? u[o] : '');
+    }
+    var jo = Math.floor(num / 1000000000000), eok = Math.floor((num % 1000000000000) / 100000000);
+    var man = Math.floor((num % 100000000) / 10000), rest = num % 10000;
+    return (jo ? g(jo) + '조' : '') + (eok ? g(eok) + '억' : '') + (man ? g(man) + '만' : '') + (rest ? g(rest) : '');
+  }
+
+  function calcExpenseTotal() {
+    var total = 0;
+    document.querySelectorAll('#expense-items-body .expense-amount').forEach(function (el) { total += Number(el.value.replace(/,/g, '')) || 0; });
+    var sumCell = document.getElementById('expense-sum-cell');
+    var dispEl = document.getElementById('expense-total-display');
+    var korEl = document.getElementById('expense-total-korean');
+    if (sumCell) sumCell.textContent = '₩' + total.toLocaleString();
+    if (dispEl) dispEl.textContent = total.toLocaleString();
+    if (korEl) korEl.textContent = total > 0 ? numberToKorean(total) + '원정' : '';
+    return total;
+  }
+
+  function updateExpenseFooter() {
+    var dateEl = document.getElementById('expense-date');
+    var authorEl = document.getElementById('expense-author');
+    var fd = document.getElementById('expense-footer-date');
+    var fa = document.getElementById('expense-footer-author');
+    if (fd && dateEl && dateEl.value) {
+      var d = new Date(dateEl.value + 'T00:00:00');
+      fd.textContent = d.getFullYear() + ' 년 \u2003' + (d.getMonth() + 1) + ' 월 \u2003' + d.getDate() + ' 일';
+    }
+    if (fa && authorEl) fa.textContent = authorEl.value;
+  }
+
+  function addExpenseRow(data) {
+    data = data || {};
+    var tbody = document.getElementById('expense-items-body');
+    if (!tbody) return;
+    var rowNum = data.rowNum || (tbody.querySelectorAll('tr').length + 1);
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><textarea class="expense-cell-input expense-desc" rows="2" placeholder="적/요 입력"></textarea></td>' +
+      '<td><input type="text" inputmode="numeric" class="expense-cell-input expense-amount" style="text-align:right;" placeholder="0"></td>' +
+      '<td><input type="text" class="expense-cell-input expense-note" placeholder="비고/계좌"></td>' +
+      '<td class="no-print" style="text-align:center;"><button type="button" class="expense-del-btn" title="삭제">✕</button></td>';
+    var descEl = tr.querySelector('.expense-desc');
+    var amtEl = tr.querySelector('.expense-amount');
+    var noteEl = tr.querySelector('.expense-note');
+    if (data.description) descEl.value = data.description;
+    if (data.amount) amtEl.value = Number(data.amount).toLocaleString();
+    if (data.note) noteEl.value = data.note;
+    amtEl.addEventListener('focus', function () { amtEl.value = amtEl.value.replace(/,/g, ''); });
+    amtEl.addEventListener('blur', function () {
+      var raw = Number(amtEl.value.replace(/,/g, '')) || 0;
+      amtEl.value = raw > 0 ? raw.toLocaleString() : '';
+      calcExpenseTotal();
+    });
+    amtEl.addEventListener('input', calcExpenseTotal);
+    tr.querySelector('.expense-del-btn').addEventListener('click', function () { tr.remove(); calcExpenseTotal(); });
+    tbody.appendChild(tr);
+  }
+
+  function collectExpenseItems() {
+    var items = [], num = 1;
+    document.querySelectorAll('#expense-items-body tr').forEach(function (tr) {
+      var desc = tr.querySelector('.expense-desc');
+      var amt = tr.querySelector('.expense-amount');
+      var note = tr.querySelector('.expense-note');
+      var a = Number(amt ? amt.value.replace(/,/g, '') : 0) || 0;
+      var d = desc ? desc.value.trim() : '';
+      if (d || a) items.push({ description: d, amount: a, note: note ? note.value.trim() : '', rowNum: num++ });
+    });
+    return items;
+  }
+
+  function loadExpenseToForm(r) {
+    if (!r) return;
+    var dateEl = document.getElementById('expense-date');
+    var authorEl = document.getElementById('expense-author');
+    if (dateEl) dateEl.value = r.date || '';
+    if (authorEl) authorEl.value = r.author || '';
+    var tbody = document.getElementById('expense-items-body');
+    if (tbody) tbody.innerHTML = '';
+    (r.items || []).forEach(function (item) { addExpenseRow(item); });
+    // 빈 행 3개 추가
+    for (var i = 0; i < 3; i++) addExpenseRow();
+    calcExpenseTotal();
+    updateExpenseFooter();
+  }
+
+  function renderExpenseList() {
+    var tbody = document.getElementById('tbody-expense');
+    if (!tbody) return;
+    var reports = getExpenseReports().slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    if (!reports.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">저장된 지출결의서가 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = reports.map(function (r) {
+      return '<tr>' +
+        '<td>' + (r.date || '-') + '</td>' +
+        '<td>' + (r.author || '-') + '</td>' +
+        '<td style="text-align:right;">₩' + (r.totalAmount || 0).toLocaleString() + '</td>' +
+        '<td style="text-align:center;">' + (r.items ? r.items.length : 0) + '건</td>' +
+        '<td>' + (r.createdAt ? r.createdAt.slice(0, 16).replace('T', ' ') : '-') + '</td>' +
+        '<td style="white-space:nowrap;">' +
+          '<button class="btn btn-sm btn-secondary" data-exp-load="' + r.id + '">불러오기</button> ' +
+          '<button class="btn btn-sm" style="background:none;border:none;color:#dc2626;cursor:pointer;" data-exp-del="' + r.id + '">삭제</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function parseExpenseExcel(jsonData) {
+    var dateVal = '', authorVal = '';
+    var items = [];
+
+    for (var i = 0; i < jsonData.length; i++) {
+      var row = jsonData[i];
+      // 발의일자 / 작성자 찾기
+      for (var j = 0; j < row.length; j++) {
+        var cell = String(row[j] || '');
+        if (!dateVal && (cell.includes('발의일자') || cell.includes('발 의 일 자'))) {
+          var dc = row[j + 1];
+          if (dc != null && dc !== '') {
+            if (typeof dc === 'number') {
+              // Excel 날짜 시리얼
+              try { var xd = window.XLSX.SSF.parse_date_code(dc); if (xd) dateVal = xd.y + '-' + String(xd.m).padStart(2,'0') + '-' + String(xd.d).padStart(2,'0'); } catch(e) {}
+            } else {
+              var ds = String(dc).replace(/년/g,'-').replace(/월/g,'-').replace(/일/g,'').replace(/\./g,'-').replace(/\s/g,'');
+              var dm = ds.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+              if (dm) dateVal = dm[1] + '-' + String(dm[2]).padStart(2,'0') + '-' + String(dm[3]).padStart(2,'0');
+            }
+          }
+        }
+        if (!authorVal && (cell.includes('작성자') || cell.includes('작 성 자'))) {
+          authorVal = String(row[j + 1] || '').trim();
+        }
+      }
+
+      // 데이터 행: J열(인덱스9) 기준으로 숫자 금액 있는 행 파싱
+      // 열 구성: A-C=적요(0-2), J=금액(9), K-M=비고(10-12), N=번호(13)
+      var amtCol = -1;
+      for (var k = 0; k < row.length; k++) {
+        var v = row[k];
+        if (typeof v === 'number' && v > 0 && v === Math.floor(v) && v < 1000000000) {
+          amtCol = k; break;
+        }
+        if (typeof v === 'string' && /^[\d,]+$/.test(v.trim()) && Number(v.replace(/,/g,'')) > 0) {
+          amtCol = k; break;
+        }
+      }
+      if (amtCol < 0) continue;
+
+      var descParts = [];
+      for (var d = 0; d < amtCol && d < 10; d++) {
+        var dc2 = String(row[d] || '').trim();
+        if (dc2 && dc2.length > 1 && !/^(적|요|금액|비고|합계|결재|발의|작성|결재금액|번호|담당|부장|이사|대표)/.test(dc2)) descParts.push(dc2);
+      }
+      var descStr = descParts.join(' ').trim();
+      if (!descStr || descStr.length < 3) continue;
+      // 헤더/합계 행 제외
+      if (/합계|금액|비고|발의|작성|결재/.test(descStr)) continue;
+
+      var rawAmt = row[amtCol];
+      var amt = typeof rawAmt === 'number' ? rawAmt : Number(String(rawAmt).replace(/,/g,'')) || 0;
+      var noteParts = [];
+      for (var n = amtCol + 1; n < row.length && n < amtCol + 5; n++) {
+        var nc = String(row[n] || '').trim();
+        if (nc) noteParts.push(nc);
+      }
+
+      items.push({ description: descStr, amount: amt, note: noteParts.join(' ').trim(), rowNum: items.length + 1 });
+    }
+
+    // 폼에 채우기
+    var dateEl = document.getElementById('expense-date');
+    var authorEl = document.getElementById('expense-author');
+    if (dateEl && dateVal) dateEl.value = dateVal;
+    if (authorEl && authorVal) authorEl.value = authorVal;
+    var tbody = document.getElementById('expense-items-body');
+    if (tbody) tbody.innerHTML = '';
+    if (items.length) {
+      items.forEach(function (item) { addExpenseRow(item); });
+      for (var ei = 0; ei < 3; ei++) addExpenseRow();
+      showToast(items.length + '개 항목을 불러왔습니다.');
+    } else {
+      for (var ei2 = 0; ei2 < 10; ei2++) addExpenseRow();
+      showToast('항목을 자동 인식하지 못했습니다. 직접 입력해주세요.');
+    }
+    calcExpenseTotal();
+    updateExpenseFooter();
+  }
+
+  function initExpenseReport() {
+    var dateEl = document.getElementById('expense-date');
+    if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+    var authorEl = document.getElementById('expense-author');
+    if (authorEl && !authorEl.value && window.seumAuth && window.seumAuth.currentEmployee) {
+      authorEl.value = window.seumAuth.currentEmployee.name || '';
+    }
+    // 초기 빈 행
+    var tbody = document.getElementById('expense-items-body');
+    if (tbody && !tbody.children.length) for (var i = 0; i < 10; i++) addExpenseRow();
+    calcExpenseTotal();
+    updateExpenseFooter();
+
+    if (dateEl) dateEl.addEventListener('change', updateExpenseFooter);
+    if (authorEl) authorEl.addEventListener('input', updateExpenseFooter);
+
+    var btnAdd = document.getElementById('btn-expense-add-row');
+    if (btnAdd) btnAdd.addEventListener('click', function () { addExpenseRow(); });
+
+    var btnClear = document.getElementById('btn-expense-clear');
+    if (btnClear) btnClear.addEventListener('click', function () {
+      if (!confirm('입력 내용을 초기화하시겠습니까?')) return;
+      if (tbody) tbody.innerHTML = '';
+      if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+      if (authorEl) authorEl.value = (window.seumAuth && window.seumAuth.currentEmployee && window.seumAuth.currentEmployee.name) || '';
+      for (var i = 0; i < 10; i++) addExpenseRow();
+      calcExpenseTotal(); updateExpenseFooter();
+    });
+
+    var btnUpload = document.getElementById('btn-expense-upload-excel');
+    var inputExcel = document.getElementById('input-expense-excel');
+    if (btnUpload && inputExcel) {
+      btnUpload.addEventListener('click', function () { inputExcel.click(); });
+      inputExcel.addEventListener('change', function (e) {
+        var file = e.target.files[0]; if (!file) return;
+        if (!window.XLSX) { showToast('엑셀 라이브러리 로드 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+          try {
+            var wb = window.XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+            var ws = wb.Sheets[wb.SheetNames[0]];
+            var jsonData = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+            parseExpenseExcel(jsonData);
+          } catch (err) { showToast('엑셀 파일 읽기 오류: ' + err.message); }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+      });
+    }
+
+    var form = document.getElementById('form-expense');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var dv = dateEl ? dateEl.value : '';
+        if (!dv) { showToast('발의일자를 입력해주세요.'); return; }
+        var items = collectExpenseItems().filter(function (it) { return it.description || it.amount; });
+        var total = items.reduce(function (s, it) { return s + (it.amount || 0); }, 0);
+        var reports = getExpenseReports();
+        reports.push({ id: id(), date: dv, author: authorEl ? authorEl.value : '', totalAmount: total, items: items, createdAt: new Date().toISOString() });
+        saveExpenseReports(reports);
+        renderExpenseList();
+        showToast('지출결의서가 저장되었습니다.');
+      });
+    }
+
+    var tbodyEl = document.getElementById('tbody-expense');
+    if (tbodyEl) {
+      tbodyEl.addEventListener('click', function (e) {
+        var loadBtn = e.target.closest('[data-exp-load]');
+        var delBtn = e.target.closest('[data-exp-del]');
+        if (loadBtn) {
+          var r = getExpenseReports().find(function (x) { return x.id === loadBtn.getAttribute('data-exp-load'); });
+          if (r) { loadExpenseToForm(r); document.getElementById('expense-print-area').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        }
+        if (delBtn) {
+          if (!confirm('삭제하시겠습니까?')) return;
+          var delId = delBtn.getAttribute('data-exp-del');
+          saveExpenseReports(getExpenseReports().filter(function (x) { return x.id !== delId; }));
+          deleteExpenseFromSupabase(delId);
+          renderExpenseList();
+          showToast('삭제되었습니다.');
+        }
+      });
+    }
+    renderExpenseList();
+    syncExpenseReportsFromSupabase();
   }
 
   function initCeoReports() {
@@ -4837,6 +6930,7 @@
             var dtype = deleteBtn.getAttribute('data-ceo-type');
             if (!confirm('이 보고를 삭제하시겠습니까?')) return;
             saveCeoReports(getCeoReports().filter(function (r) { return r.id !== did; }));
+            deleteCeoReportFromSupabase(did);
             renderCeoReport(dtype);
             var detail2 = document.getElementById('ceo-' + dtype + '-detail');
             if (detail2) detail2.classList.add('hidden');
@@ -5031,7 +7125,7 @@
       document.getElementById('design-construction-drawing-list')
     );
     var houseFields = document.getElementById('design-house-fields');
-    if (houseFields) houseFields.classList.toggle('hidden', (c.projectType || '') !== '주택');
+    if (houseFields) houseFields.classList.toggle('hidden', (c.contractModel || '') !== '전원주택');
     document.getElementById('modal-design-permit').classList.remove('hidden');
   }
 
@@ -5046,7 +7140,7 @@
     });
     if (projectTypeEl && houseFields) {
       projectTypeEl.addEventListener('change', function () {
-        houseFields.classList.toggle('hidden', projectTypeEl.value !== '주택');
+        houseFields.classList.toggle('hidden', projectTypeEl.value !== '전원주택');
       });
     }
     if (form) {
@@ -5236,12 +7330,14 @@
     if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
       return;
     }
-    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard') && !canSeeCeoSection()) {
+    if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
       return;
     }
     if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
-      sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') &&
+      sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
+      sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
+      sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
       return;
@@ -5252,6 +7348,10 @@
     document.querySelectorAll('.nav-item').forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-section') === sectionId);
     });
+    if (sectionId === 'procurement') renderProcurement();
+    if (sectionId === 'design-worklog') renderDesignWorklog();
+    if (sectionId === 'design-schedule') renderDesignSchedule();
+    if (sectionId === 'design-priority') renderDesignPriority();
     if (sectionId === 'announcements') renderAnnouncementsPage();
     if (sectionId === 'admin-approval') renderAdminApproval();
     if (sectionId === 'admin-employees') renderAdminEmployees();
@@ -5265,11 +7365,13 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
     if (sectionId === 'ceo-weekly') renderCeoReport('weekly');
     if (sectionId === 'ceo-monthly') renderCeoReport('monthly');
-    if (sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly') {
+    if (sectionId === 'ceo-expense') renderExpenseList();
+    if (sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-expense') {
       var ceoSub = document.getElementById('nav-ceo-sub');
       var ceoGroup = document.getElementById('sidebar-group-ceo');
       var ceoBtn = document.getElementById('nav-ceo-toggle');
@@ -5287,6 +7389,26 @@
         adminSub.classList.remove('collapsed');
         adminGroup.classList.add('expanded');
         if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
+    if (sectionId === 'design' || sectionId === 'design-worklog' || sectionId === 'design-schedule' || sectionId === 'design-priority') {
+      var desSub = document.getElementById('nav-design-sub');
+      var desGroup = document.getElementById('sidebar-group-design');
+      if (desSub && desGroup) {
+        desSub.classList.remove('collapsed');
+        desGroup.classList.add('expanded');
+        var desBtn = document.getElementById('nav-design-toggle');
+        if (desBtn) desBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
+    if (sectionId === 'construction' || sectionId === 'procurement' || sectionId === 'construction-worklog') {
+      var conSub = document.getElementById('nav-construction-sub');
+      var conGroup = document.getElementById('sidebar-group-construction');
+      if (conSub && conGroup) {
+        conSub.classList.remove('collapsed');
+        conGroup.classList.add('expanded');
+        var conBtn = document.getElementById('nav-construction-toggle');
+        if (conBtn) conBtn.setAttribute('aria-expanded', 'true');
       }
     }
     if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
@@ -5337,6 +7459,30 @@
         closeMobileSidebar();
       });
     });
+    var designToggle = document.getElementById('nav-design-toggle');
+    var designSub = document.getElementById('nav-design-sub');
+    var designGroup = document.getElementById('sidebar-group-design');
+    if (designToggle && designSub && designGroup) {
+      designToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        designSub.classList.toggle('collapsed');
+        designGroup.classList.toggle('expanded');
+        designToggle.setAttribute('aria-expanded', designSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
+    var constructionToggle = document.getElementById('nav-construction-toggle');
+    var constructionSub = document.getElementById('nav-construction-sub');
+    var constructionGroup = document.getElementById('sidebar-group-construction');
+    if (constructionToggle && constructionSub && constructionGroup) {
+      constructionToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        constructionSub.classList.toggle('collapsed');
+        constructionGroup.classList.toggle('expanded');
+        constructionToggle.setAttribute('aria-expanded', constructionSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
     var settlementToggle = document.getElementById('nav-settlement-toggle');
     var settlementSub = document.getElementById('nav-settlement-sub');
     var settlementGroup = document.getElementById('sidebar-group-settlement');
@@ -5704,7 +7850,7 @@
     var titleEl = document.getElementById('contract-detail-customer');
     var subtitleEl = document.getElementById('contract-detail-subtitle');
     if (titleEl) titleEl.textContent = (c.customerName || '-') + ' 계약 상세';
-    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' | ' + (c.contractModelName || c.contractModel || '-') + ' | ' + formatMoney(c.totalAmount) + '원';
+    if (subtitleEl) subtitleEl.textContent = getShowroomName(c.showroomId) + ' | ' + (c.contractModelName || c.contractModel || '-') + ' | ' + formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000))) + '만원';
     document.getElementById('contract-inline-id').value = c.id;
     document.getElementById('contract-inline-showroom').value = c.showroomId || '';
     var inlineModelShowroomEl = document.getElementById('contract-inline-model-showroom');
@@ -5712,6 +7858,8 @@
     document.getElementById('contract-inline-model').value = c.contractModel || '';
     document.getElementById('contract-inline-model-name').value = c.contractModelName || '';
     document.getElementById('contract-inline-sales-person').value = c.salesPerson || '';
+    var inlinePhoneEl = document.getElementById('contract-inline-phone');
+    if (inlinePhoneEl) inlinePhoneEl.value = c.phone || '';
     document.getElementById('contract-inline-attachment').value = c.contractAttachment || '';
     if (typeof window.syncContractAttachCard === 'function') window.syncContractAttachCard();
     if (typeof window.syncExtraAttachList === 'function') window.syncExtraAttachList();
@@ -5805,6 +7953,8 @@
     c.contractModel = document.getElementById('contract-inline-model').value || '';
     c.contractModelName = document.getElementById('contract-inline-model-name').value.trim();
     c.salesPerson = document.getElementById('contract-inline-sales-person').value.trim();
+    var inlinePhoneSave = document.getElementById('contract-inline-phone');
+    if (inlinePhoneSave) c.phone = inlinePhoneSave.value.trim();
     c.contractAttachment = document.getElementById('contract-inline-attachment').value.trim();
     c.siteAddress = document.getElementById('contract-inline-site-address').value.trim();
     var inlineInstallChecked = document.querySelector('input[name="contract-inline-install-type"]:checked');
@@ -6026,6 +8176,23 @@
         if (this.getAttribute('href') === '#') e.preventDefault();
       });
     }
+    var attachRemoveBtn = document.getElementById('contract-attach-card-remove');
+    if (attachRemoveBtn) {
+      attachRemoveBtn.addEventListener('click', function () {
+        var input = document.getElementById('contract-inline-attachment');
+        if (input) input.value = '';
+        var fileInput = document.getElementById('contract-inline-attachment-file');
+        if (fileInput) fileInput.value = '';
+        if (typeof syncContractAttachCard === 'function') syncContractAttachCard();
+        // 저장된 계약에도 즉시 반영
+        var contractId = document.getElementById('contract-inline-id') && document.getElementById('contract-inline-id').value;
+        if (contractId) {
+          var contracts = getContracts();
+          var c = contracts.find(function (x) { return x.id === contractId; });
+          if (c) { c.contractAttachment = ''; saveContracts(contracts); }
+        }
+      });
+    }
 
     // 추가 자료 첨부 핸들러
     var extraFileInput = document.getElementById('contract-extra-attachment-file');
@@ -6186,7 +8353,7 @@
         ['설계 도면 URL', linkOrText(c.designDrawingAttachment)],
         ['시공 도면 URL', linkOrText(c.constructionDrawingAttachment)]
       ];
-      if ((c.projectType || '') === '주택') {
+      if ((c.contractModel || '') === '전원주택') {
         rows.push(['건축사 정보', c.architectInfo || '-']);
         rows.push(['담당자 이름', c.designContactName || '-']);
         rows.push(['담당자 연락처', c.designContactPhone || '-']);
@@ -6396,16 +8563,16 @@
         var salesPerson = document.getElementById('contract-sales-person').value.trim();
         var customerName = document.getElementById('contract-name').value.trim();
         var phone = document.getElementById('contract-phone').value.trim();
-        var supplyAmount = document.getElementById('contract-supply').value;
-        var vatAmount = document.getElementById('contract-vat').value;
-        var totalAmount = document.getElementById('contract-total').value;
+        var supplyAmount = document.getElementById('contract-supply').value || null;
+        var vatAmount = document.getElementById('contract-vat').value || null;
+        var totalAmount = document.getElementById('contract-total').value || null;
         var contractDate = document.getElementById('contract-date').value;
-        var depositAmount = document.getElementById('contract-deposit-amount').value.trim() || null;
+        var depositAmount = document.getElementById('contract-deposit-amount').value || null;
         var depositDate = document.getElementById('contract-deposit-date').value || null;
-        var progress1Amount = document.getElementById('contract-progress1-amount').value.trim() || null;
-        var progress2Amount = document.getElementById('contract-progress2-amount').value.trim() || null;
-        var progress3Amount = document.getElementById('contract-progress3-amount').value.trim() || null;
-        var balanceAmount = document.getElementById('contract-balance-amount').value.trim() || null;
+        var progress1Amount = document.getElementById('contract-progress1-amount').value || null;
+        var progress2Amount = document.getElementById('contract-progress2-amount').value || null;
+        var progress3Amount = document.getElementById('contract-progress3-amount').value || null;
+        var balanceAmount = document.getElementById('contract-balance-amount').value || null;
         // ??????? ???? ?? ?????????????????showroom ??
         if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
           var cur = window.seumAuth.currentEmployee;
@@ -6436,6 +8603,7 @@
           extraNote: '',
           customerName: customerName,
           phone: phone,
+          amountUnit: 'manwon',
           supplyAmount: supplyAmount,
           vatAmount: vatAmount,
           totalAmount: totalAmount,
@@ -6456,6 +8624,7 @@
           designContactName: '',
           designContactPhone: '',
           hasPermitCert: false,
+          permitCertDate: '',
           permitAttachment: '',
           completionCertAttachment: '',
           hasConstructionStartReport: false,
@@ -6544,12 +8713,13 @@
   function paymentSummaryHtml(c) {
     var nums = getPaymentSummaryNumbers(c);
     if (nums.total <= 0) return '<span class="payment-none">-</span>';
+    var _sDivisor = (c && c.amountUnit === 'manwon') ? 1 : 10000;
     var pct = Math.min(100, Math.max(0, nums.receivedPct));
     return '<div class="payment-status">' +
-      '<div class="payment-total">총액 ' + formatMoney(String(nums.total)) + '원</div>' +
+      '<div class="payment-total">총액 ' + formatMoney(String(Math.round(nums.total / _sDivisor))) + '만원</div>' +
       '<div class="payment-rate"><span class="payment-rate-label">입금율</span><div class="payment-rate-bar"><div class="payment-rate-fill" style="width:' + pct + '%"></div></div><span class="payment-rate-pct">' + pct + '%</span></div>' +
-      '<div class="payment-row received"><span>입금액</span><span class="amount">' + formatMoney(String(nums.received)) + '원</span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
-      '<div class="payment-row remaining"><span>잔액</span><span class="amount">' + formatMoney(String(nums.remaining)) + '원</span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
+      '<div class="payment-row received"><span>입금액</span><span class="amount">' + formatMoney(String(Math.round(nums.received / _sDivisor))) + '만원</span><span class="percent">(' + nums.receivedPct + '%)</span></div>' +
+      '<div class="payment-row remaining"><span>잔액</span><span class="amount">' + formatMoney(String(Math.round(nums.remaining / _sDivisor))) + '만원</span><span class="percent">(' + nums.remainingPct + '%)</span></div>' +
       '</div>';
   }
 
@@ -6572,8 +8742,9 @@
     }
     if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
     var label = '';
+    var _payDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
     if (amount != null && String(amount).trim() !== '') {
-      label = formatMoney(amount) + '원';
+      label = formatMoney(Math.round(Number(amount) / _payDivisor)) + '만원';
     }
     if (receivedAt) {
       label += (label ? ' ' : '') + '(' + formatDate(receivedAt) + ')';
@@ -6768,7 +8939,7 @@
         e.preventDefault();
         var contractId = document.getElementById('payment-contract-id').value;
         var type = document.getElementById('payment-type').value;
-        var amount = document.getElementById('payment-amount').value;
+        var amount = document.getElementById('payment-amount').value || '';
         var dateInput = document.getElementById('payment-date');
         var date = dateInput ? dateInput.value : '';
         var contracts = getContracts();
@@ -6830,6 +9001,8 @@
           document.getElementById('employee-name').value = emp.name || '';
           document.getElementById('employee-team').value = emp.team || '';
           document.getElementById('employee-showroom').value = emp.showroomId || '';
+          var empPermEl = document.getElementById('employee-permission');
+          if (empPermEl) empPermEl.value = emp.permission || '';
           document.getElementById('employee-phone').value = emp.phone || '';
           document.getElementById('employee-join-date').value = emp.joinDate || '';
           document.getElementById('employee-memo').value = emp.memo || '';
@@ -6964,8 +9137,10 @@
           var ac = contracts.find(function (x) { return x.id === approvalContractId; });
           if (ac) {
             ac.finalApproved = !ac.finalApproved;
+            ac.constructionStartOk = !!(ac.salesConfirmed && ac.designConfirmed && ac.constructionConfirmed && ac.finalApproved);
             saveContracts(contracts);
             renderDesign();
+            renderConstruction();
           }
         }
         return;
@@ -7087,9 +9262,11 @@
           else if (e.target.classList.contains('design-check')) c.designConfirmed = e.target.checked;
           else if (e.target.classList.contains('construction-check')) c.constructionConfirmed = e.target.checked;
           var allChecked = !!c.salesConfirmed && !!c.designConfirmed && !!c.constructionConfirmed;
-          if (!allChecked) c.finalApproved = false;
+          if (!allChecked) { c.finalApproved = false; }
+          c.constructionStartOk = !!(allChecked && c.finalApproved);
           saveContracts(contracts);
           renderDesign();
+          renderConstruction();
         }
         return;
       }
@@ -7446,7 +9623,7 @@
         var role = row.querySelector('.admin-emp-role') && row.querySelector('.admin-emp-role').value;
         var showroom = row.querySelector('.admin-emp-showroom') && row.querySelector('.admin-emp-showroom').value;
         saveBtn.disabled = true;
-        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null }).eq('id', id)
+        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null, permission: role || null }).eq('id', id)
           .then(function (res) {
             if (res.error) throw res.error;
             renderAdminEmployees();
@@ -7836,10 +10013,12 @@
         e.preventDefault();
         var empId = document.getElementById('employee-id').value;
         var employees = getEmployees();
+        var empPermSave = document.getElementById('employee-permission');
         var payload = {
           name: document.getElementById('employee-name').value.trim(),
           team: document.getElementById('employee-team').value,
           showroomId: document.getElementById('employee-showroom').value,
+          permission: empPermSave ? empPermSave.value : '',
           phone: document.getElementById('employee-phone').value.trim(),
           joinDate: document.getElementById('employee-join-date').value,
           memo: document.getElementById('employee-memo').value.trim()
@@ -8418,8 +10597,12 @@
 
   window.getContracts = getContracts;
   window.getShowroomName = getShowroomName;
+  window.showSection = showSection;
+  window.showDesignDetailPanel = showDesignDetailPanel;
+  window.renderDesign = renderDesign;
   window.isAdmin = isAdmin;
   window.isMaster = isMaster;
+  window.isManager = isManager;
   window.formatDate = formatDate;
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
@@ -8461,12 +10644,110 @@
     updateAdminNavVisibility();
     updateManageNavVisibility();
     updateCeoNavVisibility();
+    updateDesignWorklogNavVisibility();
+    updateConstructionRestrictedNavVisibility();
+    updateSalesRestrictedNavVisibility();
     initCeoReports();
+    syncCeoReportsFromSupabase();
+    initExpenseReport();
+
+    // 섹션 인쇄 버튼 (새 창 방식)
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.btn-section-print');
+      if (!btn) return;
+      var sectionId = btn.getAttribute('data-print-section');
+      var section = sectionId && document.getElementById(sectionId);
+      if (!section) return;
+      // 입력값 동기화 후 클론
+      var clone = section.cloneNode(true);
+      var origInputs = section.querySelectorAll('input, textarea, select');
+      var cloneInputs = clone.querySelectorAll('input, textarea, select');
+      origInputs.forEach(function (orig, i) {
+        var cl = cloneInputs[i];
+        if (!cl) return;
+        if (orig.type === 'checkbox' || orig.type === 'radio') {
+          if (orig.checked) cl.setAttribute('checked', ''); else cl.removeAttribute('checked');
+        } else {
+          cl.setAttribute('value', orig.value);
+          if (cl.tagName === 'TEXTAREA') cl.textContent = orig.value;
+          if (cl.tagName === 'SELECT') {
+            Array.from(cl.options).forEach(function (opt, oi) {
+              if (orig.options[oi] && orig.options[oi].selected) opt.setAttribute('selected', ''); else opt.removeAttribute('selected');
+            });
+          }
+        }
+      });
+      // 인쇄 불필요 요소 제거
+      clone.querySelectorAll('.no-print, .btn-section-print').forEach(function (el) { el.remove(); });
+      // 보고 목록 카드, 미리보기 박스, 상세 카드 제거
+      ['#ceo-daily-preview-box','#ceo-weekly-preview-box','#ceo-monthly-preview-box',
+       '#ceo-daily-detail','#ceo-weekly-detail','#ceo-monthly-detail'].forEach(function(sel) {
+        var el = clone.querySelector(sel); if (el) el.remove();
+      });
+      ['#tbody-ceo-daily','#tbody-ceo-weekly','#tbody-ceo-monthly'].forEach(function(sel) {
+        var el = clone.querySelector(sel);
+        if (el) { var card = el.closest('.card'); if (card) card.remove(); }
+      });
+      var w = window.open('', '_blank', 'width=820,height=1100');
+      if (!w) return;
+      w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>인쇄</title><style>' +
+        '@page{size:A4 portrait;margin:12mm}' +
+        'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12px;line-height:1.4}' +
+        'h2{font-size:1.3rem;margin:0 0 2mm}h3{font-size:1rem;margin:1mm 0}h4{font-size:0.95rem;margin:1mm 0}' +
+        'p{margin:0 0 1mm;color:#555}' +
+        'button,input[type=button],input[type=submit],.btn{display:none!important}' +
+        '.hidden{display:none!important}' +
+        '.card{border:1px solid #ccc;border-radius:4px;padding:3mm 4mm;margin-bottom:4mm;break-inside:avoid}' +
+        '.main-header{margin-bottom:3mm}.section-desc{font-size:0.8rem;color:#555}' +
+        '.form-row{display:flex;gap:3mm;margin-bottom:3mm;grid-column:span 2}' +
+        '.form-actions{display:none!important}' +
+        '#form-ceo-daily,#form-ceo-weekly,#form-ceo-monthly{display:grid;grid-template-columns:1fr 1fr;gap:2mm 4mm}' +
+        '.ceo-block{border:1px solid #ddd;padding:2mm 3mm;margin-bottom:0;break-inside:avoid}' +
+        '.ceo-block:has(textarea){grid-column:span 2}' +
+        '.ceo-block-title{font-weight:700;margin-bottom:1mm;font-size:0.85rem}' +
+        '.ceo-row{display:flex;gap:2mm;margin-bottom:0.5mm;align-items:center}' +
+        '.ceo-label{min-width:6rem;font-size:0.78rem;color:#555;flex-shrink:0}' +
+        '.ceo-sub-label{min-width:5rem;font-size:0.75rem;color:#555;flex-shrink:0}' +
+        '.ceo-input{border:none;border-bottom:1px solid #ccc;flex:1;padding:0;font-size:0.82rem;background:transparent}' +
+        'textarea.ceo-input,textarea{border:1px solid #ccc;width:100%;box-sizing:border-box;padding:1mm 2mm;font-size:0.82rem;background:transparent;resize:none;min-height:10mm;font-family:inherit}' +
+        '.ceo-preview-box{display:none!important}' +
+        '.ceo-db-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:5mm}' +
+        '.ceo-db-kpi-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
+        '.ceo-db-kpi-label{font-size:0.75rem;color:#555;margin-bottom:1mm}' +
+        '.ceo-db-kpi-value{font-size:1.5rem;font-weight:700;margin-bottom:1mm}' +
+        '.ceo-db-kpi-sub{font-size:0.72rem;color:#777}' +
+        '.ceo-db-section-title{font-weight:700;font-size:1rem;margin:4mm 0 2mm;border-left:3px solid #333;padding-left:2mm}' +
+        '.ceo-db-progress-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:5mm}' +
+        '.ceo-db-progress-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
+        '.ceo-db-prog-num{font-size:1.5rem;font-weight:700}.ceo-db-prog-label{font-size:0.75rem;color:#555}' +
+        '.ceo-db-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-bottom:5mm}' +
+        '.ceo-db-table-wrap,.table-wrap{overflow:visible!important}' +
+        'table{width:100%;border-collapse:collapse;font-size:0.78rem}' +
+        'th,td{border:1px solid #999;padding:2mm 3mm}th{background:#f5f5f5;font-weight:600}' +
+        '.ceo-db-issue-label{font-weight:700;margin-bottom:1mm;font-size:0.85rem}' +
+        '.ceo-db-issue-list{margin:0 0 3mm;padding-left:4mm;font-size:0.8rem}' +
+        '.ceo-db-cw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:4mm}' +
+        '.ceo-db-cw-card{border:1px solid #ccc;border-radius:3px;padding:3mm;text-align:center}' +
+        '.ceo-db-cw-num{font-size:1.3rem;font-weight:700}.ceo-db-cw-label{font-size:0.75rem;color:#555}' +
+        '.accent-blue{color:#2563eb!important}.accent-green{color:#16a34a!important}.accent-orange{color:#d97706!important}.accent-red{color:#dc2626!important}' +
+        '.expense-approval-table{border-collapse:collapse;font-size:0.78rem}.expense-approval-table th,.expense-approval-table td{border:1px solid #999;padding:3px 8px;text-align:center}' +
+        '.expense-info-table{width:100%;border-collapse:collapse;font-size:0.88rem;margin-bottom:4mm}.expense-info-table th,.expense-info-table td{border:1px solid #999;padding:2mm 3mm}.expense-info-table th{background:#f5f5f5;font-weight:700;white-space:nowrap}' +
+        '.expense-info-input{background:transparent;border:none;width:100%;font-size:0.88rem;font-family:inherit}' +
+        '.expense-items-table{width:100%;border-collapse:collapse;font-size:0.82rem}.expense-items-table th,.expense-items-table td{border:1px solid #999;padding:1.5mm 2mm;vertical-align:top}.expense-items-table th{background:#f5f5f5;font-weight:700;text-align:center}' +
+        '.expense-cell-input{background:transparent;border:none;width:100%;font-family:inherit;font-size:0.82rem}' +
+        '</style></head><body>' + clone.innerHTML + '</body></html>');
+      w.document.close();
+      w.focus();
+      setTimeout(function () { w.print(); }, 400);
+    });
     window.seumAuth = window.seumAuth || {};
     window.seumAuth.onReady = function () {
       updateAdminNavVisibility();
       updateManageNavVisibility();
       updateCeoNavVisibility();
+      updateDesignWorklogNavVisibility();
+      updateConstructionRestrictedNavVisibility();
+      updateSalesRestrictedNavVisibility();
       if (typeof applyChatTabVisibility === 'function') applyChatTabVisibility();
       // ????? ????? ?? ???? ???????? ????????? ????????? ?????
       if (typeof renderDashboard === 'function') renderDashboard();
@@ -8486,7 +10767,11 @@
       renderSales();
     }
     renderDesign();
+    renderDesignWorklog();
+    renderConstructionWorklog();
+    initConstructionWorklogEvents();
     renderConstruction();
+    renderProcurement();
     renderSettlement();
     initAnnouncementDetailModal();
     initAnnouncementFormModal();

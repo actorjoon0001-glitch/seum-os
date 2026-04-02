@@ -501,7 +501,7 @@
       var participantCount = uniqueNames.length;
       var showroomLabel = c.showroomId ? (CHAT_CHANNEL_LABELS[c.showroomId] || c.showroomId) : '';
       var typeMap = { '컨테이너/농막': '컨테이너/농막', '체류형쉼터': '체류형쉼터', '전원주택': '전원주택', '기타': '기타' };
-      var designType = typeMap[(c.projectType || '').trim()] || '기타';
+      var designType = typeMap[(c.projectType || c.contractModel || '').trim()] || '기타';
       var dateStr = (function () {
         var d = c.contractDate || '';
         if (!d) return '';
