@@ -3207,10 +3207,16 @@
     var wrap = document.getElementById('design-priority-wrap');
     if (!wrap) return;
 
-    var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
+    var allContracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
     var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
     var statusMap = { none: '미착수', '': '미착수', in_progress: '설계 중', done: '완료' };
     var statusCls = { none: 'status-none', '': 'status-none', in_progress: 'status-in_progress', done: 'status-done' };
+    var TYPE_BADGE_CLS = { '컨테이너/농막': 'badge-container', '체류형쉼터': 'badge-shelter', '전원주택(인허가)': 'badge-house', '기타': 'badge-etc' };
+
+    // 설계팀 여부 (작업완료 버튼 활성화 조건)
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var userTeam = (cur && (cur.team || '').trim()) || '';
+    var canMarkDone = (userTeam === '설계') || isAdmin() || isMaster() || isSuperAdmin();
 
     function getTypeKey(c) {
       var t = (c.projectType || c.contractModel || '').trim();
@@ -3220,26 +3226,24 @@
       return '기타';
     }
 
-    // 긴급진행건: isUrgent 계약, 계약일 오래된 순
+    // 작업완료 여부로 분리
+    var contracts = allContracts.filter(function (c) { return !c.priorityDone; });
+    var doneContracts = allContracts.filter(function (c) { return c.priorityDone; });
+
+    // 긴급진행건: isUrgent, 작업완료 아닌 것, 계약일 오래된 순
     var urgentList = contracts.filter(function (c) { return c.isUrgent; });
     urgentList.sort(function (a, b) {
-      var dA = a.contractDate || '';
-      var dB = b.contractDate || '';
-      return dA < dB ? -1 : dA > dB ? 1 : 0;
+      return (a.contractDate || '') < (b.contractDate || '') ? -1 : 1;
     });
 
     var TYPE_ORDER = ['전원주택(인허가)', '컨테이너/농막', '체류형쉼터', '기타'];
-
-    // 유형별 그룹
     var groups = {};
     TYPE_ORDER.forEach(function (t) { groups[t] = []; });
     contracts.forEach(function (c) { groups[getTypeKey(c)].push(c); });
 
-    // 유형별 정렬
     TYPE_ORDER.forEach(function (type) {
       groups[type].sort(function (a, b) {
         if (type === '전원주택(인허가)') {
-          // 허가완료일 있는 것 먼저
           var hasA = a.permitCertDate ? 0 : 1;
           var hasB = b.permitCertDate ? 0 : 1;
           if (hasA !== hasB) return hasA - hasB;
@@ -3257,6 +3261,11 @@
       });
     });
 
+    function doneBtn(cid) {
+      if (!canMarkDone) return '';
+      return '<button type="button" class="btn btn-sm priority-done-btn" data-contract-id="' + escapeAttr(cid) + '" style="white-space:nowrap;background:#059669;color:#fff;border:none;">작업완료</button>';
+    }
+
     function renderUrgentSection(list) {
       var html = '<div class="design-priority-section design-priority-urgent-section">' +
         '<div class="design-priority-header">' +
@@ -3272,8 +3281,6 @@
         list.forEach(function (c, i) {
           var shortAddr = (c.siteAddress || '').trim().split(/\s+/).slice(0, 2).join(' ') || '-';
           var st = (c.designStatus || 'none').toLowerCase();
-          var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
-          var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
           var typeLabel = getTypeKey(c);
           html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
             '<td class="design-priority-rank">' + (i + 1) + '</td>' +
@@ -3281,13 +3288,13 @@
             '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span></td>' +
             '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
             '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
-            '<td>' + escapeHtml(showroomLabel) + '</td>' +
+            '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
             '<td>' + escapeHtml(shortAddr) + '</td>' +
             '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
-            '<td>' + escapeHtml(designer) + '</td>' +
+            '<td>' + escapeHtml((c.designPermitDesigner || c.designContactName || '').trim() || '-') + '</td>' +
             '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
-            '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
-            '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
+            '<td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+            '<td style="white-space:nowrap;display:flex;gap:4px;">' + doneBtn(c.id) + '<button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
             '</tr>';
         });
         html += '</tbody></table></div>';
@@ -3295,9 +3302,6 @@
       html += '</div>';
       return html;
     }
-
-    // TYPE_BADGE_CLS 참조를 위해 우선순위 섹션 렌더 전에 선언
-    var TYPE_BADGE_CLS = { '컨테이너/농막': 'badge-container', '체류형쉼터': 'badge-shelter', '전원주택(인허가)': 'badge-house', '기타': 'badge-etc' };
 
     function renderSection(type, list) {
       var isPermit = type === '전원주택(인허가)';
@@ -3314,27 +3318,21 @@
           '<th>#</th><th>' + dateHeader + '</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th></th>' +
           '</tr></thead><tbody>';
         list.forEach(function (c, i) {
-          var shortAddr = (function () {
-            var a = c.siteAddress || '';
-            if (!a) return '-';
-            return a.trim().split(/\s+/).slice(0, 2).join(' ');
-          })();
+          var shortAddr = (c.siteAddress || '').trim().split(/\s+/).slice(0, 2).join(' ') || '-';
           var dateVal = isPermit ? (c.permitCertDate || '-') : (c.contractDate || '-');
           var st = (c.designStatus || 'none').toLowerCase();
-          var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
-          var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
           html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
             '<td class="design-priority-rank">' + (i + 1) + '</td>' +
             '<td class="design-priority-date">' + escapeHtml(dateVal) + '</td>' +
             '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
             '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
-            '<td>' + escapeHtml(showroomLabel) + '</td>' +
+            '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
             '<td>' + escapeHtml(shortAddr) + '</td>' +
             '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
-            '<td>' + escapeHtml(designer) + '</td>' +
+            '<td>' + escapeHtml((c.designPermitDesigner || c.designContactName || '').trim() || '-') + '</td>' +
             '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
-            '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
-            '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
+            '<td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+            '<td style="white-space:nowrap;display:flex;gap:4px;">' + doneBtn(c.id) + '<button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
             '</tr>';
         });
         html += '</tbody></table></div>';
@@ -3343,8 +3341,85 @@
       return html;
     }
 
-    var html = renderUrgentSection(urgentList) + TYPE_ORDER.map(function (type) { return renderSection(type, groups[type]); }).join('');
+    function renderDoneSection(list) {
+      // 작업완료 섹션: 기본 접힘, 토글 버튼
+      var visible = wrap.dataset.doneOpen === '1';
+      var html = '<div class="design-priority-section design-priority-done-section">' +
+        '<div class="design-priority-header" style="cursor:pointer;" id="priority-done-toggle">' +
+        '<span class="design-priority-done-title">✅ 작업 완료</span>' +
+        '<span class="design-priority-count done-count">총 ' + list.length + '건</span>' +
+        '<span style="margin-left:auto;color:#6b7280;font-size:0.8rem;">' + (visible ? '▲ 접기' : '▼ 펼치기') + '</span>' +
+        '</div>';
+      if (visible) {
+        if (list.length === 0) {
+          html += '<p class="design-priority-empty">작업 완료된 계약이 없습니다.</p>';
+        } else {
+          list = list.slice().sort(function (a, b) { return (a.contractDate || '') < (b.contractDate || '') ? -1 : 1; });
+          html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
+            '<th>#</th><th>계약일</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th></th>' +
+            '</tr></thead><tbody>';
+          list.forEach(function (c, i) {
+            var shortAddr = (c.siteAddress || '').trim().split(/\s+/).slice(0, 2).join(' ') || '-';
+            var st = (c.designStatus || 'none').toLowerCase();
+            var typeLabel = getTypeKey(c);
+            html += '<tr class="design-priority-row design-priority-done-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;opacity:0.7;">' +
+              '<td class="design-priority-rank">' + (i + 1) + '</td>' +
+              '<td class="design-priority-date">' + escapeHtml(c.contractDate || '-') + '</td>' +
+              '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span></td>' +
+              '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
+              '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
+              '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
+              '<td>' + escapeHtml(shortAddr) + '</td>' +
+              '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
+              '<td>' + escapeHtml((c.designPermitDesigner || c.designContactName || '').trim() || '-') + '</td>' +
+              '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
+              '<td style="white-space:nowrap;display:flex;gap:4px;">' +
+              (canMarkDone ? '<button type="button" class="btn btn-sm priority-undone-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#374151;color:#d1d5db;border:none;">복원</button>' : '') +
+              '<button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
+              '</tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+      }
+      html += '</div>';
+      return html;
+    }
+
+    var html = renderUrgentSection(urgentList) +
+      TYPE_ORDER.map(function (type) { return renderSection(type, groups[type]); }).join('') +
+      renderDoneSection(doneContracts);
     wrap.innerHTML = html;
+
+    // 작업완료 섹션 토글
+    var doneToggle = wrap.querySelector('#priority-done-toggle');
+    if (doneToggle) {
+      doneToggle.addEventListener('click', function () {
+        wrap.dataset.doneOpen = wrap.dataset.doneOpen === '1' ? '0' : '1';
+        renderDesignPriority();
+      });
+    }
+
+    // 작업완료 버튼
+    wrap.querySelectorAll('.priority-done-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var cid = btn.getAttribute('data-contract-id');
+        var cs = getContracts();
+        var c = cs.find(function (x) { return x.id === cid; });
+        if (c) { c.priorityDone = true; saveContracts(cs); renderDesignPriority(); }
+      });
+    });
+
+    // 복원 버튼
+    wrap.querySelectorAll('.priority-undone-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var cid = btn.getAttribute('data-contract-id');
+        var cs = getContracts();
+        var c = cs.find(function (x) { return x.id === cid; });
+        if (c) { c.priorityDone = false; saveContracts(cs); renderDesignPriority(); }
+      });
+    });
 
     wrap.querySelectorAll('.priority-goto-btn').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
@@ -3354,7 +3429,7 @@
     });
     wrap.querySelectorAll('.design-priority-row').forEach(function (tr) {
       tr.addEventListener('click', function (e) {
-        if (e.target.closest('.priority-goto-btn')) return;
+        if (e.target.closest('.priority-goto-btn') || e.target.closest('.priority-done-btn') || e.target.closest('.priority-undone-btn')) return;
         goToDesignDetail(tr.getAttribute('data-contract-id'));
       });
     });
@@ -8699,6 +8774,7 @@
           designContactName: '',
           designContactPhone: '',
           isUrgent: false,
+          priorityDone: false,
           hasPermitCert: false,
           permitCertDate: '',
           permitAttachment: '',
