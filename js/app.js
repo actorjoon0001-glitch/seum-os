@@ -3632,6 +3632,12 @@
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
     contracts = getFilteredDesignContracts(contracts);
+    // 기본 정렬: 계약일 오래된 순 (오름차순)
+    contracts.sort(function (a, b) {
+      var dA = a.contractDate || '';
+      var dB = b.contractDate || '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
     var tbody = document.getElementById('tbody-design');
     if (!tbody) return;
     var salesReadonly = isSalesReadonly();
@@ -3651,7 +3657,7 @@
       negotiated: '협의 완료',
       done: '설계 완료'
     };
-    tbody.innerHTML = contracts.map(function (c) {
+    tbody.innerHTML = contracts.map(function (c, i) {
       var status = c.designStatus || 'none';
       var statusLabel = statusMap[status] || '미착수';
       var select = '<select class="design-status-select design-progress-select" data-id="' + c.id + '"' + (salesReadonly ? ' disabled' : '') + '>' +
@@ -3693,10 +3699,10 @@
         ? '<input type="text" class="design-construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공담당">'
         : (c.constructionManager || '-');
       var _dDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || (getDesignSearchKeyword()
-      ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-      : '<tr><td colspan="16">설계 데이터가 없습니다.</td></tr>');
+      ? '<tr><td colspan="17" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="17">설계 데이터가 없습니다.</td></tr>');
     updateDesignFilterResult(contracts);
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
