@@ -478,6 +478,9 @@
     var myName = (me && me.name) ? String(me.name).trim() : '';
     var myTeam = (me && me.team) ? String(me.team).trim() : '';
     var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster());
+    var isManagerUser = (typeof window.isManager === 'function' && window.isManager());
+    var _cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var myShowroom = (_cur && (_cur.showroom || _cur.showroomId)) ? (_cur.showroom || _cur.showroomId) : '';
     var isDesignTeam = (myTeam === '설계');
     var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
@@ -488,24 +491,33 @@
       var sales = (c.salesPerson || '').trim();
       var design = (c.designContactName || c.designPermitDesigner || '').trim();
       var construction = (c.constructionManager || '').trim();
-      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam;
+      var isSameShowroom = isManagerUser && myShowroom && (c.showroomId || '') === myShowroom;
+      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam || isSameShowroom;
       if (!isAssignee && !isAdminUser) return;
 
       ensureContractChatRoom(c.id);
       var names = [sales, design, construction].filter(function (s) { return (s || '').trim(); });
       var uniqueNames = names.filter(function (n, i) { return names.indexOf(n) === i; });
       var participantCount = uniqueNames.length;
-      var label = (c.customerName || '-') + ' · ' + (c.contractModelName || c.contractModel || '-');
-      list.push({ type: 'contract', id: c.id, label: label, participantCount: participantCount });
+      var showroomLabel = c.showroomId ? (CHAT_CHANNEL_LABELS[c.showroomId] || c.showroomId) : '';
+      var typeMap = { '컨테이너/농막': '컨테이너/농막', '체류형쉼터': '체류형쉼터', '전원주택': '전원주택', '기타': '기타' };
+      var designType = typeMap[(c.projectType || c.contractModel || '').trim()] || '기타';
+      var dateStr = (function () {
+        var d = c.contractDate || '';
+        if (!d) return '';
+        var parts = d.slice(0, 10).split('-');
+        if (parts.length === 3) return parts[1] + '.' + parts[2];
+        return d.slice(0, 10);
+      })();
+      var label = (showroomLabel ? '[' + showroomLabel + '] ' : '') + (c.customerName || '-') + ' · ' + designType + (dateStr ? ' · ' + dateStr : '');
+      list.push({ type: 'contract', id: c.id, label: label, participantCount: participantCount, showroomId: c.showroomId || '', contractDate: c.contractDate || '' });
     });
 
+    // 계약일 오래된 순 (오름차순)
     list.sort(function (a, b) {
-      var msgsA = store[a.id] || [];
-      var msgsB = store[b.id] || [];
-      var lastA = msgsA.length ? (msgsA[msgsA.length - 1].created_at || '') : '';
-      var lastB = msgsB.length ? (msgsB[msgsB.length - 1].created_at || '') : '';
-      if (lastB !== lastA) return lastB > lastA ? 1 : -1;
-      return (msgsB.length - msgsA.length);
+      var dA = a.contractDate || '';
+      var dB = b.contractDate || '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
     });
     return list;
   }

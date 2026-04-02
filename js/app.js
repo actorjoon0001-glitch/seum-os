@@ -3635,7 +3635,7 @@
 
     // ── 유형 분류 헬퍼 ──
     function getContractTypeKey(c) {
-      var t = (c.projectType || '').trim();
+      var t = (c.projectType || c.contractModel || '').trim();
       if (t === '컨테이너/농막') return '컨테이너/농막';
       if (t === '체류형쉼터') return '체류형쉼터';
       if (t === '전원주택') return '전원주택(인허가)';
