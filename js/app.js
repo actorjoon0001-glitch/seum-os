@@ -3230,10 +3230,19 @@
     // 유형별 정렬
     TYPE_ORDER.forEach(function (type) {
       groups[type].sort(function (a, b) {
-        // 전원주택: 허가완료일 → 계약일, 나머지: 계약일
-        var dA = (type === '전원주택(인허가)' ? (a.permitCertDate || a.contractDate) : a.contractDate) || '';
-        var dB = (type === '전원주택(인허가)' ? (b.permitCertDate || b.contractDate) : b.contractDate) || '';
-        if (dA !== dB) return dA < dB ? -1 : 1;
+        if (type === '전원주택(인허가)') {
+          // 허가완료일 있는 것 먼저
+          var hasA = a.permitCertDate ? 0 : 1;
+          var hasB = b.permitCertDate ? 0 : 1;
+          if (hasA !== hasB) return hasA - hasB;
+          var dA = (a.permitCertDate || a.contractDate) || '';
+          var dB = (b.permitCertDate || b.contractDate) || '';
+          if (dA !== dB) return dA < dB ? -1 : 1;
+        } else {
+          var dA = a.contractDate || '';
+          var dB = b.contractDate || '';
+          if (dA !== dB) return dA < dB ? -1 : 1;
+        }
         var sA = (a.designStatus || 'none').toLowerCase();
         var sB = (b.designStatus || 'none').toLowerCase();
         return ((sA === 'none' || sA === '') ? 0 : 1) - ((sB === 'none' || sB === '') ? 0 : 1);
