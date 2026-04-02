@@ -3035,7 +3035,6 @@
     if (!v) return;
     var html = '<table class="detail-table"><tbody>' +
       '<tr><th>전시장</th><td>' + getShowroomName(v.showroomId) + '</td></tr>' +
-      '<tr><th>희망 전시장</th><td>' + (v.preferredShowroom ? getShowroomName(v.preferredShowroom) : '미정') + '</td></tr>' +
       '<tr><th>이름</th><td>' + (v.name || '-') + '</td></tr>' +
       '<tr><th>연락처</th><td>' + (v.phone || '-') + '</td></tr>' +
       '<tr><th>방문일</th><td>' + formatDate(v.visitDate) + '</td></tr>' +
@@ -7696,7 +7695,6 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         var showroomId = document.getElementById('visit-showroom').value;
-        var preferredShowroom = document.getElementById('visit-preferred-showroom').value;
         var name = document.getElementById('visit-name').value.trim();
         var phone = document.getElementById('visit-phone').value.trim();
         var visitDate = document.getElementById('visit-date').value;
@@ -7716,7 +7714,6 @@
         visits.push({
           id: id(),
           showroomId: showroomId,
-          preferredShowroom: preferredShowroom,
           name: name,
           phone: phone,
           visitDate: visitDate,
