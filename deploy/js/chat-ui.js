@@ -173,7 +173,7 @@
         filterEl.innerHTML = filterHtml;
       }
 
-      // 월별 필터 버튼 렌더
+      // 월별 필터 드롭다운 렌더
       var monthFilterEl = document.getElementById('chat-contract-month-filter');
       if (monthFilterEl) {
         var months = [];
@@ -185,14 +185,21 @@
             if (!seenMonths[ym]) { seenMonths[ym] = true; months.push(ym); }
           }
         });
-        months.sort();
-        var monthHtml = months.map(function (ym) {
+        months.sort().reverse(); // 최신 월이 위로
+        var optionsHtml = '<option value="">전체</option>' + months.map(function (ym) {
           var parts = ym.split('-');
           var mlabel = parts[0] + '년 ' + parseInt(parts[1], 10) + '월';
-          var isActive = selectedContractMonthFilter === ym;
-          return '<button type="button" class="chat-month-filter-btn' + (isActive ? ' active' : '') + '" data-month="' + window.escapeChatText(ym) + '">' + window.escapeChatText(mlabel) + '</button>';
+          var sel = selectedContractMonthFilter === ym ? ' selected' : '';
+          return '<option value="' + window.escapeChatText(ym) + '"' + sel + '>' + window.escapeChatText(mlabel) + '</option>';
         }).join('');
-        monthFilterEl.innerHTML = monthHtml;
+        monthFilterEl.innerHTML = '<select id="chat-month-select" class="chat-month-select">' + optionsHtml + '</select>';
+        var selectEl = monthFilterEl.querySelector('#chat-month-select');
+        if (selectEl) {
+          selectEl.addEventListener('change', function () {
+            selectedContractMonthFilter = this.value;
+            renderChatRoomList();
+          });
+        }
       }
 
       var contractHtml = '';
@@ -544,6 +551,11 @@
 
     if (panel.classList.contains('chat-panel-two-col')) {
       document.body.classList.add('chat-panel-two-col-open');
+      // 기본값: 현재 월
+      if (!selectedContractMonthFilter) {
+        var now = new Date();
+        selectedContractMonthFilter = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      }
       renderChatRoomList();
       var searchEl = document.getElementById('chat-room-search');
       if (searchEl) searchEl.addEventListener('input', function () { renderChatRoomList(); });
@@ -551,13 +563,6 @@
         var filterBtn = e.target.closest('.chat-showroom-filter-btn');
         if (filterBtn) {
           selectedContractShowroomFilter = filterBtn.getAttribute('data-showroom') || 'all';
-          renderChatRoomList();
-          return;
-        }
-        var monthBtn = e.target.closest('.chat-month-filter-btn');
-        if (monthBtn) {
-          var clickedMonth = monthBtn.getAttribute('data-month') || '';
-          selectedContractMonthFilter = selectedContractMonthFilter === clickedMonth ? '' : clickedMonth;
           renderChatRoomList();
           return;
         }
