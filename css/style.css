@@ -4438,6 +4438,55 @@ textarea.form-input {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* 설계팀 유형 탭 */
+.design-type-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+.design-type-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.design-type-tab:hover { background: #1e293b; color: #e2e8f0; }
+.design-type-tab.active {
+  background: #1e40af;
+  border-color: #3b82f6;
+  color: #fff;
+  font-weight: 600;
+}
+.design-type-tab .tab-count {
+  background: rgba(255,255,255,0.18);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.75rem;
+}
+.design-type-tab.active .tab-count { background: rgba(255,255,255,0.25); }
+
+/* 유형 뱃지 */
+.design-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-container  { background: rgba(59,130,246,0.18); color: #93c5fd; }
+.badge-shelter    { background: rgba(34,197,94,0.18);  color: #86efac; }
+.badge-house      { background: rgba(249,115,22,0.18); color: #fdba74; }
+.badge-etc        { background: rgba(107,114,128,0.18); color: #9ca3af; }
+
 /* 건축허가 완료일 날짜 입력 */
 .permit-cert-wrap {
   display: flex;
