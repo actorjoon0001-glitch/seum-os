@@ -3220,6 +3220,14 @@
       return '기타';
     }
 
+    // 긴급진행건: isUrgent 계약, 계약일 오래된 순
+    var urgentList = contracts.filter(function (c) { return c.isUrgent; });
+    urgentList.sort(function (a, b) {
+      var dA = a.contractDate || '';
+      var dB = b.contractDate || '';
+      return dA < dB ? -1 : dA > dB ? 1 : 0;
+    });
+
     var TYPE_ORDER = ['전원주택(인허가)', '컨테이너/농막', '체류형쉼터', '기타'];
 
     // 유형별 그룹
@@ -3248,6 +3256,48 @@
         return ((sA === 'none' || sA === '') ? 0 : 1) - ((sB === 'none' || sB === '') ? 0 : 1);
       });
     });
+
+    function renderUrgentSection(list) {
+      var html = '<div class="design-priority-section design-priority-urgent-section">' +
+        '<div class="design-priority-header">' +
+        '<span class="design-priority-urgent-title">🚨 긴급진행건</span>' +
+        '<span class="design-priority-count urgent-count">총 ' + list.length + '건</span>' +
+        '</div>';
+      if (list.length === 0) {
+        html += '<p class="design-priority-empty">긴급진행건이 없습니다.</p>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
+          '<th>#</th><th>계약일</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th></th>' +
+          '</tr></thead><tbody>';
+        list.forEach(function (c, i) {
+          var shortAddr = (c.siteAddress || '').trim().split(/\s+/).slice(0, 2).join(' ') || '-';
+          var st = (c.designStatus || 'none').toLowerCase();
+          var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
+          var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
+          var typeLabel = getTypeKey(c);
+          html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
+            '<td class="design-priority-rank">' + (i + 1) + '</td>' +
+            '<td class="design-priority-date">' + escapeHtml(c.contractDate || '-') + '</td>' +
+            '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span></td>' +
+            '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
+            '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
+            '<td>' + escapeHtml(showroomLabel) + '</td>' +
+            '<td>' + escapeHtml(shortAddr) + '</td>' +
+            '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
+            '<td>' + escapeHtml(designer) + '</td>' +
+            '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
+            '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    // TYPE_BADGE_CLS 참조를 위해 우선순위 섹션 렌더 전에 선언
+    var TYPE_BADGE_CLS = { '컨테이너/농막': 'badge-container', '체류형쉼터': 'badge-shelter', '전원주택(인허가)': 'badge-house', '기타': 'badge-etc' };
 
     function renderSection(type, list) {
       var isPermit = type === '전원주택(인허가)';
@@ -3293,7 +3343,7 @@
       return html;
     }
 
-    var html = TYPE_ORDER.map(function (type) { return renderSection(type, groups[type]); }).join('');
+    var html = renderUrgentSection(urgentList) + TYPE_ORDER.map(function (type) { return renderSection(type, groups[type]); }).join('');
     wrap.innerHTML = html;
 
     wrap.querySelectorAll('.priority-goto-btn').forEach(function (btn) {
@@ -3763,10 +3813,14 @@
       var _dDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
       var typeKey = getContractTypeKey(c);
       var typeBadge = '<span class="design-type-badge ' + TYPE_BADGE_CLS[typeKey] + '">' + escapeHtml(typeKey) + '</span>';
-      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td>' + typeBadge + '</td><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
+      var isUrgent = !!c.isUrgent;
+      var urgentCheckDisabled = salesOnlyReview || constructionOnlyReview;
+      var urgentCell = '<label class="urgent-check-label" title="긴급진행건으로 설정"><input type="checkbox" class="urgent-check" data-contract-id="' + escapeAttr(c.id) + '"' + (isUrgent ? ' checked' : '') + (urgentCheckDisabled ? ' disabled' : '') + '></label>';
+      if (isUrgent) rowClass += ' design-row-urgent';
+      return '<tr class="' + rowClass + '" data-contract-id="' + c.id + '"><td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td><td class="urgent-check-cell">' + urgentCell + '</td><td>' + typeBadge + '</td><td>' + getShowroomName(c.showroomId) + '</td><td>' + houseType + '</td><td>' + modelName + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddr + '</td><td>' + (c.salesPerson || '-') + '</td><td class="design-manager-cell">' + designerCell + '</td><td class="design-construction-manager-cell">' + constructionMgrCell + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _dDivisor)) + '만원</td><td>' + formatDate(c.depositReceivedAt) + '</td><td>' + statusLabel + '</td><td>' + constructionOk + '</td><td class="design-progress-cell">' + designProgressCell + '</td><td class="' + reviewTdClass + '">' + reviewCell + '</td><td class="final-approval-cell-wrap">' + approvalCell + '</td></tr>';
     }).join('') || (getDesignSearchKeyword()
-      ? '<tr><td colspan="18" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-      : '<tr><td colspan="18">설계 데이터가 없습니다.</td></tr>');
+      ? '<tr><td colspan="19" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="19">설계 데이터가 없습니다.</td></tr>');
     updateDesignFilterResult(contracts);
     if (expandedDesignId) {
       var expandedDesignRow = tbody.querySelector('.design-row[data-contract-id="' + expandedDesignId + '"]');
@@ -8644,6 +8698,7 @@
           architectInfo: '',
           designContactName: '',
           designContactPhone: '',
+          isUrgent: false,
           hasPermitCert: false,
           permitCertDate: '',
           permitAttachment: '',
@@ -9241,6 +9296,19 @@
             window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
           }
           renderConstruction();
+        }
+        return;
+      }
+      if (e.target.classList.contains('urgent-check')) {
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.isUrgent = e.target.checked;
+          saveContracts(contracts);
+          renderDesign();
+          renderDesignPriority();
         }
         return;
       }
