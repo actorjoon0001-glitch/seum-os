@@ -3207,74 +3207,86 @@
     var wrap = document.getElementById('design-priority-wrap');
     if (!wrap) return;
 
-    var contracts = getContracts();
+    var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
     var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
-
-    // 건축허가 완료 + 허가 완료일이 모두 있는 계약만
-    var list = contracts.filter(function (c) {
-      return c.hasPermitCert && c.permitCertDate;
-    });
-
-    // 정렬: 허가 완료일 빠른 순 → 계약일 오래된 순 → 설계 미착수/설계대기 우선
-    list.sort(function (a, b) {
-      var dA = a.permitCertDate || '';
-      var dB = b.permitCertDate || '';
-      if (dA !== dB) return dA < dB ? -1 : 1;
-      var cA = a.contractDate || '';
-      var cB = b.contractDate || '';
-      if (cA !== cB) return cA < cB ? -1 : 1;
-      var sA = (a.designStatus || 'none').toLowerCase();
-      var sB = (b.designStatus || 'none').toLowerCase();
-      var earlyA = sA === 'none' || sA === '' ? 0 : 1;
-      var earlyB = sB === 'none' || sB === '' ? 0 : 1;
-      return earlyA - earlyB;
-    });
-
     var statusMap = { none: '미착수', '': '미착수', in_progress: '설계 중', done: '완료' };
     var statusCls = { none: 'status-none', '': 'status-none', in_progress: 'status-in_progress', done: 'status-done' };
 
-    var html = '<div class="design-priority-header">' +
-      '<span>건축허가 완료 계약 목록</span>' +
-      '<span class="design-priority-count">총 ' + list.length + '건</span>' +
-      '</div>';
-
-    if (list.length === 0) {
-      html += '<p style="color:#9ca3af;padding:1.5rem 0;">건축허가 완료 계약이 없습니다.</p>';
-    } else {
-      html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
-        '<th>#</th><th>허가 완료일</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th></th>' +
-        '</tr></thead><tbody>';
-      list.forEach(function (c, i) {
-        var shortAddr = (function () {
-          var a = c.siteAddress || '';
-          if (!a) return '-';
-          var p = a.trim().split(/\s+/);
-          return p.slice(0, 2).join(' ');
-        })();
-        var st = (c.designStatus || 'none').toLowerCase();
-        var stLabel = statusMap[st] || st;
-        var stCls = statusCls[st] || 'status-none';
-        var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
-        var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
-        html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
-          '<td class="design-priority-rank">' + (i + 1) + '</td>' +
-          '<td class="design-priority-date">' + escapeHtml(c.permitCertDate || '-') + '</td>' +
-          '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
-          '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
-          '<td>' + escapeHtml(showroomLabel) + '</td>' +
-          '<td>' + escapeHtml(shortAddr) + '</td>' +
-          '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
-          '<td>' + escapeHtml(designer) + '</td>' +
-          '<td><span class="design-priority-status ' + stCls + '">' + escapeHtml(stLabel) + '</span></td>' +
-          '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
-          '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
-          '</tr>';
-      });
-      html += '</tbody></table></div>';
+    function getTypeKey(c) {
+      var t = (c.projectType || c.contractModel || '').trim();
+      if (t === '컨테이너/농막') return '컨테이너/농막';
+      if (t === '체류형쉼터') return '체류형쉼터';
+      if (t === '전원주택') return '전원주택(인허가)';
+      return '기타';
     }
+
+    var TYPE_ORDER = ['전원주택(인허가)', '컨테이너/농막', '체류형쉼터', '기타'];
+
+    // 유형별 그룹
+    var groups = {};
+    TYPE_ORDER.forEach(function (t) { groups[t] = []; });
+    contracts.forEach(function (c) { groups[getTypeKey(c)].push(c); });
+
+    // 유형별 정렬
+    TYPE_ORDER.forEach(function (type) {
+      groups[type].sort(function (a, b) {
+        // 전원주택: 허가완료일 → 계약일, 나머지: 계약일
+        var dA = (type === '전원주택(인허가)' ? (a.permitCertDate || a.contractDate) : a.contractDate) || '';
+        var dB = (type === '전원주택(인허가)' ? (b.permitCertDate || b.contractDate) : b.contractDate) || '';
+        if (dA !== dB) return dA < dB ? -1 : 1;
+        var sA = (a.designStatus || 'none').toLowerCase();
+        var sB = (b.designStatus || 'none').toLowerCase();
+        return ((sA === 'none' || sA === '') ? 0 : 1) - ((sB === 'none' || sB === '') ? 0 : 1);
+      });
+    });
+
+    function renderSection(type, list) {
+      var isPermit = type === '전원주택(인허가)';
+      var dateHeader = isPermit ? '허가완료일' : '계약일';
+      var html = '<div class="design-priority-section">' +
+        '<div class="design-priority-header">' +
+        '<span>' + escapeHtml(type) + '</span>' +
+        '<span class="design-priority-count">총 ' + list.length + '건</span>' +
+        '</div>';
+      if (list.length === 0) {
+        html += '<p class="design-priority-empty">해당 계약이 없습니다.</p>';
+      } else {
+        html += '<div style="overflow-x:auto"><table class="design-priority-table"><thead><tr>' +
+          '<th>#</th><th>' + dateHeader + '</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th></th>' +
+          '</tr></thead><tbody>';
+        list.forEach(function (c, i) {
+          var shortAddr = (function () {
+            var a = c.siteAddress || '';
+            if (!a) return '-';
+            return a.trim().split(/\s+/).slice(0, 2).join(' ');
+          })();
+          var dateVal = isPermit ? (c.permitCertDate || '-') : (c.contractDate || '-');
+          var st = (c.designStatus || 'none').toLowerCase();
+          var showroomLabel = showroomLabels[c.showroomId] || c.showroomId || '-';
+          var designer = (c.designPermitDesigner || c.designContactName || '').trim() || '-';
+          html += '<tr class="design-priority-row" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
+            '<td class="design-priority-rank">' + (i + 1) + '</td>' +
+            '<td class="design-priority-date">' + escapeHtml(dateVal) + '</td>' +
+            '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
+            '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
+            '<td>' + escapeHtml(showroomLabel) + '</td>' +
+            '<td>' + escapeHtml(shortAddr) + '</td>' +
+            '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
+            '<td>' + escapeHtml(designer) + '</td>' +
+            '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
+            '<td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    var html = TYPE_ORDER.map(function (type) { return renderSection(type, groups[type]); }).join('');
     wrap.innerHTML = html;
 
-    // 이벤트: 버튼 클릭 또는 행 클릭 → 계약 상세로 이동
     wrap.querySelectorAll('.priority-goto-btn').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
