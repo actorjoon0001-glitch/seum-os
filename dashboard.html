@@ -3483,10 +3483,19 @@
   <script>
     (function () {
       document.body.style.visibility = 'hidden';
+      var revealed = false;
+      function revealBody() {
+        if (revealed) return;
+        revealed = true;
+        document.body.style.visibility = '';
+      }
+      var fallback = setTimeout(revealBody, 5000);
       (window.seumAuth.authReady || Promise.resolve()).then(function () {
-        document.body.style.visibility = '';
+        clearTimeout(fallback);
+        revealBody();
       }).catch(function () {
-        document.body.style.visibility = '';
+        clearTimeout(fallback);
+        revealBody();
       });
     })();
   </script>

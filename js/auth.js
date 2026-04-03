@@ -250,7 +250,14 @@
    * @returns {Promise<void>}
    */
   async function requireAuth() {
-    var session = (await supabase.auth.getSession()).data.session;
+    var sessionResult;
+    try {
+      sessionResult = await supabase.auth.getSession();
+    } catch (e) {
+      window.location.replace('login.html');
+      return Promise.reject(new Error('session_error'));
+    }
+    var session = sessionResult && sessionResult.data && sessionResult.data.session;
     if (!session || !session.user || !session.user.id) {
       window.location.replace('login.html');
       return Promise.reject(new Error('no_session'));
