@@ -276,18 +276,8 @@
       return Promise.reject(new Error('not_approved'));
     }
     setCurrentEmployee(employee, session.user && session.user.email ? session.user.email : null, authUserId);
-    await upsertUserPresence({
-      user_id: employee.id,
-      status: 'online',
-      last_seen: isoNow(),
-      last_login_at: isoNow()
-    });
-    startPresenceHeartbeat(employee.id);
-    try {
-      if (typeof window.seumAuth.onReady === 'function') window.seumAuth.onReady();
-    } catch (e) {
-      console.error('onReady 실행 오류:', e);
-    }
+
+    // 이름 표시: 네트워크 대기 전에 먼저 DOM 업데이트
     var cur = window.seumAuth.currentEmployee;
     var displayName = (cur && cur.name ? cur.name : '직원');
     var teamRaw = (cur && cur.team ? String(cur.team).trim() : '') || null;
@@ -316,6 +306,19 @@
     if (btn) {
       btn.addEventListener('click', function () { logout(); });
     }
+
+    try {
+      if (typeof window.seumAuth.onReady === 'function') window.seumAuth.onReady();
+    } catch (e) {
+      console.error('onReady 실행 오류:', e);
+    }
+    await upsertUserPresence({
+      user_id: employee.id,
+      status: 'online',
+      last_seen: isoNow(),
+      last_login_at: isoNow()
+    });
+    startPresenceHeartbeat(employee.id);
   }
 
   function isDashboardPage() {
