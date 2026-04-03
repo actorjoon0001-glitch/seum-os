@@ -3063,10 +3063,10 @@
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroomId = resolveShowroomId(cur);
-      // master/admin이 아닌 모든 사용자는 소속 전시장만 노출 (단, 본사 소속은 전체 전시장 노출)
+      // master/admin이 아닌 모든 사용자는 소속 전시장만 노출 (단, 설계팀은 전체 전시장 노출)
       var _isAdminHere = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      var _isHeadquartersSales = (myShowroomId === 'headquarters');
-      if (myShowroomId && !_isAdminHere && !_isHeadquartersSales) {
+      var _isDesignTeamSales = (team === '설계');
+      if (myShowroomId && !_isAdminHere && !_isDesignTeamSales) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
         contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
       }
@@ -3098,11 +3098,11 @@
       var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
       var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      // master/admin이 아닌 모든 사용자는 소속 전시장 계약만 노출 (단, 본사 소속은 전체 전시장 노출)
+      // master/admin이 아닌 모든 사용자는 소속 전시장 계약만 노출 (단, 설계팀은 전체 전시장 노출)
       if (curUser && !isAdminRole) {
         var myShowroomId = resolveShowroomId(curUser);
-        var _isHQSalesContracts = (myShowroomId === 'headquarters');
-        if (myShowroomId && !_isHQSalesContracts) {
+        var _isDesignContracts = (userTeam === '설계');
+        if (myShowroomId && !_isDesignContracts) {
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
         }
       }
