@@ -276,7 +276,11 @@
       last_login_at: isoNow()
     });
     startPresenceHeartbeat(employee.id);
-    if (typeof window.seumAuth.onReady === 'function') window.seumAuth.onReady();
+    try {
+      if (typeof window.seumAuth.onReady === 'function') window.seumAuth.onReady();
+    } catch (e) {
+      console.error('onReady 실행 오류:', e);
+    }
     var cur = window.seumAuth.currentEmployee;
     var displayName = (cur && cur.name ? cur.name : '직원');
     var teamRaw = (cur && cur.team ? String(cur.team).trim() : '') || null;
