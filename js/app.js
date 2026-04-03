@@ -3766,12 +3766,13 @@
 
   function renderDesign() {
     var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
-    // master/admin이 아닌 모든 사용자는 본인 전시장만
+    // master/admin이 아닌 모든 사용자는 본인 전시장만 (단, 본사 소속은 전체 전시장 노출)
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var _isAdminDesign = isAdmin() || isMaster() || isSuperAdmin();
       var myShowroomDesign = resolveShowroomId(cur);
-      if (myShowroomDesign && !_isAdminDesign) {
+      var _isHeadquartersDesign = (myShowroomDesign === 'headquarters');
+      if (myShowroomDesign && !_isAdminDesign && !_isHeadquartersDesign) {
         contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomDesign; });
       }
     }
