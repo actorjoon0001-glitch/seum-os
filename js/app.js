@@ -36,6 +36,7 @@
     { id: 'showroom1', name: '1전시장' },
     { id: 'showroom3', name: '3전시장' },
     { id: 'showroom4', name: '4전시장' },
+    { id: 'ganghwa', name: '강화전시장' },
   ];
 
   function getShowroomName(id) {

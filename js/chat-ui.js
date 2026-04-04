@@ -2,8 +2,8 @@
   'use strict';
   /* Chat UI and init. Uses window functions from chat.js (getChatStore, getContractChatStore, renderContractChat, getContractChatRoomList, etc.). */
 
-  var CHAT_CHANNELS = window.CHAT_CHANNELS || ['all', 'headquarters', 'showroom1', 'showroom3', 'showroom4'];
-  var CHAT_CHANNEL_LABELS = window.CHAT_CHANNEL_LABELS || { all: '전체 협업', headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+  var CHAT_CHANNELS = window.CHAT_CHANNELS || ['all', 'headquarters', 'showroom1', 'showroom3', 'showroom4', 'ganghwa'];
+  var CHAT_CHANNEL_LABELS = window.CHAT_CHANNEL_LABELS || { all: '전체 협업', headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장' };
 
   /** 현재 선택된 채팅방 (채널 또는 계약) */
   var selectedChatRoom = { type: 'channel', id: 'all' };
