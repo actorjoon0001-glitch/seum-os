@@ -3774,7 +3774,8 @@
       var _isAdminDesign = isAdmin() || isMaster() || isSuperAdmin();
       var myShowroomDesign = resolveShowroomId(cur);
       var _isHeadquartersDesign = (myShowroomDesign === 'headquarters');
-      if (myShowroomDesign && !_isAdminDesign && !_isHeadquartersDesign) {
+      var _isDesignTeam = (cur.team || '').trim() === '설계';
+      if (myShowroomDesign && !_isAdminDesign && !_isHeadquartersDesign && !_isDesignTeam) {
         contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomDesign; });
       }
     }
