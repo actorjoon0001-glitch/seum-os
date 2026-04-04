@@ -5,8 +5,8 @@
   var STORAGE_CHAT_LAST_READ = 'seum_chat_last_read';
   var STORAGE_CONTRACT_CHAT_READ = 'seum_chat_contract_read';
 
-  var CHAT_CHANNELS = ['all', 'headquarters', 'showroom1', 'showroom3', 'showroom4'];
-  var CHAT_CHANNEL_LABELS = { all: '전체 협업', headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+  var CHAT_CHANNELS = ['all', 'headquarters', 'showroom1', 'showroom3', 'showroom4', 'ganghwa'];
+  var CHAT_CHANNEL_LABELS = { all: '전체 협업', headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장' };
 
   /** in-memory cache: channel -> list of UI-format messages */
   var teamChatCache = {};

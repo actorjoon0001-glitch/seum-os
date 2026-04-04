@@ -26,7 +26,8 @@ VALUES
   ('headquarters', '본사 전시장'),
   ('showroom1', '1전시장'),
   ('showroom3', '3전시장'),
-  ('showroom4', '4전시장')
+  ('showroom4', '4전시장'),
+  ('ganghwa', '강화전시장')
 ON CONFLICT (code) DO NOTHING;
 
 -- 2. get_employee_by_auth_id RPC에 permission 반환 추가 (permission 컬럼이 있는 경우)

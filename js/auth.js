@@ -293,6 +293,7 @@
     else if (showroomId === 'showroom1' || showroomId === '1전시장' || showroomId === '제1전시장') showroomLabel = '1전시장';
     else if (showroomId === 'showroom3' || showroomId === '3전시장' || showroomId === '제3전시장') showroomLabel = '3전시장';
     else if (showroomId === 'showroom4' || showroomId === '4전시장' || showroomId === '제4전시장') showroomLabel = '4전시장';
+    else if (showroomId === 'ganghwa' || showroomId === '강화전시장' || showroomId === '강화') showroomLabel = '강화전시장';
     else if (showroomId) showroomLabel = showroomId;
 
     var sidebarEl = document.getElementById('sidebar-current-user');
