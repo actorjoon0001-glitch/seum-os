@@ -240,6 +240,8 @@
 
     // ???????: ?????+ ??? + ??? + ???
     if (sectionId === 'marketing') return isMarketing;
+    if (sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
+        sectionId === 'marketing-files' || sectionId === 'marketing-nas') return isMarketing;
 
     // 방문예약 고객 / 고객관리: 영업팀 + master/admin만
     if (sectionId === 'sales-leads' || sectionId === 'sales-customers') {
@@ -7488,7 +7490,9 @@
     if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
       return;
     }
-    if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
+    if ((sectionId === 'marketing' || sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
+      sectionId === 'marketing-files' || sectionId === 'marketing-nas' ||
+      sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
       sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
@@ -7503,6 +7507,10 @@
     document.querySelectorAll('.nav-item').forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-section') === sectionId);
     });
+    if (sectionId === 'marketing-videos' && typeof window.renderMarketingVideos === 'function') window.renderMarketingVideos();
+    if (sectionId === 'marketing-schedule' && typeof window.renderMarketingSchedule === 'function') window.renderMarketingSchedule();
+    if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
+    if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'design-worklog') renderDesignWorklog();
     if (sectionId === 'design-schedule') renderDesignSchedule();
@@ -7576,6 +7584,17 @@
         if (btn) btn.setAttribute('aria-expanded', 'true');
       }
     }
+    if (sectionId === 'marketing' || sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
+        sectionId === 'marketing-files' || sectionId === 'marketing-nas') {
+      var mktSub = document.getElementById('nav-marketing-sub');
+      var mktGroup = document.getElementById('sidebar-group-marketing');
+      if (mktSub && mktGroup) {
+        mktSub.classList.remove('collapsed');
+        mktGroup.classList.add('expanded');
+        var mktBtn = document.getElementById('nav-marketing-toggle');
+        if (mktBtn) mktBtn.setAttribute('aria-expanded', 'true');
+      }
+    }
     if (sectionId === 'sales-leads' || sectionId === 'sales-contracts' || sectionId === 'sales-customers') {
       var salesSub = document.getElementById('nav-sales-sub');
       var salesGroup = document.getElementById('sidebar-group-sales');
@@ -7614,6 +7633,18 @@
         closeMobileSidebar();
       });
     });
+    var marketingToggle = document.getElementById('nav-marketing-toggle');
+    var marketingSub = document.getElementById('nav-marketing-sub');
+    var marketingGroup = document.getElementById('sidebar-group-marketing');
+    if (marketingToggle && marketingSub && marketingGroup) {
+      marketingToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        marketingSub.classList.toggle('collapsed');
+        marketingGroup.classList.toggle('expanded');
+        marketingToggle.setAttribute('aria-expanded', marketingSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
     var designToggle = document.getElementById('nav-design-toggle');
     var designSub = document.getElementById('nav-design-sub');
     var designGroup = document.getElementById('sidebar-group-design');
@@ -10820,6 +10851,7 @@
     initCeoReports();
     syncCeoReportsFromSupabase();
     initExpenseReport();
+    if (typeof window.initMarketing === 'function') window.initMarketing();
 
     // 섹션 인쇄 버튼 (새 창 방식)
     document.addEventListener('click', function (e) {

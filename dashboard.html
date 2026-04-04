@@ -113,7 +113,20 @@
 
       <div class="nav-section">
         <div class="nav-section-title">부서별 업무</div>
-        <a href="#" class="nav-item" data-section="marketing">마케팅팀</a>
+
+        <div class="nav-group sidebar-group" id="sidebar-group-marketing">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-marketing-toggle" aria-expanded="false">
+            <span>마케팅팀</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-marketing-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing">방문예약 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-videos">월별 영상관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-schedule">촬영 스케줄</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-files">파일 공유</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-nas">영상 NAS 링크</a>
+          </div>
+        </div>
 
         <div class="nav-group sidebar-group" id="sidebar-group-sales">
           <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-sales-toggle" aria-expanded="false">
@@ -529,6 +542,187 @@
               </tr>
             </thead>
             <tbody id="tbody-visits"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 월별 영상관리
+    ================================================================ -->
+    <section id="section-marketing-videos" class="content-section">
+      <header class="main-header">
+        <h2>월별 영상관리</h2>
+        <p class="section-desc">월별 영상 업로드 현황을 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <select id="mv-month-select" class="form-input" style="min-width:130px"></select>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-mv-add">+ 영상 추가</button>
+        </div>
+        <div id="mv-form-wrap" class="hidden" style="padding:1rem 0 0.5rem">
+          <h4 id="mv-form-title" style="margin-bottom:0.75rem;font-size:1rem">영상 추가</h4>
+          <form id="form-mv" class="form-block">
+            <div class="form-grid form-grid-2">
+              <label>영상 제목 <input type="text" id="mv-title" class="form-input" placeholder="영상 제목" required></label>
+              <label>촬영일 <input type="date" id="mv-shoot-date" class="form-input"></label>
+              <label>담당자 <input type="text" id="mv-assignee" class="form-input" placeholder="담당자 이름"></label>
+              <label>상태
+                <select id="mv-status" class="form-input">
+                  <option value="촬영예정">촬영 예정</option>
+                  <option value="촬영완료">촬영 완료</option>
+                  <option value="편집중">편집 중</option>
+                  <option value="업로드완료">업로드 완료</option>
+                </select>
+              </label>
+              <label class="form-full">NAS 링크 <input type="text" id="mv-nas-link" class="form-input" placeholder="NAS 경로 또는 URL"></label>
+              <label class="form-full">메모 <input type="text" id="mv-memo" class="form-input" placeholder="메모"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-mv-cancel">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap table-touch">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>영상 제목</th>
+                <th>촬영일</th>
+                <th>담당자</th>
+                <th>상태</th>
+                <th>NAS 링크</th>
+                <th style="text-align:center">완료</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mv"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 촬영 스케줄
+    ================================================================ -->
+    <section id="section-marketing-schedule" class="content-section">
+      <header class="main-header">
+        <h2>촬영 스케줄</h2>
+        <p class="section-desc">촬영 일정을 달력으로 공유합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <button type="button" class="btn btn-secondary btn-sm" id="ms-prev">◀</button>
+            <span id="ms-cal-header" style="font-weight:600;font-size:1.05rem;min-width:120px;text-align:center"></span>
+            <button type="button" class="btn btn-secondary btn-sm" id="ms-next">▶</button>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-ms-add">+ 일정 추가</button>
+        </div>
+        <div id="ms-cal-grid" class="ms-cal-wrap"></div>
+        <div style="margin-top:1.5rem">
+          <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.75rem;color:#374151">이달 촬영 일정 목록</h4>
+          <div class="table-wrap" id="ms-schedule-list"></div>
+        </div>
+      </div>
+      <!-- 촬영 일정 모달 -->
+      <div class="modal-overlay hidden" id="modal-ms">
+        <div class="modal" style="max-width:480px">
+          <div class="modal-header">
+            <h3 id="ms-modal-title">촬영 일정 등록</h3>
+            <button type="button" class="modal-close" id="btn-ms-modal-close">×</button>
+          </div>
+          <div class="modal-body">
+            <form id="form-ms" class="form-block">
+              <div class="form-grid form-grid-2">
+                <label>촬영일 <input type="date" id="ms-shoot-date" class="form-input" required></label>
+                <label>제목 <input type="text" id="ms-title" class="form-input" placeholder="촬영 내용/제목" required></label>
+                <label>촬영장소 <input type="text" id="ms-location" class="form-input" placeholder="장소"></label>
+                <label>담당자 <input type="text" id="ms-assignee" class="form-input" placeholder="담당자"></label>
+                <label class="form-full">메모 <textarea id="ms-memo" class="form-input" rows="2" placeholder="메모" style="resize:vertical"></textarea></label>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">저장</button>
+                <button type="button" class="btn btn-danger" id="btn-ms-delete">삭제</button>
+                <button type="button" class="btn btn-secondary" id="btn-ms-modal-close2" onclick="document.getElementById('modal-ms').classList.add('hidden')">닫기</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 파일 공유
+    ================================================================ -->
+    <section id="section-marketing-files" class="content-section">
+      <header class="main-header">
+        <h2>파일 공유</h2>
+        <p class="section-desc">사진, 디자인, 문서 파일을 프로젝트별로 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+            <label style="font-size:0.9rem;font-weight:500;margin:0">프로젝트
+              <input type="text" id="mf-project-name" class="form-input" placeholder="프로젝트명 (업로드 시 분류)" style="display:inline;width:150px;margin-left:0.4rem">
+            </label>
+            <select id="mf-project-filter" class="form-input" style="min-width:130px">
+              <option value="">전체</option>
+            </select>
+          </div>
+        </div>
+        <div id="mf-drop-zone" class="mf-drop-zone">
+          <span class="mf-drop-icon">📁</span>
+          <p>파일을 여기에 드래그하거나 <strong>클릭</strong>하여 업로드하세요</p>
+          <p style="font-size:0.8rem;color:#9ca3af">사진 / 디자인 / 문서 파일 지원</p>
+          <input type="file" id="mf-file-input" multiple style="display:none" accept="image/*,.pdf,.doc,.docx,.hwp,.xls,.xlsx,.ppt,.pptx,.zip,.ai,.psd">
+        </div>
+        <div id="mf-files-grid" class="mf-files-grid"></div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 영상 NAS 링크
+    ================================================================ -->
+    <section id="section-marketing-nas" class="content-section">
+      <header class="main-header">
+        <h2>영상 NAS 링크</h2>
+        <p class="section-desc">영상 파일이 저장된 NAS 경로를 등록하고 빠르게 이동합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>NAS 링크 목록</h3>
+          <button type="button" class="btn btn-primary" id="btn-mn-add">+ 링크 추가</button>
+        </div>
+        <div id="mn-form-wrap" class="hidden" style="padding:1rem 0 0.5rem">
+          <form id="form-mn" class="form-block">
+            <div class="form-grid form-grid-2">
+              <label>프로젝트명 <input type="text" id="mn-project" class="form-input" placeholder="예: 2026년 4월 촬영"></label>
+              <label>링크 제목 <input type="text" id="mn-title" class="form-input" placeholder="예: S3500 외관 촬영"></label>
+              <label class="form-full">NAS 링크 <input type="text" id="mn-url" class="form-input" placeholder="smb://nas.local/... 또는 http://..." required></label>
+              <label class="form-full">설명 <input type="text" id="mn-desc" class="form-input" placeholder="간단한 설명"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-mn-cancel">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap table-touch">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>프로젝트</th>
+                <th>제목</th>
+                <th>NAS 경로</th>
+                <th>바로가기</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mn"></tbody>
           </table>
         </div>
       </div>
@@ -3510,5 +3704,6 @@
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/marketing.js"></script>
 </body>
 </html>
