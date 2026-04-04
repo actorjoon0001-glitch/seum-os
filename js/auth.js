@@ -252,10 +252,15 @@
   async function requireAuth() {
     var sessionResult;
     try {
-      sessionResult = await supabase.auth.getSession();
+      sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise(function (_, reject) {
+          setTimeout(function () { reject(new Error('getSession timeout')); }, 10000);
+        })
+      ]);
     } catch (e) {
       window.location.replace('login.html');
-      return Promise.reject(new Error('session_error'));
+      return Promise.reject(e);
     }
     var session = sessionResult && sessionResult.data && sessionResult.data.session;
     if (!session || !session.user || !session.user.id) {
