@@ -624,13 +624,16 @@
         </div>
         <div id="ms-cal-grid" class="ms-cal-wrap"></div>
         <div style="margin-top:1.5rem">
-          <h4 style="font-size:0.95rem;font-weight:600;margin-bottom:0.75rem;color:#374151">이달 촬영 일정 목록</h4>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+            <h4 id="ms-list-title" style="font-size:0.95rem;font-weight:600;color:#374151;margin:0">이달 촬영 일정 목록</h4>
+            <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-ms-show-all">전체 보기</button>
+          </div>
           <div class="table-wrap" id="ms-schedule-list"></div>
         </div>
       </div>
       <!-- 촬영 일정 모달 -->
       <div class="modal-overlay hidden" id="modal-ms">
-        <div class="modal" style="max-width:480px">
+        <div class="modal" style="max-width:520px">
           <div class="modal-header">
             <h3 id="ms-modal-title">촬영 일정 등록</h3>
             <button type="button" class="modal-close" id="btn-ms-modal-close">×</button>
@@ -638,16 +641,27 @@
           <div class="modal-body">
             <form id="form-ms" class="form-block">
               <div class="form-grid form-grid-2">
+                <label>촬영명 <input type="text" id="ms-title" class="form-input" placeholder="촬영 제목/영상명" required></label>
                 <label>촬영일 <input type="date" id="ms-shoot-date" class="form-input" required></label>
-                <label>제목 <input type="text" id="ms-title" class="form-input" placeholder="촬영 내용/제목" required></label>
-                <label>촬영장소 <input type="text" id="ms-location" class="form-input" placeholder="장소"></label>
-                <label>담당자 <input type="text" id="ms-assignee" class="form-input" placeholder="담당자"></label>
-                <label class="form-full">메모 <textarea id="ms-memo" class="form-input" rows="2" placeholder="메모" style="resize:vertical"></textarea></label>
+                <label>담당자
+                  <select id="ms-assignee" class="form-input">
+                    <option value="">선택</option>
+                  </select>
+                </label>
+                <label>상태
+                  <select id="ms-status" class="form-input">
+                    <option value="촬영예정">촬영예정</option>
+                    <option value="촬영중">촬영중</option>
+                    <option value="촬영완료">촬영완료</option>
+                  </select>
+                </label>
+                <label class="form-full">촬영장소 <input type="text" id="ms-location" class="form-input" placeholder="촬영 장소"></label>
+                <label class="form-full">촬영내용 <textarea id="ms-content" class="form-input" rows="3" placeholder="촬영 내용, 특이사항 등" style="resize:vertical"></textarea></label>
               </div>
               <div class="form-actions">
                 <button type="submit" class="btn btn-primary">저장</button>
-                <button type="button" class="btn btn-danger" id="btn-ms-delete">삭제</button>
-                <button type="button" class="btn btn-secondary" id="btn-ms-modal-close2" onclick="document.getElementById('modal-ms').classList.add('hidden')">닫기</button>
+                <button type="button" class="btn btn-danger hidden" id="btn-ms-delete">삭제</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-ms').classList.add('hidden')">닫기</button>
               </div>
             </form>
           </div>
