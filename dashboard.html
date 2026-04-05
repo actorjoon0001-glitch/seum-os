@@ -623,32 +623,48 @@
           <button type="button" class="btn btn-primary" id="btn-ms-add">+ 일정 추가</button>
         </div>
 
-        <!-- 인라인 일정 등록/수정 폼 -->
-        <div id="ms-form-wrap" class="hidden" style="border:1px solid #e5e7eb;border-radius:0.5rem;padding:1.25rem;margin-bottom:1.25rem;background:#f9fafb;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-            <h4 id="ms-form-title" style="margin:0;font-size:0.95rem;font-weight:600;color:#111827">일정 등록</h4>
-            <button type="button" id="btn-ms-form-close" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#6b7280;line-height:1;">×</button>
+        <div id="ms-cal-grid" class="ms-cal-wrap"></div>
+
+        <!-- 인라인 일정 등록/수정 폼 (달력 아래) -->
+        <div id="ms-form-wrap" class="hidden" style="border:2px solid #6366f1;border-radius:0.5rem;padding:1.5rem;margin-top:1.25rem;background:#ffffff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+            <h4 id="ms-form-title" style="margin:0;font-size:1rem;font-weight:700;color:#111827">일정 등록</h4>
+            <button type="button" id="btn-ms-form-close" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;line-height:1;padding:0 4px;">×</button>
           </div>
           <form id="form-ms" class="form-block">
             <div class="form-grid form-grid-2">
-              <label>촬영명 <input type="text" id="ms-title" class="form-input" placeholder="촬영 제목/영상명" required></label>
-              <label>촬영일 <input type="date" id="ms-shoot-date" class="form-input" required></label>
-              <label>담당자
-                <select id="ms-assignee" class="form-input">
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영명
+                <input type="text" id="ms-title" placeholder="촬영 제목/영상명" required
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+              </label>
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영일
+                <input type="date" id="ms-shoot-date" required
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+              </label>
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">담당자
+                <select id="ms-assignee"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
                   <option value="">선택</option>
                 </select>
               </label>
-              <label>상태
-                <select id="ms-status" class="form-input">
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">상태
+                <select id="ms-status"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
                   <option value="촬영예정">촬영예정</option>
                   <option value="촬영중">촬영중</option>
                   <option value="촬영완료">촬영완료</option>
                 </select>
               </label>
-              <label class="form-full">촬영장소 <input type="text" id="ms-location" class="form-input" placeholder="촬영 장소"></label>
-              <label class="form-full">촬영내용 <textarea id="ms-content" class="form-input" rows="3" placeholder="촬영 내용, 특이사항 등" style="resize:vertical"></textarea></label>
+              <label class="form-full" style="color:#374151;font-size:0.875rem;font-weight:500">촬영장소
+                <input type="text" id="ms-location" placeholder="촬영 장소"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+              </label>
+              <label class="form-full" style="color:#374151;font-size:0.875rem;font-weight:500">촬영내용
+                <textarea id="ms-content" rows="3" placeholder="촬영 내용, 특이사항 등"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+              </label>
             </div>
-            <div class="form-actions">
+            <div class="form-actions" style="margin-top:1rem">
               <button type="submit" class="btn btn-primary">저장</button>
               <button type="button" class="btn btn-danger hidden" id="btn-ms-delete">삭제</button>
               <button type="button" class="btn btn-secondary" id="btn-ms-cancel">취소</button>
@@ -656,7 +672,6 @@
           </form>
         </div>
 
-        <div id="ms-cal-grid" class="ms-cal-wrap"></div>
         <div style="margin-top:1.5rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
             <h4 id="ms-list-title" style="font-size:0.95rem;font-weight:600;color:#374151;margin:0">이달 촬영 일정 목록</h4>
