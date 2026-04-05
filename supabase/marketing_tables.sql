@@ -86,8 +86,16 @@ CREATE POLICY "marketing_nas_links_all" ON public.marketing_nas_links
 -- 기존 marketing_schedules 테이블이 이미 있다면 아래 실행 (컬럼 추가):
 -- ====================================================================
 ALTER TABLE public.marketing_schedules
-  ADD COLUMN IF NOT EXISTS status  TEXT DEFAULT '촬영예정',
-  ADD COLUMN IF NOT EXISTS content TEXT;
+  ADD COLUMN IF NOT EXISTS status     TEXT DEFAULT '촬영예정',
+  ADD COLUMN IF NOT EXISTS content    TEXT;
+
+-- 촬영 스케줄 UI 개선 (v2): 시간/전시장/우선순위/준비물 추가
+ALTER TABLE public.marketing_schedules
+  ADD COLUMN IF NOT EXISTS start_time TEXT,
+  ADD COLUMN IF NOT EXISTS end_time   TEXT,
+  ADD COLUMN IF NOT EXISTS showroom   TEXT,
+  ADD COLUMN IF NOT EXISTS priority   TEXT DEFAULT '일반',
+  ADD COLUMN IF NOT EXISTS equipment  TEXT;
 
 
 -- ====================================================================

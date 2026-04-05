@@ -250,7 +250,16 @@
   var MS_STATUS_COLOR = {
     '촬영예정': { bg: '#dbeafe', text: '#1d4ed8', dot: '#3b82f6' },
     '촬영중':   { bg: '#fef3c7', text: '#d97706', dot: '#f59e0b' },
-    '촬영완료': { bg: '#d1fae5', text: '#065f46', dot: '#10b981' }
+    '촬영완료': { bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
+    '편집중':   { bg: '#ede9fe', text: '#6d28d9', dot: '#8b5cf6' },
+    '업로드완료':{ bg: '#f0fdf4', text: '#166534', dot: '#22c55e' }
+  };
+
+  // 우선순위별 색상
+  var MS_PRIORITY_COLOR = {
+    '긴급': { bg: '#fee2e2', text: '#b91c1c' },
+    '일반': { bg: '#f3f4f6', text: '#374151' },
+    '낮음': { bg: '#f0fdf4', text: '#166534' }
   };
 
   function msStatusBadge(status) {
@@ -332,19 +341,20 @@
         ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#3b82f6;color:#fff;font-size:0.78rem;font-weight:700;">' + day + '</span>'
         : '<span style="font-size:0.78rem;font-weight:600;color:' + dayNumColor + '">' + day + '</span>';
 
-      // 일정 도트 표시 (상태별 색상)
+      // 일정 제목 표시 (상태별 배경색)
       var dotsHtml = '';
       if (events.length) {
-        var shown = events.slice(0, 3);
-        dotsHtml = '<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:3px;">';
+        var shown = events.slice(0, 2);
+        dotsHtml = '<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px;">';
         shown.forEach(function (s) {
-          var dotColor = (MS_STATUS_COLOR[s.status] || MS_STATUS_COLOR['촬영예정']).dot;
-          dotsHtml += '<span style="width:7px;height:7px;border-radius:50%;background:' + dotColor + ';display:inline-block;" title="' + escHtml(s.title) + '"></span>';
+          var c = MS_STATUS_COLOR[s.status] || MS_STATUS_COLOR['촬영예정'];
+          var titleTrunc = (s.title || '').length > 8 ? s.title.slice(0, 8) + '…' : (s.title || '');
+          dotsHtml += '<div style="background:' + c.dot + ';color:#fff;border-radius:3px;padding:1px 4px;font-size:0.68rem;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="' + escHtml(s.title) + '">' + escHtml(titleTrunc) + '</div>';
         });
-        if (events.length > 3) dotsHtml += '<span style="font-size:0.65rem;color:#9ca3af;line-height:7px;">+' + (events.length - 3) + '</span>';
+        if (events.length > 2) {
+          dotsHtml += '<div style="font-size:0.65rem;color:#6b7280;padding-left:2px;">+' + (events.length - 2) + '건 더보기</div>';
+        }
         dotsHtml += '</div>';
-        // 일정 개수 표시
-        dotsHtml += '<div style="font-size:0.68rem;color:#6b7280;margin-top:1px;">' + events.length + '건</div>';
       }
 
       html += '<div data-ms-date="' + dateStr + '" onclick="window.msSelectDate(\'' + dateStr + '\')" ' +
@@ -393,17 +403,23 @@
       return;
     }
 
-    list.innerHTML = '<table class="data-table" style="min-width:600px"><thead><tr>' +
-      '<th>촬영일</th><th>촬영명</th><th>담당자</th><th>촬영장소</th><th>촬영내용</th><th>상태</th><th>수정</th>' +
+    list.innerHTML = '<table class="data-table" style="min-width:700px"><thead><tr>' +
+      '<th>촬영일</th><th>시간</th><th>촬영명</th><th>전시장</th><th>담당자</th><th>상태</th><th>우선순위</th><th>수정</th>' +
       '</tr></thead><tbody>' +
       data.map(function (s) {
+        var timeStr = s.start_time ? (s.start_time.slice(0,5) + (s.end_time ? '~' + s.end_time.slice(0,5) : '')) : '-';
+        var pc = MS_PRIORITY_COLOR[s.priority] || MS_PRIORITY_COLOR['일반'];
+        var priorityBadge = s.priority && s.priority !== '일반'
+          ? '<span style="display:inline-block;padding:2px 7px;border-radius:999px;font-size:0.7rem;font-weight:700;background:' + pc.bg + ';color:' + pc.text + '">' + escHtml(s.priority) + '</span>'
+          : '<span style="color:#9ca3af;font-size:0.8rem">일반</span>';
         return '<tr style="cursor:pointer" onclick="window.msViewSchedule(\'' + s.id + '\')">' +
           '<td style="white-space:nowrap">' + formatDate(s.shoot_date) + '</td>' +
+          '<td style="white-space:nowrap;font-size:0.82rem">' + escHtml(timeStr) + '</td>' +
           '<td><strong>' + escHtml(s.title) + '</strong></td>' +
-          '<td>' + escHtml(s.assignee || '-') + '</td>' +
-          '<td>' + escHtml(s.location || '-') + '</td>' +
-          '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(s.content || '') + '">' + escHtml(s.content || '-') + '</td>' +
+          '<td style="font-size:0.82rem">' + escHtml(s.showroom || '-') + '</td>' +
+          '<td style="font-size:0.82rem">' + escHtml(s.assignee || '-') + '</td>' +
           '<td>' + msStatusBadge(s.status || '촬영예정') + '</td>' +
+          '<td>' + priorityBadge + '</td>' +
           '<td onclick="event.stopPropagation()">' +
           '<button type="button" class="btn btn-xs btn-secondary" onclick="window.msViewSchedule(\'' + s.id + '\')">수정</button></td>' +
           '</tr>';
@@ -411,35 +427,48 @@
       '</tbody></table>';
   }
 
-  // 담당자 드롭다운 채우기 (마케팅팀 직원 목록)
-  function msPopulateAssignees() {
-    var sel = document.getElementById('ms-assignee');
+  // 담당자 다중선택 채우기 (전체 직원 목록)
+  function msPopulateAssignees(selectedNames) {
+    var sel = document.getElementById('ms-assignees');
     if (!sel) return;
-    // 기존 옵션 유지하되 직원 목록에서 마케팅팀 추가
     var employees = typeof window.getEmployees === 'function' ? window.getEmployees() : [];
-    var mktEmployees = employees.filter(function (e) { return e.team === '마케팅'; });
+    var selected = selectedNames ? selectedNames.split(',').map(function (n) { return n.trim(); }) : [];
     // 기존 옵션 제거 후 재생성
-    while (sel.options.length > 1) sel.remove(1);
+    while (sel.options.length) sel.remove(0);
+    var mktEmployees = employees.filter(function (e) { return e.team === '마케팅' && e.name; });
+    var others = employees.filter(function (e) { return e.team !== '마케팅' && e.name; });
     if (mktEmployees.length) {
+      var grp1 = document.createElement('optgroup');
+      grp1.label = '마케팅팀';
       mktEmployees.forEach(function (e) {
         var opt = document.createElement('option');
         opt.value = e.name;
         opt.textContent = e.name;
-        sel.appendChild(opt);
+        if (selected.indexOf(e.name) !== -1) opt.selected = true;
+        grp1.appendChild(opt);
       });
+      sel.appendChild(grp1);
     }
-    // 전 팀원도 추가 (마케팅팀 외)
-    var others = employees.filter(function (e) { return e.team !== '마케팅' && e.name; });
     if (others.length) {
-      var grp = document.createElement('optgroup');
-      grp.label = '기타 팀원';
+      var grp2 = document.createElement('optgroup');
+      grp2.label = '기타 팀원';
       others.forEach(function (e) {
         var opt = document.createElement('option');
         opt.value = e.name;
         opt.textContent = e.name + ' (' + (e.team || '') + ')';
-        grp.appendChild(opt);
+        if (selected.indexOf(e.name) !== -1) opt.selected = true;
+        grp2.appendChild(opt);
       });
-      sel.appendChild(grp);
+      sel.appendChild(grp2);
+    }
+    // 직원 목록이 없으면 saved names 그대로 옵션으로 추가
+    if (!employees.length && selected.length) {
+      selected.forEach(function (n) {
+        if (!n) return;
+        var opt = document.createElement('option');
+        opt.value = n; opt.textContent = n; opt.selected = true;
+        sel.appendChild(opt);
+      });
     }
   }
 
@@ -458,7 +487,7 @@
     if (form) form.reset();
     var d = document.getElementById('ms-shoot-date');
     if (d) d.value = dateStr || '';
-    msPopulateAssignees();
+    msPopulateAssignees('');
     msShowForm('촬영 일정 등록', false);
   };
 
@@ -466,22 +495,22 @@
     var s = msSchedules.find(function (x) { return String(x.id) === String(id); });
     if (!s) return;
     msEditId = id;
-    msPopulateAssignees();
+    msPopulateAssignees(s.assignee || '');
     document.getElementById('ms-title').value = s.title || '';
     document.getElementById('ms-shoot-date').value = s.shoot_date || '';
+    var stEl = document.getElementById('ms-start-time');
+    if (stEl) stEl.value = s.start_time || '';
+    var etEl = document.getElementById('ms-end-time');
+    if (etEl) etEl.value = s.end_time || '';
+    var srEl = document.getElementById('ms-showroom');
+    if (srEl) srEl.value = s.showroom || '';
     document.getElementById('ms-location').value = s.location || '';
-    var assignSel = document.getElementById('ms-assignee');
-    if (assignSel) {
-      assignSel.value = s.assignee || '';
-      if (!assignSel.value && s.assignee) {
-        var opt = document.createElement('option');
-        opt.value = s.assignee; opt.textContent = s.assignee;
-        assignSel.insertBefore(opt, assignSel.options[1] || null);
-        assignSel.value = s.assignee;
-      }
-    }
     document.getElementById('ms-status').value = s.status || '촬영예정';
+    var prEl = document.getElementById('ms-priority');
+    if (prEl) prEl.value = s.priority || '일반';
     document.getElementById('ms-content').value = s.content || '';
+    var eqEl = document.getElementById('ms-equipment');
+    if (eqEl) eqEl.value = s.equipment || '';
     msShowForm('촬영 일정 수정', true);
   };
 
@@ -534,14 +563,33 @@
         var cur = curUser();
         var title = document.getElementById('ms-title').value.trim();
         if (!title) { showToast('촬영명을 입력하세요.', 'error'); return; }
-        var assignSel = document.getElementById('ms-assignee');
+        // 다중선택 담당자 → 콤마 구분 문자열
+        var assignSel = document.getElementById('ms-assignees');
+        var assigneeValue = null;
+        if (assignSel) {
+          var picked = [];
+          for (var oi = 0; oi < assignSel.options.length; oi++) {
+            if (assignSel.options[oi].selected) picked.push(assignSel.options[oi].value);
+          }
+          assigneeValue = picked.length ? picked.join(', ') : null;
+        }
+        var stEl = document.getElementById('ms-start-time');
+        var etEl = document.getElementById('ms-end-time');
+        var srEl = document.getElementById('ms-showroom');
+        var prEl = document.getElementById('ms-priority');
+        var eqEl = document.getElementById('ms-equipment');
         var data = {
           title: title,
           shoot_date: document.getElementById('ms-shoot-date').value || null,
+          start_time: stEl ? (stEl.value || null) : null,
+          end_time: etEl ? (etEl.value || null) : null,
+          showroom: srEl ? (srEl.value || null) : null,
           location: document.getElementById('ms-location').value.trim() || null,
-          assignee: assignSel ? (assignSel.value || null) : null,
+          assignee: assigneeValue,
           status: document.getElementById('ms-status').value || '촬영예정',
-          content: document.getElementById('ms-content').value.trim() || null
+          priority: prEl ? (prEl.value || '일반') : '일반',
+          content: document.getElementById('ms-content').value.trim() || null,
+          equipment: eqEl ? (eqEl.value.trim() || null) : null
         };
         var promise = msEditId
           ? db.from('marketing_schedules').update(data).eq('id', msEditId)

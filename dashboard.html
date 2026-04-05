@@ -626,41 +626,85 @@
         <div id="ms-cal-grid" class="ms-cal-wrap"></div>
 
         <!-- 인라인 일정 등록/수정 폼 (달력 아래) -->
-        <div id="ms-form-wrap" class="hidden" style="border:2px solid #6366f1;border-radius:0.5rem;padding:1.5rem;margin-top:1.25rem;background:#ffffff;">
+        <div id="ms-form-wrap" class="hidden" style="border:2px solid #6366f1;border-radius:0.75rem;padding:1.5rem;margin-top:1.25rem;background:#ffffff;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
             <h4 id="ms-form-title" style="margin:0;font-size:1rem;font-weight:700;color:#111827">일정 등록</h4>
             <button type="button" id="btn-ms-form-close" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;line-height:1;padding:0 4px;">×</button>
           </div>
           <form id="form-ms" class="form-block">
-            <div class="form-grid form-grid-2">
-              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영명
-                <input type="text" id="ms-title" placeholder="촬영 제목/영상명" required
-                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
-              </label>
-              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영일
-                <input type="date" id="ms-shoot-date" required
-                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
-              </label>
-              <label style="color:#374151;font-size:0.875rem;font-weight:500">담당자
-                <select id="ms-assignee"
-                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
-                  <option value="">선택</option>
-                </select>
-              </label>
-              <label style="color:#374151;font-size:0.875rem;font-weight:500">상태
-                <select id="ms-status"
-                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
-                  <option value="촬영예정">촬영예정</option>
-                  <option value="촬영중">촬영중</option>
-                  <option value="촬영완료">촬영완료</option>
-                </select>
-              </label>
-              <label class="form-full" style="color:#374151;font-size:0.875rem;font-weight:500">촬영장소
+            <!-- 2단 레이아웃: 좌/우 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.5rem;margin-bottom:1rem;">
+              <!-- 좌측: 촬영명 / 날짜 / 시간 / 전시장 -->
+              <div style="display:flex;flex-direction:column;gap:0.875rem;">
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영명 *
+                  <input type="text" id="ms-title" placeholder="촬영 제목/영상명" required
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                </label>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영일 *
+                  <input type="date" id="ms-shoot-date" required
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                </label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                  <label style="color:#374151;font-size:0.875rem;font-weight:500">시작시간
+                    <input type="time" id="ms-start-time"
+                      style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                  </label>
+                  <label style="color:#374151;font-size:0.875rem;font-weight:500">종료시간
+                    <input type="time" id="ms-end-time"
+                      style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                  </label>
+                </div>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">전시장
+                  <select id="ms-showroom"
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                    <option value="">전체/해당없음</option>
+                    <option value="본사 전시장">본사 전시장</option>
+                    <option value="1전시장">1전시장</option>
+                    <option value="3전시장">3전시장</option>
+                    <option value="4전시장">4전시장</option>
+                    <option value="강화전시장">강화전시장</option>
+                  </select>
+                </label>
+              </div>
+              <!-- 우측: 담당자 / 상태 / 우선순위 -->
+              <div style="display:flex;flex-direction:column;gap:0.875rem;">
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">담당자 (다중선택)
+                  <select id="ms-assignees" multiple size="5"
+                    style="display:block;width:100%;margin-top:4px;padding:4px;border:1px solid #d1d5db;border-radius:6px;font-size:0.875rem;color:#111827;background:#fff;box-sizing:border-box;min-height:120px;">
+                  </select>
+                  <span style="font-size:0.75rem;color:#9ca3af;margin-top:2px;display:block">Ctrl/Cmd 클릭으로 다중선택</span>
+                </label>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">상태
+                  <select id="ms-status"
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                    <option value="촬영예정">촬영예정</option>
+                    <option value="촬영완료">촬영완료</option>
+                    <option value="편집중">편집중</option>
+                    <option value="업로드완료">업로드완료</option>
+                  </select>
+                </label>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">우선순위
+                  <select id="ms-priority"
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                    <option value="일반">일반</option>
+                    <option value="긴급">긴급</option>
+                    <option value="낮음">낮음</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <!-- 하단: 촬영장소 / 촬영내용 / 준비물 -->
+            <div style="display:flex;flex-direction:column;gap:0.875rem;margin-bottom:1rem;">
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영장소
                 <input type="text" id="ms-location" placeholder="촬영 장소"
                   style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
               </label>
-              <label class="form-full" style="color:#374151;font-size:0.875rem;font-weight:500">촬영내용
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영내용
                 <textarea id="ms-content" rows="3" placeholder="촬영 내용, 특이사항 등"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+              </label>
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영 준비물
+                <textarea id="ms-equipment" rows="2" placeholder="드론, 짐벌 등"
                   style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
               </label>
             </div>
