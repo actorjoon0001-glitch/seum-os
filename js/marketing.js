@@ -281,7 +281,6 @@
     var daysInMonth = new Date(msYear, msMonth + 1, 0).getDate();
     var today = new Date().toISOString().slice(0, 10);
 
-    // Build map: date string → schedules
     var map = {};
     msSchedules.forEach(function (s) {
       var d = (s.shoot_date || '').slice(0, 10);
@@ -289,35 +288,50 @@
       map[d].push(s);
     });
 
-    var html = '<div class="ms-cal-weekdays">' +
-      ['일', '월', '화', '수', '목', '금', '토'].map(function (d) {
-        return '<div class="ms-cal-wd">' + d + '</div>';
-      }).join('') + '</div>';
+    // 인라인 스타일로 7열 그리드 강제 적용
+    var gridStyle = 'display:grid;grid-template-columns:repeat(7,1fr);width:100%;';
+    var wdStyle   = 'text-align:center;padding:6px 0;font-size:0.8rem;font-weight:600;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-right:none;';
+    var wdLastStyle = wdStyle.replace('border-right:none;', '');
 
-    html += '<div class="ms-cal-days">';
-    // Empty cells for first week
+    var days = ['일', '월', '화', '수', '목', '금', '토'];
+    var html = '<div style="' + gridStyle + 'margin-bottom:0">';
+    days.forEach(function (d, i) {
+      var color = i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : '#6b7280';
+      var border = i === 6 ? '1px solid #e5e7eb' : '1px solid #e5e7eb;border-right:none';
+      html += '<div style="text-align:center;padding:6px 2px;font-size:0.8rem;font-weight:600;color:' + color + ';background:#f9fafb;border:1px solid #e5e7eb;' + (i < 6 ? 'border-right:none;' : '') + '">' + d + '</div>';
+    });
+    html += '</div>';
+
+    html += '<div style="' + gridStyle + 'border-left:1px solid #e5e7eb;">';
+
     for (var i = 0; i < firstWeekday; i++) {
-      html += '<div class="ms-cal-cell ms-cal-empty"></div>';
+      html += '<div style="min-height:90px;background:#fafafa;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;"></div>';
     }
+
     for (var day = 1; day <= daysInMonth; day++) {
       var dateStr = msYear + '-' + String(msMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
       var isToday = dateStr === today;
       var events = map[dateStr] || [];
-      var cls = 'ms-cal-cell' + (isToday ? ' ms-today' : '') + (events.length ? ' ms-has-events' : '');
+      var weekday = (firstWeekday + day - 1) % 7;
+      var dayNumColor = weekday === 0 ? '#ef4444' : weekday === 6 ? '#3b82f6' : '#374151';
+      var bg = isToday ? '#eff6ff' : '#fff';
+      var dayNumStyle = isToday
+        ? 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#3b82f6;color:#fff;font-size:0.78rem;font-weight:700;margin-bottom:3px;'
+        : 'font-size:0.78rem;font-weight:600;color:' + dayNumColor + ';margin-bottom:3px;';
+
       var evHtml = events.map(function (s) {
-        return '<div class="ms-cal-event" title="' + escHtml(s.title) + ' | ' + escHtml(s.location || '') + '" onclick="window.msViewSchedule(\'' + s.id + '\')">' +
-          escHtml(s.title) + '</div>';
+        return '<div onclick="window.msViewSchedule(\'' + s.id + '\')" style="background:#6366f1;color:#fff;font-size:0.7rem;padding:1px 4px;border-radius:3px;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(s.title) + '">' + escHtml(s.title) + '</div>';
       }).join('');
-      html += '<div class="' + cls + '" data-ms-date="' + dateStr + '">' +
-        '<div class="ms-cal-day-num">' + day + '</div>' +
+
+      html += '<div data-ms-date="' + dateStr + '" style="min-height:90px;background:' + bg + ';border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:4px 5px 4px;position:relative;cursor:default;">' +
+        '<div style="' + dayNumStyle + '">' + day + '</div>' +
         evHtml +
-        '<button type="button" class="ms-add-btn" onclick="window.msOpenAdd(\'' + dateStr + '\')" title="일정 추가">+</button>' +
+        '<button type="button" onclick="window.msOpenAdd(\'' + dateStr + '\')" title="일정 추가" style="position:absolute;bottom:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;border:none;cursor:pointer;font-size:13px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;">+</button>' +
         '</div>';
     }
     html += '</div>';
     grid.innerHTML = html;
 
-    // Upcoming schedules list
     msRenderList();
   }
 
