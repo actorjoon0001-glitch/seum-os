@@ -244,6 +244,19 @@
   var msMonth = 0;
   var msSchedules = [];
   var msEditId = null;
+  var msSelectedDate = null; // 선택된 날짜 (null이면 전체)
+
+  // 상태별 색상
+  var MS_STATUS_COLOR = {
+    '촬영예정': { bg: '#dbeafe', text: '#1d4ed8', dot: '#3b82f6' },
+    '촬영중':   { bg: '#fef3c7', text: '#d97706', dot: '#f59e0b' },
+    '촬영완료': { bg: '#d1fae5', text: '#065f46', dot: '#10b981' }
+  };
+
+  function msStatusBadge(status) {
+    var c = MS_STATUS_COLOR[status] || { bg: '#f3f4f6', text: '#6b7280' };
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:600;background:' + c.bg + ';color:' + c.text + '">' + escHtml(status || '촬영예정') + '</span>';
+  }
 
   function msInit() {
     var now = new Date();
@@ -255,8 +268,8 @@
     var db = supa();
     if (!db) { msSchedules = []; msRenderCalendar(); return; }
     var firstDay = msYear + '-' + String(msMonth + 1).padStart(2, '0') + '-01';
-    var lastDay = new Date(msYear, msMonth + 1, 0);
-    var lastDayStr = msYear + '-' + String(msMonth + 1).padStart(2, '0') + '-' + String(lastDay.getDate()).padStart(2, '0');
+    var lastDayDate = new Date(msYear, msMonth + 1, 0);
+    var lastDayStr = msYear + '-' + String(msMonth + 1).padStart(2, '0') + '-' + String(lastDayDate.getDate()).padStart(2, '0');
     db.from('marketing_schedules')
       .select('*')
       .gte('shoot_date', firstDay)
@@ -281,6 +294,7 @@
     var daysInMonth = new Date(msYear, msMonth + 1, 0).getDate();
     var today = new Date().toISOString().slice(0, 10);
 
+    // 날짜별 일정 map
     var map = {};
     msSchedules.forEach(function (s) {
       var d = (s.shoot_date || '').slice(0, 10);
@@ -288,45 +302,59 @@
       map[d].push(s);
     });
 
-    // 인라인 스타일로 7열 그리드 강제 적용
-    var gridStyle = 'display:grid;grid-template-columns:repeat(7,1fr);width:100%;';
-    var wdStyle   = 'text-align:center;padding:6px 0;font-size:0.8rem;font-weight:600;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-right:none;';
-    var wdLastStyle = wdStyle.replace('border-right:none;', '');
+    var G = 'display:grid;grid-template-columns:repeat(7,1fr);width:100%;';
 
-    var days = ['일', '월', '화', '수', '목', '금', '토'];
-    var html = '<div style="' + gridStyle + 'margin-bottom:0">';
-    days.forEach(function (d, i) {
-      var color = i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : '#6b7280';
-      var border = i === 6 ? '1px solid #e5e7eb' : '1px solid #e5e7eb;border-right:none';
-      html += '<div style="text-align:center;padding:6px 2px;font-size:0.8rem;font-weight:600;color:' + color + ';background:#f9fafb;border:1px solid #e5e7eb;' + (i < 6 ? 'border-right:none;' : '') + '">' + d + '</div>';
+    // 요일 헤더
+    var html = '<div style="' + G + '">';
+    ['일','월','화','수','목','금','토'].forEach(function (d, i) {
+      var c = i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : '#6b7280';
+      html += '<div style="text-align:center;padding:6px 2px;font-size:0.8rem;font-weight:600;color:' + c + ';background:#f9fafb;border:1px solid #e5e7eb;' + (i < 6 ? 'border-right:none' : '') + '">' + d + '</div>';
     });
     html += '</div>';
 
-    html += '<div style="' + gridStyle + 'border-left:1px solid #e5e7eb;">';
-
+    // 날짜 셀
+    html += '<div style="' + G + 'border-left:1px solid #e5e7eb;">';
     for (var i = 0; i < firstWeekday; i++) {
-      html += '<div style="min-height:90px;background:#fafafa;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;"></div>';
+      html += '<div style="min-height:80px;background:#fafafa;border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;"></div>';
     }
-
     for (var day = 1; day <= daysInMonth; day++) {
       var dateStr = msYear + '-' + String(msMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
       var isToday = dateStr === today;
+      var isSelected = dateStr === msSelectedDate;
       var events = map[dateStr] || [];
       var weekday = (firstWeekday + day - 1) % 7;
       var dayNumColor = weekday === 0 ? '#ef4444' : weekday === 6 ? '#3b82f6' : '#374151';
-      var bg = isToday ? '#eff6ff' : '#fff';
-      var dayNumStyle = isToday
-        ? 'display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#3b82f6;color:#fff;font-size:0.78rem;font-weight:700;margin-bottom:3px;'
-        : 'font-size:0.78rem;font-weight:600;color:' + dayNumColor + ';margin-bottom:3px;';
+      var bg = isSelected ? '#f0fdf4' : isToday ? '#eff6ff' : '#fff';
+      var border = isSelected ? '2px solid #10b981' : '1px solid #e5e7eb';
 
-      var evHtml = events.map(function (s) {
-        return '<div onclick="window.msViewSchedule(\'' + s.id + '\')" style="background:#6366f1;color:#fff;font-size:0.7rem;padding:1px 4px;border-radius:3px;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(s.title) + '">' + escHtml(s.title) + '</div>';
-      }).join('');
+      // 날짜 숫자 스타일
+      var dayNumEl = isToday
+        ? '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#3b82f6;color:#fff;font-size:0.78rem;font-weight:700;">' + day + '</span>'
+        : '<span style="font-size:0.78rem;font-weight:600;color:' + dayNumColor + '">' + day + '</span>';
 
-      html += '<div data-ms-date="' + dateStr + '" style="min-height:90px;background:' + bg + ';border-right:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:4px 5px 4px;position:relative;cursor:default;">' +
-        '<div style="' + dayNumStyle + '">' + day + '</div>' +
-        evHtml +
-        '<button type="button" onclick="window.msOpenAdd(\'' + dateStr + '\')" title="일정 추가" style="position:absolute;bottom:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;border:none;cursor:pointer;font-size:13px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;">+</button>' +
+      // 일정 도트 표시 (상태별 색상)
+      var dotsHtml = '';
+      if (events.length) {
+        var shown = events.slice(0, 3);
+        dotsHtml = '<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:3px;">';
+        shown.forEach(function (s) {
+          var dotColor = (MS_STATUS_COLOR[s.status] || MS_STATUS_COLOR['촬영예정']).dot;
+          dotsHtml += '<span style="width:7px;height:7px;border-radius:50%;background:' + dotColor + ';display:inline-block;" title="' + escHtml(s.title) + '"></span>';
+        });
+        if (events.length > 3) dotsHtml += '<span style="font-size:0.65rem;color:#9ca3af;line-height:7px;">+' + (events.length - 3) + '</span>';
+        dotsHtml += '</div>';
+        // 일정 개수 표시
+        dotsHtml += '<div style="font-size:0.68rem;color:#6b7280;margin-top:1px;">' + events.length + '건</div>';
+      }
+
+      html += '<div data-ms-date="' + dateStr + '" onclick="window.msSelectDate(\'' + dateStr + '\')" ' +
+        'style="min-height:80px;background:' + bg + ';border-right:' + border + ';border-bottom:' + border + ';padding:5px 5px 4px;position:relative;cursor:pointer;transition:background 0.1s;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        dayNumEl +
+        '<button type="button" onclick="event.stopPropagation();window.msOpenAdd(\'' + dateStr + '\')" title="일정 추가" ' +
+        'style="width:16px;height:16px;border-radius:50%;background:#e5e7eb;color:#6b7280;border:none;cursor:pointer;font-size:12px;line-height:1;padding:0;flex-shrink:0;">+</button>' +
+        '</div>' +
+        dotsHtml +
         '</div>';
     }
     html += '</div>';
@@ -335,25 +363,84 @@
     msRenderList();
   }
 
+  // 날짜 선택 토글
+  window.msSelectDate = function (dateStr) {
+    msSelectedDate = (msSelectedDate === dateStr) ? null : dateStr;
+    msRenderCalendar();
+    var listEl = document.getElementById('ms-schedule-list');
+    if (listEl) listEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   function msRenderList() {
     var list = document.getElementById('ms-schedule-list');
+    var titleEl = document.getElementById('ms-list-title');
+    var showAllBtn = document.getElementById('btn-ms-show-all');
     if (!list) return;
-    if (!msSchedules.length) {
-      list.innerHTML = '<p style="color:#9ca3af;padding:1rem 0">이번 달 촬영 일정이 없습니다.</p>';
+
+    var data = msSelectedDate
+      ? msSchedules.filter(function (s) { return (s.shoot_date || '').slice(0, 10) === msSelectedDate; })
+      : msSchedules;
+
+    if (titleEl) {
+      titleEl.textContent = msSelectedDate
+        ? msSelectedDate + ' 촬영 일정'
+        : msYear + '년 ' + (msMonth + 1) + '월 전체 촬영 일정';
+    }
+    if (showAllBtn) showAllBtn.classList.toggle('hidden', !msSelectedDate);
+
+    if (!data.length) {
+      list.innerHTML = '<p style="color:#9ca3af;padding:1rem 0">' + (msSelectedDate ? '이 날 촬영 일정이 없습니다.' : '이번 달 촬영 일정이 없습니다.') + '</p>';
       return;
     }
-    list.innerHTML = '<table class="data-table"><thead><tr><th>촬영일</th><th>제목</th><th>장소</th><th>담당자</th><th>메모</th><th>작업</th></tr></thead><tbody>' +
-      msSchedules.map(function (s) {
-        return '<tr>' +
-          '<td>' + formatDate(s.shoot_date) + '</td>' +
-          '<td>' + escHtml(s.title) + '</td>' +
-          '<td>' + escHtml(s.location || '-') + '</td>' +
+
+    list.innerHTML = '<table class="data-table" style="min-width:600px"><thead><tr>' +
+      '<th>촬영일</th><th>촬영명</th><th>담당자</th><th>촬영장소</th><th>촬영내용</th><th>상태</th><th>수정</th>' +
+      '</tr></thead><tbody>' +
+      data.map(function (s) {
+        return '<tr style="cursor:pointer" onclick="window.msViewSchedule(\'' + s.id + '\')">' +
+          '<td style="white-space:nowrap">' + formatDate(s.shoot_date) + '</td>' +
+          '<td><strong>' + escHtml(s.title) + '</strong></td>' +
           '<td>' + escHtml(s.assignee || '-') + '</td>' +
-          '<td>' + escHtml(s.memo || '-') + '</td>' +
-          '<td><button type="button" class="btn btn-xs btn-secondary" onclick="window.msViewSchedule(\'' + s.id + '\')">상세</button></td>' +
+          '<td>' + escHtml(s.location || '-') + '</td>' +
+          '<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(s.content || '') + '">' + escHtml(s.content || '-') + '</td>' +
+          '<td>' + msStatusBadge(s.status || '촬영예정') + '</td>' +
+          '<td onclick="event.stopPropagation()">' +
+          '<button type="button" class="btn btn-xs btn-secondary" onclick="window.msViewSchedule(\'' + s.id + '\')">수정</button></td>' +
           '</tr>';
       }).join('') +
       '</tbody></table>';
+  }
+
+  // 담당자 드롭다운 채우기 (마케팅팀 직원 목록)
+  function msPopulateAssignees() {
+    var sel = document.getElementById('ms-assignee');
+    if (!sel) return;
+    // 기존 옵션 유지하되 직원 목록에서 마케팅팀 추가
+    var employees = typeof window.getEmployees === 'function' ? window.getEmployees() : [];
+    var mktEmployees = employees.filter(function (e) { return e.team === '마케팅'; });
+    // 기존 옵션 제거 후 재생성
+    while (sel.options.length > 1) sel.remove(1);
+    if (mktEmployees.length) {
+      mktEmployees.forEach(function (e) {
+        var opt = document.createElement('option');
+        opt.value = e.name;
+        opt.textContent = e.name;
+        sel.appendChild(opt);
+      });
+    }
+    // 전 팀원도 추가 (마케팅팀 외)
+    var others = employees.filter(function (e) { return e.team !== '마케팅' && e.name; });
+    if (others.length) {
+      var grp = document.createElement('optgroup');
+      grp.label = '기타 팀원';
+      others.forEach(function (e) {
+        var opt = document.createElement('option');
+        opt.value = e.name;
+        opt.textContent = e.name + ' (' + (e.team || '') + ')';
+        grp.appendChild(opt);
+      });
+      sel.appendChild(grp);
+    }
   }
 
   window.msOpenAdd = function (dateStr) {
@@ -363,6 +450,9 @@
     var d = document.getElementById('ms-shoot-date');
     if (d) d.value = dateStr || '';
     document.getElementById('ms-modal-title').textContent = '촬영 일정 등록';
+    var delBtn = document.getElementById('btn-ms-delete');
+    if (delBtn) delBtn.classList.add('hidden');
+    msPopulateAssignees();
     document.getElementById('modal-ms').classList.remove('hidden');
   };
 
@@ -370,65 +460,65 @@
     var s = msSchedules.find(function (x) { return String(x.id) === String(id); });
     if (!s) return;
     msEditId = id;
-    document.getElementById('ms-shoot-date').value = s.shoot_date || '';
+    msPopulateAssignees();
     document.getElementById('ms-title').value = s.title || '';
+    document.getElementById('ms-shoot-date').value = s.shoot_date || '';
     document.getElementById('ms-location').value = s.location || '';
-    document.getElementById('ms-assignee').value = s.assignee || '';
-    document.getElementById('ms-memo').value = s.memo || '';
-    document.getElementById('ms-modal-title').textContent = '촬영 일정 상세';
+    var assignSel = document.getElementById('ms-assignee');
+    if (assignSel) {
+      assignSel.value = s.assignee || '';
+      if (!assignSel.value && s.assignee) {
+        var opt = document.createElement('option');
+        opt.value = s.assignee; opt.textContent = s.assignee;
+        assignSel.insertBefore(opt, assignSel.options[1] || null);
+        assignSel.value = s.assignee;
+      }
+    }
+    document.getElementById('ms-status').value = s.status || '촬영예정';
+    document.getElementById('ms-content').value = s.content || '';
+    document.getElementById('ms-modal-title').textContent = '촬영 일정 수정';
+    var delBtn = document.getElementById('btn-ms-delete');
+    if (delBtn) delBtn.classList.remove('hidden');
     document.getElementById('modal-ms').classList.remove('hidden');
   };
 
   function renderMarketingSchedule() {
     if (!msYear) msInit();
+    msSelectedDate = null;
     msLoadAndRender();
   }
 
   function initMarketingSchedule() {
     msInit();
-    var prevBtn = document.getElementById('ms-prev');
-    var nextBtn = document.getElementById('ms-next');
-    if (prevBtn) {
-      prevBtn.addEventListener('click', function () {
-        msMonth--;
-        if (msMonth < 0) { msMonth = 11; msYear--; }
-        msLoadAndRender();
-      });
-    }
-    if (nextBtn) {
-      nextBtn.addEventListener('click', function () {
-        msMonth++;
-        if (msMonth > 11) { msMonth = 0; msYear++; }
-        msLoadAndRender();
-      });
-    }
-    var btnAdd = document.getElementById('btn-ms-add');
-    if (btnAdd) {
-      btnAdd.addEventListener('click', function () {
-        window.msOpenAdd('');
-      });
-    }
-    var closeBtn = document.getElementById('btn-ms-modal-close');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', function () {
-        document.getElementById('modal-ms').classList.add('hidden');
-      });
-    }
-    var deleteBtn = document.getElementById('btn-ms-delete');
-    if (deleteBtn) {
-      deleteBtn.addEventListener('click', function () {
-        if (!msEditId) return;
-        if (!confirm('이 일정을 삭제하시겠습니까?')) return;
-        var db = supa();
-        if (!db) return;
-        db.from('marketing_schedules').delete().eq('id', msEditId)
-          .then(function () {
-            showToast('삭제되었습니다.', 'success');
-            document.getElementById('modal-ms').classList.add('hidden');
-            msLoadAndRender();
-          });
-      });
-    }
+    document.getElementById('ms-prev') && document.getElementById('ms-prev').addEventListener('click', function () {
+      msMonth--; if (msMonth < 0) { msMonth = 11; msYear--; }
+      msSelectedDate = null; msLoadAndRender();
+    });
+    document.getElementById('ms-next') && document.getElementById('ms-next').addEventListener('click', function () {
+      msMonth++; if (msMonth > 11) { msMonth = 0; msYear++; }
+      msSelectedDate = null; msLoadAndRender();
+    });
+    document.getElementById('btn-ms-add') && document.getElementById('btn-ms-add').addEventListener('click', function () {
+      window.msOpenAdd('');
+    });
+    document.getElementById('btn-ms-show-all') && document.getElementById('btn-ms-show-all').addEventListener('click', function () {
+      msSelectedDate = null; msRenderCalendar();
+    });
+    document.getElementById('btn-ms-modal-close') && document.getElementById('btn-ms-modal-close').addEventListener('click', function () {
+      document.getElementById('modal-ms').classList.add('hidden');
+    });
+    document.getElementById('btn-ms-delete') && document.getElementById('btn-ms-delete').addEventListener('click', function () {
+      if (!msEditId) return;
+      if (!confirm('이 일정을 삭제하시겠습니까?')) return;
+      var db = supa();
+      if (!db) return;
+      db.from('marketing_schedules').delete().eq('id', msEditId)
+        .then(function () {
+          showToast('삭제되었습니다.', 'success');
+          document.getElementById('modal-ms').classList.add('hidden');
+          msLoadAndRender();
+        });
+    });
     var form = document.getElementById('form-ms');
     if (form) {
       form.addEventListener('submit', function (e) {
@@ -437,20 +527,22 @@
         if (!db) { showToast('Supabase 연결 오류', 'error'); return; }
         var cur = curUser();
         var title = document.getElementById('ms-title').value.trim();
-        if (!title) { showToast('제목을 입력하세요.', 'error'); return; }
+        if (!title) { showToast('촬영명을 입력하세요.', 'error'); return; }
+        var assignSel = document.getElementById('ms-assignee');
         var data = {
           title: title,
           shoot_date: document.getElementById('ms-shoot-date').value || null,
           location: document.getElementById('ms-location').value.trim() || null,
-          assignee: document.getElementById('ms-assignee').value.trim() || null,
-          memo: document.getElementById('ms-memo').value.trim() || null
+          assignee: assignSel ? (assignSel.value || null) : null,
+          status: document.getElementById('ms-status').value || '촬영예정',
+          content: document.getElementById('ms-content').value.trim() || null
         };
         var promise = msEditId
           ? db.from('marketing_schedules').update(data).eq('id', msEditId)
           : db.from('marketing_schedules').insert(Object.assign({}, data, {
-            created_by: cur && cur.authUserId ? cur.authUserId : null,
-            created_by_name: cur && cur.name ? cur.name : null
-          }));
+              created_by: cur && cur.authUserId ? cur.authUserId : null,
+              created_by_name: cur && cur.name ? cur.name : null
+            }));
         promise.then(function (res) {
           if (res && res.error) { showToast('저장 실패: ' + res.error.message, 'error'); return; }
           showToast(msEditId ? '수정되었습니다.' : '일정이 등록되었습니다.', 'success');
@@ -459,13 +551,8 @@
         }).catch(function (e) { showToast('저장 실패', 'error'); console.error(e); });
       });
     }
-    // Close modal on overlay click
     var modal = document.getElementById('modal-ms');
-    if (modal) {
-      modal.addEventListener('click', function (e) {
-        if (e.target === modal) modal.classList.add('hidden');
-      });
-    }
+    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.add('hidden'); });
   }
 
   // ====================================================================

@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS public.marketing_schedules (
   shoot_date   DATE NOT NULL,
   location     TEXT,
   assignee     TEXT,
+  status       TEXT DEFAULT '촬영예정', -- 촬영예정 | 촬영중 | 촬영완료
+  content      TEXT,                    -- 촬영내용
   memo         TEXT,
   created_by       UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_by_name  TEXT,
@@ -78,6 +80,14 @@ CREATE TABLE IF NOT EXISTS public.marketing_nas_links (
 ALTER TABLE public.marketing_nas_links ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "marketing_nas_links_all" ON public.marketing_nas_links
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+
+-- ====================================================================
+-- 기존 marketing_schedules 테이블이 이미 있다면 아래 실행 (컬럼 추가):
+-- ====================================================================
+ALTER TABLE public.marketing_schedules
+  ADD COLUMN IF NOT EXISTS status  TEXT DEFAULT '촬영예정',
+  ADD COLUMN IF NOT EXISTS content TEXT;
 
 
 -- ====================================================================
