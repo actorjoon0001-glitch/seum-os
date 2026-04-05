@@ -443,17 +443,23 @@
     }
   }
 
+  function msShowForm(title, showDelete) {
+    document.getElementById('ms-form-title').textContent = title;
+    var delBtn = document.getElementById('btn-ms-delete');
+    if (delBtn) delBtn.classList.toggle('hidden', !showDelete);
+    var wrap = document.getElementById('ms-form-wrap');
+    wrap.classList.remove('hidden');
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   window.msOpenAdd = function (dateStr) {
     msEditId = null;
     var form = document.getElementById('form-ms');
     if (form) form.reset();
     var d = document.getElementById('ms-shoot-date');
     if (d) d.value = dateStr || '';
-    document.getElementById('ms-modal-title').textContent = '촬영 일정 등록';
-    var delBtn = document.getElementById('btn-ms-delete');
-    if (delBtn) delBtn.classList.add('hidden');
     msPopulateAssignees();
-    document.getElementById('modal-ms').classList.remove('hidden');
+    msShowForm('촬영 일정 등록', false);
   };
 
   window.msViewSchedule = function (id) {
@@ -476,10 +482,7 @@
     }
     document.getElementById('ms-status').value = s.status || '촬영예정';
     document.getElementById('ms-content').value = s.content || '';
-    document.getElementById('ms-modal-title').textContent = '촬영 일정 수정';
-    var delBtn = document.getElementById('btn-ms-delete');
-    if (delBtn) delBtn.classList.remove('hidden');
-    document.getElementById('modal-ms').classList.remove('hidden');
+    msShowForm('촬영 일정 수정', true);
   };
 
   function renderMarketingSchedule() {
@@ -504,8 +507,11 @@
     document.getElementById('btn-ms-show-all') && document.getElementById('btn-ms-show-all').addEventListener('click', function () {
       msSelectedDate = null; msRenderCalendar();
     });
-    document.getElementById('btn-ms-modal-close') && document.getElementById('btn-ms-modal-close').addEventListener('click', function () {
-      document.getElementById('modal-ms').classList.add('hidden');
+    document.getElementById('btn-ms-form-close') && document.getElementById('btn-ms-form-close').addEventListener('click', function () {
+      document.getElementById('ms-form-wrap').classList.add('hidden');
+    });
+    document.getElementById('btn-ms-cancel') && document.getElementById('btn-ms-cancel').addEventListener('click', function () {
+      document.getElementById('ms-form-wrap').classList.add('hidden');
     });
     document.getElementById('btn-ms-delete') && document.getElementById('btn-ms-delete').addEventListener('click', function () {
       if (!msEditId) return;
@@ -515,7 +521,7 @@
       db.from('marketing_schedules').delete().eq('id', msEditId)
         .then(function () {
           showToast('삭제되었습니다.', 'success');
-          document.getElementById('modal-ms').classList.add('hidden');
+          document.getElementById('ms-form-wrap').classList.add('hidden');
           msLoadAndRender();
         });
     });
@@ -546,13 +552,11 @@
         promise.then(function (res) {
           if (res && res.error) { showToast('저장 실패: ' + res.error.message, 'error'); return; }
           showToast(msEditId ? '수정되었습니다.' : '일정이 등록되었습니다.', 'success');
-          document.getElementById('modal-ms').classList.add('hidden');
+          document.getElementById('ms-form-wrap').classList.add('hidden');
           msLoadAndRender();
         }).catch(function (e) { showToast('저장 실패', 'error'); console.error(e); });
       });
     }
-    var modal = document.getElementById('modal-ms');
-    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.add('hidden'); });
   }
 
   // ====================================================================
