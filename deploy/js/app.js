@@ -4038,6 +4038,7 @@
       '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapeAttr(contractId) + '">팀 채팅</button>' +
       '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">저장</button>' +
       '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">계약 상세</button>' +
+      '<button type="button" class="btn btn-sm btn-danger design-priority-goto-btn" style="background:#dc2626;border-color:#dc2626;color:#fff;">설계팀 우선순위</button>' +
       '</div></div>';
     var cardBasic = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">기본 계약 정보 (읽기)</h4>' +
@@ -4704,6 +4705,10 @@
       }
     });
     document.addEventListener('click', function (e) {
+      if (e.target.closest('.design-priority-goto-btn')) {
+        if (typeof showSection === 'function') showSection('design-priority');
+        return;
+      }
       var modalBtn = e.target.closest('.design-detail-modal-btn');
       if (modalBtn) {
         var id = modalBtn.getAttribute('data-contract-id');
