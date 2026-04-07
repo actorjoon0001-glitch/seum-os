@@ -588,6 +588,8 @@
           sales_person: c.salesPerson || null,
           customer_name: c.customerName || null,
           model_name: c.contractModelName || null,
+          priority_done: !!c.priorityDone,
+          is_urgent: !!c.isUrgent,
           payload: c
         };
       });
@@ -604,6 +606,19 @@
     } catch (e) {
       console.error('Supabase contracts sync exception:', e);
     }
+  }
+
+  /** 우선순위 전용 컬럼만 타깃 업데이트 (다른 사용자의 bulk upsert에 덮어쓰이지 않음) */
+  function savePriorityField(contractId, priorityDone, isUrgent) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !contractId) return;
+    supa.from('contracts')
+      .update({ priority_done: !!priorityDone, is_urgent: !!isUrgent })
+      .eq('local_id', contractId)
+      .then(function (res) {
+        if (res && res.error) console.error('priority save error:', res.error);
+      })
+      .catch(function (err) { console.error('priority save failed:', err); });
   }
 
   /** ?? ???? (?? + Supabase contracts) */
@@ -643,7 +658,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload')
+        .select('local_id,payload,priority_done,is_urgent')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -659,6 +674,11 @@
               }
               if (c && !c.id && row.local_id) {
                 c.id = row.local_id;
+              }
+              // 전용 컬럼 값을 payload 보다 우선 적용 (다른 사용자의 stale 저장으로부터 보호)
+              if (c) {
+                if (row.priority_done != null) c.priorityDone = !!row.priority_done;
+                if (row.is_urgent != null) c.isUrgent = !!row.is_urgent;
               }
               return c;
             })
@@ -3411,7 +3431,7 @@
         var cid = btn.getAttribute('data-contract-id');
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
-        if (c) { c.priorityDone = true; saveContracts(cs); renderDesignPriority(); }
+        if (c) { c.priorityDone = true; saveContracts(cs); savePriorityField(cid, true, !!c.isUrgent); renderDesignPriority(); }
       });
     });
 
@@ -3422,7 +3442,7 @@
         var cid = btn.getAttribute('data-contract-id');
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
-        if (c) { c.priorityDone = false; saveContracts(cs); renderDesignPriority(); }
+        if (c) { c.priorityDone = false; saveContracts(cs); savePriorityField(cid, false, !!c.isUrgent); renderDesignPriority(); }
       });
     });
 
@@ -9424,6 +9444,7 @@
         if (c) {
           c.isUrgent = e.target.checked;
           saveContracts(contracts);
+          savePriorityField(contractId, !!c.priorityDone, c.isUrgent);
           renderDesign();
           renderDesignPriority();
         }
