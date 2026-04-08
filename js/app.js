@@ -602,6 +602,7 @@
           model_name: c.contractModelName || null,
           priority_done: !!c.priorityDone,
           is_urgent: !!c.isUrgent,
+          design_status: c.designStatus || 'none',
           payload: c
         };
       });
@@ -631,6 +632,19 @@
         if (res && res.error) console.error('priority save error:', res.error);
       })
       .catch(function (err) { console.error('priority save failed:', err); });
+  }
+
+  /** 설계진행상태 전용 컬럼만 타깃 업데이트 (다른 사용자의 bulk upsert에 덮어쓰이지 않음) */
+  function saveDesignStatusField(contractId, designStatus) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !contractId) return;
+    supa.from('contracts')
+      .update({ design_status: designStatus || 'none' })
+      .eq('local_id', contractId)
+      .then(function (res) {
+        if (res && res.error) console.error('design_status save error:', res.error);
+      })
+      .catch(function (err) { console.error('design_status save failed:', err); });
   }
 
   /** ?? ???? (?? + Supabase contracts) */
@@ -670,7 +684,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload,priority_done,is_urgent')
+        .select('local_id,payload,priority_done,is_urgent,design_status')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -691,6 +705,7 @@
               if (c) {
                 if (row.priority_done != null) c.priorityDone = !!row.priority_done;
                 if (row.is_urgent != null) c.isUrgent = !!row.is_urgent;
+                if (row.design_status != null) c.designStatus = row.design_status;
               }
               return c;
             })
@@ -9522,6 +9537,7 @@
         if (c) {
           c.designStatus = value;
           saveContracts(contracts);
+          saveDesignStatusField(contractId, value);
           renderDesign();
         }
         return;
