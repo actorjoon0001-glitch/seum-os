@@ -495,6 +495,12 @@
   //  시공팀 검색 필터 헬퍼
   // ────────────────────────────────────────────────────────────
 
+  /** 시공팀 유형 필터값을 가져옴 */
+  function getConstructionCategoryFilter() {
+    var el = document.getElementById('construction-category-filter');
+    return el ? el.value : '';
+  }
+
   /** 시공팀 검색 입력창에서 키워드를 가져옴 */
   function getConstructionSearchKeyword() {
     var el = document.getElementById('construction-search-input');
@@ -526,6 +532,10 @@
    * 향후 필드별 분리 검색으로 쉽게 확장 가능
    */
   function getFilteredConstructionContracts(contracts) {
+    var category = getConstructionCategoryFilter();
+    if (category) {
+      contracts = contracts.filter(function (c) { return (c.contractModel || '') === category; });
+    }
     var keyword = getConstructionSearchKeyword();
     if (!keyword) return contracts;
     return contracts.filter(function (c) { return matchesConstructionKeyword(c, keyword); });
@@ -536,6 +546,7 @@
     var el = document.getElementById('construction-filter-result');
     if (!el) return;
     var keyword  = getConstructionSearchKeyword();
+    var category = getConstructionCategoryFilter();
     var showroom = getFilterShowroom();
     var year     = getFilterYear();
     var month    = getFilterMonth();
@@ -544,6 +555,7 @@
     if (showroom) parts.push(names[showroom] || showroom);
     if (year)     parts.push(year + '년');
     if (month)    parts.push(month + '월');
+    if (category) parts.push(category);
     if (keyword)  parts.push('"' + keyword + '"');
     var count = filtered.length;
     el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + count + '건';
@@ -10730,6 +10742,11 @@
         renderDesign();
         if (designSearchInput) designSearchInput.focus();
       });
+    }
+    // 시공팀 유형 필터 이벤트
+    var constructionCategoryFilter = document.getElementById('construction-category-filter');
+    if (constructionCategoryFilter) {
+      constructionCategoryFilter.addEventListener('change', function () { renderConstruction(); });
     }
     // 시공팀 검색창 이벤트
     var constructionSearchInput = document.getElementById('construction-search-input');
