@@ -1780,6 +1780,23 @@ button,
   line-height: 1.2;
 }
 
+.contract-filter-bar .filter-item select {
+  height: 40px;
+  min-width: 140px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: #1F1F1F;
+  color: #E5E7EB;
+  border: 1px solid #374151;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.contract-filter-bar .filter-item select:focus {
+  border-color: #6366F1;
+}
+
 /* 검색창 래퍼 */
 .contract-search-wrap {
   position: relative;
