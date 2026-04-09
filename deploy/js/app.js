@@ -288,7 +288,7 @@
     }
 
     // ?????: ??? ?? + ???/???/??? ???? ????????
-    if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
+    if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard') {
       return isSettlement;
     }
     // ????????? ?? ??? ???
@@ -680,6 +680,7 @@
     if (typeof renderSales === 'function') renderSales();
     if (typeof renderConstruction === 'function') renderConstruction();
     if (typeof renderSettlement === 'function') renderSettlement();
+    if (typeof renderSettlementDashboard === 'function') renderSettlementDashboard();
   }
 
   // Supabase??????? contracts??localStorage???? (?????? ?????????
@@ -722,6 +723,7 @@
             renderSales();
             renderDesign();
             renderSettlement();
+            if (typeof renderSettlementDashboard === 'function') renderSettlementDashboard();
           } catch (e) {
             console.error('Render after contracts sync failed:', e);
           }
@@ -6001,6 +6003,188 @@
     });
   }
 
+  function renderSettlementDashboard() {
+    var section = document.getElementById('section-settlement-dashboard');
+    if (!section) return;
+    var contracts = filterByShowroom(getContracts(), 'showroomId');
+    contracts = filterByYearMonth(contracts, 'contractDate');
+
+    // ===== 1) 전체 KPI =====
+    var totalCount = contracts.length;
+    var totalAmount = 0;
+    var receivedAmount = 0;
+    contracts.forEach(function (c) {
+      var nums = getPaymentSummaryNumbers(c);
+      totalAmount += nums.total;
+      receivedAmount += nums.received;
+    });
+    var remainingAmount = Math.max(0, totalAmount - receivedAmount);
+    var receivedPct = totalAmount > 0 ? Math.round((receivedAmount / totalAmount) * 100) : 0;
+    var remainingPct = totalAmount > 0 ? 100 - receivedPct : 0;
+
+    function toMan(v) { return Math.round((Number(v) || 0) / 10000); }
+    function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+    function setWidth(id, pct) { var el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+
+    setText('sdb-total-count', formatMoney(totalCount));
+    setText('sdb-total-amount', formatMoney(toMan(totalAmount)));
+    setText('sdb-received-amount', formatMoney(toMan(receivedAmount)));
+    setText('sdb-received-pct', '(' + receivedPct + '%)');
+    setText('sdb-remaining-amount', formatMoney(toMan(remainingAmount)));
+    setText('sdb-remaining-pct', '(' + remainingPct + '%)');
+
+    // ===== 2) 단계별 합계 (계약금/중도금1/2/3/잔금) =====
+    var stages = [
+      { key: 'deposit', amountField: 'depositAmount', confirmedField: 'depositConfirmed', elPrefix: 'sdb-stage-deposit' },
+      { key: 'progress1', amountField: 'progress1Amount', confirmedField: 'progress1Confirmed', elPrefix: 'sdb-stage-progress1' },
+      { key: 'progress2', amountField: 'progress2Amount', confirmedField: 'progress2Confirmed', elPrefix: 'sdb-stage-progress2' },
+      { key: 'progress3', amountField: 'progress3Amount', confirmedField: 'progress3Confirmed', elPrefix: 'sdb-stage-progress3' },
+      { key: 'balance', amountField: 'balanceAmount', confirmedField: 'balanceConfirmed', elPrefix: 'sdb-stage-balance' }
+    ];
+    stages.forEach(function (stage) {
+      var stageTotal = 0;
+      var stageHasCount = 0;
+      var stageConfirmedCount = 0;
+      contracts.forEach(function (c) {
+        var amt = parseMoney(c[stage.amountField]);
+        if (amt > 0) {
+          stageTotal += amt;
+          stageHasCount++;
+          if (c[stage.confirmedField]) stageConfirmedCount++;
+        }
+      });
+      var pct = stageHasCount > 0 ? Math.round((stageConfirmedCount / stageHasCount) * 100) : 0;
+      setText(stage.elPrefix, formatMoney(toMan(stageTotal)) + '만원');
+      setWidth(stage.elPrefix + '-fill', pct);
+      setText(stage.elPrefix + '-meta', stageConfirmedCount + '/' + stageHasCount + '건 입금확인 (' + pct + '%)');
+    });
+
+    // ===== 3) 전시장별 집계 =====
+    var byShowroom = {};
+    SHOWROOMS.forEach(function (s) {
+      byShowroom[s.id] = { name: s.name, count: 0, total: 0, received: 0 };
+    });
+    contracts.forEach(function (c) {
+      var sid = c.showroomId || '';
+      if (!byShowroom[sid]) {
+        byShowroom[sid] = { name: getShowroomName(sid), count: 0, total: 0, received: 0 };
+      }
+      var nums = getPaymentSummaryNumbers(c);
+      byShowroom[sid].count++;
+      byShowroom[sid].total += nums.total;
+      byShowroom[sid].received += nums.received;
+    });
+    var showroomRows = Object.keys(byShowroom)
+      .map(function (k) { return byShowroom[k]; })
+      .filter(function (r) { return r.count > 0; })
+      .sort(function (a, b) { return b.total - a.total; });
+    var sumRow = { count: 0, total: 0, received: 0 };
+    showroomRows.forEach(function (r) {
+      sumRow.count += r.count;
+      sumRow.total += r.total;
+      sumRow.received += r.received;
+    });
+
+    var tbodyShowroom = document.getElementById('tbody-sdb-showroom');
+    if (tbodyShowroom) {
+      var rowsHtml = showroomRows.map(function (r) {
+        var rem = Math.max(0, r.total - r.received);
+        var pct = r.total > 0 ? Math.round((r.received / r.total) * 100) : 0;
+        return '<tr>' +
+          '<td>' + escapeHtml(r.name) + '</td>' +
+          '<td style="text-align:right;">' + formatMoney(r.count) + '건</td>' +
+          '<td style="text-align:right;">' + formatMoney(toMan(r.total)) + '만원</td>' +
+          '<td style="text-align:right;color:#22C55E;">' + formatMoney(toMan(r.received)) + '만원</td>' +
+          '<td style="text-align:right;color:#F59E0B;">' + formatMoney(toMan(rem)) + '만원</td>' +
+          '<td><div class="sdb-pct-bar"><div class="sdb-pct-bar-fill" style="width:' + pct + '%"></div></div><span class="sdb-pct-label">' + pct + '%</span></td>' +
+          '</tr>';
+      }).join('');
+      var sumPct = sumRow.total > 0 ? Math.round((sumRow.received / sumRow.total) * 100) : 0;
+      var sumRem = Math.max(0, sumRow.total - sumRow.received);
+      var sumHtml = showroomRows.length ? ('<tr class="sdb-sum-row">' +
+        '<td><strong>합계</strong></td>' +
+        '<td style="text-align:right;"><strong>' + formatMoney(sumRow.count) + '건</strong></td>' +
+        '<td style="text-align:right;"><strong>' + formatMoney(toMan(sumRow.total)) + '만원</strong></td>' +
+        '<td style="text-align:right;color:#22C55E;"><strong>' + formatMoney(toMan(sumRow.received)) + '만원</strong></td>' +
+        '<td style="text-align:right;color:#F59E0B;"><strong>' + formatMoney(toMan(sumRem)) + '만원</strong></td>' +
+        '<td><div class="sdb-pct-bar"><div class="sdb-pct-bar-fill" style="width:' + sumPct + '%"></div></div><span class="sdb-pct-label"><strong>' + sumPct + '%</strong></span></td>' +
+        '</tr>') : '';
+      tbodyShowroom.innerHTML = (rowsHtml + sumHtml) || '<tr><td colspan="6" class="sdb-empty">데이터가 없습니다.</td></tr>';
+    }
+
+    // ===== 4) 주의 필요 항목 (메모 있거나 미수금 큰 순) =====
+    var alertList = document.getElementById('sdb-alerts');
+    if (alertList) {
+      var alerts = contracts
+        .map(function (c) {
+          var nums = getPaymentSummaryNumbers(c);
+          return { c: c, remaining: nums.remaining, hasMemo: !!(c.balanceMemo && String(c.balanceMemo).trim()) };
+        })
+        .filter(function (x) { return x.hasMemo || x.remaining > 0; })
+        .sort(function (a, b) {
+          if (a.hasMemo !== b.hasMemo) return a.hasMemo ? -1 : 1;
+          return b.remaining - a.remaining;
+        })
+        .slice(0, 8);
+      if (!alerts.length) {
+        alertList.innerHTML = '<p class="settlement-db-empty">주의 필요 항목이 없습니다.</p>';
+      } else {
+        alertList.innerHTML = alerts.map(function (a) {
+          var c = a.c;
+          var memoBadge = a.hasMemo ? '<span class="sdb-alert-badge memo">메모</span>' : '';
+          var memoLine = a.hasMemo ? '<div class="sdb-alert-memo">' + escapeHtml(c.balanceMemo) + '</div>' : '';
+          return '<div class="sdb-alert-item" data-contract-id="' + escapeAttr(c.id) + '">' +
+            '<div class="sdb-alert-head">' +
+              '<span class="sdb-alert-name">' + escapeHtml(c.customerName || '-') + '</span>' +
+              '<span class="sdb-alert-showroom">' + escapeHtml(getShowroomName(c.showroomId)) + '</span>' +
+              memoBadge +
+            '</div>' +
+            '<div class="sdb-alert-body">' +
+              '<span class="sdb-alert-remaining">미수금 ' + formatMoney(toMan(a.remaining)) + '만원</span>' +
+            '</div>' +
+            memoLine +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    // ===== 5) 입금 확인 미처리 항목 =====
+    var unconfirmedList = document.getElementById('sdb-unconfirmed');
+    if (unconfirmedList) {
+      var unconfirmed = [];
+      contracts.forEach(function (c) {
+        stages.forEach(function (stage) {
+          var amt = parseMoney(c[stage.amountField]);
+          if (amt > 0 && !c[stage.confirmedField]) {
+            unconfirmed.push({
+              c: c,
+              stageLabel: ({ deposit: '계약금', progress1: '중도금1', progress2: '중도금2', progress3: '중도금3', balance: '잔금' })[stage.key],
+              amount: amt
+            });
+          }
+        });
+      });
+      unconfirmed.sort(function (a, b) { return b.amount - a.amount; });
+      unconfirmed = unconfirmed.slice(0, 8);
+      if (!unconfirmed.length) {
+        unconfirmedList.innerHTML = '<p class="settlement-db-empty">미처리 항목이 없습니다.</p>';
+      } else {
+        unconfirmedList.innerHTML = unconfirmed.map(function (u) {
+          return '<div class="sdb-alert-item">' +
+            '<div class="sdb-alert-head">' +
+              '<span class="sdb-alert-name">' + escapeHtml(u.c.customerName || '-') + '</span>' +
+              '<span class="sdb-alert-showroom">' + escapeHtml(getShowroomName(u.c.showroomId)) + '</span>' +
+              '<span class="sdb-alert-badge stage">' + u.stageLabel + '</span>' +
+            '</div>' +
+            '<div class="sdb-alert-body">' +
+              '<span class="sdb-alert-remaining">' + formatMoney(toMan(u.amount)) + '만원 미확인</span>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+  }
+
   function renderSettlement() {
     var contracts = filterByShowroom(getContracts(), 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
@@ -7552,7 +7736,7 @@
       sectionId === 'marketing-files' || sectionId === 'marketing-nas' ||
       sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
-      sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
+      sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard' ||
       sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
       sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
@@ -7571,6 +7755,7 @@
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
+    if (sectionId === 'settlement-dashboard') renderSettlementDashboard();
     if (sectionId === 'design-worklog') renderDesignWorklog();
     if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'design-priority') renderDesignPriority();
@@ -7633,7 +7818,7 @@
         if (conBtn) conBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
+    if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard') {
       var sub = document.getElementById('nav-settlement-sub');
       var group = document.getElementById('sidebar-group-settlement');
       if (sub && group) {

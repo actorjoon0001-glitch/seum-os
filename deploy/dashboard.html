@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260409-4">
+  <link rel="stylesheet" href="./css/style.css?v=20260409-5">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -171,6 +171,7 @@
             <span class="nav-arrow">▶</span>
           </button>
           <div class="nav-submenu sidebar-sub collapsed" id="nav-settlement-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="settlement-dashboard">정산팀 대시보드</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="settlement-payment">전체 고객 입금현황</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="settlement-incentive">영업사원별 인센티브</a>
           </div>
@@ -2166,6 +2167,105 @@
       </div>
     </section>
 
+    <section id="section-settlement-dashboard" class="content-section">
+      <header class="main-header">
+        <h2>정산팀 대시보드</h2>
+        <p class="section-desc">계약 총액·수금 현황·미수금을 전시장별로 한눈에 확인합니다. 모든 수치는 입금 확인된 금액 기준입니다.</p>
+      </header>
+
+      <div class="settlement-db-kpis">
+        <article class="settlement-db-kpi-card accent-blue">
+          <h3 class="settlement-db-kpi-title">전체 계약 건수</h3>
+          <p class="settlement-db-kpi-value" id="sdb-total-count">0</p>
+          <span class="settlement-db-kpi-unit">건</span>
+        </article>
+        <article class="settlement-db-kpi-card accent-purple">
+          <h3 class="settlement-db-kpi-title">계약 총액</h3>
+          <p class="settlement-db-kpi-value" id="sdb-total-amount">0</p>
+          <span class="settlement-db-kpi-unit">만원</span>
+        </article>
+        <article class="settlement-db-kpi-card accent-green">
+          <h3 class="settlement-db-kpi-title">입금 완료액</h3>
+          <p class="settlement-db-kpi-value" id="sdb-received-amount">0</p>
+          <span class="settlement-db-kpi-unit">만원 <small id="sdb-received-pct">(0%)</small></span>
+        </article>
+        <article class="settlement-db-kpi-card accent-orange">
+          <h3 class="settlement-db-kpi-title">미수금</h3>
+          <p class="settlement-db-kpi-value" id="sdb-remaining-amount">0</p>
+          <span class="settlement-db-kpi-unit">만원 <small id="sdb-remaining-pct">(0%)</small></span>
+        </article>
+      </div>
+
+      <div class="settlement-db-stage-grid">
+        <article class="settlement-db-stage-card">
+          <h4>계약금</h4>
+          <div class="stage-amount" id="sdb-stage-deposit">0만원</div>
+          <div class="stage-bar"><div class="stage-bar-fill" id="sdb-stage-deposit-fill"></div></div>
+          <div class="stage-meta"><span id="sdb-stage-deposit-meta">0/0건 입금확인</span></div>
+        </article>
+        <article class="settlement-db-stage-card">
+          <h4>중도금1</h4>
+          <div class="stage-amount" id="sdb-stage-progress1">0만원</div>
+          <div class="stage-bar"><div class="stage-bar-fill" id="sdb-stage-progress1-fill"></div></div>
+          <div class="stage-meta"><span id="sdb-stage-progress1-meta">0/0건 입금확인</span></div>
+        </article>
+        <article class="settlement-db-stage-card">
+          <h4>중도금2</h4>
+          <div class="stage-amount" id="sdb-stage-progress2">0만원</div>
+          <div class="stage-bar"><div class="stage-bar-fill" id="sdb-stage-progress2-fill"></div></div>
+          <div class="stage-meta"><span id="sdb-stage-progress2-meta">0/0건 입금확인</span></div>
+        </article>
+        <article class="settlement-db-stage-card">
+          <h4>중도금3</h4>
+          <div class="stage-amount" id="sdb-stage-progress3">0만원</div>
+          <div class="stage-bar"><div class="stage-bar-fill" id="sdb-stage-progress3-fill"></div></div>
+          <div class="stage-meta"><span id="sdb-stage-progress3-meta">0/0건 입금확인</span></div>
+        </article>
+        <article class="settlement-db-stage-card">
+          <h4>잔금</h4>
+          <div class="stage-amount" id="sdb-stage-balance">0만원</div>
+          <div class="stage-bar"><div class="stage-bar-fill" id="sdb-stage-balance-fill"></div></div>
+          <div class="stage-meta"><span id="sdb-stage-balance-meta">0/0건 입금확인</span></div>
+        </article>
+      </div>
+
+      <div class="card">
+        <h3>전시장별 수금 현황</h3>
+        <div class="table-wrap">
+          <table class="data-table settlement-db-showroom-table">
+            <thead>
+              <tr>
+                <th>전시장</th>
+                <th>계약 건수</th>
+                <th>계약 총액</th>
+                <th>입금 완료액</th>
+                <th>미수금</th>
+                <th>입금율</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-sdb-showroom"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="settlement-db-bottom-grid">
+        <div class="card">
+          <h3>주의 필요 항목</h3>
+          <p class="settlement-db-card-desc">미수금이 있거나 메모가 등록된 계약</p>
+          <div id="sdb-alerts" class="settlement-db-alert-list">
+            <p class="settlement-db-empty">주의 필요 항목이 없습니다.</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>입금 확인 미처리</h3>
+          <p class="settlement-db-card-desc">금액은 입력됐지만 입금 확인 체크가 안 된 항목</p>
+          <div id="sdb-unconfirmed" class="settlement-db-alert-list">
+            <p class="settlement-db-empty">미처리 항목이 없습니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="section-settlement-payment" class="content-section">
       <header class="main-header">
         <h2>전체 고객 입금현황</h2>
@@ -3879,7 +3979,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260409-4"></script>
+  <script src="js/app.js?v=20260409-5"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
