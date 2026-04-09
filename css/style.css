@@ -10669,6 +10669,82 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #60A5FA;
 }
 
+/* 관리자 전용 "답변" 버튼 — 비관리자 메시지에만 노출 */
+.chat-admin-reply-btn {
+  display: inline-block;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #60A5FA;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chat-admin-reply-btn:hover {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.55);
+}
+
+/* 관리자 답변 대상 인디케이터 (입력창 위 표시 바) */
+.chat-admin-reply-target-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  margin: 0 0.6rem 0.4rem;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #E5E7EB;
+}
+.chat-admin-reply-target-indicator.hidden {
+  display: none;
+}
+.chat-admin-reply-target-icon {
+  font-size: 0.9rem;
+  color: #60A5FA;
+}
+.chat-admin-reply-target-label {
+  color: #60A5FA;
+  font-weight: 600;
+  font-size: 0.74rem;
+}
+.chat-admin-reply-target-name {
+  color: #F3F4F6;
+  font-weight: 600;
+}
+.chat-admin-reply-target-preview {
+  color: #9CA3AF;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.chat-admin-reply-target-clear {
+  margin-left: auto;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.78rem;
+  color: #9CA3AF;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.chat-admin-reply-target-clear:hover {
+  color: #F3F4F6;
+  background: rgba(255, 255, 255, 0.06);
+}
+@media (max-width: 768px) {
+  .chat-admin-reply-target-preview {
+    max-width: 120px;
+  }
+}
+
 @media (max-width: 768px) {
   .chat-admin-request-bar {
     flex-wrap: wrap;

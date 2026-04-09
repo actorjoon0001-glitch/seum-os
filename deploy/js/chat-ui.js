@@ -13,6 +13,28 @@
   var selectedContractShowroomFilter = 'all';
   /** 계약 채팅 월별 필터 ('' = 전체) */
   var selectedContractMonthFilter = '';
+  /** 관리자 요청 채널에서 관리자가 "답변" 버튼으로 명시 선택한 답변 대상
+   *  형식: { userId, userName, messageId, preview } | null
+   *  null 이면 전송 시 캐시 기반 자동 타깃팅 fallback */
+  var chatAdminReplyTarget = null;
+
+  function updateAdminReplyTargetIndicator() {
+    var indicator = document.getElementById('chat-admin-reply-target-indicator');
+    if (!indicator) return;
+    if (!chatAdminReplyTarget) {
+      indicator.classList.add('hidden');
+      return;
+    }
+    indicator.classList.remove('hidden');
+    var nameEl = indicator.querySelector('.chat-admin-reply-target-name');
+    var previewEl = indicator.querySelector('.chat-admin-reply-target-preview');
+    if (nameEl) nameEl.textContent = chatAdminReplyTarget.userName || '';
+    if (previewEl) previewEl.textContent = chatAdminReplyTarget.preview ? ('"' + chatAdminReplyTarget.preview + '"') : '';
+  }
+  function clearAdminReplyTarget() {
+    chatAdminReplyTarget = null;
+    updateAdminReplyTargetIndicator();
+  }
 
   function renderContractChat(contractId, listId) {
     var resolvedListId = listId || 'contract-chat-message-list';
@@ -560,6 +582,18 @@
           '</div>';
       }
       var bodyOrImage = isImageMsg ? imageBodyHtml : ('<span class="chat-message-body">' + bodyHtml + '</span>');
+      // 관리자 요청 채널에서 관리자가 일반 사용자 메시지에 대해 답변 버튼 노출
+      var adminReplyBtnHtml = '';
+      var _isAdminUserForBtn = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
+                               (typeof window.isMaster === 'function' && window.isMaster());
+      if (channel === ADMIN_REQ && !isAdminReply && _isAdminUserForBtn && !deleted && msg.id) {
+        var bodyPreviewForBtn = (bodyText || '').slice(0, 30);
+        adminReplyBtnHtml = '<button type="button" class="chat-admin-reply-btn"' +
+          ' data-msg-id="' + window.escapeChatText(msg.id) + '"' +
+          ' data-user-id="' + window.escapeChatText(msg.userId || '') + '"' +
+          ' data-user-name="' + window.escapeChatText(msg.userName || '') + '"' +
+          ' data-preview="' + window.escapeChatText(bodyPreviewForBtn) + '">↩ 답변</button>';
+      }
       var menuHtml = '';
       if (!deleted && msg.id) {
         var pinLabel = msg.is_pinned ? '고정 해제' : '📌 메시지 고정';
@@ -586,6 +620,7 @@
         (attachHtml ? attachHtml : '') +
         '<span class="chat-message-time">' + time + '</span>' +
         (readHtml ? readHtml : '') +
+        (adminReplyBtnHtml || '') +
         '</div></li>';
     });
     list.innerHTML = html;
@@ -845,6 +880,14 @@
         var cleaned = (raw || '').replace(/^\[상태:(요청|진행중|완료)\]\s*/, '');
         return '[상태:' + st + '] ' + cleaned;
       }
+      // 관리자 요청 + 관리자 전송 시, 명시 선택된 답변 대상이 있으면 그것을 사용
+      var explicitReplyTarget = null;
+      if (ch === ADMIN_REQ && isAdminUser && chatAdminReplyTarget) {
+        explicitReplyTarget = {
+          userId: chatAdminReplyTarget.userId,
+          userName: chatAdminReplyTarget.userName
+        };
+      }
 
       if (!attachments || !attachments.length) {
         var msg = Object.assign({}, base, {
@@ -852,9 +895,10 @@
           message_type: 'text',
           text: wrapAdminRequestText(text || '')
         });
-        window.saveChatMessage(ch, msg);
+        window.saveChatMessage(ch, msg, explicitReplyTarget);
         input.value = '';
         input.style.height = '44px';
+        clearAdminReplyTarget();
         if (typeof window.renderChatMessageList === 'function') window.renderChatMessageList(ch);
         if (typeof window.setChatLastRead === 'function') window.setChatLastRead(ch, msg.at);
         if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
@@ -874,7 +918,7 @@
           file_name: a.name || '이미지',
           text: (idx === 0 && text) ? wrapAdminRequestText(text) : (idx === 0 ? wrapAdminRequestText('') : '')
         });
-        window.saveChatMessage(ch, msg);
+        window.saveChatMessage(ch, msg, explicitReplyTarget);
         lastAt = msg.at;
       });
       if (fileAttachments.length) {
@@ -884,9 +928,10 @@
           text: wrapAdminRequestText((!imageAttachments.length && text) ? text : '(파일 첨부)'),
           attachments: fileAttachments
         });
-        window.saveChatMessage(ch, fileMsg);
+        window.saveChatMessage(ch, fileMsg, explicitReplyTarget);
         lastAt = fileMsg.at;
       }
+      clearAdminReplyTarget();
 
       input.value = '';
       input.style.height = '44px';
@@ -980,6 +1025,28 @@
         var url = imageThumb.getAttribute('data-file-url');
         var name = imageThumb.getAttribute('data-file-name') || '이미지';
         if (url) openChatImageModal(url, name);
+        return;
+      }
+      // 관리자 요청 — 답변 대상 선택 버튼
+      var replyBtn = e.target.closest && e.target.closest('.chat-admin-reply-btn');
+      if (replyBtn) {
+        e.preventDefault();
+        chatAdminReplyTarget = {
+          userId: replyBtn.getAttribute('data-user-id') || '',
+          userName: replyBtn.getAttribute('data-user-name') || '',
+          messageId: replyBtn.getAttribute('data-msg-id') || '',
+          preview: replyBtn.getAttribute('data-preview') || ''
+        };
+        updateAdminReplyTargetIndicator();
+        var input = document.getElementById('chat-input');
+        if (input) { input.focus(); }
+        return;
+      }
+      // 관리자 요청 — 답변 대상 취소
+      var clearBtn = e.target.closest && e.target.closest('.chat-admin-reply-target-clear');
+      if (clearBtn) {
+        e.preventDefault();
+        clearAdminReplyTarget();
         return;
       }
       var pinBtn = e.target.closest('.chat-msg-pin-btn');
