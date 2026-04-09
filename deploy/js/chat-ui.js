@@ -380,14 +380,26 @@
       var last = messages[messages.length - 1];
       activityEl.textContent = last && last.at ? '최근 활동: ' + window.formatChatTime(last.at) : '';
     }
-    // 관리자 요청 채널 전용: 상태 선택 드롭다운 토글
+    // 관리자 요청 채널 전용: 상태 선택 바 토글 (관리자/사용자 모두에게 노출)
     var statusBar = document.getElementById('chat-admin-request-bar');
     if (statusBar) {
       var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
                         (typeof window.isMaster === 'function' && window.isMaster());
-      // 관리자는 요청 상태를 직접 입력하지 않으므로 숨김
-      var show = (channel === ADMIN_REQ) && !isAdminUser;
+      var show = (channel === ADMIN_REQ);
       statusBar.classList.toggle('hidden', !show);
+      // 역할별 라벨/힌트/드롭다운 가시성 전환
+      var labelEl = statusBar.querySelector('.chat-admin-request-bar-label');
+      var hintEl = statusBar.querySelector('.chat-admin-request-bar-hint');
+      var sel = statusBar.querySelector('#chat-admin-request-status');
+      if (isAdminUser) {
+        if (labelEl) labelEl.textContent = '관리자 답변';
+        if (hintEl) hintEl.textContent = '모든 직원의 요청을 보고 답변할 수 있습니다';
+        if (sel) sel.classList.add('hidden');
+      } else {
+        if (labelEl) labelEl.textContent = '요청 상태';
+        if (hintEl) hintEl.textContent = '관리자와 본인만 이 채널의 메시지를 볼 수 있습니다';
+        if (sel) sel.classList.remove('hidden');
+      }
     }
   }
 
