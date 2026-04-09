@@ -10895,9 +10895,17 @@
     var tbody = document.getElementById('tbody-plist');
     if (!tbody) return;
     var items = getProcurementList().slice();
-    // 필요일 기준 오름차순(빠른순) 정렬
+    // 정렬: (1) 완료는 하단으로 (2) 필요일 빠른순 (3) 요청일 빠른순
     items.sort(function (a, b) {
-      return (a.needDate || '9999-12-31').localeCompare(b.needDate || '9999-12-31');
+      var aDone = (a.status === '완료') ? 1 : 0;
+      var bDone = (b.status === '완료') ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      var aNeed = a.needDate || '9999-12-31';
+      var bNeed = b.needDate || '9999-12-31';
+      if (aNeed !== bNeed) return aNeed.localeCompare(bNeed);
+      var aReq = a.requestDate || '9999-12-31';
+      var bReq = b.requestDate || '9999-12-31';
+      return aReq.localeCompare(bReq);
     });
     if (!items.length) {
       tbody.innerHTML = '<tr><td colspan="9" class="plist-empty">등록된 발주 요청이 없습니다. 우측 상단의 "+ 발주 등록" 버튼으로 추가하세요.</td></tr>';
