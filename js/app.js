@@ -8986,7 +8986,9 @@
       confirmed = true;
       c[m.confirmed] = true;
     }
-    if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
+    // 잔금은 메모만 있어도 셀이 비어 보이지 않도록 표시
+    var hasBalanceMemo = (type === 'balance' && c.balanceMemo);
+    if (!amount && !receivedAt && !hasBalanceMemo) return '<span class="payment-none">-</span>';
     var label = '';
     var _payDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
     if (amount != null && String(amount).trim() !== '') {
@@ -8999,7 +9001,25 @@
     if (amount != null && String(amount).trim() !== '') {
       check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> 입금 확인</label>';
     }
-    return '<span class="payment-amount">' + (label || '-') + '</span>' + check;
+    // 변경 이력 아이콘 (해당 type의 마지막 변경 사유 hover로 표시)
+    var historyHtml = '';
+    if (Array.isArray(c.paymentChangeHistory) && c.paymentChangeHistory.length) {
+      var entries = c.paymentChangeHistory.filter(function (h) { return h.type === type; });
+      if (entries.length) {
+        var last = entries[entries.length - 1];
+        var oldM = formatMoney(Math.round((Number(last.oldAmount) || 0) / _payDivisor));
+        var newM = formatMoney(Math.round((Number(last.newAmount) || 0) / _payDivisor));
+        var tip = (last.changedAt || '') + ' ' + oldM + '만원 → ' + newM + '만원' + (last.reason ? ' (' + last.reason + ')' : '') + (entries.length > 1 ? ' · 총 ' + entries.length + '회 변경' : '');
+        historyHtml = ' <span class="payment-history-icon" title="' + escapeAttr(tip) + '">⟳</span>';
+      }
+    }
+    // 잔금 메모 (hover/title로 전체 보기)
+    var memoHtml = '';
+    if (type === 'balance' && c.balanceMemo) {
+      var memo = String(c.balanceMemo);
+      memoHtml = '<div class="payment-balance-memo" title="' + escapeAttr(memo) + '">' + escapeHtml(memo) + '</div>';
+    }
+    return '<span class="payment-amount">' + (label || '-') + '</span>' + check + historyHtml + memoHtml;
   }
 
   function togglePaymentConfirmed(contractId, type, checked) {
@@ -9048,6 +9068,16 @@
     } else if (!currentDate) {
       currentDate = new Date().toISOString().slice(0, 10);
     }
+    // 잔금 메모 필드: 잔금일 때만 노출, 기존 값 prefill
+    var memoWrap = document.getElementById('payment-memo-wrap');
+    var memoInput = document.getElementById('payment-memo');
+    if (memoWrap) memoWrap.style.display = (type === 'balance') ? '' : 'none';
+    if (memoInput) memoInput.value = (type === 'balance' && c && c.balanceMemo) ? c.balanceMemo : '';
+    // 변경 사유 필드: 계약금 외(중도금/잔금)일 때 선택 입력으로 노출, 매번 빈칸으로 초기화
+    var reasonWrap = document.getElementById('payment-change-reason-wrap');
+    var reasonInput = document.getElementById('payment-change-reason');
+    if (reasonWrap) reasonWrap.style.display = (type !== 'deposit') ? '' : 'none';
+    if (reasonInput) reasonInput.value = '';
     document.getElementById('payment-contract-id').value = contractId;
     document.getElementById('payment-type').value = type;
     document.querySelector('#modal-payment .modal-header h3').textContent = labels[type] + ' ???';
@@ -9191,6 +9221,16 @@
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
         if (!c) return;
+        // 변경 이력 기록을 위한 이전 금액 캡처
+        var amountFieldMap = {
+          deposit: 'depositAmount',
+          progress1: 'progress1Amount',
+          progress2: 'progress2Amount',
+          progress3: 'progress3Amount',
+          balance: 'balanceAmount'
+        };
+        var prevAmountNum = Number(c[amountFieldMap[type]]) || 0;
+        var newAmountNum = Number(amount) || 0;
         if (type === 'deposit') {
           c.depositAmount = amount;
           c.depositReceivedAt = date || null;
@@ -9206,6 +9246,24 @@
         } else if (type === 'balance') {
           c.balanceAmount = amount;
           c.balanceReceivedAt = null;
+        }
+        // 잔금 메모 저장 (잔금 모달일 때만, 빈 문자열도 허용해 메모 삭제 가능)
+        if (type === 'balance') {
+          var memoEl = document.getElementById('payment-memo');
+          if (memoEl) c.balanceMemo = (memoEl.value || '').trim();
+        }
+        // 금액 변경 이력 기록 (계약금 제외, 사유 입력 + 금액 실제 변경 시)
+        var reasonEl = document.getElementById('payment-change-reason');
+        var reason = reasonEl ? (reasonEl.value || '').trim() : '';
+        if (type !== 'deposit' && reason && prevAmountNum !== newAmountNum) {
+          if (!Array.isArray(c.paymentChangeHistory)) c.paymentChangeHistory = [];
+          c.paymentChangeHistory.push({
+            type: type,
+            oldAmount: prevAmountNum,
+            newAmount: newAmountNum,
+            reason: reason,
+            changedAt: new Date().toISOString().slice(0, 10)
+          });
         }
         saveContracts(contracts);
         modal.classList.add('hidden');
