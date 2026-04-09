@@ -9005,16 +9005,28 @@
     if (amount != null && String(amount).trim() !== '') {
       check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> 입금 확인</label>';
     }
-    // 변경 이력 아이콘 (해당 type의 마지막 변경 사유 hover로 표시)
+    // 변경 이력 — ⟳ 아이콘 hover 시 커스텀 팝오버로 전체 이력 표시
     var historyHtml = '';
     if (Array.isArray(c.paymentChangeHistory) && c.paymentChangeHistory.length) {
       var entries = c.paymentChangeHistory.filter(function (h) { return h.type === type; });
       if (entries.length) {
-        var last = entries[entries.length - 1];
-        var oldM = formatMoney(Math.round((Number(last.oldAmount) || 0) / _payDivisor));
-        var newM = formatMoney(Math.round((Number(last.newAmount) || 0) / _payDivisor));
-        var tip = (last.changedAt || '') + ' ' + oldM + '만원 → ' + newM + '만원' + (last.reason ? ' (' + last.reason + ')' : '') + (entries.length > 1 ? ' · 총 ' + entries.length + '회 변경' : '');
-        historyHtml = ' <span class="payment-history-icon" title="' + escapeAttr(tip) + '">⟳</span>';
+        // 최신순으로 정렬해 모든 변경 내역 노출
+        var itemsHtml = entries.slice().reverse().map(function (h) {
+          var oldM = formatMoney(Math.round((Number(h.oldAmount) || 0) / _payDivisor));
+          var newM = formatMoney(Math.round((Number(h.newAmount) || 0) / _payDivisor));
+          return '<span class="payment-history-item">' +
+            '<span class="ph-date">' + escapeHtml(h.changedAt || '') + '</span>' +
+            '<span class="ph-amounts">' + oldM + '만원 <span class="ph-arrow">→</span> <strong>' + newM + '만원</strong></span>' +
+            (h.reason ? '<span class="ph-reason">사유: ' + escapeHtml(h.reason) + '</span>' : '') +
+          '</span>';
+        }).join('');
+        historyHtml = ' <span class="payment-history-wrap">' +
+          '<span class="payment-history-icon" aria-label="변경 이력">⟳</span>' +
+          '<span class="payment-history-popover" role="tooltip">' +
+            '<span class="payment-history-title">금액 변경 이력 ' + entries.length + '건</span>' +
+            '<span class="payment-history-list">' + itemsHtml + '</span>' +
+          '</span>' +
+        '</span>';
       }
     }
     // 잔금 메모 (hover/title로 전체 보기)

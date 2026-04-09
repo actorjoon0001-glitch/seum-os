@@ -6135,17 +6135,115 @@ textarea.form-input {
   overflow: visible;
 }
 
-/* 금액 변경 이력 아이콘 (해당 항목에 변경 이력이 있을 때) */
+/* 금액 변경 이력 — ⟳ 아이콘 + 커스텀 hover 팝오버 */
+.payment-cell .payment-history-wrap {
+  position: relative;
+  display: inline-block;
+}
 .payment-cell .payment-history-icon {
   display: inline-block;
   margin-left: 0.25rem;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
   color: #60A5FA;
   cursor: help;
   user-select: none;
 }
-.payment-cell .payment-history-icon:hover {
+.payment-cell .payment-history-wrap:hover .payment-history-icon {
   color: #93C5FD;
+}
+.payment-history-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1F2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  min-width: 240px;
+  max-width: 320px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #E5E7EB;
+  z-index: 1000;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  white-space: normal;
+  text-align: left;
+  pointer-events: none;
+}
+.payment-cell .payment-history-wrap:hover .payment-history-popover {
+  display: block;
+}
+.payment-history-popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #1F2937;
+  border-left: 1px solid #374151;
+  border-top: 1px solid #374151;
+}
+.payment-history-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.76rem;
+  color: #93C5FD;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.payment-history-list {
+  display: block;
+}
+.payment-history-item {
+  display: block;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.payment-history-item:first-child {
+  padding-top: 0;
+}
+.payment-history-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.payment-history-item .ph-date {
+  display: block;
+  font-size: 0.7rem;
+  color: #9CA3AF;
+}
+.payment-history-item .ph-amounts {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+}
+.payment-history-item .ph-amounts strong {
+  color: #FBBF24;
+  font-weight: 600;
+}
+.payment-history-item .ph-arrow {
+  color: #6B7280;
+  margin: 0 0.25rem;
+}
+.payment-history-item .ph-reason {
+  display: block;
+  margin-top: 0.2rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.72rem;
+  color: #FCD34D;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 2px solid rgba(251, 191, 36, 0.45);
+  border-radius: 2px;
+}
+@media (max-width: 768px) {
+  .payment-history-popover {
+    min-width: 200px;
+    max-width: 260px;
+  }
 }
 
 /* 입금 모달 — 변경 사유 안내 문구 */
