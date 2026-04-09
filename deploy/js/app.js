@@ -260,9 +260,9 @@
       return isDesign;
     }
 
-    // 우선순위: 설계팀 + 영업팀 + 시공팀 + master/admin 접근 (시공팀은 조회 전용)
+    // 우선순위: 설계팀 + 영업팀 + 시공팀 + 정산팀 + master/admin 접근 (시공팀·정산팀은 조회 전용)
     if (sectionId === 'design-priority') {
-      return isDesign || isSales || isConstruction;
+      return isDesign || isSales || isConstruction || isSettlement;
     }
 
     // ??? ???: ???, ???, ????? ??? + ????? ????(????? isSalesReadonly??? ?? ???)
