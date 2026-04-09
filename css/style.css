@@ -6104,6 +6104,15 @@ textarea.form-input {
   color: var(--text-muted);
 }
 
+/* 정산팀 셀 — 작은 수정 버튼 (모달 트리거) */
+.payment-cell .payment-edit-btn {
+  padding: 0.1rem 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
 /* 잔금 메모 — 셀 안에서 작게 표시, 길면 말줄임 + hover/title 전체 보기 */
 .payment-cell .payment-balance-memo {
   display: block;

@@ -8988,9 +8988,13 @@
     }
     // 잔금은 메모만 있어도 셀이 비어 보이지 않도록 표시
     var hasBalanceMemo = (type === 'balance' && c.balanceMemo);
-    if (!amount && !receivedAt && !hasBalanceMemo) return '<span class="payment-none">-</span>';
-    var label = '';
     var _payDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
+    // 정산팀 화면에서도 금액 수정/잔금 메모 입력이 가능하도록 항상 수정 버튼 노출
+    var editBtn = ' <button type="button" class="btn btn-sm btn-secondary payment-edit-btn" data-payment="' + type + '" data-id="' + c.id + '">수정</button>';
+    if (!amount && !receivedAt && !hasBalanceMemo) {
+      return '<span class="payment-none">-</span>' + editBtn;
+    }
+    var label = '';
     if (amount != null && String(amount).trim() !== '') {
       label = formatMoney(Math.round(Number(amount) / _payDivisor)) + '만원';
     }
@@ -9019,7 +9023,7 @@
       var memo = String(c.balanceMemo);
       memoHtml = '<div class="payment-balance-memo" title="' + escapeAttr(memo) + '">' + escapeHtml(memo) + '</div>';
     }
-    return '<span class="payment-amount">' + (label || '-') + '</span>' + check + historyHtml + memoHtml;
+    return '<span class="payment-amount">' + (label || '-') + '</span>' + editBtn + check + historyHtml + memoHtml;
   }
 
   function togglePaymentConfirmed(contractId, type, checked) {
