@@ -111,21 +111,34 @@
    *  세션 타이밍에 따라 id/email/name 중 다른 값을 돌려주는 경우에도
    *  본인 메시지가 누락되지 않도록 방어적으로 처리.
    */
-  /** 관리자 답변 메시지 여부 + 타깃 사용자 ID 추출 헬퍼
-   *  반환: { isAdminReply: bool, targetUserId: string|null }
-   *  - 기존형 마커 '__admin_request_admin__' 는 타깃 없음 (레거시)
-   *  - 신규형 마커 '__admin_request_admin__:<target_id>' 는 타깃 있음
+  /** 관리자 답변 메시지 여부 + 타깃 사용자 ID/이름 추출 헬퍼
+   *  반환: { isAdminReply: bool, targetUserId: string|null, targetUserName: string|null }
+   *  지원 마커 형식:
+   *  - '__admin_request_admin__'                       → 레거시 (PR #157~159)
+   *  - '__admin_request_admin__:<target_id>'           → v1 (PR #160)
+   *  - '__admin_request_admin__:<target_id>::<name>'   → v2 (현재, ID+이름)
+   *  ID 매칭에 실패해도 이름이 일치하면 본인 타깃으로 인정 → 세션/ID
+   *  변동에도 안전
    */
   function parseAdminReplyMarker(team) {
-    if (!team || typeof team !== 'string') return { isAdminReply: false, targetUserId: null };
+    if (!team || typeof team !== 'string') return { isAdminReply: false, targetUserId: null, targetUserName: null };
     if (team === ADMIN_REQUEST_ADMIN_TEAM_MARKER) {
-      return { isAdminReply: true, targetUserId: null };
+      return { isAdminReply: true, targetUserId: null, targetUserName: null };
     }
     var prefix = ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':';
     if (team.indexOf(prefix) === 0) {
-      return { isAdminReply: true, targetUserId: team.substring(prefix.length) };
+      var rest = team.substring(prefix.length);
+      var sepIdx = rest.indexOf('::');
+      if (sepIdx !== -1) {
+        return {
+          isAdminReply: true,
+          targetUserId: rest.substring(0, sepIdx) || null,
+          targetUserName: rest.substring(sepIdx + 2) || null
+        };
+      }
+      return { isAdminReply: true, targetUserId: rest || null, targetUserName: null };
     }
-    return { isAdminReply: false, targetUserId: null };
+    return { isAdminReply: false, targetUserId: null, targetUserName: null };
   }
 
   function filterAdminRequestMessages(messages) {
@@ -164,24 +177,49 @@
       if (!m) return false;
       var info = parseAdminReplyMarker(m.team);
       if (info.isAdminReply) {
-        // 타깃이 명시돼 있으면 그 기준으로, 없으면 inferred 기준으로
-        var target = info.targetUserId || legacyInferredTarget[m.id || ('idx_' + i)];
-        if (!target) return false; // 타깃 없는 고아 답변 → 비노출
-        return identities.indexOf(target) !== -1;
+        // 타깃 ID 매칭: 명시된 target / legacy inferred 중 하나
+        var targetId = info.targetUserId || legacyInferredTarget[m.id || ('idx_' + i)];
+        if (targetId && identities.indexOf(targetId) !== -1) return true;
+        // 타깃 이름 매칭 (ID 불일치 시 안전망 — 세션 변동 등으로 id 가
+        // 달라져도 이름은 보통 안정적이므로 복원력 있음)
+        if (info.targetUserName && myName && info.targetUserName === myName) return true;
+        // 타깃 정보 자체가 없거나 매칭 실패 → 비노출
+        return false;
       }
       // 본인 메시지 매칭: sender_id 를 여러 식별자와 OR 비교
       if (m.userId && identities.indexOf(m.userId) !== -1) return true;
-      // 동일 이름 매칭 (email/id 가 바뀌었을 때 안전망)
       if (myName && m.userName && m.userName === myName) return true;
       return false;
     });
-    // 디버그 로그
+    // 디버그 로그: 필터 결과와 각 메시지의 판정 이유
     try {
+      var breakdown = messages.map(function (m, i) {
+        if (!m) return null;
+        var info = parseAdminReplyMarker(m.team);
+        var decision;
+        if (info.isAdminReply) {
+          var targetId = info.targetUserId || legacyInferredTarget[m.id || ('idx_' + i)];
+          var idMatch = targetId && identities.indexOf(targetId) !== -1;
+          var nameMatch = info.targetUserName && myName && info.targetUserName === myName;
+          decision = 'admin_reply target=' + (targetId || 'none') +
+                     ' targetName=' + (info.targetUserName || 'none') +
+                     ' idMatch=' + !!idMatch + ' nameMatch=' + !!nameMatch +
+                     ' → ' + ((idMatch || nameMatch) ? 'SHOW' : 'HIDE');
+        } else {
+          var userIdMatch = m.userId && identities.indexOf(m.userId) !== -1;
+          var userNameMatch = myName && m.userName && m.userName === myName;
+          decision = 'user_msg userId=' + m.userId + ' userName=' + m.userName +
+                     ' idMatch=' + !!userIdMatch + ' nameMatch=' + !!userNameMatch +
+                     ' → ' + ((userIdMatch || userNameMatch) ? 'SHOW' : 'HIDE');
+        }
+        return (m.at || '?') + ' ' + decision;
+      });
       console.log('[admin_request filter]', {
         totalMessages: messages.length,
         shownToUser: result.length,
         identities: identities,
-        myName: myName
+        myName: myName,
+        breakdown: breakdown
       });
     } catch (e) {}
     return result;
@@ -248,30 +286,33 @@
       return;
     }
     var row = msgToRowTeam(channel, msg);
-    // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커 + 타깃 ID 저장
-    // 형식: __admin_request_admin__:<target_user_id>
-    // 렌더/필터 시 타깃이 현재 사용자와 일치할 때만 노출되어 1:1 프라이버시 유지
+    // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커 + 타깃 ID + 이름 저장
+    // 형식: __admin_request_admin__:<target_user_id>::<target_user_name>
+    // 이름까지 포함하는 이유: sender_id 값이 세션/로그인에 따라 달라져도
+    // 이름은 보통 안정적이므로 복원력 있는 타깃팅 가능
     if (channel === ADMIN_REQUEST_CHANNEL) {
       var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
                         (typeof window.isMaster === 'function' && window.isMaster());
       if (isAdminUser) {
-        // 같은 채널의 "가장 최근 일반 사용자 메시지"의 sender_id 를 타깃으로 사용
         var cache = teamChatCache[ADMIN_REQUEST_CHANNEL] || [];
         var targetId = null;
+        var targetName = null;
         for (var i = cache.length - 1; i >= 0; i--) {
           var cm = cache[i];
           if (!cm) continue;
-          var cmTeam = cm.team || '';
-          var cmIsAdminReply = cmTeam === ADMIN_REQUEST_ADMIN_TEAM_MARKER ||
-                               cmTeam.indexOf(ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':') === 0;
-          if (!cmIsAdminReply && cm.userId) {
+          var cmInfo = parseAdminReplyMarker(cm.team);
+          if (!cmInfo.isAdminReply && cm.userId) {
             targetId = cm.userId;
+            targetName = cm.userName || '';
             break;
           }
         }
-        row.sender_team = targetId
-          ? (ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':' + targetId)
-          : ADMIN_REQUEST_ADMIN_TEAM_MARKER;
+        if (targetId) {
+          row.sender_team = ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':' + targetId + '::' + (targetName || '');
+        } else {
+          row.sender_team = ADMIN_REQUEST_ADMIN_TEAM_MARKER;
+        }
+        console.log('[chat] admin reply target =', { id: targetId, name: targetName, marker: row.sender_team });
       }
     }
     console.log('[chat] insert row=', row);
