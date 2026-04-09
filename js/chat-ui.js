@@ -142,13 +142,18 @@
     var canSeeAllChannels = isAdmin || isMaster;
 
     var channelHtml = '';
+    var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
     CHAT_CHANNELS.forEach(function (ch) {
-      if (!canSeeAllChannels && ch !== 'all' && ch !== myShowroomId) return;
+      // 관리자 요청 채널은 모든 로그인 사용자에게 노출 (일반 팀 채널 권한 검사 예외)
+      if (ch !== ADMIN_REQ && !canSeeAllChannels && ch !== 'all' && ch !== myShowroomId) return;
       var label = CHAT_CHANNEL_LABELS[ch] || ch;
       if (searchVal && label.toLowerCase().indexOf(searchVal) === -1) return;
       var unread = typeof window.getChatUnreadCount === 'function' ? window.getChatUnreadCount(ch) : 0;
       var active = isChatOpen && selectedChatRoom.type === 'channel' && selectedChatRoom.id === ch;
-      channelHtml += '<button type="button" class="chat-room-item' + (active ? ' active' : '') + '" data-type="channel" data-id="' + window.escapeChatText(ch) + '">' +
+      var extraCls = (ch === ADMIN_REQ) ? ' chat-room-admin-request' : '';
+      var icon = (ch === ADMIN_REQ) ? '<span class="chat-room-admin-request-icon" aria-hidden="true">📮</span>' : '';
+      channelHtml += '<button type="button" class="chat-room-item' + (active ? ' active' : '') + extraCls + '" data-type="channel" data-id="' + window.escapeChatText(ch) + '">' +
+        icon +
         '<span class="chat-room-item-label">' + window.escapeChatText(label) + '</span>' +
         (unread > 0 ? '<span class="chat-room-item-unread" aria-live="polite">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
         '</button>';
@@ -365,10 +370,24 @@
       if (m.userId) userIds[m.userId] = true;
     });
     var count = Object.keys(userIds).length || 1;
-    el.textContent = label + ' 협업 · ' + count + '명 참여중';
+    var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
+    if (channel === ADMIN_REQ) {
+      el.textContent = '📮 관리자 요청 · 본인과 관리자만 확인 가능';
+    } else {
+      el.textContent = label + ' 협업 · ' + count + '명 참여중';
+    }
     if (activityEl) {
       var last = messages[messages.length - 1];
       activityEl.textContent = last && last.at ? '최근 활동: ' + window.formatChatTime(last.at) : '';
+    }
+    // 관리자 요청 채널 전용: 상태 선택 드롭다운 토글
+    var statusBar = document.getElementById('chat-admin-request-bar');
+    if (statusBar) {
+      var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
+                        (typeof window.isMaster === 'function' && window.isMaster());
+      // 관리자는 요청 상태를 직접 입력하지 않으므로 숨김
+      var show = (channel === ADMIN_REQ) && !isAdminUser;
+      statusBar.classList.toggle('hidden', !show);
     }
   }
 
@@ -433,10 +452,34 @@
       var isMine = msg.userId === me.id;
       var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster()));
       var deleted = !!msg.is_deleted;
+      // 관리자 요청 채널: sender_team 마커로 관리자 답변임을 식별
+      var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
+      var ADMIN_MARK = window.ADMIN_REQUEST_ADMIN_TEAM_MARKER || '__admin_request_admin__';
+      var isAdminReply = (channel === ADMIN_REQ) && (msg.team === ADMIN_MARK);
       var authorName = window.escapeChatText(msg.userName || '알 수 없음');
-      var teamLabel = (msg.team === '영업' || msg.team === '설계' || msg.team === '시공') ? msg.team + '팀' : (msg.team ? window.escapeChatText(msg.team) : '');
+      var teamLabel;
+      if (isAdminReply) {
+        teamLabel = '관리자';
+      } else {
+        teamLabel = (msg.team === '영업' || msg.team === '설계' || msg.team === '시공') ? msg.team + '팀' : (msg.team ? window.escapeChatText(msg.team) : '');
+      }
       var author = authorName + (teamLabel ? ' · ' + teamLabel : '');
       var bodyText = (msg.text || '').replace(/\s*\[첨부:[^\]]*\]\s*$/, '').trim();
+      // 관리자 요청 채널: 상태 접두사 파싱 → 배지로 표시, 본문에서 제거
+      var statusBadgeHtml = '';
+      if (channel === ADMIN_REQ && !isAdminReply) {
+        var statusRe = window.ADMIN_REQUEST_STATUS_RE || /^\[상태:(요청|진행중|완료)\]\s*/;
+        var mStatus = bodyText.match(statusRe);
+        if (mStatus) {
+          var stText = mStatus[1];
+          var stCls = (stText === '완료') ? 'done' : (stText === '진행중') ? 'inprogress' : 'requested';
+          statusBadgeHtml = '<span class="chat-request-status chat-request-status-' + stCls + '">' + stText + '</span>';
+          bodyText = bodyText.replace(statusRe, '');
+        } else if (msg.userId === me.id || !isAdminReply) {
+          // 접두사가 없는 사용자 요청은 기본 "요청" 배지
+          statusBadgeHtml = '<span class="chat-request-status chat-request-status-requested">요청</span>';
+        }
+      }
       var bodyHtml = deleted ? '삭제된 메시지입니다.' : window.chatBodyWithMentions(bodyText);
       var time = window.formatChatTime(msg.at);
       var contractHtml = '';
@@ -489,11 +532,16 @@
         }
       }
       var wrapId = msg.id ? ' id="chat-msg-' + window.escapeChatText(msg.id) + '"' : '';
-      html += '<li class="chat-message-wrap ' + (isMine ? 'mine' : 'other') + (deleted ? ' is-deleted' : '') + (msg.is_pinned ? ' is-pinned' : '') + (isImageMsg ? ' chat-message-wrap-image' : '') + '"' + wrapId + '>';
+      var extraWrapCls = '';
+      if (channel === ADMIN_REQ) {
+        extraWrapCls += ' chat-admin-request-msg';
+        if (isAdminReply) extraWrapCls += ' chat-admin-request-reply';
+      }
+      html += '<li class="chat-message-wrap ' + (isMine ? 'mine' : 'other') + extraWrapCls + (deleted ? ' is-deleted' : '') + (msg.is_pinned ? ' is-pinned' : '') + (isImageMsg ? ' chat-message-wrap-image' : '') + '"' + wrapId + '>';
       if (contractHtml) html += contractHtml;
       html += '<div class="chat-message ' + (isMine ? 'mine' : 'other') + (deleted ? ' chat-message-deleted' : '') + (isImageMsg ? ' chat-message-has-image' : '') + '">' +
         (menuHtml ? menuHtml : '') +
-        '<span class="chat-message-author">' + author + '</span>' +
+        '<span class="chat-message-author">' + author + (statusBadgeHtml || '') + '</span>' +
         bodyOrImage +
         (attachHtml ? attachHtml : '') +
         '<span class="chat-message-time">' + time + '</span>' +
@@ -514,9 +562,10 @@
     var isAdmin = typeof window.isAdmin === 'function' && window.isAdmin();
     var isMaster = typeof window.isMaster === 'function' && window.isMaster();
     var canSeeAllChannels = isAdmin || isMaster;
+    var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
     panel.querySelectorAll('.chat-tab[data-channel]').forEach(function (btn) {
       var ch = btn.getAttribute('data-channel');
-      var show = canSeeAllChannels || ch === 'all' || ch === myShowroomId;
+      var show = ch === ADMIN_REQ || canSeeAllChannels || ch === 'all' || ch === myShowroomId;
       btn.classList.toggle('hidden', !show);
     });
     var activeTab = panel.querySelector('.chat-tab.active');
@@ -744,11 +793,24 @@
       var me = window.getCurrentChatUser();
       var base = { channel: ch, type: 'user', userId: me.id, userName: me.name, team: me.team, at: new Date().toISOString() };
 
+      // 관리자 요청 채널: 사용자 작성 메시지(관리자 답변 아님)면 상태 접두사 자동 부착
+      var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
+      var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
+                        (typeof window.isMaster === 'function' && window.isMaster());
+      function wrapAdminRequestText(raw) {
+        if (ch !== ADMIN_REQ) return raw;
+        if (isAdminUser) return raw; // 관리자 답변은 상태 접두사 붙이지 않음
+        var statusSel = document.getElementById('chat-admin-request-status');
+        var st = (statusSel && statusSel.value) || '요청';
+        var cleaned = (raw || '').replace(/^\[상태:(요청|진행중|완료)\]\s*/, '');
+        return '[상태:' + st + '] ' + cleaned;
+      }
+
       if (!attachments || !attachments.length) {
         var msg = Object.assign({}, base, {
           id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
           message_type: 'text',
-          text: text || ''
+          text: wrapAdminRequestText(text || '')
         });
         window.saveChatMessage(ch, msg);
         input.value = '';
@@ -770,7 +832,7 @@
           message_type: 'image',
           file_url: a.url || '',
           file_name: a.name || '이미지',
-          text: (idx === 0 && text) ? text : ''
+          text: (idx === 0 && text) ? wrapAdminRequestText(text) : (idx === 0 ? wrapAdminRequestText('') : '')
         });
         window.saveChatMessage(ch, msg);
         lastAt = msg.at;
@@ -779,7 +841,7 @@
         var fileMsg = Object.assign({}, base, {
           id: 'msg_' + Date.now() + '_f_' + Math.random().toString(36).slice(2, 9),
           message_type: 'file',
-          text: (!imageAttachments.length && text) ? text : '(파일 첨부)',
+          text: wrapAdminRequestText((!imageAttachments.length && text) ? text : '(파일 첨부)'),
           attachments: fileAttachments
         });
         window.saveChatMessage(ch, fileMsg);
