@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icons/seum-os-192.png">
   <link rel="stylesheet" href="css/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.0/dist/umd/supabase.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
@@ -42,21 +42,30 @@
     (function () {
       // 세션 확인: 이미 로그인된 사용자는 login.html을 건너뛰고 대시보드로 이동
       var supa = window.seumSupabase;
-      if (!supa || !supa.auth || !supa.auth.getSession) {
+      var revealed = false;
+      function revealBody() {
+        if (revealed) return;
+        revealed = true;
         document.body.style.visibility = '';
+      }
+      if (!supa || !supa.auth || !supa.auth.getSession) {
+        revealBody();
         return;
       }
+      var fallback = setTimeout(revealBody, 5000);
       supa.auth.getSession()
         .then(function (res) {
-          var session = res.data && res.data.session;
+          clearTimeout(fallback);
+          var session = res && res.data && res.data.session;
           if (session && session.user) {
             window.location.replace('dashboard.html');
           } else {
-            document.body.style.visibility = '';
+            revealBody();
           }
         })
         .catch(function () {
-          document.body.style.visibility = '';
+          clearTimeout(fallback);
+          revealBody();
         });
     })();
   </script>

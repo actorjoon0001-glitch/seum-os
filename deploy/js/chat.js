@@ -480,7 +480,7 @@
     var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster());
     var isManagerUser = (typeof window.isManager === 'function' && window.isManager());
     var _cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
-    var myShowroom = (_cur && (_cur.showroom || _cur.showroomId)) ? (_cur.showroom || _cur.showroomId) : '';
+    var myShowroom = (typeof window.resolveShowroomId === 'function') ? window.resolveShowroomId(_cur) : ((_cur && (_cur.showroom || _cur.showroomId)) ? (_cur.showroom || _cur.showroomId) : '');
     var isDesignTeam = (myTeam === '설계');
     var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];

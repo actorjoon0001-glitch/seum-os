@@ -240,6 +240,8 @@
 
     // ???????: ?????+ ??? + ??? + ???
     if (sectionId === 'marketing') return isMarketing;
+    if (sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
+        sectionId === 'marketing-files' || sectionId === 'marketing-nas') return isMarketing;
 
     // 방문예약 고객 / 고객관리: 영업팀 + master/admin만
     if (sectionId === 'sales-leads' || sectionId === 'sales-customers') {
@@ -280,6 +282,11 @@
       return isConstruction;
     }
 
+    // 발주 리스트: 시공팀 + 관리자만 접근
+    if (sectionId === 'procurement-list') {
+      return isConstruction;
+    }
+
     // ?????: ??? ?? + ???/???/??? ???? ????????
     if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
       return isSettlement;
@@ -294,7 +301,7 @@
   }
 
   function updateConstructionRestrictedNavVisibility() {
-    ['construction-worklog', 'procurement'].forEach(function (sec) {
+    ['construction-worklog', 'procurement', 'procurement-list'].forEach(function (sec) {
       var el = document.querySelector('[data-section="' + sec + '"]');
       if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
     });
@@ -493,6 +500,12 @@
   //  시공팀 검색 필터 헬퍼
   // ────────────────────────────────────────────────────────────
 
+  /** 시공팀 유형 필터값을 가져옴 */
+  function getConstructionCategoryFilter() {
+    var el = document.getElementById('construction-category-filter');
+    return el ? el.value : '';
+  }
+
   /** 시공팀 검색 입력창에서 키워드를 가져옴 */
   function getConstructionSearchKeyword() {
     var el = document.getElementById('construction-search-input');
@@ -524,6 +537,10 @@
    * 향후 필드별 분리 검색으로 쉽게 확장 가능
    */
   function getFilteredConstructionContracts(contracts) {
+    var category = getConstructionCategoryFilter();
+    if (category) {
+      contracts = contracts.filter(function (c) { return (c.contractModel || '') === category; });
+    }
     var keyword = getConstructionSearchKeyword();
     if (!keyword) return contracts;
     return contracts.filter(function (c) { return matchesConstructionKeyword(c, keyword); });
@@ -534,6 +551,7 @@
     var el = document.getElementById('construction-filter-result');
     if (!el) return;
     var keyword  = getConstructionSearchKeyword();
+    var category = getConstructionCategoryFilter();
     var showroom = getFilterShowroom();
     var year     = getFilterYear();
     var month    = getFilterMonth();
@@ -542,6 +560,7 @@
     if (showroom) parts.push(names[showroom] || showroom);
     if (year)     parts.push(year + '년');
     if (month)    parts.push(month + '월');
+    if (category) parts.push(category);
     if (keyword)  parts.push('"' + keyword + '"');
     var count = filtered.length;
     el.textContent = (parts.length > 0 ? parts.join(' / ') + ' · ' : '') + '총 ' + count + '건';
@@ -588,6 +607,7 @@
           model_name: c.contractModelName || null,
           priority_done: !!c.priorityDone,
           is_urgent: !!c.isUrgent,
+          design_status: c.designStatus || 'none',
           payload: c
         };
       });
@@ -617,6 +637,19 @@
         if (res && res.error) console.error('priority save error:', res.error);
       })
       .catch(function (err) { console.error('priority save failed:', err); });
+  }
+
+  /** 설계진행상태 전용 컬럼만 타깃 업데이트 (다른 사용자의 bulk upsert에 덮어쓰이지 않음) */
+  function saveDesignStatusField(contractId, designStatus) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !contractId) return;
+    supa.from('contracts')
+      .update({ design_status: designStatus || 'none' })
+      .eq('local_id', contractId)
+      .then(function (res) {
+        if (res && res.error) console.error('design_status save error:', res.error);
+      })
+      .catch(function (err) { console.error('design_status save failed:', err); });
   }
 
   /** ?? ???? (?? + Supabase contracts) */
@@ -656,7 +689,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload,priority_done,is_urgent')
+        .select('local_id,payload,priority_done,is_urgent,design_status')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -677,6 +710,7 @@
               if (c) {
                 if (row.priority_done != null) c.priorityDone = !!row.priority_done;
                 if (row.is_urgent != null) c.isUrgent = !!row.is_urgent;
+                if (row.design_status != null) c.designStatus = row.design_status;
               }
               return c;
             })
@@ -3084,9 +3118,10 @@
       var cur = window.seumAuth.currentEmployee;
       var team = (cur.team || '').trim();
       var myShowroomId = resolveShowroomId(cur);
-      // master/admin이 아닌 모든 사용자는 소속 전시장만 노출
+      // master/admin이 아닌 모든 사용자는 소속 전시장만 노출 (단, 설계팀은 전체 전시장 노출)
       var _isAdminHere = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      if (myShowroomId && !_isAdminHere) {
+      var _isDesignTeamSales = (team === '설계');
+      if (myShowroomId && !_isAdminHere && !_isDesignTeamSales) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
         contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
       }
@@ -3118,10 +3153,11 @@
       var userTeam = (curUser && curUser.team) ? String(curUser.team).trim() : '';
       var userName = (curUser && curUser.name) ? String(curUser.name).trim() : '';
       var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
-      // master/admin이 아닌 모든 사용자는 소속 전시장 계약만 노출
+      // master/admin이 아닌 모든 사용자는 소속 전시장 계약만 노출 (단, 설계팀은 전체 전시장 노출)
       if (curUser && !isAdminRole) {
         var myShowroomId = resolveShowroomId(curUser);
-        if (myShowroomId) {
+        var _isDesignContracts = (userTeam === '설계');
+        if (myShowroomId && !_isDesignContracts) {
           contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
         }
       }
@@ -3787,12 +3823,14 @@
 
   function renderDesign() {
     var contracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
-    // master/admin이 아닌 모든 사용자는 본인 전시장만
+    // master/admin이 아닌 모든 사용자는 본인 전시장만 (단, 본사 소속은 전체 전시장 노출)
     if (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) {
       var cur = window.seumAuth.currentEmployee;
       var _isAdminDesign = isAdmin() || isMaster() || isSuperAdmin();
       var myShowroomDesign = resolveShowroomId(cur);
-      if (myShowroomDesign && !_isAdminDesign) {
+      var _isHeadquartersDesign = (myShowroomDesign === 'headquarters');
+      var _isDesignTeam = (cur.team || '').trim() === '설계';
+      if (myShowroomDesign && !_isAdminDesign && !_isHeadquartersDesign && !_isDesignTeam) {
         contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomDesign; });
       }
     }
@@ -7509,10 +7547,12 @@
     if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
       return;
     }
-    if ((sectionId === 'marketing' || sectionId === 'design' || sectionId === 'construction' ||
+    if ((sectionId === 'marketing' || sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
+      sectionId === 'marketing-files' || sectionId === 'marketing-nas' ||
+      sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
-      sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
+      sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
       sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
@@ -7524,7 +7564,12 @@
     document.querySelectorAll('.nav-item').forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-section') === sectionId);
     });
+    if (sectionId === 'marketing-videos' && typeof window.renderMarketingVideos === 'function') window.renderMarketingVideos();
+    if (sectionId === 'marketing-schedule' && typeof window.renderMarketingSchedule === 'function') window.renderMarketingSchedule();
+    if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
+    if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
     if (sectionId === 'procurement') renderProcurement();
+    if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
     if (sectionId === 'design-worklog') renderDesignWorklog();
     if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'design-priority') renderDesignPriority();
@@ -7577,7 +7622,7 @@
         if (desBtn) desBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'construction' || sectionId === 'procurement' || sectionId === 'construction-worklog') {
+    if (sectionId === 'construction' || sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'construction-worklog') {
       var conSub = document.getElementById('nav-construction-sub');
       var conGroup = document.getElementById('sidebar-group-construction');
       if (conSub && conGroup) {
@@ -7595,6 +7640,17 @@
         group.classList.add('expanded');
         var btn = document.getElementById('nav-settlement-toggle');
         if (btn) btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+    if (sectionId === 'marketing' || sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
+        sectionId === 'marketing-files' || sectionId === 'marketing-nas') {
+      var mktSub = document.getElementById('nav-marketing-sub');
+      var mktGroup = document.getElementById('sidebar-group-marketing');
+      if (mktSub && mktGroup) {
+        mktSub.classList.remove('collapsed');
+        mktGroup.classList.add('expanded');
+        var mktBtn = document.getElementById('nav-marketing-toggle');
+        if (mktBtn) mktBtn.setAttribute('aria-expanded', 'true');
       }
     }
     if (sectionId === 'sales-leads' || sectionId === 'sales-contracts' || sectionId === 'sales-customers') {
@@ -7635,6 +7691,18 @@
         closeMobileSidebar();
       });
     });
+    var marketingToggle = document.getElementById('nav-marketing-toggle');
+    var marketingSub = document.getElementById('nav-marketing-sub');
+    var marketingGroup = document.getElementById('sidebar-group-marketing');
+    if (marketingToggle && marketingSub && marketingGroup) {
+      marketingToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        marketingSub.classList.toggle('collapsed');
+        marketingGroup.classList.toggle('expanded');
+        marketingToggle.setAttribute('aria-expanded', marketingSub.classList.contains('collapsed') ? 'false' : 'true');
+      });
+    }
     var designToggle = document.getElementById('nav-design-toggle');
     var designSub = document.getElementById('nav-design-sub');
     var designGroup = document.getElementById('sidebar-group-design');
@@ -8918,7 +8986,9 @@
       confirmed = true;
       c[m.confirmed] = true;
     }
-    if (!amount && !receivedAt) return '<span class="payment-none">-</span>';
+    // 잔금은 메모만 있어도 셀이 비어 보이지 않도록 표시
+    var hasBalanceMemo = (type === 'balance' && c.balanceMemo);
+    if (!amount && !receivedAt && !hasBalanceMemo) return '<span class="payment-none">-</span>';
     var label = '';
     var _payDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
     if (amount != null && String(amount).trim() !== '') {
@@ -8931,7 +9001,25 @@
     if (amount != null && String(amount).trim() !== '') {
       check = ' <label class="payment-confirm-label"><input type="checkbox" class="payment-confirm-check" data-contract-id="' + c.id + '" data-type="' + type + '"' + (confirmed ? ' checked' : '') + '> 입금 확인</label>';
     }
-    return '<span class="payment-amount">' + (label || '-') + '</span>' + check;
+    // 변경 이력 아이콘 (해당 type의 마지막 변경 사유 hover로 표시)
+    var historyHtml = '';
+    if (Array.isArray(c.paymentChangeHistory) && c.paymentChangeHistory.length) {
+      var entries = c.paymentChangeHistory.filter(function (h) { return h.type === type; });
+      if (entries.length) {
+        var last = entries[entries.length - 1];
+        var oldM = formatMoney(Math.round((Number(last.oldAmount) || 0) / _payDivisor));
+        var newM = formatMoney(Math.round((Number(last.newAmount) || 0) / _payDivisor));
+        var tip = (last.changedAt || '') + ' ' + oldM + '만원 → ' + newM + '만원' + (last.reason ? ' (' + last.reason + ')' : '') + (entries.length > 1 ? ' · 총 ' + entries.length + '회 변경' : '');
+        historyHtml = ' <span class="payment-history-icon" title="' + escapeAttr(tip) + '">⟳</span>';
+      }
+    }
+    // 잔금 메모 (hover/title로 전체 보기)
+    var memoHtml = '';
+    if (type === 'balance' && c.balanceMemo) {
+      var memo = String(c.balanceMemo);
+      memoHtml = '<div class="payment-balance-memo" title="' + escapeAttr(memo) + '">' + escapeHtml(memo) + '</div>';
+    }
+    return '<span class="payment-amount">' + (label || '-') + '</span>' + check + historyHtml + memoHtml;
   }
 
   function togglePaymentConfirmed(contractId, type, checked) {
@@ -8980,6 +9068,16 @@
     } else if (!currentDate) {
       currentDate = new Date().toISOString().slice(0, 10);
     }
+    // 잔금 메모 필드: 잔금일 때만 노출, 기존 값 prefill
+    var memoWrap = document.getElementById('payment-memo-wrap');
+    var memoInput = document.getElementById('payment-memo');
+    if (memoWrap) memoWrap.style.display = (type === 'balance') ? '' : 'none';
+    if (memoInput) memoInput.value = (type === 'balance' && c && c.balanceMemo) ? c.balanceMemo : '';
+    // 변경 사유 필드: 계약금 외(중도금/잔금)일 때 선택 입력으로 노출, 매번 빈칸으로 초기화
+    var reasonWrap = document.getElementById('payment-change-reason-wrap');
+    var reasonInput = document.getElementById('payment-change-reason');
+    if (reasonWrap) reasonWrap.style.display = (type !== 'deposit') ? '' : 'none';
+    if (reasonInput) reasonInput.value = '';
     document.getElementById('payment-contract-id').value = contractId;
     document.getElementById('payment-type').value = type;
     document.querySelector('#modal-payment .modal-header h3').textContent = labels[type] + ' ???';
@@ -9123,6 +9221,16 @@
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
         if (!c) return;
+        // 변경 이력 기록을 위한 이전 금액 캡처
+        var amountFieldMap = {
+          deposit: 'depositAmount',
+          progress1: 'progress1Amount',
+          progress2: 'progress2Amount',
+          progress3: 'progress3Amount',
+          balance: 'balanceAmount'
+        };
+        var prevAmountNum = Number(c[amountFieldMap[type]]) || 0;
+        var newAmountNum = Number(amount) || 0;
         if (type === 'deposit') {
           c.depositAmount = amount;
           c.depositReceivedAt = date || null;
@@ -9138,6 +9246,24 @@
         } else if (type === 'balance') {
           c.balanceAmount = amount;
           c.balanceReceivedAt = null;
+        }
+        // 잔금 메모 저장 (잔금 모달일 때만, 빈 문자열도 허용해 메모 삭제 가능)
+        if (type === 'balance') {
+          var memoEl = document.getElementById('payment-memo');
+          if (memoEl) c.balanceMemo = (memoEl.value || '').trim();
+        }
+        // 금액 변경 이력 기록 (계약금 제외, 사유 입력 + 금액 실제 변경 시)
+        var reasonEl = document.getElementById('payment-change-reason');
+        var reason = reasonEl ? (reasonEl.value || '').trim() : '';
+        if (type !== 'deposit' && reason && prevAmountNum !== newAmountNum) {
+          if (!Array.isArray(c.paymentChangeHistory)) c.paymentChangeHistory = [];
+          c.paymentChangeHistory.push({
+            type: type,
+            oldAmount: prevAmountNum,
+            newAmount: newAmountNum,
+            reason: reason,
+            changedAt: new Date().toISOString().slice(0, 10)
+          });
         }
         saveContracts(contracts);
         modal.classList.add('hidden');
@@ -9475,6 +9601,7 @@
         if (c) {
           c.designStatus = value;
           saveContracts(contracts);
+          saveDesignStatusField(contractId, value);
           renderDesign();
         }
         return;
@@ -10696,6 +10823,11 @@
         if (designSearchInput) designSearchInput.focus();
       });
     }
+    // 시공팀 유형 필터 이벤트
+    var constructionCategoryFilter = document.getElementById('construction-category-filter');
+    if (constructionCategoryFilter) {
+      constructionCategoryFilter.addEventListener('change', function () { renderConstruction(); });
+    }
     // 시공팀 검색창 이벤트
     var constructionSearchInput = document.getElementById('construction-search-input');
     if (constructionSearchInput) {
@@ -10789,6 +10921,391 @@
 
   window.getContracts = getContracts;
   window.getShowroomName = getShowroomName;
+  // ===== 발주 리스트 (Procurement List) =====
+  // MVP: localStorage 기반 발주 요청 리스트 관리
+  // 업체(vendor) 정보: vendorName/vendorPhone을 항목에 직접 저장(업체 테이블은 향후 확장)
+  var STORAGE_PROCUREMENT_LIST = 'seum_procurement_list';
+  var STORAGE_PROCUREMENT_TEMPLATE = 'seum_procurement_template';
+  var PLIST_STATUSES = ['발주요청', '발주완료', '배송중', '현장도착', '완료'];
+  var PLIST_STATUS_CLASS = {
+    '발주요청': 'plist-status-requested',
+    '발주완료': 'plist-status-ordered',
+    '배송중': 'plist-status-shipping',
+    '현장도착': 'plist-status-arrived',
+    '완료': 'plist-status-done'
+  };
+  var DEFAULT_PLIST_TEMPLATE =
+    '[세움디자인하우징 발주서]\n\n' +
+    '현장 : {site}\n' +
+    '품목 : {item}\n' +
+    '수량 : {qty}\n' +
+    '납기 : {needDate}\n\n' +
+    '납기 가능 여부 회신 부탁드립니다.';
+
+  function getProcurementList() {
+    try {
+      var raw = localStorage.getItem(STORAGE_PROCUREMENT_LIST);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveProcurementList(list) {
+    localStorage.setItem(STORAGE_PROCUREMENT_LIST, JSON.stringify(list || []));
+  }
+  function plistUid() {
+    return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  function getProcurementTemplate() {
+    try {
+      var v = localStorage.getItem(STORAGE_PROCUREMENT_TEMPLATE);
+      return (v != null && v !== '') ? v : DEFAULT_PLIST_TEMPLATE;
+    } catch (e) { return DEFAULT_PLIST_TEMPLATE; }
+  }
+  function saveProcurementTemplate(tpl) {
+    localStorage.setItem(STORAGE_PROCUREMENT_TEMPLATE, tpl == null ? '' : tpl);
+  }
+  function plistFormatKorDate(ymd) {
+    if (!ymd) return '-';
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+    if (!m) return ymd;
+    return parseInt(m[2], 10) + '월 ' + parseInt(m[3], 10) + '일';
+  }
+  function plistNormalizePhone(p) {
+    return (p || '').replace(/[^0-9+]/g, '');
+  }
+  function buildProcurementSheetText(item, tpl) {
+    var template = tpl != null ? tpl : getProcurementTemplate();
+    var qtyText = (item.qty != null && item.qty !== '') ? (item.qty + 'EA') : '-';
+    var map = {
+      '{site}': item.site || '-',
+      '{item}': item.item || '-',
+      '{qty}': qtyText,
+      '{needDate}': plistFormatKorDate(item.needDate),
+      '{requestDate}': plistFormatKorDate(item.requestDate),
+      '{vendor}': item.vendorName || '-',
+      '{manager}': item.manager || '-',
+      '{memo}': item.memo || '-'
+    };
+    return template.replace(/\{(site|item|qty|needDate|requestDate|vendor|manager|memo)\}/g, function (k) {
+      return map[k] != null ? map[k] : k;
+    });
+  }
+  function openSmsApp(phone, text) {
+    var p = plistNormalizePhone(phone);
+    if (!p) {
+      showToast('업체 연락처가 없습니다. 발주 항목에서 업체 연락처를 먼저 입력해 주세요.', 'error');
+      return false;
+    }
+    // sms:NUMBER?body=TEXT — 안드로이드 및 iOS 10+ 호환
+    window.location.href = 'sms:' + p + '?body=' + encodeURIComponent(text || '');
+    return true;
+  }
+
+  function renderProcurementList() {
+    var tbody = document.getElementById('tbody-plist');
+    if (!tbody) return;
+    var items = getProcurementList().slice();
+    // 정렬: (1) 완료는 하단으로 (2) 필요일 빠른순 (3) 요청일 빠른순
+    items.sort(function (a, b) {
+      var aDone = (a.status === '완료') ? 1 : 0;
+      var bDone = (b.status === '완료') ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      var aNeed = a.needDate || '9999-12-31';
+      var bNeed = b.needDate || '9999-12-31';
+      if (aNeed !== bNeed) return aNeed.localeCompare(bNeed);
+      var aReq = a.requestDate || '9999-12-31';
+      var bReq = b.requestDate || '9999-12-31';
+      return aReq.localeCompare(bReq);
+    });
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="plist-empty">등록된 발주 요청이 없습니다. 우측 상단의 "+ 발주 등록" 버튼으로 추가하세요.</td></tr>';
+      return;
+    }
+    var today10 = new Date().toISOString().slice(0, 10);
+    tbody.innerHTML = items.map(function (it) {
+      var statusClass = PLIST_STATUS_CLASS[it.status] || 'plist-status-requested';
+      var overdue = (it.needDate && it.needDate < today10 && it.status !== '완료') ? ' plist-row-overdue' : '';
+      var opts = PLIST_STATUSES.map(function (s) {
+        var sel = (s === it.status) ? ' selected' : '';
+        return '<option value="' + s + '"' + sel + '>' + s + '</option>';
+      }).join('');
+      return '<tr class="plist-row' + overdue + '" data-id="' + escapeAttr(it.id) + '">' +
+        '<td>' + escapeHtml(it.site || '-') + '</td>' +
+        '<td>' + escapeHtml(it.item || '-') + '</td>' +
+        '<td style="text-align:right;">' + (it.qty != null ? it.qty : '-') + '</td>' +
+        '<td>' + (it.requestDate || '-') + '</td>' +
+        '<td>' + (it.needDate || '-') + '</td>' +
+        '<td>' +
+          '<select class="plist-status-select ' + statusClass + '" data-id="' + escapeAttr(it.id) + '">' + opts + '</select>' +
+        '</td>' +
+        '<td>' + escapeHtml(it.manager || '-') + '</td>' +
+        '<td>' + escapeHtml(it.memo || '-') + '</td>' +
+        '<td class="plist-action-cell">' +
+          '<button type="button" class="btn btn-sm btn-secondary plist-sheet-btn" data-id="' + escapeAttr(it.id) + '">발주서</button>' +
+          '<button type="button" class="btn btn-sm btn-secondary plist-sms-btn" data-id="' + escapeAttr(it.id) + '">문자</button>' +
+          '<button type="button" class="btn btn-sm btn-secondary plist-edit-btn" data-id="' + escapeAttr(it.id) + '">수정</button>' +
+          '<button type="button" class="btn btn-sm btn-danger plist-delete-btn" data-id="' + escapeAttr(it.id) + '">삭제</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  var procurementListInitialized = false;
+  function initProcurementListEvents() {
+    if (procurementListInitialized) return;
+    procurementListInitialized = true;
+
+    var openBtn = document.getElementById('btn-open-plist-form');
+    var cancelBtn = document.getElementById('btn-cancel-plist');
+    var formWrap = document.getElementById('plist-form-wrap');
+    var form = document.getElementById('form-plist');
+    var tbody = document.getElementById('tbody-plist');
+
+    function openForm() {
+      if (!formWrap) return;
+      formWrap.classList.remove('hidden');
+      var reqDate = document.getElementById('plist-request-date');
+      if (reqDate && !reqDate.value) reqDate.value = new Date().toISOString().slice(0, 10);
+    }
+    function closeForm() {
+      if (formWrap) formWrap.classList.add('hidden');
+      if (form) form.reset();
+      var editId = document.getElementById('plist-edit-id');
+      if (editId) editId.value = '';
+    }
+    function loadIntoForm(it) {
+      document.getElementById('plist-edit-id').value = it.id || '';
+      document.getElementById('plist-site').value = it.site || '';
+      document.getElementById('plist-item').value = it.item || '';
+      document.getElementById('plist-qty').value = (it.qty != null ? it.qty : '');
+      document.getElementById('plist-manager').value = it.manager || '';
+      var vEl = document.getElementById('plist-vendor');
+      if (vEl) vEl.value = it.vendorName || '';
+      var vpEl = document.getElementById('plist-vendor-phone');
+      if (vpEl) vpEl.value = it.vendorPhone || '';
+      document.getElementById('plist-request-date').value = it.requestDate || '';
+      document.getElementById('plist-need-date').value = it.needDate || '';
+      document.getElementById('plist-status').value = it.status || '발주요청';
+      document.getElementById('plist-memo').value = it.memo || '';
+      openForm();
+    }
+
+    if (openBtn) openBtn.addEventListener('click', function () {
+      if (form) form.reset();
+      var editId = document.getElementById('plist-edit-id');
+      if (editId) editId.value = '';
+      openForm();
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', closeForm);
+
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var editId = (document.getElementById('plist-edit-id') || {}).value || '';
+        var qtyRaw = (document.getElementById('plist-qty') || {}).value;
+        var payload = {
+          site: (document.getElementById('plist-site') || {}).value.trim(),
+          item: (document.getElementById('plist-item') || {}).value.trim(),
+          qty: qtyRaw === '' ? null : Number(qtyRaw),
+          manager: (document.getElementById('plist-manager') || {}).value.trim(),
+          vendorName: ((document.getElementById('plist-vendor') || {}).value || '').trim(),
+          vendorPhone: ((document.getElementById('plist-vendor-phone') || {}).value || '').trim(),
+          requestDate: (document.getElementById('plist-request-date') || {}).value,
+          needDate: (document.getElementById('plist-need-date') || {}).value,
+          status: (document.getElementById('plist-status') || {}).value || '발주요청',
+          memo: (document.getElementById('plist-memo') || {}).value.trim(),
+          // 향후 업체 테이블(별도 관리) 연결을 위한 예약 필드
+          vendorId: null
+        };
+        if (!payload.site || !payload.item) {
+          showToast('현장명과 품목은 필수입니다.', 'error');
+          return;
+        }
+        var list = getProcurementList();
+        if (editId) {
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].id === editId) {
+              list[i] = Object.assign({}, list[i], payload, { id: editId, updatedAt: Date.now() });
+              break;
+            }
+          }
+        } else {
+          list.push(Object.assign({ id: plistUid(), createdAt: Date.now(), updatedAt: Date.now() }, payload));
+        }
+        saveProcurementList(list);
+        closeForm();
+        renderProcurementList();
+        showToast('저장됐습니다.');
+      });
+    }
+
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var target = e.target;
+        if (!target || !target.classList) return;
+        var id = target.getAttribute('data-id');
+        if (!id) return;
+        if (target.classList.contains('plist-edit-btn')) {
+          var item = getProcurementList().find(function (x) { return x.id === id; });
+          if (item) loadIntoForm(item);
+        } else if (target.classList.contains('plist-delete-btn')) {
+          if (!window.confirm('이 발주 항목을 삭제하시겠습니까?')) return;
+          var list = getProcurementList().filter(function (x) { return x.id !== id; });
+          saveProcurementList(list);
+          renderProcurementList();
+          showToast('삭제됐습니다.');
+        } else if (target.classList.contains('plist-sheet-btn')) {
+          var sItem = getProcurementList().find(function (x) { return x.id === id; });
+          if (sItem) openProcurementSheetModal(sItem);
+        } else if (target.classList.contains('plist-sms-btn')) {
+          var mItem = getProcurementList().find(function (x) { return x.id === id; });
+          if (mItem) openSmsApp(mItem.vendorPhone, buildProcurementSheetText(mItem));
+        }
+      });
+      tbody.addEventListener('change', function (e) {
+        var target = e.target;
+        if (!target || !target.classList || !target.classList.contains('plist-status-select')) return;
+        var id = target.getAttribute('data-id');
+        if (!id) return;
+        var list = getProcurementList();
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].id === id) {
+            list[i].status = target.value;
+            list[i].updatedAt = Date.now();
+            break;
+          }
+        }
+        saveProcurementList(list);
+        renderProcurementList();
+      });
+    }
+
+    initProcurementSheetModal();
+  }
+
+  // 발주서 모달: 선택된 발주 항목에 대해 템플릿을 적용해 미리보기/편집/문자발송/템플릿편집
+  var plistSheetCurrentId = null;
+  var plistSheetInitialized = false;
+  function openProcurementSheetModal(item) {
+    var modal = document.getElementById('modal-plist-sheet');
+    if (!modal) return;
+    plistSheetCurrentId = item.id;
+    // 미리보기 모드로 초기화
+    setPlistSheetMode('preview');
+    var info = document.getElementById('plist-sheet-vendor-info');
+    if (info) {
+      var vendor = item.vendorName || '(업체명 미입력)';
+      var phone = item.vendorPhone || '(연락처 미입력)';
+      info.innerHTML = '업체: <strong>' + escapeHtml(vendor) + '</strong> · 연락처: <strong>' + escapeHtml(phone) + '</strong>';
+    }
+    var ta = document.getElementById('plist-sheet-text');
+    if (ta) ta.value = buildProcurementSheetText(item);
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeProcurementSheetModal() {
+    var modal = document.getElementById('modal-plist-sheet');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    plistSheetCurrentId = null;
+  }
+  function setPlistSheetMode(mode) {
+    var previewActions = document.getElementById('plist-sheet-actions-preview');
+    var tplActions = document.getElementById('plist-sheet-actions-template');
+    var labelText = document.getElementById('plist-sheet-label-text');
+    var title = document.getElementById('plist-sheet-title');
+    var help = document.getElementById('plist-sheet-help');
+    if (mode === 'template') {
+      if (previewActions) previewActions.classList.add('hidden');
+      if (tplActions) tplActions.classList.remove('hidden');
+      if (labelText) labelText.textContent = '템플릿 (원본 — 변수 그대로 편집)';
+      if (title) title.textContent = '발주서 템플릿 편집';
+      if (help) help.style.display = '';
+    } else {
+      if (previewActions) previewActions.classList.remove('hidden');
+      if (tplActions) tplActions.classList.add('hidden');
+      if (labelText) labelText.textContent = '발주서 내용 (전송 전 수정 가능)';
+      if (title) title.textContent = '발주서';
+      if (help) help.style.display = 'none';
+    }
+  }
+  function initProcurementSheetModal() {
+    if (plistSheetInitialized) return;
+    plistSheetInitialized = true;
+    var modal = document.getElementById('modal-plist-sheet');
+    if (!modal) return;
+    // 닫기 버튼 + 배경 클릭 닫기
+    modal.querySelectorAll('[data-close="modal-plist-sheet"]').forEach(function (btn) {
+      btn.addEventListener('click', closeProcurementSheetModal);
+    });
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeProcurementSheetModal();
+    });
+
+    var sendBtn = document.getElementById('btn-plist-send-sms');
+    if (sendBtn) sendBtn.addEventListener('click', function () {
+      if (!plistSheetCurrentId) return;
+      var item = getProcurementList().find(function (x) { return x.id === plistSheetCurrentId; });
+      if (!item) return;
+      var ta = document.getElementById('plist-sheet-text');
+      var text = ta ? ta.value : buildProcurementSheetText(item);
+      openSmsApp(item.vendorPhone, text);
+    });
+
+    var copyBtn = document.getElementById('btn-plist-copy-text');
+    if (copyBtn) copyBtn.addEventListener('click', function () {
+      var ta = document.getElementById('plist-sheet-text');
+      if (!ta) return;
+      var text = ta.value || '';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          showToast('발주서 내용을 복사했습니다.');
+        }, function () {
+          ta.select(); document.execCommand('copy');
+          showToast('발주서 내용을 복사했습니다.');
+        });
+      } else {
+        ta.select(); document.execCommand('copy');
+        showToast('발주서 내용을 복사했습니다.');
+      }
+    });
+
+    var editTplBtn = document.getElementById('btn-plist-edit-template');
+    if (editTplBtn) editTplBtn.addEventListener('click', function () {
+      var ta = document.getElementById('plist-sheet-text');
+      if (ta) ta.value = getProcurementTemplate();
+      setPlistSheetMode('template');
+    });
+
+    var saveTplBtn = document.getElementById('btn-plist-save-template');
+    if (saveTplBtn) saveTplBtn.addEventListener('click', function () {
+      var ta = document.getElementById('plist-sheet-text');
+      if (!ta) return;
+      saveProcurementTemplate(ta.value || '');
+      showToast('템플릿을 저장했습니다.');
+      // 저장 후 현재 항목에 대한 미리보기로 복귀
+      var item = plistSheetCurrentId ? getProcurementList().find(function (x) { return x.id === plistSheetCurrentId; }) : null;
+      if (item) ta.value = buildProcurementSheetText(item);
+      setPlistSheetMode('preview');
+    });
+
+    var resetTplBtn = document.getElementById('btn-plist-reset-template');
+    if (resetTplBtn) resetTplBtn.addEventListener('click', function () {
+      var ta = document.getElementById('plist-sheet-text');
+      if (ta) ta.value = DEFAULT_PLIST_TEMPLATE;
+    });
+
+    var cancelTplBtn = document.getElementById('btn-plist-cancel-template');
+    if (cancelTplBtn) cancelTplBtn.addEventListener('click', function () {
+      var ta = document.getElementById('plist-sheet-text');
+      var item = plistSheetCurrentId ? getProcurementList().find(function (x) { return x.id === plistSheetCurrentId; }) : null;
+      if (ta && item) ta.value = buildProcurementSheetText(item);
+      setPlistSheetMode('preview');
+    });
+  }
+
   window.showSection = showSection;
   window.showDesignDetailPanel = showDesignDetailPanel;
   window.renderDesign = renderDesign;
@@ -10842,6 +11359,7 @@
     initCeoReports();
     syncCeoReportsFromSupabase();
     initExpenseReport();
+    if (typeof window.initMarketing === 'function') window.initMarketing();
 
     // 섹션 인쇄 버튼 (새 창 방식)
     document.addEventListener('click', function (e) {
@@ -10964,6 +11482,8 @@
     initConstructionWorklogEvents();
     renderConstruction();
     renderProcurement();
+    renderProcurementList();
+    initProcurementListEvents();
     renderSettlement();
     initAnnouncementDetailModal();
     initAnnouncementFormModal();

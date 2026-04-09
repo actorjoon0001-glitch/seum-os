@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260317-1">
+  <link rel="stylesheet" href="./css/style.css?v=20260409-1">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -84,7 +84,7 @@
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.0/dist/umd/supabase.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
@@ -113,7 +113,20 @@
 
       <div class="nav-section">
         <div class="nav-section-title">부서별 업무</div>
-        <a href="#" class="nav-item" data-section="marketing">마케팅팀</a>
+
+        <div class="nav-group sidebar-group" id="sidebar-group-marketing">
+          <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-marketing-toggle" aria-expanded="false">
+            <span>마케팅팀</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+          <div class="nav-submenu sidebar-sub collapsed" id="nav-marketing-sub">
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing">방문예약 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-videos">월별 영상관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-schedule">촬영 스케줄</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-files">파일 공유</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="marketing-nas">영상 NAS 링크</a>
+          </div>
+        </div>
 
         <div class="nav-group sidebar-group" id="sidebar-group-sales">
           <button type="button" class="nav-item nav-item-parent nav-group-toggle" id="nav-sales-toggle" aria-expanded="false">
@@ -148,6 +161,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction">시공현황</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction-worklog">시공업무일지</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="procurement">발주팀</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem nav-subitem-nested" data-section="procurement-list">└ 발주 리스트</a>
           </div>
         </div>
 
@@ -529,6 +543,258 @@
               </tr>
             </thead>
             <tbody id="tbody-visits"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 월별 영상관리
+    ================================================================ -->
+    <section id="section-marketing-videos" class="content-section">
+      <header class="main-header">
+        <h2>월별 영상관리</h2>
+        <p class="section-desc">월별 영상 업로드 현황을 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <select id="mv-month-select" class="form-input" style="min-width:130px"></select>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-mv-add">+ 영상 추가</button>
+        </div>
+        <div id="mv-form-wrap" class="hidden" style="padding:1rem 0 0.5rem">
+          <h4 id="mv-form-title" style="margin-bottom:0.75rem;font-size:1rem">영상 추가</h4>
+          <form id="form-mv" class="form-block">
+            <div class="form-grid form-grid-2">
+              <label>영상 제목 <input type="text" id="mv-title" class="form-input" placeholder="영상 제목" required></label>
+              <label>촬영일 <input type="date" id="mv-shoot-date" class="form-input"></label>
+              <label>담당자 <input type="text" id="mv-assignee" class="form-input" placeholder="담당자 이름"></label>
+              <label>상태
+                <select id="mv-status" class="form-input">
+                  <option value="촬영예정">촬영 예정</option>
+                  <option value="촬영완료">촬영 완료</option>
+                  <option value="편집중">편집 중</option>
+                  <option value="업로드완료">업로드 완료</option>
+                </select>
+              </label>
+              <label class="form-full">NAS 링크 <input type="text" id="mv-nas-link" class="form-input" placeholder="NAS 경로 또는 URL"></label>
+              <label class="form-full">메모 <input type="text" id="mv-memo" class="form-input" placeholder="메모"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-mv-cancel">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap table-touch">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>영상 제목</th>
+                <th>촬영일</th>
+                <th>담당자</th>
+                <th>상태</th>
+                <th>NAS 링크</th>
+                <th style="text-align:center">완료</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mv"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 촬영 스케줄
+    ================================================================ -->
+    <section id="section-marketing-schedule" class="content-section">
+      <header class="main-header">
+        <h2>촬영 스케줄</h2>
+        <p class="section-desc">촬영 일정을 달력으로 공유합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <button type="button" class="btn btn-secondary btn-sm" id="ms-prev">◀</button>
+            <span id="ms-cal-header" style="font-weight:600;font-size:1.05rem;min-width:120px;text-align:center"></span>
+            <button type="button" class="btn btn-secondary btn-sm" id="ms-next">▶</button>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-ms-add">+ 일정 추가</button>
+        </div>
+
+        <div id="ms-cal-grid" class="ms-cal-wrap"></div>
+
+        <!-- 인라인 일정 등록/수정 폼 (달력 아래) -->
+        <div id="ms-form-wrap" class="hidden" style="border:2px solid #6366f1;border-radius:0.75rem;padding:1.5rem;margin-top:1.25rem;background:#ffffff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+            <h4 id="ms-form-title" style="margin:0;font-size:1rem;font-weight:700;color:#111827">일정 등록</h4>
+            <button type="button" id="btn-ms-form-close" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;line-height:1;padding:0 4px;">×</button>
+          </div>
+          <form id="form-ms" class="form-block">
+            <!-- 2단 레이아웃: 좌/우 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.5rem;margin-bottom:1rem;">
+              <!-- 좌측: 촬영명 / 날짜 / 시간 / 전시장 -->
+              <div style="display:flex;flex-direction:column;gap:0.875rem;">
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영명 *
+                  <input type="text" id="ms-title" placeholder="촬영 제목/영상명" required
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                </label>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영일 *
+                  <input type="date" id="ms-shoot-date" required
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                </label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+                  <label style="color:#374151;font-size:0.875rem;font-weight:500">시작시간
+                    <input type="time" id="ms-start-time"
+                      style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                  </label>
+                  <label style="color:#374151;font-size:0.875rem;font-weight:500">종료시간
+                    <input type="time" id="ms-end-time"
+                      style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                  </label>
+                </div>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">전시장
+                  <select id="ms-showroom"
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                    <option value="">전체/해당없음</option>
+                    <option value="본사 전시장">본사 전시장</option>
+                    <option value="1전시장">1전시장</option>
+                    <option value="3전시장">3전시장</option>
+                    <option value="4전시장">4전시장</option>
+                    <option value="강화전시장">강화전시장</option>
+                  </select>
+                </label>
+              </div>
+              <!-- 우측: 담당자 / 상태 / 우선순위 -->
+              <div style="display:flex;flex-direction:column;gap:0.875rem;">
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">담당자 (다중선택)
+                  <select id="ms-assignees" multiple size="5"
+                    style="display:block;width:100%;margin-top:4px;padding:4px;border:1px solid #d1d5db;border-radius:6px;font-size:0.875rem;color:#111827;background:#fff;box-sizing:border-box;min-height:120px;">
+                  </select>
+                  <span style="font-size:0.75rem;color:#9ca3af;margin-top:2px;display:block">Ctrl/Cmd 클릭으로 다중선택</span>
+                </label>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">상태
+                  <select id="ms-status"
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                    <option value="촬영예정">촬영예정</option>
+                    <option value="촬영완료">촬영완료</option>
+                    <option value="편집중">편집중</option>
+                    <option value="업로드완료">업로드완료</option>
+                  </select>
+                </label>
+                <label style="color:#374151;font-size:0.875rem;font-weight:500">우선순위
+                  <select id="ms-priority"
+                    style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+                    <option value="일반">일반</option>
+                    <option value="긴급">긴급</option>
+                    <option value="낮음">낮음</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <!-- 하단: 촬영장소 / 촬영내용 / 준비물 -->
+            <div style="display:flex;flex-direction:column;gap:0.875rem;margin-bottom:1rem;">
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영장소
+                <input type="text" id="ms-location" placeholder="촬영 장소"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;">
+              </label>
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영내용
+                <textarea id="ms-content" rows="3" placeholder="촬영 내용, 특이사항 등"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+              </label>
+              <label style="color:#374151;font-size:0.875rem;font-weight:500">촬영 준비물
+                <textarea id="ms-equipment" rows="2" placeholder="드론, 짐벌 등"
+                  style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:0.9rem;color:#111827;background:#fff;box-sizing:border-box;resize:vertical;font-family:inherit"></textarea>
+              </label>
+            </div>
+            <div class="form-actions" style="margin-top:1rem">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-danger hidden" id="btn-ms-delete">삭제</button>
+              <button type="button" class="btn btn-secondary" id="btn-ms-cancel">취소</button>
+            </div>
+          </form>
+        </div>
+
+        <div style="margin-top:1.5rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+            <h4 id="ms-list-title" style="font-size:0.95rem;font-weight:600;color:#374151;margin:0">이달 촬영 일정 목록</h4>
+            <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-ms-show-all">전체 보기</button>
+          </div>
+          <div class="table-wrap" id="ms-schedule-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 파일 공유
+    ================================================================ -->
+    <section id="section-marketing-files" class="content-section">
+      <header class="main-header">
+        <h2>파일 공유</h2>
+        <p class="section-desc">사진, 디자인, 문서 파일을 프로젝트별로 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+            <label style="font-size:0.9rem;font-weight:500;margin:0">프로젝트
+              <input type="text" id="mf-project-name" class="form-input" placeholder="프로젝트명 (업로드 시 분류)" style="display:inline;width:150px;margin-left:0.4rem">
+            </label>
+            <select id="mf-project-filter" class="form-input" style="min-width:130px">
+              <option value="">전체</option>
+            </select>
+          </div>
+        </div>
+        <div id="mf-drop-zone" class="mf-drop-zone">
+          <span class="mf-drop-icon">📁</span>
+          <p>파일을 여기에 드래그하거나 <strong>클릭</strong>하여 업로드하세요</p>
+          <p style="font-size:0.8rem;color:#9ca3af">사진 / 디자인 / 문서 파일 지원</p>
+          <input type="file" id="mf-file-input" multiple style="display:none" accept="image/*,.pdf,.doc,.docx,.hwp,.xls,.xlsx,.ppt,.pptx,.zip,.ai,.psd">
+        </div>
+        <div id="mf-files-grid" class="mf-files-grid"></div>
+      </div>
+    </section>
+
+    <!-- ================================================================
+         마케팅팀 영상 NAS 링크
+    ================================================================ -->
+    <section id="section-marketing-nas" class="content-section">
+      <header class="main-header">
+        <h2>영상 NAS 링크</h2>
+        <p class="section-desc">영상 파일이 저장된 NAS 경로를 등록하고 빠르게 이동합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>NAS 링크 목록</h3>
+          <button type="button" class="btn btn-primary" id="btn-mn-add">+ 링크 추가</button>
+        </div>
+        <div id="mn-form-wrap" class="hidden" style="padding:1rem 0 0.5rem">
+          <form id="form-mn" class="form-block">
+            <div class="form-grid form-grid-2">
+              <label>프로젝트명 <input type="text" id="mn-project" class="form-input" placeholder="예: 2026년 4월 촬영"></label>
+              <label>링크 제목 <input type="text" id="mn-title" class="form-input" placeholder="예: S3500 외관 촬영"></label>
+              <label class="form-full">NAS 링크 <input type="text" id="mn-url" class="form-input" placeholder="smb://nas.local/... 또는 http://..." required></label>
+              <label class="form-full">설명 <input type="text" id="mn-desc" class="form-input" placeholder="간단한 설명"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-mn-cancel">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap table-touch">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>프로젝트</th>
+                <th>제목</th>
+                <th>NAS 경로</th>
+                <th>바로가기</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-mn"></tbody>
           </table>
         </div>
       </div>
@@ -1444,6 +1710,16 @@
         <h3>계약자 명단 (착공 가능 건)</h3>
         <!-- 시공팀 검색 필터 -->
         <div class="contract-filter-bar" id="construction-filter-bar">
+          <div class="filter-item">
+            <label for="construction-category-filter">유형</label>
+            <select id="construction-category-filter">
+              <option value="">전체</option>
+              <option value="컨테이너/농막">컨테이너/농막</option>
+              <option value="체류형쉼터">체류형쉼터</option>
+              <option value="전원주택">전원주택</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
           <div class="filter-item filter-item-search">
             <label for="construction-search-input">검색</label>
             <div class="contract-search-wrap">
@@ -1797,6 +2073,95 @@
             </div>
           </div>
           <div id="order-print-preview" class="order-print-preview"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-procurement-list" class="content-section">
+      <header class="main-header">
+        <h2>발주 리스트</h2>
+        <p class="section-desc">현장별 자재·품목 발주 요청을 등록하고 진행 상태를 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>발주 리스트</h3>
+          <button type="button" class="btn btn-primary" id="btn-open-plist-form">+ 발주 등록</button>
+        </div>
+        <div id="plist-form-wrap" class="hidden">
+          <form id="form-plist" class="form-block">
+            <input type="hidden" id="plist-edit-id">
+            <div class="form-grid form-grid-2">
+              <label>현장명 <input type="text" id="plist-site" required placeholder="예: 가평 OO 현장"></label>
+              <label>품목 <input type="text" id="plist-item" required placeholder="예: ALC 블록 200mm"></label>
+              <label>수량 <input type="number" id="plist-qty" min="0" step="1" required placeholder="0"></label>
+              <label>담당자 <input type="text" id="plist-manager" placeholder="담당자명"></label>
+              <label>업체명 <input type="text" id="plist-vendor" placeholder="예: OO건재"></label>
+              <label>업체 연락처 <input type="tel" id="plist-vendor-phone" placeholder="01012345678" inputmode="tel" autocomplete="tel"></label>
+              <label>요청일 <input type="date" id="plist-request-date" required></label>
+              <label>필요일 <input type="date" id="plist-need-date" required></label>
+              <label>상태
+                <select id="plist-status">
+                  <option value="발주요청">발주요청</option>
+                  <option value="발주완료">발주완료</option>
+                  <option value="배송중">배송중</option>
+                  <option value="현장도착">현장도착</option>
+                  <option value="완료">완료</option>
+                </select>
+              </label>
+              <label class="form-full">비고 <input type="text" id="plist-memo" placeholder="특이사항, 업체 메모 등"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-cancel-plist">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table plist-table">
+            <thead>
+              <tr>
+                <th>현장명</th>
+                <th>품목</th>
+                <th style="text-align:right;">수량</th>
+                <th>요청일</th>
+                <th>필요일</th>
+                <th>상태</th>
+                <th>담당자</th>
+                <th>비고</th>
+                <th style="width:260px;">작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-plist"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="modal-plist-sheet" class="modal hidden" aria-hidden="true">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="plist-sheet-title">발주서</h3>
+            <button type="button" class="modal-close" data-close="modal-plist-sheet" aria-label="닫기">&times;</button>
+          </div>
+          <div class="form-block">
+            <p id="plist-sheet-vendor-info" class="readonly-info"></p>
+            <label id="plist-sheet-label" class="form-full"><span id="plist-sheet-label-text">발주서 내용 (전송 전 수정 가능)</span>
+              <textarea id="plist-sheet-text" rows="10" class="plist-sheet-textarea"></textarea>
+            </label>
+            <p id="plist-sheet-help" class="plist-sheet-help">
+              사용 가능한 변수: {site} {item} {qty} {needDate} {requestDate} {vendor} {manager} {memo}
+            </p>
+          </div>
+          <div class="form-actions" id="plist-sheet-actions-preview">
+            <button type="button" class="btn btn-primary" id="btn-plist-send-sms">문자 발송</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-copy-text">복사</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-edit-template">템플릿 편집</button>
+            <button type="button" class="btn btn-secondary" data-close="modal-plist-sheet">닫기</button>
+          </div>
+          <div class="form-actions hidden" id="plist-sheet-actions-template">
+            <button type="button" class="btn btn-primary" id="btn-plist-save-template">템플릿 저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-reset-template">기본 템플릿 복원</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-cancel-template">취소</button>
+          </div>
         </div>
       </div>
     </section>
@@ -3119,6 +3484,13 @@
           <div id="payment-date-wrap">
             <label>수령일 <input type="date" id="payment-date"></label>
           </div>
+          <div id="payment-memo-wrap" style="display:none;">
+            <label>잔금 메모 <textarea id="payment-memo" rows="2" placeholder="예: 출고 전 입금 예정 / 준공 후 정리 / 일부 미수금"></textarea></label>
+          </div>
+          <div id="payment-change-reason-wrap" style="display:none;">
+            <label>변경 사유 (선택) <textarea id="payment-change-reason" rows="2" placeholder="예: 고객 협의로 금액 변경 / 일정 조정"></textarea></label>
+            <p class="payment-change-reason-hint">금액을 변경할 때 사유를 입력하면 변경 이력으로 기록됩니다.</p>
+          </div>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">저장</button>
@@ -3490,14 +3862,26 @@
   <script>
     (function () {
       document.body.style.visibility = 'hidden';
-      (window.seumAuth.authReady || Promise.resolve()).then(function () {
+      var revealed = false;
+      function revealBody() {
+        if (revealed) return;
+        revealed = true;
         document.body.style.visibility = '';
-      }).catch(function () {});
+      }
+      var fallback = setTimeout(revealBody, 12000); // getSession 10초 타임아웃 + 여유 2초
+      (window.seumAuth.authReady || Promise.resolve()).then(function () {
+        clearTimeout(fallback);
+        revealBody();
+      }).catch(function () {
+        clearTimeout(fallback);
+        revealBody();
+      });
     })();
   </script>
-  <script src="js/app.js?v=20260313-1"></script>
+  <script src="js/app.js?v=20260409-1"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
+  <script src="js/marketing.js"></script>
 </body>
 </html>
