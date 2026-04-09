@@ -10036,3 +10036,80 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .mf-files-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .mf-card-thumb { height: 90px; }
 }
+
+/* ===== 발주 리스트 (Procurement List) ===== */
+.nav-subitem-nested {
+  padding-left: 2.25rem !important;
+  font-size: 0.88rem;
+  opacity: 0.9;
+}
+
+.plist-table tbody td {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+.plist-table thead th {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+}
+.plist-status-select {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+  cursor: pointer;
+  min-width: 88px;
+}
+.plist-status-select:focus {
+  outline: 2px solid rgba(79,140,255,0.4);
+  outline-offset: 1px;
+}
+
+/* 상태별 색상 배지 */
+.plist-status-requested {
+  background: #EFF6FF;
+  color: #2563EB;
+  border-color: #BFDBFE;
+}
+.plist-status-ordered {
+  background: #EDE9FE;
+  color: #6D28D9;
+  border-color: #DDD6FE;
+}
+.plist-status-shipping {
+  background: #FFFBEB;
+  color: #B45309;
+  border-color: #FDE68A;
+}
+.plist-status-arrived {
+  background: #ECFEFF;
+  color: #0E7490;
+  border-color: #A5F3FC;
+}
+.plist-status-done {
+  background: #ECFDF5;
+  color: #15803D;
+  border-color: #A7F3D0;
+}
+
+.plist-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 2rem 0;
+  font-size: 0.9rem;
+}
+
+.plist-row-overdue td:nth-child(5) {
+  color: #DC2626;
+  font-weight: 600;
+}
+
+.plist-action-cell {
+  white-space: nowrap;
+}
+.plist-action-cell .btn {
+  margin-right: 0.25rem;
+}

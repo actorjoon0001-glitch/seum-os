@@ -282,6 +282,11 @@
       return isConstruction;
     }
 
+    // 발주 리스트: 시공팀 + 관리자만 접근
+    if (sectionId === 'procurement-list') {
+      return isConstruction;
+    }
+
     // ?????: ??? ?? + ???/???/??? ???? ????????
     if (sectionId === 'settlement-payment' || sectionId === 'settlement-incentive') {
       return isSettlement;
@@ -296,7 +301,7 @@
   }
 
   function updateConstructionRestrictedNavVisibility() {
-    ['construction-worklog', 'procurement'].forEach(function (sec) {
+    ['construction-worklog', 'procurement', 'procurement-list'].forEach(function (sec) {
       var el = document.querySelector('[data-section="' + sec + '"]');
       if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
     });
@@ -7547,7 +7552,7 @@
       sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' ||
-      sectionId === 'procurement' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
+      sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
       sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
@@ -7564,6 +7569,7 @@
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
     if (sectionId === 'procurement') renderProcurement();
+    if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
     if (sectionId === 'design-worklog') renderDesignWorklog();
     if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'design-priority') renderDesignPriority();
@@ -7616,7 +7622,7 @@
         if (desBtn) desBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'construction' || sectionId === 'procurement' || sectionId === 'construction-worklog') {
+    if (sectionId === 'construction' || sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'construction-worklog') {
       var conSub = document.getElementById('nav-construction-sub');
       var conGroup = document.getElementById('sidebar-group-construction');
       if (conSub && conGroup) {
@@ -10857,6 +10863,192 @@
 
   window.getContracts = getContracts;
   window.getShowroomName = getShowroomName;
+  // ===== 발주 리스트 (Procurement List) =====
+  // MVP: localStorage 기반 발주 요청 리스트 관리
+  // 업체(vendor) 정보는 향후 확장을 위해 item.vendorId 필드 자리만 예약
+  var STORAGE_PROCUREMENT_LIST = 'seum_procurement_list';
+  var PLIST_STATUSES = ['발주요청', '발주완료', '배송중', '현장도착', '완료'];
+  var PLIST_STATUS_CLASS = {
+    '발주요청': 'plist-status-requested',
+    '발주완료': 'plist-status-ordered',
+    '배송중': 'plist-status-shipping',
+    '현장도착': 'plist-status-arrived',
+    '완료': 'plist-status-done'
+  };
+
+  function getProcurementList() {
+    try {
+      var raw = localStorage.getItem(STORAGE_PROCUREMENT_LIST);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveProcurementList(list) {
+    localStorage.setItem(STORAGE_PROCUREMENT_LIST, JSON.stringify(list || []));
+  }
+  function plistUid() {
+    return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function renderProcurementList() {
+    var tbody = document.getElementById('tbody-plist');
+    if (!tbody) return;
+    var items = getProcurementList().slice();
+    // 필요일 기준 오름차순(빠른순) 정렬
+    items.sort(function (a, b) {
+      return (a.needDate || '9999-12-31').localeCompare(b.needDate || '9999-12-31');
+    });
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="plist-empty">등록된 발주 요청이 없습니다. 우측 상단의 "+ 발주 등록" 버튼으로 추가하세요.</td></tr>';
+      return;
+    }
+    var today10 = new Date().toISOString().slice(0, 10);
+    tbody.innerHTML = items.map(function (it) {
+      var statusClass = PLIST_STATUS_CLASS[it.status] || 'plist-status-requested';
+      var overdue = (it.needDate && it.needDate < today10 && it.status !== '완료') ? ' plist-row-overdue' : '';
+      var opts = PLIST_STATUSES.map(function (s) {
+        var sel = (s === it.status) ? ' selected' : '';
+        return '<option value="' + s + '"' + sel + '>' + s + '</option>';
+      }).join('');
+      return '<tr class="plist-row' + overdue + '" data-id="' + escapeAttr(it.id) + '">' +
+        '<td>' + escapeHtml(it.site || '-') + '</td>' +
+        '<td>' + escapeHtml(it.item || '-') + '</td>' +
+        '<td style="text-align:right;">' + (it.qty != null ? it.qty : '-') + '</td>' +
+        '<td>' + (it.requestDate || '-') + '</td>' +
+        '<td>' + (it.needDate || '-') + '</td>' +
+        '<td>' +
+          '<select class="plist-status-select ' + statusClass + '" data-id="' + escapeAttr(it.id) + '">' + opts + '</select>' +
+        '</td>' +
+        '<td>' + escapeHtml(it.manager || '-') + '</td>' +
+        '<td>' + escapeHtml(it.memo || '-') + '</td>' +
+        '<td class="plist-action-cell">' +
+          '<button type="button" class="btn btn-sm btn-secondary plist-edit-btn" data-id="' + escapeAttr(it.id) + '">수정</button>' +
+          '<button type="button" class="btn btn-sm btn-danger plist-delete-btn" data-id="' + escapeAttr(it.id) + '">삭제</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  var procurementListInitialized = false;
+  function initProcurementListEvents() {
+    if (procurementListInitialized) return;
+    procurementListInitialized = true;
+
+    var openBtn = document.getElementById('btn-open-plist-form');
+    var cancelBtn = document.getElementById('btn-cancel-plist');
+    var formWrap = document.getElementById('plist-form-wrap');
+    var form = document.getElementById('form-plist');
+    var tbody = document.getElementById('tbody-plist');
+
+    function openForm() {
+      if (!formWrap) return;
+      formWrap.classList.remove('hidden');
+      var reqDate = document.getElementById('plist-request-date');
+      if (reqDate && !reqDate.value) reqDate.value = new Date().toISOString().slice(0, 10);
+    }
+    function closeForm() {
+      if (formWrap) formWrap.classList.add('hidden');
+      if (form) form.reset();
+      var editId = document.getElementById('plist-edit-id');
+      if (editId) editId.value = '';
+    }
+    function loadIntoForm(it) {
+      document.getElementById('plist-edit-id').value = it.id || '';
+      document.getElementById('plist-site').value = it.site || '';
+      document.getElementById('plist-item').value = it.item || '';
+      document.getElementById('plist-qty').value = (it.qty != null ? it.qty : '');
+      document.getElementById('plist-manager').value = it.manager || '';
+      document.getElementById('plist-request-date').value = it.requestDate || '';
+      document.getElementById('plist-need-date').value = it.needDate || '';
+      document.getElementById('plist-status').value = it.status || '발주요청';
+      document.getElementById('plist-memo').value = it.memo || '';
+      openForm();
+    }
+
+    if (openBtn) openBtn.addEventListener('click', function () {
+      if (form) form.reset();
+      var editId = document.getElementById('plist-edit-id');
+      if (editId) editId.value = '';
+      openForm();
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', closeForm);
+
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var editId = (document.getElementById('plist-edit-id') || {}).value || '';
+        var qtyRaw = (document.getElementById('plist-qty') || {}).value;
+        var payload = {
+          site: (document.getElementById('plist-site') || {}).value.trim(),
+          item: (document.getElementById('plist-item') || {}).value.trim(),
+          qty: qtyRaw === '' ? null : Number(qtyRaw),
+          manager: (document.getElementById('plist-manager') || {}).value.trim(),
+          requestDate: (document.getElementById('plist-request-date') || {}).value,
+          needDate: (document.getElementById('plist-need-date') || {}).value,
+          status: (document.getElementById('plist-status') || {}).value || '발주요청',
+          memo: (document.getElementById('plist-memo') || {}).value.trim(),
+          // 향후 업체 선택 기능 확장을 위한 예약 필드
+          vendorId: null
+        };
+        if (!payload.site || !payload.item) {
+          showToast('현장명과 품목은 필수입니다.', 'error');
+          return;
+        }
+        var list = getProcurementList();
+        if (editId) {
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].id === editId) {
+              list[i] = Object.assign({}, list[i], payload, { id: editId, updatedAt: Date.now() });
+              break;
+            }
+          }
+        } else {
+          list.push(Object.assign({ id: plistUid(), createdAt: Date.now(), updatedAt: Date.now() }, payload));
+        }
+        saveProcurementList(list);
+        closeForm();
+        renderProcurementList();
+        showToast('저장됐습니다.');
+      });
+    }
+
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var target = e.target;
+        if (!target || !target.classList) return;
+        var id = target.getAttribute('data-id');
+        if (!id) return;
+        if (target.classList.contains('plist-edit-btn')) {
+          var item = getProcurementList().find(function (x) { return x.id === id; });
+          if (item) loadIntoForm(item);
+        } else if (target.classList.contains('plist-delete-btn')) {
+          if (!window.confirm('이 발주 항목을 삭제하시겠습니까?')) return;
+          var list = getProcurementList().filter(function (x) { return x.id !== id; });
+          saveProcurementList(list);
+          renderProcurementList();
+          showToast('삭제됐습니다.');
+        }
+      });
+      tbody.addEventListener('change', function (e) {
+        var target = e.target;
+        if (!target || !target.classList || !target.classList.contains('plist-status-select')) return;
+        var id = target.getAttribute('data-id');
+        if (!id) return;
+        var list = getProcurementList();
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].id === id) {
+            list[i].status = target.value;
+            list[i].updatedAt = Date.now();
+            break;
+          }
+        }
+        saveProcurementList(list);
+        renderProcurementList();
+      });
+    }
+  }
+
   window.showSection = showSection;
   window.showDesignDetailPanel = showDesignDetailPanel;
   window.renderDesign = renderDesign;
@@ -11033,6 +11225,8 @@
     initConstructionWorklogEvents();
     renderConstruction();
     renderProcurement();
+    renderProcurementList();
+    initProcurementListEvents();
     renderSettlement();
     initAnnouncementDetailModal();
     initAnnouncementFormModal();
