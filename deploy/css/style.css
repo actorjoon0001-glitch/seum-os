@@ -10326,3 +10326,235 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 #plist-sheet-vendor-info strong {
   color: #fff;
 }
+
+/* ===== 정산팀 대시보드 ===== */
+.settlement-db-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.settlement-db-kpi-card {
+  background: var(--bg-card, #181818);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  position: relative;
+  overflow: hidden;
+}
+.settlement-db-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: #4F8CFF;
+}
+.settlement-db-kpi-card.accent-blue::before { background: #4F8CFF; }
+.settlement-db-kpi-card.accent-purple::before { background: #A78BFA; }
+.settlement-db-kpi-card.accent-green::before { background: #22C55E; }
+.settlement-db-kpi-card.accent-orange::before { background: #F59E0B; }
+.settlement-db-kpi-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #9CA3AF;
+  text-transform: none;
+}
+.settlement-db-kpi-value {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: #F3F4F6;
+  line-height: 1.1;
+}
+.settlement-db-kpi-unit {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: #9CA3AF;
+}
+.settlement-db-kpi-unit small {
+  color: #6B7280;
+  font-size: 0.72rem;
+  margin-left: 0.2rem;
+}
+
+/* 단계별 카드 */
+.settlement-db-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.settlement-db-stage-card {
+  background: var(--bg-card, #181818);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+.settlement-db-stage-card h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #93C5FD;
+}
+.settlement-db-stage-card .stage-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #F3F4F6;
+  margin-bottom: 0.5rem;
+}
+.settlement-db-stage-card .stage-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.settlement-db-stage-card .stage-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22C55E, #16A34A);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.settlement-db-stage-card .stage-meta {
+  font-size: 0.72rem;
+  color: #9CA3AF;
+}
+
+/* 전시장별 테이블 */
+.settlement-db-showroom-table tbody td {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.85rem;
+}
+.settlement-db-showroom-table thead th {
+  font-size: 0.75rem;
+}
+.settlement-db-showroom-table .sdb-sum-row td {
+  background: rgba(79, 140, 255, 0.05);
+  border-top: 2px solid rgba(79, 140, 255, 0.25);
+}
+.sdb-pct-bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 80px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-right: 0.4rem;
+}
+.sdb-pct-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22C55E, #16A34A);
+  border-radius: 3px;
+}
+.sdb-pct-label {
+  font-size: 0.78rem;
+  color: #D1D5DB;
+  vertical-align: middle;
+}
+.sdb-empty {
+  text-align: center;
+  color: #9CA3AF;
+  padding: 1.5rem 0;
+}
+
+/* 하단 2단 그리드 (주의 필요 / 미처리) */
+.settlement-db-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+.settlement-db-card-desc {
+  margin: -0.4rem 0 0.8rem;
+  font-size: 0.76rem;
+  color: #9CA3AF;
+}
+.settlement-db-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 380px;
+  overflow-y: auto;
+}
+.settlement-db-empty {
+  text-align: center;
+  color: #6B7280;
+  font-size: 0.85rem;
+  padding: 1.5rem 0;
+}
+.sdb-alert-item {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid #F59E0B;
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+}
+.sdb-alert-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+  flex-wrap: wrap;
+}
+.sdb-alert-name {
+  font-weight: 600;
+  color: #F3F4F6;
+  font-size: 0.88rem;
+}
+.sdb-alert-showroom {
+  font-size: 0.72rem;
+  color: #9CA3AF;
+}
+.sdb-alert-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  margin-left: auto;
+}
+.sdb-alert-badge.memo {
+  background: rgba(251, 191, 36, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+.sdb-alert-badge.stage {
+  background: rgba(96, 165, 250, 0.15);
+  color: #93C5FD;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+.sdb-alert-body {
+  font-size: 0.78rem;
+  color: #D1D5DB;
+}
+.sdb-alert-remaining {
+  color: #F59E0B;
+  font-weight: 600;
+}
+.sdb-alert-memo {
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.74rem;
+  color: #FCD34D;
+  background: rgba(251, 191, 36, 0.06);
+  border-left: 2px solid rgba(251, 191, 36, 0.4);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .settlement-db-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .settlement-db-kpi-value {
+    font-size: 1.35rem;
+  }
+  .sdb-pct-bar {
+    width: 50px;
+  }
+}
