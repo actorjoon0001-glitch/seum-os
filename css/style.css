@@ -10120,3 +10120,36 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .plist-action-cell .btn {
   margin-right: 0.25rem;
 }
+
+/* 발주서 모달 */
+.plist-sheet-textarea {
+  width: 100%;
+  min-height: 200px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-input, #0F0F0F);
+  color: var(--text-body, #E5E7EB);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  resize: vertical;
+}
+.plist-sheet-textarea:focus {
+  outline: 2px solid rgba(79,140,255,0.35);
+  outline-offset: 1px;
+}
+.plist-sheet-help {
+  font-size: 0.78rem;
+  color: #9CA3AF;
+  margin: 0.5rem 0 0;
+  word-break: keep-all;
+}
+#plist-sheet-vendor-info {
+  font-size: 0.85rem;
+  color: #D1D5DB;
+  margin-bottom: 0.8rem;
+}
+#plist-sheet-vendor-info strong {
+  color: #fff;
+}
