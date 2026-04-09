@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260409-7">
+  <link rel="stylesheet" href="./css/style.css?v=20260409-8">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3470,6 +3470,15 @@
           <input type="hidden" id="chat-room-type-input" value="channel">
           <input type="hidden" id="chat-contract-id-input" value="">
           <input type="file" id="chat-file-input" class="chat-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp" multiple hidden>
+          <div id="chat-admin-request-bar" class="chat-admin-request-bar hidden">
+            <span class="chat-admin-request-bar-label">요청 상태</span>
+            <select id="chat-admin-request-status" class="chat-admin-request-status-select">
+              <option value="요청" selected>요청</option>
+              <option value="진행중">진행중</option>
+              <option value="완료">완료</option>
+            </select>
+            <span class="chat-admin-request-bar-hint">관리자와 본인만 이 채널의 메시지를 볼 수 있습니다</span>
+          </div>
           <div class="chat-input-bar chat-input-bar-kakao">
             <button type="button" class="chat-plus-btn" id="chat-plus-btn" title="기능" aria-label="기능 패널 열기">+</button>
             <textarea id="chat-input" class="chat-input chat-textarea chat-input-kakao" placeholder="메시지를 입력하세요..." rows="1" maxlength="2000"></textarea>
@@ -3979,7 +3988,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260409-7"></script>
+  <script src="js/app.js?v=20260409-8"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>

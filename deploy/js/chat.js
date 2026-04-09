@@ -5,8 +5,13 @@
   var STORAGE_CHAT_LAST_READ = 'seum_chat_last_read';
   var STORAGE_CONTRACT_CHAT_READ = 'seum_chat_contract_read';
 
-  var CHAT_CHANNELS = ['all', 'headquarters', 'showroom1', 'showroom3', 'showroom4', 'ganghwa'];
-  var CHAT_CHANNEL_LABELS = { all: '전체 협업', headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장' };
+  var CHAT_CHANNELS = ['admin_request', 'all', 'headquarters', 'showroom1', 'showroom3', 'showroom4', 'ganghwa'];
+  var CHAT_CHANNEL_LABELS = { admin_request: '관리자 요청', all: '전체 협업', headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장' };
+  var ADMIN_REQUEST_CHANNEL = 'admin_request';
+  // 관리자 요청 채널에서 관리자 답변임을 구분하기 위한 sender_team 마커
+  var ADMIN_REQUEST_ADMIN_TEAM_MARKER = '__admin_request_admin__';
+  // 요청 상태 접두사 — 사용자 요청 본문 앞에 [상태:요청] 형태로 저장
+  var ADMIN_REQUEST_STATUS_RE = /^\[상태:(요청|진행중|완료)\]\s*/;
 
   /** in-memory cache: channel -> list of UI-format messages */
   var teamChatCache = {};
@@ -98,10 +103,33 @@
     };
   }
 
+  /** 관리자 요청 채널 메시지를 현재 사용자 기준으로 필터링
+   *  - 관리자/마스터: 모든 메시지 노출
+   *  - 일반 사용자: 본인이 올린 메시지 + 관리자 답변(sender_team 마커) 만 노출
+   */
+  function filterAdminRequestMessages(messages) {
+    if (!Array.isArray(messages) || !messages.length) return [];
+    var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
+                      (typeof window.isMaster === 'function' && window.isMaster());
+    if (isAdminUser) return messages.slice();
+    var me = getCurrentChatUser();
+    var myId = me && me.id;
+    return messages.filter(function (m) {
+      if (!m) return false;
+      if (m.userId === myId) return true;
+      if (m.team === ADMIN_REQUEST_ADMIN_TEAM_MARKER) return true;
+      return false;
+    });
+  }
+
   function getChatStore() {
     var data = {};
     CHAT_CHANNELS.forEach(function (ch) {
-      data[ch] = teamChatCache[ch] ? teamChatCache[ch].slice() : [];
+      var list = teamChatCache[ch] ? teamChatCache[ch].slice() : [];
+      if (ch === ADMIN_REQUEST_CHANNEL) {
+        list = filterAdminRequestMessages(list);
+      }
+      data[ch] = list;
     });
     return data;
   }
@@ -126,6 +154,9 @@
 
   function getChatUnreadCount(channel) {
     var messages = teamChatCache[channel] || [];
+    if (channel === ADMIN_REQUEST_CHANNEL) {
+      messages = filterAdminRequestMessages(messages);
+    }
     var lastRead = getChatLastRead();
     var since = lastRead[channel] || '';
     if (!since) return messages.filter(function (m) { return !m.is_deleted; }).length;
@@ -147,6 +178,15 @@
     var supabase = getSupabase();
     if (!supabase) return;
     var row = msgToRowTeam(channel, msg);
+    // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커를 저장해
+    // 렌더 시 "관리자 답변" 으로 식별하고 일반 사용자에게도 보이게 함
+    if (channel === ADMIN_REQUEST_CHANNEL) {
+      var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
+                        (typeof window.isMaster === 'function' && window.isMaster());
+      if (isAdminUser) {
+        row.sender_team = ADMIN_REQUEST_ADMIN_TEAM_MARKER;
+      }
+    }
     supabase.from('team_chat_messages').insert(row).select().single()
       .then(function (res) {
         if (res && res.data) {
@@ -678,6 +718,10 @@
   window.chatBodyWithMentions = chatBodyWithMentions;
   window.CHAT_CHANNELS = CHAT_CHANNELS;
   window.CHAT_CHANNEL_LABELS = CHAT_CHANNEL_LABELS;
+  window.ADMIN_REQUEST_CHANNEL = ADMIN_REQUEST_CHANNEL;
+  window.ADMIN_REQUEST_ADMIN_TEAM_MARKER = ADMIN_REQUEST_ADMIN_TEAM_MARKER;
+  window.ADMIN_REQUEST_STATUS_RE = ADMIN_REQUEST_STATUS_RE;
+  window.filterAdminRequestMessages = filterAdminRequestMessages;
   window.getContractChatRoomList = getContractChatRoomList;
   window.loadAllTeamChatMessages = loadAllTeamChatMessages;
   window.loadAllAccessibleContractChatMessages = loadAllAccessibleContractChatMessages;
