@@ -1780,6 +1780,23 @@ button,
   line-height: 1.2;
 }
 
+.contract-filter-bar .filter-item select {
+  height: 40px;
+  min-width: 140px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: #1F1F1F;
+  color: #E5E7EB;
+  border: 1px solid #374151;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.contract-filter-bar .filter-item select:focus {
+  border-color: #6366F1;
+}
+
 /* 검색창 래퍼 */
 .contract-search-wrap {
   position: relative;
@@ -6087,6 +6104,60 @@ textarea.form-input {
   color: var(--text-muted);
 }
 
+/* 잔금 메모 — 셀 안에서 작게 표시, 길면 말줄임 + hover/title 전체 보기 */
+.payment-cell .payment-balance-memo {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: #FBBF24;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 2px solid rgba(251, 191, 36, 0.55);
+  border-radius: 2px;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+.payment-cell .payment-balance-memo:hover {
+  white-space: normal;
+  overflow: visible;
+}
+
+/* 금액 변경 이력 아이콘 (해당 항목에 변경 이력이 있을 때) */
+.payment-cell .payment-history-icon {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.78rem;
+  color: #60A5FA;
+  cursor: help;
+  user-select: none;
+}
+.payment-cell .payment-history-icon:hover {
+  color: #93C5FD;
+}
+
+/* 입금 모달 — 변경 사유 안내 문구 */
+.payment-change-reason-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+#payment-memo-wrap textarea,
+#payment-change-reason-wrap textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+/* 모바일: 메모가 셀 폭 넘지 않도록 */
+@media (max-width: 768px) {
+  .payment-cell .payment-balance-memo {
+    max-width: 100%;
+  }
+}
+
 .payment-summary-cell {
   min-width: 160px;
   vertical-align: top;
@@ -9828,4 +9899,311 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .cw-summary-grid { grid-template-columns: 1fr 1fr; }
   .cw-form-grid { grid-template-columns: 1fr; }
   .ceo-db-cw-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ====================================================================
+   마케팅팀 업무 관리 모듈
+   ==================================================================== */
+
+/* 영상 상태 배지 */
+.mv-status-badge {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.mv-badge-scheduled { background: #f3f4f6; color: #6b7280; }
+.mv-badge-shot      { background: #dbeafe; color: #1d4ed8; }
+.mv-badge-editing   { background: #fef3c7; color: #d97706; }
+.mv-badge-done      { background: #d1fae5; color: #065f46; }
+
+/* 업로드 완료 체크 */
+.mv-check-done {
+  color: #10b981;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* 촬영 스케줄 달력 */
+.ms-cal-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.ms-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-bottom: none;
+}
+.ms-cal-wd {
+  text-align: center;
+  padding: 0.4rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+.ms-cal-wd:first-child { color: #ef4444; }
+.ms-cal-wd:last-child  { color: #3b82f6; }
+
+.ms-cal-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px solid #e5e7eb;
+  border-top: none;
+}
+.ms-cal-cell {
+  min-height: 90px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.3rem 0.4rem 0.25rem;
+  position: relative;
+  cursor: default;
+  transition: background 0.1s;
+}
+.ms-cal-cell:nth-child(7n) { border-right: none; }
+.ms-cal-cell:hover { background: #f9fafb; }
+.ms-cal-empty { background: #fafafa; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+
+.ms-today { background: #eff6ff !important; }
+.ms-today .ms-cal-day-num { background: #3b82f6; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+
+.ms-cal-day-num {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.2rem;
+}
+.ms-cal-cell:nth-child(7n+1) .ms-cal-day-num { color: #ef4444; }
+.ms-cal-cell:nth-child(7n)   .ms-cal-day-num { color: #3b82f6; }
+
+.ms-cal-event {
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity 0.1s;
+}
+.ms-cal-event:hover { opacity: 0.85; }
+
+.ms-add-btn {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.ms-cal-cell:hover .ms-add-btn { display: flex; }
+
+/* 파일 공유 */
+.mf-drop-zone {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 1.25rem;
+  color: #6b7280;
+}
+.mf-drop-zone:hover, .mf-drag-over {
+  border-color: #6366f1;
+  background: #f5f3ff;
+  color: #4f46e5;
+}
+.mf-drop-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+
+.mf-files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.mf-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+  background: #fff;
+}
+.mf-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.mf-card-thumb {
+  height: 120px;
+  background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.mf-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mf-icon { font-size: 2.5rem; }
+.mf-card-info {
+  padding: 0.6rem 0.75rem 0.5rem;
+}
+.mf-card-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 0.2rem;
+}
+.mf-card-meta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-bottom: 0.1rem;
+}
+.mf-card-actions {
+  padding: 0.4rem 0.75rem 0.6rem;
+  display: flex;
+  gap: 0.35rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 640px) {
+  .ms-cal-cell { min-height: 60px; }
+  .ms-cal-event { font-size: 0.65rem; }
+  .mf-files-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .mf-card-thumb { height: 90px; }
+}
+
+/* ===== 발주 리스트 (Procurement List) ===== */
+.nav-subitem-nested {
+  padding-left: 2.25rem !important;
+  font-size: 0.88rem;
+  opacity: 0.9;
+}
+
+.plist-table tbody td {
+  padding: 0.45rem 0.6rem;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+.plist-table thead th {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+}
+.plist-status-select {
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+  cursor: pointer;
+  min-width: 88px;
+}
+.plist-status-select:focus {
+  outline: 2px solid rgba(79,140,255,0.4);
+  outline-offset: 1px;
+}
+
+/* 상태별 색상 배지 (발주요청:회색 / 발주완료:파랑 / 배송중:주황 / 현장도착:초록 / 완료:연한 회색) */
+.plist-status-requested {
+  background: #F3F4F6;
+  color: #4B5563;
+  border-color: #E5E7EB;
+}
+.plist-status-ordered {
+  background: #EFF6FF;
+  color: #2563EB;
+  border-color: #BFDBFE;
+}
+.plist-status-shipping {
+  background: #FFF7ED;
+  color: #C2410C;
+  border-color: #FED7AA;
+}
+.plist-status-arrived {
+  background: #ECFDF5;
+  color: #15803D;
+  border-color: #A7F3D0;
+}
+.plist-status-done {
+  background: #F9FAFB;
+  color: #9CA3AF;
+  border-color: #E5E7EB;
+}
+
+.plist-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 2rem 0;
+  font-size: 0.9rem;
+}
+
+/* 납기 지연: 행 전체 연한 빨간 배경 + 필요일 셀 강조 */
+.plist-row-overdue td {
+  background: rgba(220, 38, 38, 0.08);
+}
+.plist-row-overdue td:nth-child(5) {
+  color: #DC2626;
+  font-weight: 600;
+}
+.data-table tbody tr.plist-row-overdue:hover td {
+  background: rgba(220, 38, 38, 0.14);
+}
+
+.plist-action-cell {
+  white-space: nowrap;
+}
+.plist-action-cell .btn {
+  margin-right: 0.25rem;
+}
+
+/* 발주서 모달 */
+.plist-sheet-textarea {
+  width: 100%;
+  min-height: 200px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg-input, #0F0F0F);
+  color: var(--text-body, #E5E7EB);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  resize: vertical;
+}
+.plist-sheet-textarea:focus {
+  outline: 2px solid rgba(79,140,255,0.35);
+  outline-offset: 1px;
+}
+.plist-sheet-help {
+  font-size: 0.78rem;
+  color: #9CA3AF;
+  margin: 0.5rem 0 0;
+  word-break: keep-all;
+}
+#plist-sheet-vendor-info {
+  font-size: 0.85rem;
+  color: #D1D5DB;
+  margin-bottom: 0.8rem;
+}
+#plist-sheet-vendor-info strong {
+  color: #fff;
 }
