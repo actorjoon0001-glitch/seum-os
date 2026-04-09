@@ -277,8 +277,8 @@
     });
   }
 
-  function saveChatMessage(channel, msg) {
-    console.log('[chat] saveChatMessage channel=', channel, 'msg=', msg);
+  function saveChatMessage(channel, msg, explicitTarget) {
+    console.log('[chat] saveChatMessage channel=', channel, 'msg=', msg, 'explicitTarget=', explicitTarget);
     var supabase = getSupabase();
     if (!supabase) {
       console.error('[chat] Supabase 미연결 — 메시지 저장 불가');
@@ -288,23 +288,30 @@
     var row = msgToRowTeam(channel, msg);
     // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커 + 타깃 ID + 이름 저장
     // 형식: __admin_request_admin__:<target_user_id>::<target_user_name>
-    // 이름까지 포함하는 이유: sender_id 값이 세션/로그인에 따라 달라져도
-    // 이름은 보통 안정적이므로 복원력 있는 타깃팅 가능
+    // explicitTarget 이 주어지면 우선 사용 (관리자가 특정 메시지에 "답변" 버튼
+    // 클릭으로 명시 선택한 경우), 없으면 캐시에서 가장 최근 일반 사용자 메시지
+    // 기준으로 자동 타깃팅 (fallback)
     if (channel === ADMIN_REQUEST_CHANNEL) {
       var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
                         (typeof window.isMaster === 'function' && window.isMaster());
       if (isAdminUser) {
-        var cache = teamChatCache[ADMIN_REQUEST_CHANNEL] || [];
         var targetId = null;
         var targetName = null;
-        for (var i = cache.length - 1; i >= 0; i--) {
-          var cm = cache[i];
-          if (!cm) continue;
-          var cmInfo = parseAdminReplyMarker(cm.team);
-          if (!cmInfo.isAdminReply && cm.userId) {
-            targetId = cm.userId;
-            targetName = cm.userName || '';
-            break;
+        if (explicitTarget && explicitTarget.userId) {
+          targetId = explicitTarget.userId;
+          targetName = explicitTarget.userName || '';
+          console.log('[chat] using explicit reply target', explicitTarget);
+        } else {
+          var cache = teamChatCache[ADMIN_REQUEST_CHANNEL] || [];
+          for (var i = cache.length - 1; i >= 0; i--) {
+            var cm = cache[i];
+            if (!cm) continue;
+            var cmInfo = parseAdminReplyMarker(cm.team);
+            if (!cmInfo.isAdminReply && cm.userId) {
+              targetId = cm.userId;
+              targetName = cm.userName || '';
+              break;
+            }
           }
         }
         if (targetId) {

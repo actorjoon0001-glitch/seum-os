@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260409-12">
+  <link rel="stylesheet" href="./css/style.css?v=20260409-13">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3479,6 +3479,13 @@
             </select>
             <span class="chat-admin-request-bar-hint">관리자와 본인만 이 채널의 메시지를 볼 수 있습니다</span>
           </div>
+          <div id="chat-admin-reply-target-indicator" class="chat-admin-reply-target-indicator hidden">
+            <span class="chat-admin-reply-target-icon">↩</span>
+            <span class="chat-admin-reply-target-label">답변 대상:</span>
+            <strong class="chat-admin-reply-target-name"></strong>
+            <span class="chat-admin-reply-target-preview"></span>
+            <button type="button" class="chat-admin-reply-target-clear" aria-label="대상 취소">✕</button>
+          </div>
           <div class="chat-input-bar chat-input-bar-kakao">
             <button type="button" class="chat-plus-btn" id="chat-plus-btn" title="기능" aria-label="기능 패널 열기">+</button>
             <textarea id="chat-input" class="chat-input chat-textarea chat-input-kakao" placeholder="메시지를 입력하세요..." rows="1" maxlength="2000"></textarea>
@@ -3988,7 +3995,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260409-12"></script>
+  <script src="js/app.js?v=20260409-13"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
