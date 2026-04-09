@@ -2095,6 +2095,8 @@
               <label>품목 <input type="text" id="plist-item" required placeholder="예: ALC 블록 200mm"></label>
               <label>수량 <input type="number" id="plist-qty" min="0" step="1" required placeholder="0"></label>
               <label>담당자 <input type="text" id="plist-manager" placeholder="담당자명"></label>
+              <label>업체명 <input type="text" id="plist-vendor" placeholder="예: OO건재"></label>
+              <label>업체 연락처 <input type="tel" id="plist-vendor-phone" placeholder="01012345678" inputmode="tel" autocomplete="tel"></label>
               <label>요청일 <input type="date" id="plist-request-date" required></label>
               <label>필요일 <input type="date" id="plist-need-date" required></label>
               <label>상태
@@ -2126,11 +2128,40 @@
                 <th>상태</th>
                 <th>담당자</th>
                 <th>비고</th>
-                <th style="width:140px;">작업</th>
+                <th style="width:260px;">작업</th>
               </tr>
             </thead>
             <tbody id="tbody-plist"></tbody>
           </table>
+        </div>
+      </div>
+
+      <div id="modal-plist-sheet" class="modal hidden" aria-hidden="true">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="plist-sheet-title">발주서</h3>
+            <button type="button" class="modal-close" data-close="modal-plist-sheet" aria-label="닫기">&times;</button>
+          </div>
+          <div class="form-block">
+            <p id="plist-sheet-vendor-info" class="readonly-info"></p>
+            <label id="plist-sheet-label" class="form-full"><span id="plist-sheet-label-text">발주서 내용 (전송 전 수정 가능)</span>
+              <textarea id="plist-sheet-text" rows="10" class="plist-sheet-textarea"></textarea>
+            </label>
+            <p id="plist-sheet-help" class="plist-sheet-help">
+              사용 가능한 변수: {site} {item} {qty} {needDate} {requestDate} {vendor} {manager} {memo}
+            </p>
+          </div>
+          <div class="form-actions" id="plist-sheet-actions-preview">
+            <button type="button" class="btn btn-primary" id="btn-plist-send-sms">문자 발송</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-copy-text">복사</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-edit-template">템플릿 편집</button>
+            <button type="button" class="btn btn-secondary" data-close="modal-plist-sheet">닫기</button>
+          </div>
+          <div class="form-actions hidden" id="plist-sheet-actions-template">
+            <button type="button" class="btn btn-primary" id="btn-plist-save-template">템플릿 저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-reset-template">기본 템플릿 복원</button>
+            <button type="button" class="btn btn-secondary" id="btn-plist-cancel-template">취소</button>
+          </div>
         </div>
       </div>
     </section>
