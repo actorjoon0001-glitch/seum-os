@@ -9652,6 +9652,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    설계 업무일지 (Design Worklog)
    ===================================================================== */
 .dw-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+/* =====================================================================
    시공 업무일지 (Construction Worklog)
    ===================================================================== */
 .cw-summary-grid {
@@ -9718,7 +9726,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding: 1.2rem 1.4rem;
   margin-bottom: 1.2rem;
 }
-.dw-form-grid {
+.dw-form-grid,
 .cw-form-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -9750,6 +9758,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
 }
 .dw-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
 .cw-form-field {
   display: flex;
   flex-direction: column;
@@ -9789,6 +9802,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .dw-stage-badge {
   display: inline-block;
   padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
 .cw-photo-row {
   display: flex;
   align-items: center;
@@ -9827,6 +9844,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .dw-stage-transfer  { background: #fee2e2; color: #b91c1c; }
 /* Transfer badge */
 .dw-transferred-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #e0e7ff;
+  color: #3730a3;
+}
 .cw-proc-foundation  { background: #fef3c7; color: #92400e; }
 .cw-proc-frame       { background: #dbeafe; color: #1e40af; }
 .cw-proc-insulation  { background: #e0f2fe; color: #0369a1; }
