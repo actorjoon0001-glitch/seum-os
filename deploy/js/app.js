@@ -6009,28 +6009,31 @@
     var contracts = filterByShowroom(getContracts(), 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
 
-    // ===== 1) 전체 KPI =====
+    // 계약별 단위 정규화 — manwon 단위면 그대로, 아니면 10000으로 나눠 만원으로 통일
+    function manDivisor(c) { return (c && c.amountUnit === 'manwon') ? 1 : 10000; }
+    function toManVal(c, raw) { return (Number(raw) || 0) / manDivisor(c); }
+
+    function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+    function setWidth(id, pct) { var el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+
+    // ===== 1) 전체 KPI (모두 만원 단위로 정규화 후 합산) =====
     var totalCount = contracts.length;
     var totalAmount = 0;
     var receivedAmount = 0;
     contracts.forEach(function (c) {
       var nums = getPaymentSummaryNumbers(c);
-      totalAmount += nums.total;
-      receivedAmount += nums.received;
+      totalAmount += toManVal(c, nums.total);
+      receivedAmount += toManVal(c, nums.received);
     });
     var remainingAmount = Math.max(0, totalAmount - receivedAmount);
     var receivedPct = totalAmount > 0 ? Math.round((receivedAmount / totalAmount) * 100) : 0;
     var remainingPct = totalAmount > 0 ? 100 - receivedPct : 0;
 
-    function toMan(v) { return Math.round((Number(v) || 0) / 10000); }
-    function setText(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-    function setWidth(id, pct) { var el = document.getElementById(id); if (el) el.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
-
     setText('sdb-total-count', formatMoney(totalCount));
-    setText('sdb-total-amount', formatMoney(toMan(totalAmount)));
-    setText('sdb-received-amount', formatMoney(toMan(receivedAmount)));
+    setText('sdb-total-amount', formatMoney(Math.round(totalAmount)));
+    setText('sdb-received-amount', formatMoney(Math.round(receivedAmount)));
     setText('sdb-received-pct', '(' + receivedPct + '%)');
-    setText('sdb-remaining-amount', formatMoney(toMan(remainingAmount)));
+    setText('sdb-remaining-amount', formatMoney(Math.round(remainingAmount)));
     setText('sdb-remaining-pct', '(' + remainingPct + '%)');
 
     // ===== 2) 단계별 합계 (계약금/중도금1/2/3/잔금) =====
@@ -6048,18 +6051,18 @@
       contracts.forEach(function (c) {
         var amt = parseMoney(c[stage.amountField]);
         if (amt > 0) {
-          stageTotal += amt;
+          stageTotal += toManVal(c, amt);
           stageHasCount++;
           if (c[stage.confirmedField]) stageConfirmedCount++;
         }
       });
       var pct = stageHasCount > 0 ? Math.round((stageConfirmedCount / stageHasCount) * 100) : 0;
-      setText(stage.elPrefix, formatMoney(toMan(stageTotal)) + '만원');
+      setText(stage.elPrefix, formatMoney(Math.round(stageTotal)) + '만원');
       setWidth(stage.elPrefix + '-fill', pct);
       setText(stage.elPrefix + '-meta', stageConfirmedCount + '/' + stageHasCount + '건 입금확인 (' + pct + '%)');
     });
 
-    // ===== 3) 전시장별 집계 =====
+    // ===== 3) 전시장별 집계 (만원 단위로 정규화 후 합산) =====
     var byShowroom = {};
     SHOWROOMS.forEach(function (s) {
       byShowroom[s.id] = { name: s.name, count: 0, total: 0, received: 0 };
@@ -6071,8 +6074,8 @@
       }
       var nums = getPaymentSummaryNumbers(c);
       byShowroom[sid].count++;
-      byShowroom[sid].total += nums.total;
-      byShowroom[sid].received += nums.received;
+      byShowroom[sid].total += toManVal(c, nums.total);
+      byShowroom[sid].received += toManVal(c, nums.received);
     });
     var showroomRows = Object.keys(byShowroom)
       .map(function (k) { return byShowroom[k]; })
@@ -6093,9 +6096,9 @@
         return '<tr>' +
           '<td>' + escapeHtml(r.name) + '</td>' +
           '<td style="text-align:right;">' + formatMoney(r.count) + '건</td>' +
-          '<td style="text-align:right;">' + formatMoney(toMan(r.total)) + '만원</td>' +
-          '<td style="text-align:right;color:#22C55E;">' + formatMoney(toMan(r.received)) + '만원</td>' +
-          '<td style="text-align:right;color:#F59E0B;">' + formatMoney(toMan(rem)) + '만원</td>' +
+          '<td style="text-align:right;">' + formatMoney(Math.round(r.total)) + '만원</td>' +
+          '<td style="text-align:right;color:#22C55E;">' + formatMoney(Math.round(r.received)) + '만원</td>' +
+          '<td style="text-align:right;color:#F59E0B;">' + formatMoney(Math.round(rem)) + '만원</td>' +
           '<td><div class="sdb-pct-bar"><div class="sdb-pct-bar-fill" style="width:' + pct + '%"></div></div><span class="sdb-pct-label">' + pct + '%</span></td>' +
           '</tr>';
       }).join('');
@@ -6104,9 +6107,9 @@
       var sumHtml = showroomRows.length ? ('<tr class="sdb-sum-row">' +
         '<td><strong>합계</strong></td>' +
         '<td style="text-align:right;"><strong>' + formatMoney(sumRow.count) + '건</strong></td>' +
-        '<td style="text-align:right;"><strong>' + formatMoney(toMan(sumRow.total)) + '만원</strong></td>' +
-        '<td style="text-align:right;color:#22C55E;"><strong>' + formatMoney(toMan(sumRow.received)) + '만원</strong></td>' +
-        '<td style="text-align:right;color:#F59E0B;"><strong>' + formatMoney(toMan(sumRem)) + '만원</strong></td>' +
+        '<td style="text-align:right;"><strong>' + formatMoney(Math.round(sumRow.total)) + '만원</strong></td>' +
+        '<td style="text-align:right;color:#22C55E;"><strong>' + formatMoney(Math.round(sumRow.received)) + '만원</strong></td>' +
+        '<td style="text-align:right;color:#F59E0B;"><strong>' + formatMoney(Math.round(sumRem)) + '만원</strong></td>' +
         '<td><div class="sdb-pct-bar"><div class="sdb-pct-bar-fill" style="width:' + sumPct + '%"></div></div><span class="sdb-pct-label"><strong>' + sumPct + '%</strong></span></td>' +
         '</tr>') : '';
       tbodyShowroom.innerHTML = (rowsHtml + sumHtml) || '<tr><td colspan="6" class="sdb-empty">데이터가 없습니다.</td></tr>';
@@ -6118,7 +6121,7 @@
       var alerts = contracts
         .map(function (c) {
           var nums = getPaymentSummaryNumbers(c);
-          return { c: c, remaining: nums.remaining, hasMemo: !!(c.balanceMemo && String(c.balanceMemo).trim()) };
+          return { c: c, remaining: toManVal(c, nums.remaining), hasMemo: !!(c.balanceMemo && String(c.balanceMemo).trim()) };
         })
         .filter(function (x) { return x.hasMemo || x.remaining > 0; })
         .sort(function (a, b) {
@@ -6140,7 +6143,7 @@
               memoBadge +
             '</div>' +
             '<div class="sdb-alert-body">' +
-              '<span class="sdb-alert-remaining">미수금 ' + formatMoney(toMan(a.remaining)) + '만원</span>' +
+              '<span class="sdb-alert-remaining">미수금 ' + formatMoney(Math.round(a.remaining)) + '만원</span>' +
             '</div>' +
             memoLine +
           '</div>';
@@ -6159,12 +6162,12 @@
             unconfirmed.push({
               c: c,
               stageLabel: ({ deposit: '계약금', progress1: '중도금1', progress2: '중도금2', progress3: '중도금3', balance: '잔금' })[stage.key],
-              amount: amt
+              amountMan: toManVal(c, amt)
             });
           }
         });
       });
-      unconfirmed.sort(function (a, b) { return b.amount - a.amount; });
+      unconfirmed.sort(function (a, b) { return b.amountMan - a.amountMan; });
       unconfirmed = unconfirmed.slice(0, 8);
       if (!unconfirmed.length) {
         unconfirmedList.innerHTML = '<p class="settlement-db-empty">미처리 항목이 없습니다.</p>';
@@ -6177,7 +6180,7 @@
               '<span class="sdb-alert-badge stage">' + u.stageLabel + '</span>' +
             '</div>' +
             '<div class="sdb-alert-body">' +
-              '<span class="sdb-alert-remaining">' + formatMoney(toMan(u.amount)) + '만원 미확인</span>' +
+              '<span class="sdb-alert-remaining">' + formatMoney(Math.round(u.amountMan)) + '만원 미확인</span>' +
             '</div>' +
           '</div>';
         }).join('');
