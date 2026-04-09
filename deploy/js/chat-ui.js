@@ -489,10 +489,13 @@
       var isMine = msg.userId === me.id;
       var canDelete = (isMine || (typeof window.isAdmin === 'function' && window.isAdmin()) || (typeof window.isMaster === 'function' && window.isMaster()));
       var deleted = !!msg.is_deleted;
-      // 관리자 요청 채널: sender_team 마커로 관리자 답변임을 식별
+      // 관리자 요청 채널: sender_team 마커로 관리자 답변임을 식별 (구형/신형 마커 모두 지원)
       var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
       var ADMIN_MARK = window.ADMIN_REQUEST_ADMIN_TEAM_MARKER || '__admin_request_admin__';
-      var isAdminReply = (channel === ADMIN_REQ) && (msg.team === ADMIN_MARK);
+      var adminReplyInfo = (channel === ADMIN_REQ && typeof window.parseAdminReplyMarker === 'function')
+        ? window.parseAdminReplyMarker(msg.team)
+        : { isAdminReply: (msg.team === ADMIN_MARK), targetUserId: null };
+      var isAdminReply = (channel === ADMIN_REQ) && adminReplyInfo.isAdminReply;
       var authorName = window.escapeChatText(msg.userName || '알 수 없음');
       var teamLabel;
       if (isAdminReply) {

@@ -111,6 +111,23 @@
    *  세션 타이밍에 따라 id/email/name 중 다른 값을 돌려주는 경우에도
    *  본인 메시지가 누락되지 않도록 방어적으로 처리.
    */
+  /** 관리자 답변 메시지 여부 + 타깃 사용자 ID 추출 헬퍼
+   *  반환: { isAdminReply: bool, targetUserId: string|null }
+   *  - 기존형 마커 '__admin_request_admin__' 는 타깃 없음 (레거시)
+   *  - 신규형 마커 '__admin_request_admin__:<target_id>' 는 타깃 있음
+   */
+  function parseAdminReplyMarker(team) {
+    if (!team || typeof team !== 'string') return { isAdminReply: false, targetUserId: null };
+    if (team === ADMIN_REQUEST_ADMIN_TEAM_MARKER) {
+      return { isAdminReply: true, targetUserId: null };
+    }
+    var prefix = ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':';
+    if (team.indexOf(prefix) === 0) {
+      return { isAdminReply: true, targetUserId: team.substring(prefix.length) };
+    }
+    return { isAdminReply: false, targetUserId: null };
+  }
+
   function filterAdminRequestMessages(messages) {
     if (!Array.isArray(messages) || !messages.length) return [];
     var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
@@ -125,24 +142,46 @@
     pushId(cur && cur.authUserId);
     pushId(cur && cur.email);
     var myName = (me && me.name) || (cur && cur.name) || '';
-    var result = messages.filter(function (m) {
+
+    // 1 패스: 레거시 무타깃 관리자 답변의 inferred target 계산
+    //   = 그 답변 바로 앞에 있던 일반 사용자 메시지의 sender_id
+    // (오래된 PR #157 ~ #158 시절 관리자가 보낸 답변이 여기에 해당)
+    var legacyInferredTarget = {};
+    var lastNonAdminUserId = null;
+    for (var i = 0; i < messages.length; i++) {
+      var mm = messages[i];
+      if (!mm) continue;
+      var info = parseAdminReplyMarker(mm.team);
+      if (info.isAdminReply && !info.targetUserId) {
+        legacyInferredTarget[mm.id || ('idx_' + i)] = lastNonAdminUserId;
+      } else if (!info.isAdminReply) {
+        lastNonAdminUserId = mm.userId;
+      }
+    }
+
+    // 2 패스: 실제 필터링
+    var result = messages.filter(function (m, i) {
       if (!m) return false;
-      // 관리자 답변은 모든 일반 사용자에게 노출 (마커 기반)
-      if (m.team === ADMIN_REQUEST_ADMIN_TEAM_MARKER) return true;
+      var info = parseAdminReplyMarker(m.team);
+      if (info.isAdminReply) {
+        // 타깃이 명시돼 있으면 그 기준으로, 없으면 inferred 기준으로
+        var target = info.targetUserId || legacyInferredTarget[m.id || ('idx_' + i)];
+        if (!target) return false; // 타깃 없는 고아 답변 → 비노출
+        return identities.indexOf(target) !== -1;
+      }
       // 본인 메시지 매칭: sender_id 를 여러 식별자와 OR 비교
       if (m.userId && identities.indexOf(m.userId) !== -1) return true;
       // 동일 이름 매칭 (email/id 가 바뀌었을 때 안전망)
       if (myName && m.userName && m.userName === myName) return true;
       return false;
     });
-    // 디버그 로그: 필터가 본인 메시지를 제외하는 원인 파악용
+    // 디버그 로그
     try {
       console.log('[admin_request filter]', {
         totalMessages: messages.length,
         shownToUser: result.length,
         identities: identities,
-        myName: myName,
-        sampleMessageUserIds: messages.slice(0, 3).map(function (m) { return { userId: m.userId, userName: m.userName, team: m.team }; })
+        myName: myName
       });
     } catch (e) {}
     return result;
@@ -209,16 +248,33 @@
       return;
     }
     var row = msgToRowTeam(channel, msg);
-    console.log('[chat] insert row=', row);
-    // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커를 저장해
-    // 렌더 시 "관리자 답변" 으로 식별하고 일반 사용자에게도 보이게 함
+    // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커 + 타깃 ID 저장
+    // 형식: __admin_request_admin__:<target_user_id>
+    // 렌더/필터 시 타깃이 현재 사용자와 일치할 때만 노출되어 1:1 프라이버시 유지
     if (channel === ADMIN_REQUEST_CHANNEL) {
       var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
                         (typeof window.isMaster === 'function' && window.isMaster());
       if (isAdminUser) {
-        row.sender_team = ADMIN_REQUEST_ADMIN_TEAM_MARKER;
+        // 같은 채널의 "가장 최근 일반 사용자 메시지"의 sender_id 를 타깃으로 사용
+        var cache = teamChatCache[ADMIN_REQUEST_CHANNEL] || [];
+        var targetId = null;
+        for (var i = cache.length - 1; i >= 0; i--) {
+          var cm = cache[i];
+          if (!cm) continue;
+          var cmTeam = cm.team || '';
+          var cmIsAdminReply = cmTeam === ADMIN_REQUEST_ADMIN_TEAM_MARKER ||
+                               cmTeam.indexOf(ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':') === 0;
+          if (!cmIsAdminReply && cm.userId) {
+            targetId = cm.userId;
+            break;
+          }
+        }
+        row.sender_team = targetId
+          ? (ADMIN_REQUEST_ADMIN_TEAM_MARKER + ':' + targetId)
+          : ADMIN_REQUEST_ADMIN_TEAM_MARKER;
       }
     }
+    console.log('[chat] insert row=', row);
     supabase.from('team_chat_messages').insert(row).select().single()
       .then(function (res) {
         // Supabase는 에러를 res.error 로 반환하기도 함 (reject 없이)
@@ -769,6 +825,7 @@
   window.ADMIN_REQUEST_ADMIN_TEAM_MARKER = ADMIN_REQUEST_ADMIN_TEAM_MARKER;
   window.ADMIN_REQUEST_STATUS_RE = ADMIN_REQUEST_STATUS_RE;
   window.filterAdminRequestMessages = filterAdminRequestMessages;
+  window.parseAdminReplyMarker = parseAdminReplyMarker;
   window.getContractChatRoomList = getContractChatRoomList;
   window.loadAllTeamChatMessages = loadAllTeamChatMessages;
   window.loadAllAccessibleContractChatMessages = loadAllAccessibleContractChatMessages;
