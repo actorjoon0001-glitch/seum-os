@@ -161,6 +161,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction">시공현황</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction-worklog">시공업무일지</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="procurement">발주팀</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem nav-subitem-nested" data-section="procurement-list">└ 발주 리스트</a>
           </div>
         </div>
 
@@ -2072,6 +2073,64 @@
             </div>
           </div>
           <div id="order-print-preview" class="order-print-preview"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-procurement-list" class="content-section">
+      <header class="main-header">
+        <h2>발주 리스트</h2>
+        <p class="section-desc">현장별 자재·품목 발주 요청을 등록하고 진행 상태를 관리합니다.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>발주 리스트</h3>
+          <button type="button" class="btn btn-primary" id="btn-open-plist-form">+ 발주 등록</button>
+        </div>
+        <div id="plist-form-wrap" class="hidden">
+          <form id="form-plist" class="form-block">
+            <input type="hidden" id="plist-edit-id">
+            <div class="form-grid form-grid-2">
+              <label>현장명 <input type="text" id="plist-site" required placeholder="예: 가평 OO 현장"></label>
+              <label>품목 <input type="text" id="plist-item" required placeholder="예: ALC 블록 200mm"></label>
+              <label>수량 <input type="number" id="plist-qty" min="0" step="1" required placeholder="0"></label>
+              <label>담당자 <input type="text" id="plist-manager" placeholder="담당자명"></label>
+              <label>요청일 <input type="date" id="plist-request-date" required></label>
+              <label>필요일 <input type="date" id="plist-need-date" required></label>
+              <label>상태
+                <select id="plist-status">
+                  <option value="발주요청">발주요청</option>
+                  <option value="발주완료">발주완료</option>
+                  <option value="배송중">배송중</option>
+                  <option value="현장도착">현장도착</option>
+                  <option value="완료">완료</option>
+                </select>
+              </label>
+              <label class="form-full">비고 <input type="text" id="plist-memo" placeholder="특이사항, 업체 메모 등"></label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-cancel-plist">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table plist-table">
+            <thead>
+              <tr>
+                <th>현장명</th>
+                <th>품목</th>
+                <th style="text-align:right;">수량</th>
+                <th>요청일</th>
+                <th>필요일</th>
+                <th>상태</th>
+                <th>담당자</th>
+                <th>비고</th>
+                <th style="width:140px;">작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-plist"></tbody>
+          </table>
         </div>
       </div>
     </section>
