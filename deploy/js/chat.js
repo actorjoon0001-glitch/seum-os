@@ -106,6 +106,10 @@
   /** 관리자 요청 채널 메시지를 현재 사용자 기준으로 필터링
    *  - 관리자/마스터: 모든 메시지 노출
    *  - 일반 사용자: 본인이 올린 메시지 + 관리자 답변(sender_team 마커) 만 노출
+   *
+   *  "본인 메시지" 매칭은 여러 식별자를 OR 로 비교. getCurrentChatUser() 가
+   *  세션 타이밍에 따라 id/email/name 중 다른 값을 돌려주는 경우에도
+   *  본인 메시지가 누락되지 않도록 방어적으로 처리.
    */
   function filterAdminRequestMessages(messages) {
     if (!Array.isArray(messages) || !messages.length) return [];
@@ -113,13 +117,35 @@
                       (typeof window.isMaster === 'function' && window.isMaster());
     if (isAdminUser) return messages.slice();
     var me = getCurrentChatUser();
-    var myId = me && me.id;
-    return messages.filter(function (m) {
+    var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+    var identities = [];
+    function pushId(v) { if (v != null && v !== '' && identities.indexOf(v) === -1) identities.push(v); }
+    pushId(me && me.id);
+    pushId(cur && cur.id);
+    pushId(cur && cur.authUserId);
+    pushId(cur && cur.email);
+    var myName = (me && me.name) || (cur && cur.name) || '';
+    var result = messages.filter(function (m) {
       if (!m) return false;
-      if (m.userId === myId) return true;
+      // 관리자 답변은 모든 일반 사용자에게 노출 (마커 기반)
       if (m.team === ADMIN_REQUEST_ADMIN_TEAM_MARKER) return true;
+      // 본인 메시지 매칭: sender_id 를 여러 식별자와 OR 비교
+      if (m.userId && identities.indexOf(m.userId) !== -1) return true;
+      // 동일 이름 매칭 (email/id 가 바뀌었을 때 안전망)
+      if (myName && m.userName && m.userName === myName) return true;
       return false;
     });
+    // 디버그 로그: 필터가 본인 메시지를 제외하는 원인 파악용
+    try {
+      console.log('[admin_request filter]', {
+        totalMessages: messages.length,
+        shownToUser: result.length,
+        identities: identities,
+        myName: myName,
+        sampleMessageUserIds: messages.slice(0, 3).map(function (m) { return { userId: m.userId, userName: m.userName, team: m.team }; })
+      });
+    } catch (e) {}
+    return result;
   }
 
   function getChatStore() {

@@ -282,6 +282,31 @@
       gotoDesignBtn.setAttribute('data-contract-id', type === 'contract' ? id : '');
     }
 
+    // 관리자 요청 상태바: 채널 = admin_request 일 때만 표시
+    (function () {
+      var statusBar = document.getElementById('chat-admin-request-bar');
+      if (!statusBar) return;
+      var ADMIN_REQ = window.ADMIN_REQUEST_CHANNEL || 'admin_request';
+      var show = (type === 'channel' && id === ADMIN_REQ);
+      statusBar.classList.toggle('hidden', !show);
+      if (show) {
+        var isAdminUser = (typeof window.isAdmin === 'function' && window.isAdmin()) ||
+                          (typeof window.isMaster === 'function' && window.isMaster());
+        var labelEl = statusBar.querySelector('.chat-admin-request-bar-label');
+        var hintEl = statusBar.querySelector('.chat-admin-request-bar-hint');
+        var sel = statusBar.querySelector('#chat-admin-request-status');
+        if (isAdminUser) {
+          if (labelEl) labelEl.textContent = '관리자 답변';
+          if (hintEl) hintEl.textContent = '모든 직원의 요청을 보고 답변할 수 있습니다';
+          if (sel) sel.classList.add('hidden');
+        } else {
+          if (labelEl) labelEl.textContent = '요청 상태';
+          if (hintEl) hintEl.textContent = '관리자와 본인만 이 채널의 메시지를 볼 수 있습니다';
+          if (sel) sel.classList.remove('hidden');
+        }
+      }
+    })();
+
     renderChatRoomList();
 
     if (type === 'channel') {
