@@ -175,9 +175,15 @@
   }
 
   function saveChatMessage(channel, msg) {
+    console.log('[chat] saveChatMessage channel=', channel, 'msg=', msg);
     var supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) {
+      console.error('[chat] Supabase 미연결 — 메시지 저장 불가');
+      try { window.alert('채팅 서버 연결이 끊겼습니다. 페이지를 새로고침 해주세요.'); } catch (e) {}
+      return;
+    }
     var row = msgToRowTeam(channel, msg);
+    console.log('[chat] insert row=', row);
     // 관리자 요청 채널에서 관리자가 보내는 경우 sender_team 에 마커를 저장해
     // 렌더 시 "관리자 답변" 으로 식별하고 일반 사용자에게도 보이게 함
     if (channel === ADMIN_REQUEST_CHANNEL) {
@@ -189,6 +195,15 @@
     }
     supabase.from('team_chat_messages').insert(row).select().single()
       .then(function (res) {
+        // Supabase는 에러를 res.error 로 반환하기도 함 (reject 없이)
+        if (res && res.error) {
+          console.error('[chat] team_chat_messages insert error', res.error, 'row=', row);
+          try {
+            window.alert('메시지 전송 실패: ' + (res.error.message || res.error.code || '알 수 없는 오류') +
+              '\n\n' + (row ? '채널: ' + row.channel : ''));
+          } catch (e) {}
+          return;
+        }
         if (res && res.data) {
           var ui = rowToUiTeam(res.data);
           if (!teamChatCache[channel]) teamChatCache[channel] = [];
@@ -199,10 +214,16 @@
           if (typeof window.setChatLastRead === 'function') window.setChatLastRead(channel, ui.at);
           if (typeof window.updateChatTabBadges === 'function') window.updateChatTabBadges();
           if (typeof window.renderChatRoomList === 'function') window.renderChatRoomList();
+          return;
         }
+        // res 객체는 있는데 data/error 둘 다 없는 이상 케이스
+        console.warn('[chat] team_chat_messages insert: no data, no error', res);
       })
       .catch(function (err) {
-        console.error('team_chat_messages insert failed', err);
+        console.error('[chat] team_chat_messages insert promise rejected', err, 'row=', row);
+        try {
+          window.alert('메시지 전송 실패: ' + (err && (err.message || err.code || String(err)) || '알 수 없는 오류'));
+        } catch (e) {}
       });
   }
 
