@@ -6013,7 +6013,8 @@
       var p3 = paymentCellWithConfirm(c, 'progress3');
       var balance = paymentCellWithConfirm(c, 'balance');
       var summary = paymentSummaryHtml(c);
-      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000))) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td></tr>';
+      var memoCell = '<td class="settlement-memo-cell"><textarea class="settlement-memo-input" data-contract-id="' + escapeAttr(c.id) + '" rows="2" placeholder="메모 입력...">' + escapeHtml(c.balanceMemo || '') + '</textarea></td>';
+      return '<tr><td>' + getShowroomName(c.showroomId) + '</td><td>' + (c.customerName || '-') + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / (c.amountUnit === 'manwon' ? 1 : 10000))) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td>' + memoCell + '</tr>';
     }).join('') || '<tr><td colspan="10">정산 데이터가 없습니다.</td></tr>';
     renderSettlementIncentive();
   }
@@ -8986,12 +8987,10 @@
       confirmed = true;
       c[m.confirmed] = true;
     }
-    // 잔금은 메모만 있어도 셀이 비어 보이지 않도록 표시
-    var hasBalanceMemo = (type === 'balance' && c.balanceMemo);
     var _payDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
-    // 정산팀 화면에서도 금액 수정/잔금 메모 입력이 가능하도록 항상 수정 버튼 노출
+    // 정산팀 화면에서도 금액 수정이 가능하도록 항상 수정 버튼 노출
     var editBtn = ' <button type="button" class="btn btn-sm btn-secondary payment-edit-btn" data-payment="' + type + '" data-id="' + c.id + '">수정</button>';
-    if (!amount && !receivedAt && !hasBalanceMemo) {
+    if (!amount && !receivedAt) {
       return '<span class="payment-none">-</span>' + editBtn;
     }
     var label = '';
@@ -9029,13 +9028,7 @@
         '</span>';
       }
     }
-    // 잔금 메모 (hover/title로 전체 보기)
-    var memoHtml = '';
-    if (type === 'balance' && c.balanceMemo) {
-      var memo = String(c.balanceMemo);
-      memoHtml = '<div class="payment-balance-memo" title="' + escapeAttr(memo) + '">' + escapeHtml(memo) + '</div>';
-    }
-    return '<span class="payment-amount">' + (label || '-') + '</span>' + editBtn + check + historyHtml + memoHtml;
+    return '<span class="payment-amount">' + (label || '-') + '</span>' + editBtn + check + historyHtml;
   }
 
   function togglePaymentConfirmed(contractId, type, checked) {
@@ -9643,6 +9636,18 @@
         var contractId = e.target.getAttribute('data-contract-id');
         var type = e.target.getAttribute('data-type');
         if (contractId && type) togglePaymentConfirmed(contractId, type, e.target.checked);
+      }
+      // 정산팀 메모 컬럼 — 인라인 textarea blur/change 시 저장
+      if (e.target.classList.contains('settlement-memo-input')) {
+        var memoCid = e.target.getAttribute('data-contract-id');
+        if (!memoCid) return;
+        var contracts = getContracts();
+        var target = contracts.find(function (x) { return x.id === memoCid; });
+        if (!target) return;
+        var newVal = (e.target.value || '').trim();
+        if ((target.balanceMemo || '') === newVal) return;
+        target.balanceMemo = newVal;
+        saveContracts(contracts);
       }
     });
 
