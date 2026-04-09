@@ -6104,6 +6104,60 @@ textarea.form-input {
   color: var(--text-muted);
 }
 
+/* 잔금 메모 — 셀 안에서 작게 표시, 길면 말줄임 + hover/title 전체 보기 */
+.payment-cell .payment-balance-memo {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: #FBBF24;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 2px solid rgba(251, 191, 36, 0.55);
+  border-radius: 2px;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+.payment-cell .payment-balance-memo:hover {
+  white-space: normal;
+  overflow: visible;
+}
+
+/* 금액 변경 이력 아이콘 (해당 항목에 변경 이력이 있을 때) */
+.payment-cell .payment-history-icon {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.78rem;
+  color: #60A5FA;
+  cursor: help;
+  user-select: none;
+}
+.payment-cell .payment-history-icon:hover {
+  color: #93C5FD;
+}
+
+/* 입금 모달 — 변경 사유 안내 문구 */
+.payment-change-reason-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+#payment-memo-wrap textarea,
+#payment-change-reason-wrap textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+/* 모바일: 메모가 셀 폭 넘지 않도록 */
+@media (max-width: 768px) {
+  .payment-cell .payment-balance-memo {
+    max-width: 100%;
+  }
+}
+
 .payment-summary-cell {
   min-width: 160px;
   vertical-align: top;
