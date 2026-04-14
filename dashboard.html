@@ -2846,6 +2846,17 @@
               </select>
             </label>
             <label>
+              소속
+              <select id="worklog-filter-showroom">
+                <option value="">전체</option>
+                <option value="headquarters">본사 전시장</option>
+                <option value="showroom1">1전시장</option>
+                <option value="showroom3">3전시장</option>
+                <option value="showroom4">4전시장</option>
+                <option value="ganghwa">강화전시장</option>
+              </select>
+            </label>
+            <label>
               작성자
               <input type="text" id="worklog-filter-author" placeholder="이름 검색">
             </label>
@@ -2896,6 +2907,7 @@
                       <th>날짜</th>
                       <th>작성자</th>
                       <th>팀</th>
+                      <th>소속</th>
                       <th>제목</th>
                       <th>주요 업무</th>
                       <th>액션</th>
@@ -2945,6 +2957,17 @@
                   <option value="marketing">마케팅팀</option>
                   <option value="settlement">정산팀</option>
                   <option value="management">경영팀</option>
+                </select>
+              </label>
+              <label>
+                소속
+                <select id="worklog-showroom">
+                  <option value="">선택</option>
+                  <option value="headquarters">본사 전시장</option>
+                  <option value="showroom1">1전시장</option>
+                  <option value="showroom3">3전시장</option>
+                  <option value="showroom4">4전시장</option>
+                  <option value="ganghwa">강화전시장</option>
                 </select>
               </label>
             </div>
