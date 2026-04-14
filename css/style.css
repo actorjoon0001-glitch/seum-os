@@ -10768,8 +10768,211 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 #section-worklog .worklog-cell:hover {
-  background: var(--bg-hover);
+  background: #242424 !important;
 }
+
+/* ========== 업무일지 다크 테마 가독성 (운영 캘린더와 동일 톤) ========== */
+#section-worklog {
+  background: #141414;
+}
+
+#section-worklog h1,
+#section-worklog h2,
+#section-worklog h3,
+#section-worklog h4,
+#section-worklog .card-title,
+#section-worklog .main-header h2 {
+  color: #F5F5F5 !important;
+  font-weight: 700;
+}
+
+#section-worklog .section-desc,
+#section-worklog p,
+#section-worklog .team-calendar-current-label {
+  color: #E5E5E5;
+}
+
+#section-worklog label {
+  color: #D1D5DB !important;
+  font-weight: 500;
+}
+
+#section-worklog input,
+#section-worklog select,
+#section-worklog textarea {
+  background: #1F1F1F !important;
+  color: #E5E5E5 !important;
+  border: 1px solid #374151 !important;
+}
+
+#section-worklog input::placeholder,
+#section-worklog textarea::placeholder {
+  color: #8A8A8A !important;
+}
+
+#section-worklog select option {
+  background: #1F1F1F !important;
+  color: #E5E5E5 !important;
+}
+
+/* 카드 */
+#section-worklog .team-calendar-filters.card,
+#section-worklog .team-calendar-card,
+#section-worklog .team-calendar-stats-card {
+  background: #1C1C1C !important;
+  border: 1px solid #343434 !important;
+}
+
+/* 팀 칩(레전드) */
+#section-worklog .team-calendar-legend-item {
+  background: #F3F4F6 !important;
+  color: #111827 !important;
+  border: none;
+  font-weight: 600;
+  cursor: default;
+}
+
+/* 월/리스트 보기 탭 */
+#section-worklog .team-calendar-view-tabs {
+  background: #2A2A2A !important;
+  border: 1px solid #3A3A3A;
+  border-radius: 999px;
+}
+
+#section-worklog .team-calendar-view-tab {
+  background: transparent !important;
+  color: #D1D5DB !important;
+}
+
+#section-worklog .team-calendar-view-tab.active {
+  background: #111827 !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 캘린더 그리드 */
+#section-worklog .team-calendar.team-calendar-month,
+#section-worklog .team-calendar-grid {
+  background: #1C1C1C !important;
+  border-color: #343434 !important;
+}
+
+#section-worklog .team-calendar-weekday {
+  color: #D1D5DB !important;
+  font-weight: 600;
+  background: #202020 !important;
+  border-color: #343434 !important;
+}
+
+#section-worklog .team-calendar-cell {
+  background: #181818 !important;
+  border-color: #2A2A2A !important;
+}
+
+#section-worklog .team-calendar-cell.worklog-cell:hover {
+  background: #242424 !important;
+}
+
+#section-worklog .team-calendar-date {
+  color: #EAEAEA !important;
+  font-weight: 600;
+}
+
+#section-worklog .team-calendar-cell-empty {
+  background: #141414 !important;
+}
+
+#section-worklog .team-calendar-cell-empty .team-calendar-date {
+  color: #6F6F6F !important;
+}
+
+#section-worklog .team-calendar-cell.today {
+  background: #1E2A3D !important;
+  border-color: #3B82F6 !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
+}
+
+#section-worklog .team-calendar-cell.today .team-calendar-date {
+  color: #93C5FD !important;
+}
+
+#section-worklog .team-calendar-weekday.sunday,
+#section-worklog .team-calendar-week-day.sunday .team-calendar-week-day-name {
+  color: #F87171 !important;
+}
+
+#section-worklog .team-calendar-weekday.saturday,
+#section-worklog .team-calendar-week-day.saturday .team-calendar-week-day-name {
+  color: #93C5FD !important;
+}
+
+/* 일정(업무일지) 카드 */
+#section-worklog .team-calendar-event {
+  border: none;
+  border-radius: 8px;
+  background: #2A3441;
+  color: #E5E7EB;
+  padding: 4px 6px;
+}
+
+#section-worklog .team-calendar-event-title {
+  color: #F3F4F6;
+  font-weight: 500;
+}
+
+#section-worklog .team-calendar-event-meta {
+  color: #9CA3AF;
+}
+
+#section-worklog .team-calendar-event:hover {
+  background: #334155;
+}
+
+/* 이번 달 요약 카드 내부 통계 박스 */
+#section-worklog .team-calendar-stats-card h3 {
+  color: #F5F5F5;
+}
+
+#section-worklog .team-calendar-stat {
+  background: #242424 !important;
+  border: 1px solid #343434 !important;
+}
+
+#section-worklog .team-calendar-stat-label {
+  color: #9CA3AF !important;
+}
+
+#section-worklog .team-calendar-stat-value {
+  color: #F5F5F5 !important;
+  font-weight: 700;
+}
+
+/* 리스트 보기 테이블 */
+#section-worklog .data-table {
+  background: #1C1C1C;
+  color: #E5E5E5;
+}
+
+#section-worklog .data-table th {
+  background: #202020 !important;
+  color: #D1D5DB !important;
+  border-color: #343434 !important;
+}
+
+#section-worklog .data-table td {
+  background: #181818 !important;
+  color: #E5E5E5 !important;
+  border-color: #2A2A2A !important;
+}
+
+#section-worklog .data-table tr:hover td {
+  background: #242424 !important;
+}
+
+#section-worklog .no-result-msg {
+  color: #9CA3AF !important;
+}
+
 
 .worklog-modal-overlay {
   position: fixed;
