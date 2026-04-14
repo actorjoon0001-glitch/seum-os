@@ -7774,11 +7774,25 @@
     }
   }
 
+  function canViewAllWorklogs() {
+    return isAdmin() || isMaster() || isSuperAdmin();
+  }
+
+  function isOwnWorklog(w) {
+    var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+    if (!cur) return false;
+    if (w.authorUserId && cur.authUserId && w.authorUserId === cur.authUserId) return true;
+    if (w.author && cur.name && w.author === cur.name) return true;
+    return false;
+  }
+
   function filterWorklog(logs) {
     var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
     var showroomFilter = (document.getElementById('worklog-filter-showroom') || {}).value || '';
     var authorFilter = ((document.getElementById('worklog-filter-author') || {}).value || '').trim().toLowerCase();
+    var viewAll = canViewAllWorklogs();
     return logs.filter(function (w) {
+      if (!viewAll && !isOwnWorklog(w)) return false;
       if (teamFilter && w.team !== teamFilter) return false;
       if (showroomFilter && w.showroom !== showroomFilter) return false;
       if (authorFilter && (w.author || '').toLowerCase().indexOf(authorFilter) === -1) return false;
@@ -7929,6 +7943,7 @@
     var title = document.getElementById('worklog-modal-title');
     var form = document.getElementById('form-worklog');
     var delBtn = document.getElementById('btn-worklog-delete');
+    var printOneBtn = document.getElementById('btn-worklog-print-one');
     var dayWrap = document.getElementById('worklog-day-entries');
     form.classList.remove('hidden');
     dayWrap.classList.add('hidden');
@@ -7945,6 +7960,7 @@
       document.getElementById('worklog-plan').value = data.plan || '';
       document.getElementById('worklog-issues').value = data.issues || '';
       delBtn.style.display = '';
+      if (printOneBtn) printOneBtn.style.display = '';
     } else {
       title.textContent = '업무일지 작성';
       form.reset();
@@ -7960,6 +7976,7 @@
         if (showroomId) document.getElementById('worklog-showroom').value = showroomId;
       }
       delBtn.style.display = 'none';
+      if (printOneBtn) printOneBtn.style.display = 'none';
     }
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -8018,6 +8035,84 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
+  function buildWorklogEntryPrintHtml(wl) {
+    var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+    var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
+    return '<article class="wl-print-entry">' +
+      '<header class="wl-print-entry-head">' +
+        '<h2>' + escapeHtml(wl.title || '(제목 없음)') + '</h2>' +
+        '<div class="wl-print-meta">' +
+          '<span><strong>날짜</strong> ' + escapeHtml(wl.date || '-') + '</span>' +
+          '<span><strong>작성자</strong> ' + escapeHtml(wl.author || '-') + '</span>' +
+          '<span><strong>팀</strong> ' + escapeHtml(teamLabel) + '</span>' +
+          '<span><strong>소속</strong> ' + escapeHtml(showroomLabel) + '</span>' +
+        '</div>' +
+      '</header>' +
+      '<section class="wl-print-sec">' +
+        '<h3>오늘 한 업무</h3>' +
+        '<p>' + escapeHtml(wl.content || '-') + '</p>' +
+      '</section>' +
+      (wl.plan ? '<section class="wl-print-sec"><h3>내일 예정 업무</h3><p>' + escapeHtml(wl.plan) + '</p></section>' : '') +
+      (wl.issues ? '<section class="wl-print-sec"><h3>이슈 및 특이사항</h3><p>' + escapeHtml(wl.issues) + '</p></section>' : '') +
+      '</article>';
+  }
+
+  function openWorklogPrintWindow(titleText, entriesHtml) {
+    var w = window.open('', '_blank', 'width=820,height=1100');
+    if (!w) {
+      showToast('팝업이 차단되었습니다. 허용 후 다시 시도하세요.', 'error');
+      return;
+    }
+    var styles =
+      '@page{size:A4 portrait;margin:14mm}' +
+      'body{font-family:"Noto Sans KR","Malgun Gothic",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12pt;line-height:1.5}' +
+      '.wl-print-header{border-bottom:2px solid #111;padding-bottom:6mm;margin-bottom:6mm}' +
+      '.wl-print-header h1{margin:0 0 2mm;font-size:18pt}' +
+      '.wl-print-header .wl-print-sub{font-size:10pt;color:#555}' +
+      '.wl-print-entry{border:1px solid #666;border-radius:3px;padding:5mm 6mm;margin-bottom:5mm;break-inside:avoid;page-break-inside:avoid}' +
+      '.wl-print-entry-head{border-bottom:1px solid #bbb;padding-bottom:3mm;margin-bottom:3mm}' +
+      '.wl-print-entry-head h2{margin:0 0 2mm;font-size:14pt}' +
+      '.wl-print-meta{display:flex;flex-wrap:wrap;gap:3mm 8mm;font-size:10pt;color:#333}' +
+      '.wl-print-meta strong{color:#000;margin-right:2mm}' +
+      '.wl-print-sec{margin-top:3mm}' +
+      '.wl-print-sec h3{margin:0 0 1mm;font-size:11pt;color:#000;border-left:3px solid #111;padding-left:2mm}' +
+      '.wl-print-sec p{margin:0;white-space:pre-wrap;font-size:11pt}' +
+      '.wl-print-empty{text-align:center;color:#666;padding:20mm 0;font-size:12pt}' +
+      '@media print{.no-print{display:none}}';
+    w.document.write(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeHtml(titleText) + '</title><style>' + styles + '</style></head><body>' +
+      '<div class="wl-print-header"><h1>업무일지</h1><div class="wl-print-sub">' + escapeHtml(titleText) + ' · 출력일: ' + new Date().toLocaleString('ko-KR') + '</div></div>' +
+      entriesHtml +
+      '</body></html>'
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(function () { try { w.print(); } catch (e) {} }, 350);
+  }
+
+  function printWorklogSingle(wl) {
+    if (!wl) return;
+    var titleText = (wl.date || '') + ' ' + (wl.author || '') + ' 업무일지';
+    openWorklogPrintWindow(titleText, buildWorklogEntryPrintHtml(wl));
+  }
+
+  function printWorklogVisible() {
+    var logs = filterWorklog(getWorklog());
+    var monthPrefix = getWorklogMonthPrefix();
+    logs = logs.filter(function (w) { return (w.date || '').indexOf(monthPrefix) === 0; });
+    logs.sort(function (a, b) {
+      var ad = a.date || '';
+      var bd = b.date || '';
+      if (ad === bd) return (a.author || '').localeCompare(b.author || '');
+      return ad.localeCompare(bd);
+    });
+    var titleText = getWorklogMonthLabel() + (canViewAllWorklogs() ? ' 전체 업무일지' : ' 내 업무일지');
+    var body = logs.length
+      ? logs.map(buildWorklogEntryPrintHtml).join('')
+      : '<div class="wl-print-empty">출력할 업무일지가 없습니다.</div>';
+    openWorklogPrintWindow(titleText, body);
+  }
+
   function renderWorklog() {
     populateWorklogYearSelect();
     syncWorklogFilters();
@@ -8043,6 +8138,17 @@
 
     var addBtn = document.getElementById('btn-worklog-add');
     if (addBtn) addBtn.addEventListener('click', function () { openWorklogModal('new', null); });
+
+    var printBtn = document.getElementById('btn-worklog-print');
+    if (printBtn) printBtn.addEventListener('click', printWorklogVisible);
+
+    var printOneBtn = document.getElementById('btn-worklog-print-one');
+    if (printOneBtn) printOneBtn.addEventListener('click', function () {
+      var editId = document.getElementById('worklog-edit-id').value;
+      if (!editId) return;
+      var wl = getWorklog().find(function (x) { return x.id === editId; });
+      if (wl) printWorklogSingle(wl);
+    });
 
     var closeBtn = document.getElementById('worklog-modal-close');
     if (closeBtn) closeBtn.addEventListener('click', closeWorklogModal);

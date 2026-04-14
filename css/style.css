@@ -10764,6 +10764,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--text-sub);
   padding: 2px 4px;
 }
+#section-worklog .worklog-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
 #section-worklog .worklog-cell {
   cursor: pointer;
 }
