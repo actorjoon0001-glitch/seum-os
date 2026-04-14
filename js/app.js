@@ -12236,6 +12236,141 @@
     initExpenseReport();
     if (typeof window.initMarketing === 'function') window.initMarketing();
 
+    // 대표님 일일보고 + 업무일지 합본 인쇄
+    function cloneSectionForPrint(section) {
+      var clone = section.cloneNode(true);
+      var origInputs = section.querySelectorAll('input, textarea, select');
+      var cloneInputs = clone.querySelectorAll('input, textarea, select');
+      origInputs.forEach(function (orig, i) {
+        var cl = cloneInputs[i];
+        if (!cl) return;
+        if (orig.type === 'checkbox' || orig.type === 'radio') {
+          if (orig.checked) cl.setAttribute('checked', ''); else cl.removeAttribute('checked');
+        } else {
+          cl.setAttribute('value', orig.value);
+          if (cl.tagName === 'TEXTAREA') cl.textContent = orig.value;
+          if (cl.tagName === 'SELECT') {
+            Array.from(cl.options).forEach(function (opt, oi) {
+              if (orig.options[oi] && orig.options[oi].selected) opt.setAttribute('selected', ''); else opt.removeAttribute('selected');
+            });
+          }
+        }
+      });
+      clone.querySelectorAll('.no-print, .btn-section-print').forEach(function (el) { el.remove(); });
+      ['#ceo-daily-preview-box', '#ceo-weekly-preview-box', '#ceo-monthly-preview-box',
+       '#ceo-daily-detail', '#ceo-weekly-detail', '#ceo-monthly-detail'].forEach(function (sel) {
+        var el = clone.querySelector(sel); if (el) el.remove();
+      });
+      ['#tbody-ceo-daily', '#tbody-ceo-weekly', '#tbody-ceo-monthly'].forEach(function (sel) {
+        var el = clone.querySelector(sel);
+        if (el) { var card = el.closest('.card'); if (card) card.remove(); }
+      });
+      return clone;
+    }
+
+    function buildWorklogPrintSection(dateStr) {
+      if (!dateStr) return '';
+      var logs = getWorklog().filter(function (w) { return (w.date || '') === dateStr; });
+      logs.sort(function (a, b) {
+        var at = (a.team || '') + (a.author || '');
+        var bt = (b.team || '') + (b.author || '');
+        return at.localeCompare(bt);
+      });
+      var headerHtml =
+        '<div class="wl-combined-header">' +
+          '<h2>' + escapeHtml(dateStr) + ' 업무일지</h2>' +
+          '<div class="wl-combined-sub">전 직원 일일 업무보고 (' + logs.length + '건)</div>' +
+        '</div>';
+      if (!logs.length) {
+        return '<div class="wl-combined-pagebreak"></div>' + headerHtml +
+          '<div class="wl-combined-empty">해당 날짜에 작성된 업무일지가 없습니다.</div>';
+      }
+      var entriesHtml = logs.map(function (wl) {
+        var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+        var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
+        return '<article class="wl-combined-entry">' +
+          '<header class="wl-combined-entry-head">' +
+            '<h3>' + escapeHtml(wl.title || '(제목 없음)') + '</h3>' +
+            '<div class="wl-combined-meta">' +
+              '<span><strong>작성자</strong> ' + escapeHtml(wl.author || '-') + '</span>' +
+              '<span><strong>팀</strong> ' + escapeHtml(teamLabel) + '</span>' +
+              '<span><strong>소속</strong> ' + escapeHtml(showroomLabel) + '</span>' +
+            '</div>' +
+          '</header>' +
+          '<section class="wl-combined-sec"><h4>오늘 한 업무</h4><p>' + escapeHtml(wl.content || '-') + '</p></section>' +
+          (wl.plan ? '<section class="wl-combined-sec"><h4>내일 예정 업무</h4><p>' + escapeHtml(wl.plan) + '</p></section>' : '') +
+          (wl.issues ? '<section class="wl-combined-sec"><h4>이슈 및 특이사항</h4><p>' + escapeHtml(wl.issues) + '</p></section>' : '') +
+          '</article>';
+      }).join('');
+      return '<div class="wl-combined-pagebreak"></div>' + headerHtml + entriesHtml;
+    }
+
+    function getCeoDailyPrintStyles() {
+      return '@page{size:A4 portrait;margin:12mm}' +
+        'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12px;line-height:1.4}' +
+        'h2{font-size:1.3rem;margin:0 0 2mm}h3{font-size:1rem;margin:1mm 0}h4{font-size:0.95rem;margin:1mm 0}' +
+        'p{margin:0 0 1mm;color:#555}' +
+        'button,input[type=button],input[type=submit],.btn{display:none!important}' +
+        '.hidden{display:none!important}' +
+        '.card{border:1px solid #ccc;border-radius:4px;padding:3mm 4mm;margin-bottom:4mm;break-inside:avoid}' +
+        '.main-header{margin-bottom:3mm}.section-desc{font-size:0.8rem;color:#555}' +
+        '.form-row{display:flex;gap:3mm;margin-bottom:3mm;grid-column:span 2}' +
+        '.form-actions{display:none!important}' +
+        '#form-ceo-daily,#form-ceo-weekly,#form-ceo-monthly{display:grid;grid-template-columns:1fr 1fr;gap:2mm 4mm}' +
+        '.ceo-block{border:1px solid #ddd;padding:2mm 3mm;margin-bottom:0;break-inside:avoid}' +
+        '.ceo-block:has(textarea){grid-column:span 2}' +
+        '.ceo-block-title{font-weight:700;margin-bottom:1mm;font-size:0.85rem}' +
+        '.ceo-row{display:flex;gap:2mm;margin-bottom:0.5mm;align-items:center}' +
+        '.ceo-label{min-width:6rem;font-size:0.78rem;color:#555;flex-shrink:0}' +
+        '.ceo-sub-label{min-width:5rem;font-size:0.75rem;color:#555;flex-shrink:0}' +
+        '.ceo-input{border:none;border-bottom:1px solid #ccc;flex:1;padding:0;font-size:0.82rem;background:transparent}' +
+        'textarea.ceo-input,textarea{border:1px solid #ccc;width:100%;box-sizing:border-box;padding:1mm 2mm;font-size:0.82rem;background:transparent;resize:none;min-height:10mm;font-family:inherit}' +
+        '.ceo-preview-box{display:none!important}' +
+        'table{width:100%;border-collapse:collapse;font-size:0.78rem}' +
+        'th,td{border:1px solid #999;padding:2mm 3mm}th{background:#f5f5f5;font-weight:600}' +
+        // 합본 업무일지 섹션
+        '.wl-combined-pagebreak{page-break-before:always;break-before:page;height:0}' +
+        '.wl-combined-header{border-bottom:2px solid #111;padding-bottom:4mm;margin-bottom:5mm}' +
+        '.wl-combined-header h2{margin:0 0 2mm;font-size:1.3rem}' +
+        '.wl-combined-sub{font-size:0.85rem;color:#555}' +
+        '.wl-combined-entry{border:1px solid #777;border-radius:3px;padding:4mm 5mm;margin-bottom:4mm;break-inside:avoid;page-break-inside:avoid}' +
+        '.wl-combined-entry-head{border-bottom:1px solid #bbb;padding-bottom:2mm;margin-bottom:2mm}' +
+        '.wl-combined-entry-head h3{margin:0 0 1mm;font-size:1rem}' +
+        '.wl-combined-meta{display:flex;flex-wrap:wrap;gap:2mm 6mm;font-size:0.78rem;color:#333}' +
+        '.wl-combined-meta strong{color:#000;margin-right:1mm}' +
+        '.wl-combined-sec{margin-top:2mm}' +
+        '.wl-combined-sec h4{margin:0 0 1mm;font-size:0.85rem;color:#000;border-left:3px solid #111;padding-left:2mm}' +
+        '.wl-combined-sec p{margin:0;white-space:pre-wrap;font-size:0.82rem;color:#222}' +
+        '.wl-combined-empty{text-align:center;color:#666;padding:10mm 0;font-size:0.9rem}';
+    }
+
+    var ceoDailyCombinedPrintBtn = document.getElementById('btn-ceo-daily-print-with-worklog');
+    if (ceoDailyCombinedPrintBtn) {
+      ceoDailyCombinedPrintBtn.addEventListener('click', function () {
+        var section = document.getElementById('section-ceo-daily');
+        if (!section) return;
+        var dateInput = document.getElementById('ceo-daily-date');
+        var dateStr = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+        var clone = cloneSectionForPrint(section);
+        var worklogHtml = buildWorklogPrintSection(dateStr);
+        var w = window.open('', '_blank', 'width=820,height=1100');
+        if (!w) {
+          if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 허용 후 다시 시도하세요.', 'error');
+          return;
+        }
+        w.document.write(
+          '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>일일 보고 + 업무일지</title><style>' +
+          getCeoDailyPrintStyles() +
+          '</style></head><body>' +
+          clone.innerHTML + worklogHtml +
+          '</body></html>'
+        );
+        w.document.close();
+        w.focus();
+        setTimeout(function () { try { w.print(); } catch (e) {} }, 400);
+      });
+    }
+
     // 섹션 인쇄 버튼 (새 창 방식)
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('.btn-section-print');
