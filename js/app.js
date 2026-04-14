@@ -7754,6 +7754,7 @@
           author_name: w.author || null,
           author_user_id: w.authorUserId || null,
           team: w.team || null,
+          showroom: w.showroom || null,
           title: w.title || null,
           content: w.content || null,
           plan: w.plan || null,
@@ -7775,9 +7776,11 @@
 
   function filterWorklog(logs) {
     var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
+    var showroomFilter = (document.getElementById('worklog-filter-showroom') || {}).value || '';
     var authorFilter = ((document.getElementById('worklog-filter-author') || {}).value || '').trim().toLowerCase();
     return logs.filter(function (w) {
       if (teamFilter && w.team !== teamFilter) return false;
+      if (showroomFilter && w.showroom !== showroomFilter) return false;
       if (authorFilter && (w.author || '').toLowerCase().indexOf(authorFilter) === -1) return false;
       return true;
     });
@@ -7862,17 +7865,19 @@
     });
     logs.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
     if (!logs.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="no-result-msg">업무일지가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="no-result-msg">업무일지가 없습니다.</td></tr>';
       return;
     }
     tbody.innerHTML = logs.map(function (wl) {
       var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+      var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
       var summary = (wl.content || '').replace(/\s+/g, ' ').slice(0, 60);
       if ((wl.content || '').length > 60) summary += '…';
       return '<tr>' +
         '<td>' + escapeHtml(wl.date || '-') + '</td>' +
         '<td>' + escapeHtml(wl.author || '-') + '</td>' +
         '<td>' + escapeHtml(teamLabel) + '</td>' +
+        '<td>' + escapeHtml(showroomLabel) + '</td>' +
         '<td>' + escapeHtml(wl.title || '-') + '</td>' +
         '<td>' + escapeHtml(summary || '-') + '</td>' +
         '<td><button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button></td>' +
@@ -7934,6 +7939,7 @@
       document.getElementById('worklog-date').value = data.date || '';
       document.getElementById('worklog-author').value = data.author || '';
       document.getElementById('worklog-team').value = data.team || '';
+      document.getElementById('worklog-showroom').value = data.showroom || '';
       document.getElementById('worklog-title').value = data.title || '';
       document.getElementById('worklog-content').value = data.content || '';
       document.getElementById('worklog-plan').value = data.plan || '';
@@ -7950,6 +7956,8 @@
         document.getElementById('worklog-author').value = cur.name || '';
         var code = getCurrentTeamCode();
         if (code) document.getElementById('worklog-team').value = code;
+        var showroomId = resolveShowroomId(cur);
+        if (showroomId) document.getElementById('worklog-showroom').value = showroomId;
       }
       delBtn.style.display = 'none';
     }
@@ -7975,11 +7983,15 @@
     } else {
       dayList.innerHTML = logs.map(function (wl) {
         var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '');
+        var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '';
+        var metaParts = [];
+        if (wl.author) metaParts.push(escapeHtml(wl.author));
+        if (teamLabel) metaParts.push(escapeHtml(teamLabel));
+        if (showroomLabel) metaParts.push(escapeHtml(showroomLabel));
         return '<li class="worklog-entry">' +
           '<div class="worklog-entry-head">' +
             '<strong>' + escapeHtml(wl.title || '(제목 없음)') + '</strong>' +
-            '<span class="worklog-entry-meta">' + escapeHtml(wl.author || '') +
-              (teamLabel ? ' · ' + escapeHtml(teamLabel) : '') + '</span>' +
+            '<span class="worklog-entry-meta">' + metaParts.join(' · ') + '</span>' +
           '</div>' +
           '<div class="worklog-entry-body">' + escapeHtml(wl.content || '') + '</div>' +
           (wl.plan ? '<div class="worklog-entry-sub"><span>내일 계획</span>' + escapeHtml(wl.plan) + '</div>' : '') +
@@ -8049,6 +8061,7 @@
         date: document.getElementById('worklog-date').value,
         author: document.getElementById('worklog-author').value.trim(),
         team: document.getElementById('worklog-team').value,
+        showroom: document.getElementById('worklog-showroom').value,
         title: document.getElementById('worklog-title').value.trim(),
         content: document.getElementById('worklog-content').value.trim(),
         plan: document.getElementById('worklog-plan').value.trim(),
@@ -8179,11 +8192,14 @@
     });
     var tSel = document.getElementById('worklog-filter-team');
     if (tSel) tSel.addEventListener('change', renderWorklog);
+    var sSel = document.getElementById('worklog-filter-showroom');
+    if (sSel) sSel.addEventListener('change', renderWorklog);
     var aInp = document.getElementById('worklog-filter-author');
     if (aInp) aInp.addEventListener('input', renderWorklog);
     var reset = document.getElementById('worklog-filter-reset');
     if (reset) reset.addEventListener('click', function () {
       if (tSel) tSel.value = '';
+      if (sSel) sSel.value = '';
       if (aInp) aInp.value = '';
       renderWorklog();
     });
