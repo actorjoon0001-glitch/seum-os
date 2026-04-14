@@ -30,6 +30,7 @@
   var STORAGE_PROCUREMENT_SITES = 'seum_procurement_sites';
   var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
   var STORAGE_PROCUREMENT_STD_QTY = 'seum_procurement_std_qty';
+  var STORAGE_WORKLOG = 'seum_worklog';
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '본사 전시장' },
@@ -7724,6 +7725,470 @@
     }
   }
 
+  // =====================================================================
+  // 업무일지 (공통) - 캘린더 형식의 일일 업무보고
+  // =====================================================================
+  var worklogYear = new Date().getFullYear();
+  var worklogMonth = new Date().getMonth();
+  var worklogView = 'month';
+  var worklogInitialized = false;
+
+  function getWorklog() {
+    try {
+      var raw = localStorage.getItem(STORAGE_WORKLOG);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveWorklog(data) {
+    localStorage.setItem(STORAGE_WORKLOG, JSON.stringify(data));
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase || !Array.isArray(data)) return;
+      var rows = data.map(function (w) {
+        return {
+          local_id: w.id || null,
+          work_date: w.date || null,
+          author_name: w.author || null,
+          author_user_id: w.authorUserId || null,
+          team: w.team || null,
+          title: w.title || null,
+          content: w.content || null,
+          plan: w.plan || null,
+          issues: w.issues || null,
+          payload: w
+        };
+      });
+      supabase
+        .from('work_logs')
+        .upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) {
+          if (res && res.error) console.error('Supabase work_logs sync error:', res.error);
+        })
+        .catch(function (err) { console.error('Supabase work_logs sync failed:', err); });
+    } catch (e) {
+      console.error('Supabase work_logs sync exception:', e);
+    }
+  }
+
+  function filterWorklog(logs) {
+    var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
+    var authorFilter = ((document.getElementById('worklog-filter-author') || {}).value || '').trim().toLowerCase();
+    return logs.filter(function (w) {
+      if (teamFilter && w.team !== teamFilter) return false;
+      if (authorFilter && (w.author || '').toLowerCase().indexOf(authorFilter) === -1) return false;
+      return true;
+    });
+  }
+
+  function getWorklogMonthLabel() {
+    return worklogYear + '년 ' + (worklogMonth + 1) + '월';
+  }
+
+  function getWorklogMonthPrefix() {
+    return worklogYear + '-' + String(worklogMonth + 1).padStart(2, '0');
+  }
+
+  function groupWorklogByDate(logs, monthPrefix) {
+    var map = {};
+    logs.forEach(function (w) {
+      var d = w.date || '';
+      if (monthPrefix && d.indexOf(monthPrefix) !== 0) return;
+      if (!map[d]) map[d] = [];
+      map[d].push(w);
+    });
+    return map;
+  }
+
+  function renderWorklogMonth() {
+    var grid = document.getElementById('worklog-grid-month');
+    var label = document.getElementById('worklog-current-label');
+    if (!grid || !label) return;
+    label.textContent = getWorklogMonthLabel();
+    var first = new Date(worklogYear, worklogMonth, 1);
+    var startDay = first.getDay();
+    var daysInMonth = new Date(worklogYear, worklogMonth + 1, 0).getDate();
+    var weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    var logs = filterWorklog(getWorklog());
+    var monthPrefix = getWorklogMonthPrefix();
+    var byDate = groupWorklogByDate(logs, monthPrefix);
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var html = [];
+    for (var w = 0; w < 7; w++) {
+      var cls = 'team-calendar-weekday';
+      if (w === 0) cls += ' sunday';
+      if (w === 6) cls += ' saturday';
+      html.push('<div class="' + cls + '">' + weekdayNames[w] + '</div>');
+    }
+    for (var i = 0; i < startDay; i++) {
+      html.push('<div class="team-calendar-cell team-calendar-cell-empty"></div>');
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      var dateStr = worklogYear + '-' + String(worklogMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      var dayLogs = byDate[dateStr] || [];
+      var eventsHtml = dayLogs.slice(0, 4).map(function (wl) {
+        var clsEv = 'team-calendar-event';
+        if (wl.team && TEAM_LABELS[wl.team]) clsEv += ' team-calendar-event-' + wl.team;
+        var title = wl.title || '(제목 없음)';
+        var author = wl.author || '';
+        return '<button type="button" class="' + clsEv + '" data-worklog-id="' + escapeAttr(wl.id) + '">' +
+          '<span class="team-calendar-event-title">' + escapeHtml(title) + '</span>' +
+          (author ? '<span class="team-calendar-event-meta">' + escapeHtml(author) + '</span>' : '') +
+          '</button>';
+      }).join('');
+      if (dayLogs.length > 4) {
+        eventsHtml += '<div class="team-calendar-event-more">+' + (dayLogs.length - 4) + '건</div>';
+      }
+      html.push(
+        '<div class="team-calendar-cell worklog-cell' + (dateStr === todayStr ? ' today' : '') + '" data-worklog-date="' + dateStr + '">' +
+        '<div class="team-calendar-date">' + day + '</div>' +
+        '<div class="team-calendar-events">' + eventsHtml + '</div>' +
+        '</div>'
+      );
+    }
+    grid.innerHTML = html.join('');
+  }
+
+  function renderWorklogList() {
+    var tbody = document.getElementById('worklog-tbody-list');
+    var label = document.getElementById('worklog-current-label');
+    if (!tbody || !label) return;
+    label.textContent = getWorklogMonthLabel() + ' 리스트';
+    var monthPrefix = getWorklogMonthPrefix();
+    var logs = filterWorklog(getWorklog()).filter(function (w) {
+      return (w.date || '').indexOf(monthPrefix) === 0;
+    });
+    logs.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="no-result-msg">업무일지가 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.map(function (wl) {
+      var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+      var summary = (wl.content || '').replace(/\s+/g, ' ').slice(0, 60);
+      if ((wl.content || '').length > 60) summary += '…';
+      return '<tr>' +
+        '<td>' + escapeHtml(wl.date || '-') + '</td>' +
+        '<td>' + escapeHtml(wl.author || '-') + '</td>' +
+        '<td>' + escapeHtml(teamLabel) + '</td>' +
+        '<td>' + escapeHtml(wl.title || '-') + '</td>' +
+        '<td>' + escapeHtml(summary || '-') + '</td>' +
+        '<td><button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function renderWorklogStats() {
+    var wrap = document.getElementById('worklog-stats-grid');
+    if (!wrap) return;
+    var monthPrefix = getWorklogMonthPrefix();
+    var logs = filterWorklog(getWorklog()).filter(function (w) {
+      return (w.date || '').indexOf(monthPrefix) === 0;
+    });
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var todayCount = logs.filter(function (w) { return w.date === todayStr; }).length;
+    var authors = {};
+    logs.forEach(function (w) { if (w.author) authors[w.author] = true; });
+    var authorCount = Object.keys(authors).length;
+    var total = logs.length;
+    wrap.innerHTML =
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">이번 달 일지</div><div class="team-calendar-stat-value">' + total + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">오늘 작성</div><div class="team-calendar-stat-value">' + todayCount + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">작성 직원수</div><div class="team-calendar-stat-value">' + authorCount + '</div></div>';
+  }
+
+  function populateWorklogYearSelect() {
+    var sel = document.getElementById('worklog-filter-year');
+    if (!sel || sel.options.length > 0) return;
+    var nowYear = new Date().getFullYear();
+    var html = '';
+    for (var y = nowYear - 2; y <= nowYear + 2; y++) {
+      html += '<option value="' + y + '">' + y + '년</option>';
+    }
+    sel.innerHTML = html;
+    sel.value = String(worklogYear);
+  }
+
+  function syncWorklogFilters() {
+    var ySel = document.getElementById('worklog-filter-year');
+    var mSel = document.getElementById('worklog-filter-month');
+    if (ySel) ySel.value = String(worklogYear);
+    if (mSel) mSel.value = String(worklogMonth + 1);
+  }
+
+  function openWorklogModal(mode, data) {
+    var modal = document.getElementById('worklog-modal');
+    if (!modal) return;
+    var title = document.getElementById('worklog-modal-title');
+    var form = document.getElementById('form-worklog');
+    var delBtn = document.getElementById('btn-worklog-delete');
+    var dayWrap = document.getElementById('worklog-day-entries');
+    form.classList.remove('hidden');
+    dayWrap.classList.add('hidden');
+
+    if (mode === 'edit' && data) {
+      title.textContent = '업무일지 수정';
+      document.getElementById('worklog-edit-id').value = data.id || '';
+      document.getElementById('worklog-date').value = data.date || '';
+      document.getElementById('worklog-author').value = data.author || '';
+      document.getElementById('worklog-team').value = data.team || '';
+      document.getElementById('worklog-title').value = data.title || '';
+      document.getElementById('worklog-content').value = data.content || '';
+      document.getElementById('worklog-plan').value = data.plan || '';
+      document.getElementById('worklog-issues').value = data.issues || '';
+      delBtn.style.display = '';
+    } else {
+      title.textContent = '업무일지 작성';
+      form.reset();
+      document.getElementById('worklog-edit-id').value = '';
+      var preset = (data && data.date) || new Date().toISOString().slice(0, 10);
+      document.getElementById('worklog-date').value = preset;
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+      if (cur) {
+        document.getElementById('worklog-author').value = cur.name || '';
+        var code = getCurrentTeamCode();
+        if (code) document.getElementById('worklog-team').value = code;
+      }
+      delBtn.style.display = 'none';
+    }
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function openWorklogDayList(dateStr) {
+    var modal = document.getElementById('worklog-modal');
+    if (!modal) return;
+    var form = document.getElementById('form-worklog');
+    var dayWrap = document.getElementById('worklog-day-entries');
+    var dayTitle = document.getElementById('worklog-day-entries-title');
+    var dayList = document.getElementById('worklog-day-entries-list');
+    var title = document.getElementById('worklog-modal-title');
+    var logs = filterWorklog(getWorklog()).filter(function (w) { return w.date === dateStr; });
+    title.textContent = dateStr + ' 업무일지';
+    form.classList.add('hidden');
+    dayWrap.classList.remove('hidden');
+    dayTitle.textContent = dateStr + ' 작성된 업무일지 (' + logs.length + '건)';
+    if (!logs.length) {
+      dayList.innerHTML = '<li class="worklog-empty">해당 날짜의 업무일지가 없습니다.</li>';
+    } else {
+      dayList.innerHTML = logs.map(function (wl) {
+        var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '');
+        return '<li class="worklog-entry">' +
+          '<div class="worklog-entry-head">' +
+            '<strong>' + escapeHtml(wl.title || '(제목 없음)') + '</strong>' +
+            '<span class="worklog-entry-meta">' + escapeHtml(wl.author || '') +
+              (teamLabel ? ' · ' + escapeHtml(teamLabel) : '') + '</span>' +
+          '</div>' +
+          '<div class="worklog-entry-body">' + escapeHtml(wl.content || '') + '</div>' +
+          (wl.plan ? '<div class="worklog-entry-sub"><span>내일 계획</span>' + escapeHtml(wl.plan) + '</div>' : '') +
+          (wl.issues ? '<div class="worklog-entry-sub"><span>이슈</span>' + escapeHtml(wl.issues) + '</div>' : '') +
+          '<div class="worklog-entry-actions">' +
+            '<button type="button" class="btn btn-sm btn-secondary worklog-edit-btn" data-worklog-id="' + escapeAttr(wl.id) + '">수정</button>' +
+          '</div>' +
+        '</li>';
+      }).join('');
+    }
+    var addBtn = document.createElement('div');
+    addBtn.className = 'worklog-day-add-wrap';
+    addBtn.innerHTML = '<button type="button" class="btn btn-primary" id="worklog-day-add-btn" data-worklog-date="' + escapeAttr(dateStr) + '">이 날짜에 업무일지 작성</button>';
+    dayWrap.querySelector('.worklog-day-add-wrap') && dayWrap.querySelector('.worklog-day-add-wrap').remove();
+    dayWrap.appendChild(addBtn);
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeWorklogModal() {
+    var modal = document.getElementById('worklog-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function renderWorklog() {
+    populateWorklogYearSelect();
+    syncWorklogFilters();
+    if (worklogView === 'list') {
+      document.getElementById('worklog-view-month').classList.add('hidden');
+      document.getElementById('worklog-view-list').classList.remove('hidden');
+      renderWorklogList();
+    } else {
+      document.getElementById('worklog-view-month').classList.remove('hidden');
+      document.getElementById('worklog-view-list').classList.add('hidden');
+      renderWorklogMonth();
+    }
+    renderWorklogStats();
+    if (!worklogInitialized) {
+      worklogInitialized = true;
+      initWorklogEvents();
+    }
+  }
+
+  function initWorklogEvents() {
+    var section = document.getElementById('section-worklog');
+    if (!section) return;
+
+    var addBtn = document.getElementById('btn-worklog-add');
+    if (addBtn) addBtn.addEventListener('click', function () { openWorklogModal('new', null); });
+
+    var closeBtn = document.getElementById('worklog-modal-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeWorklogModal);
+    var cancelBtn = document.getElementById('btn-worklog-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeWorklogModal);
+    var modal = document.getElementById('worklog-modal');
+    if (modal) modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeWorklogModal();
+    });
+
+    var form = document.getElementById('form-worklog');
+    if (form) form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('worklog-edit-id').value;
+      var entry = {
+        date: document.getElementById('worklog-date').value,
+        author: document.getElementById('worklog-author').value.trim(),
+        team: document.getElementById('worklog-team').value,
+        title: document.getElementById('worklog-title').value.trim(),
+        content: document.getElementById('worklog-content').value.trim(),
+        plan: document.getElementById('worklog-plan').value.trim(),
+        issues: document.getElementById('worklog-issues').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      if (!entry.date || !entry.author || !entry.title || !entry.content) {
+        showToast('필수 항목을 입력하세요.', 'error');
+        return;
+      }
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+      if (cur && cur.authUserId) entry.authorUserId = cur.authUserId;
+      var logs = getWorklog();
+      if (editId) {
+        logs = logs.map(function (w) { return w.id === editId ? Object.assign({}, w, entry) : w; });
+      } else {
+        entry.id = id();
+        entry.createdAt = new Date().toISOString();
+        logs.push(entry);
+      }
+      saveWorklog(logs);
+      closeWorklogModal();
+      renderWorklog();
+      showToast(editId ? '업무일지가 수정됐습니다.' : '업무일지가 등록됐습니다.');
+    });
+
+    var delBtn = document.getElementById('btn-worklog-delete');
+    if (delBtn) delBtn.addEventListener('click', function () {
+      var editId = document.getElementById('worklog-edit-id').value;
+      if (!editId) return;
+      if (!window.confirm('업무일지를 삭제하시겠습니까?')) return;
+      var logs = getWorklog().filter(function (w) { return w.id !== editId; });
+      saveWorklog(logs);
+      closeWorklogModal();
+      renderWorklog();
+      showToast('삭제됐습니다.');
+    });
+
+    // Calendar cell clicks
+    var grid = document.getElementById('worklog-grid-month');
+    if (grid) grid.addEventListener('click', function (e) {
+      var eventBtn = e.target.closest('[data-worklog-id]');
+      if (eventBtn) {
+        var wid = eventBtn.getAttribute('data-worklog-id');
+        var w = getWorklog().find(function (x) { return x.id === wid; });
+        if (w) openWorklogModal('edit', w);
+        return;
+      }
+      var cell = e.target.closest('[data-worklog-date]');
+      if (cell) {
+        var dateStr = cell.getAttribute('data-worklog-date');
+        openWorklogDayList(dateStr);
+      }
+    });
+
+    // Day list (modal) click handling
+    var dayWrap = document.getElementById('worklog-day-entries');
+    if (dayWrap) dayWrap.addEventListener('click', function (e) {
+      var editTrigger = e.target.closest('.worklog-edit-btn');
+      if (editTrigger) {
+        var wid = editTrigger.getAttribute('data-worklog-id');
+        var w = getWorklog().find(function (x) { return x.id === wid; });
+        if (w) openWorklogModal('edit', w);
+        return;
+      }
+      var addTrigger = e.target.closest('#worklog-day-add-btn');
+      if (addTrigger) {
+        var d = addTrigger.getAttribute('data-worklog-date');
+        openWorklogModal('new', { date: d });
+      }
+    });
+
+    // List view buttons
+    var listTbody = document.getElementById('worklog-tbody-list');
+    if (listTbody) listTbody.addEventListener('click', function (e) {
+      var btn = e.target.closest('.worklog-view-btn');
+      if (!btn) return;
+      var wid = btn.getAttribute('data-worklog-id');
+      var w = getWorklog().find(function (x) { return x.id === wid; });
+      if (w) openWorklogModal('edit', w);
+    });
+
+    // View tabs
+    section.querySelectorAll('[data-worklog-view]').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var view = tab.getAttribute('data-worklog-view');
+        worklogView = view;
+        section.querySelectorAll('[data-worklog-view]').forEach(function (t) {
+          t.classList.toggle('active', t === tab);
+        });
+        renderWorklog();
+      });
+    });
+
+    // Prev/Next/Today
+    var prev = document.getElementById('worklog-prev');
+    if (prev) prev.addEventListener('click', function () {
+      worklogMonth -= 1;
+      if (worklogMonth < 0) { worklogMonth = 11; worklogYear -= 1; }
+      populateWorklogYearSelect();
+      renderWorklog();
+    });
+    var next = document.getElementById('worklog-next');
+    if (next) next.addEventListener('click', function () {
+      worklogMonth += 1;
+      if (worklogMonth > 11) { worklogMonth = 0; worklogYear += 1; }
+      populateWorklogYearSelect();
+      renderWorklog();
+    });
+    var today = document.getElementById('worklog-go-today');
+    if (today) today.addEventListener('click', function () {
+      var now = new Date();
+      worklogYear = now.getFullYear();
+      worklogMonth = now.getMonth();
+      renderWorklog();
+    });
+
+    // Filters
+    var ySel = document.getElementById('worklog-filter-year');
+    if (ySel) ySel.addEventListener('change', function () {
+      worklogYear = parseInt(ySel.value, 10) || worklogYear;
+      renderWorklog();
+    });
+    var mSel = document.getElementById('worklog-filter-month');
+    if (mSel) mSel.addEventListener('change', function () {
+      worklogMonth = (parseInt(mSel.value, 10) || 1) - 1;
+      renderWorklog();
+    });
+    var tSel = document.getElementById('worklog-filter-team');
+    if (tSel) tSel.addEventListener('change', renderWorklog);
+    var aInp = document.getElementById('worklog-filter-author');
+    if (aInp) aInp.addEventListener('input', renderWorklog);
+    var reset = document.getElementById('worklog-filter-reset');
+    if (reset) reset.addEventListener('click', function () {
+      if (tSel) tSel.value = '';
+      if (aInp) aInp.value = '';
+      renderWorklog();
+    });
+  }
+
   function showSection(sectionId) {
     // ??? ??? ???: admin/master/??????????? ???
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
@@ -7775,6 +8240,7 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'worklog') renderWorklog();
     if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
@@ -11698,6 +12164,7 @@
     initAnnouncementFormModal();
     renderHR();
     renderTeamCalendar();
+    renderWorklog();
     renderKPI();
     console.log('???????? OS ??? ??');
   }
