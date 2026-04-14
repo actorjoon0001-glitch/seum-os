@@ -7774,6 +7774,80 @@
     }
   }
 
+  function syncWorklogFromSupabase() {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      supabase
+        .from('work_logs')
+        .select('local_id,work_date,author_name,author_user_id,team,showroom,title,content,plan,issues,payload,created_at,updated_at')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) {
+              console.error('Supabase work_logs load error:', res.error);
+            }
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            var wl = (row.payload && typeof row.payload === 'object') ? row.payload : {};
+            if (!wl.id && row.local_id) wl.id = row.local_id;
+            if (!wl.date && row.work_date) wl.date = row.work_date;
+            if (!wl.author && row.author_name) wl.author = row.author_name;
+            if (!wl.authorUserId && row.author_user_id) wl.authorUserId = row.author_user_id;
+            if (!wl.team && row.team) wl.team = row.team;
+            if (!wl.showroom && row.showroom) wl.showroom = row.showroom;
+            if (!wl.title && row.title) wl.title = row.title;
+            if (!wl.content && row.content) wl.content = row.content;
+            if (!wl.plan && row.plan) wl.plan = row.plan;
+            if (!wl.issues && row.issues) wl.issues = row.issues;
+            if (!wl.createdAt && row.created_at) wl.createdAt = row.created_at;
+            if (!wl.updatedAt && row.updated_at) wl.updatedAt = row.updated_at;
+            return wl;
+          }).filter(function (wl) { return wl && wl.id; });
+          var local = getWorklog();
+          var byId = {};
+          local.forEach(function (wl) { if (wl && wl.id) byId[wl.id] = wl; });
+          // 원격이 최신이면 원격으로, 아니면 로컬 유지
+          remote.forEach(function (rwl) {
+            var existing = byId[rwl.id];
+            if (!existing) { byId[rwl.id] = rwl; return; }
+            var lu = existing.updatedAt || existing.createdAt || '';
+            var ru = rwl.updatedAt || rwl.createdAt || '';
+            if (!lu || ru > lu) byId[rwl.id] = rwl;
+          });
+          var merged = [];
+          for (var k in byId) {
+            if (byId.hasOwnProperty(k)) merged.push(byId[k]);
+          }
+          localStorage.setItem(STORAGE_WORKLOG, JSON.stringify(merged));
+          if (document.getElementById('section-worklog') &&
+              document.getElementById('section-worklog').classList.contains('active') &&
+              typeof renderWorklog === 'function') {
+            renderWorklog();
+          }
+        })
+        .catch(function (err) {
+          console.error('Supabase work_logs sync load failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase work_logs sync load exception:', e);
+    }
+  }
+
+  function deleteWorklogFromSupabase(workId) {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase || !workId) return;
+      supabase.from('work_logs').delete().eq('local_id', workId)
+        .then(function (res) {
+          if (res && res.error) console.error('Supabase work_logs delete error:', res.error);
+        })
+        .catch(function (err) { console.error('Supabase work_logs delete failed:', err); });
+    } catch (e) {
+      console.error('Supabase work_logs delete exception:', e);
+    }
+  }
+
   function canViewAllWorklogs() {
     return isAdmin() || isMaster() || isSuperAdmin();
   }
@@ -8130,6 +8204,8 @@
       worklogInitialized = true;
       initWorklogEvents();
     }
+    // 페이지 진입 시 Supabase 최신 데이터 가져오기 (비동기)
+    syncWorklogFromSupabase();
   }
 
   function initWorklogEvents() {
@@ -8201,6 +8277,7 @@
       if (!window.confirm('업무일지를 삭제하시겠습니까?')) return;
       var logs = getWorklog().filter(function (w) { return w.id !== editId; });
       saveWorklog(logs);
+      deleteWorklogFromSupabase(editId);
       closeWorklogModal();
       renderWorklog();
       showToast('삭제됐습니다.');
@@ -12119,6 +12196,7 @@
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
     syncTeamEventsFromSupabase();
+    syncWorklogFromSupabase();
     syncAnnouncementsFromSupabase();
     syncActivityLogsFromSupabase();
     initMobileSidebar();
