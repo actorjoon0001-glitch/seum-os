@@ -109,6 +109,7 @@
           <span class="nav-item-badge sidebar-announcement-badge hidden" id="sidebar-announcement-badge" aria-live="polite"></span>
         </a>
         <a href="#" class="nav-item" data-section="team-calendar">운영 캘린더</a>
+        <a href="#" class="nav-item" data-section="worklog">업무일지</a>
       </div>
 
       <div class="nav-section">
@@ -2799,6 +2800,212 @@
       </div>
     </section>
 
+    <section id="section-worklog" class="content-section">
+      <header class="main-header main-header-with-action">
+        <div>
+          <h2>업무일지</h2>
+          <p class="section-desc">모든 직원이 매일 작성하는 일일 업무보고를 캘린더 형식으로 확인합니다.</p>
+        </div>
+        <div class="worklog-header-actions">
+          <button type="button" class="btn btn-secondary" id="btn-worklog-print">인쇄하기</button>
+          <button type="button" class="btn btn-primary" id="btn-worklog-add">오늘 업무일지 작성</button>
+        </div>
+      </header>
+
+      <div class="team-calendar-filters card">
+        <div class="team-calendar-filters-row">
+          <div class="team-calendar-filter-group">
+            <label>
+              연도
+              <select id="worklog-filter-year"></select>
+            </label>
+            <label>
+              월
+              <select id="worklog-filter-month">
+                <option value="1">1월</option>
+                <option value="2">2월</option>
+                <option value="3">3월</option>
+                <option value="4">4월</option>
+                <option value="5">5월</option>
+                <option value="6">6월</option>
+                <option value="7">7월</option>
+                <option value="8">8월</option>
+                <option value="9">9월</option>
+                <option value="10">10월</option>
+                <option value="11">11월</option>
+                <option value="12">12월</option>
+              </select>
+            </label>
+            <label>
+              팀
+              <select id="worklog-filter-team">
+                <option value="">전체</option>
+                <option value="sales">영업팀</option>
+                <option value="design">설계팀</option>
+                <option value="construction">시공팀</option>
+                <option value="marketing">마케팅팀</option>
+                <option value="settlement">정산팀</option>
+                <option value="management">경영팀</option>
+              </select>
+            </label>
+            <label>
+              소속
+              <select id="worklog-filter-showroom">
+                <option value="">전체</option>
+                <option value="headquarters">본사 전시장</option>
+                <option value="showroom1">1전시장</option>
+                <option value="showroom3">3전시장</option>
+                <option value="showroom4">4전시장</option>
+                <option value="ganghwa">강화전시장</option>
+              </select>
+            </label>
+            <label>
+              작성자
+              <input type="text" id="worklog-filter-author" placeholder="이름 검색">
+            </label>
+          </div>
+          <div class="team-calendar-filter-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="worklog-filter-reset">필터 초기화</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="worklog-go-today">오늘로 이동</button>
+          </div>
+        </div>
+        <div class="team-calendar-legend" aria-label="팀별 색상 안내">
+          <span class="team-calendar-legend-item team-calendar-legend-sales">영업팀</span>
+          <span class="team-calendar-legend-item team-calendar-legend-design">설계팀</span>
+          <span class="team-calendar-legend-item team-calendar-legend-construction">시공팀</span>
+          <span class="team-calendar-legend-item team-calendar-legend-marketing">마케팅팀</span>
+          <span class="team-calendar-legend-item team-calendar-legend-settlement">정산팀</span>
+          <span class="team-calendar-legend-item team-calendar-legend-management">경영팀</span>
+        </div>
+      </div>
+
+      <div class="team-calendar-layout">
+        <div class="team-calendar-main">
+          <div class="team-calendar-header-row">
+            <div class="team-calendar-view-tabs" role="tablist">
+              <button type="button" class="team-calendar-view-tab active" data-worklog-view="month">월간 보기</button>
+              <button type="button" class="team-calendar-view-tab" data-worklog-view="list">리스트 보기</button>
+            </div>
+            <div class="team-calendar-toolbar">
+              <button type="button" class="btn btn-secondary btn-sm" id="worklog-prev">이전</button>
+              <div class="team-calendar-current-label" id="worklog-current-label"></div>
+              <button type="button" class="btn btn-secondary btn-sm" id="worklog-next">다음</button>
+            </div>
+          </div>
+
+          <div class="card team-calendar-card">
+            <div class="team-calendar-view team-calendar-view-month" id="worklog-view-month">
+              <div class="team-calendar team-calendar-month" aria-label="업무일지 월간 캘린더">
+                <div class="team-calendar-grid" id="worklog-grid-month">
+                  <!-- JS renderWorklogMonth() -->
+                </div>
+              </div>
+            </div>
+
+            <div class="team-calendar-view team-calendar-view-list hidden" id="worklog-view-list">
+              <div class="table-wrap">
+                <table class="data-table" id="worklog-table-list">
+                  <thead>
+                    <tr>
+                      <th>날짜</th>
+                      <th>작성자</th>
+                      <th>팀</th>
+                      <th>소속</th>
+                      <th>제목</th>
+                      <th>주요 업무</th>
+                      <th>액션</th>
+                    </tr>
+                  </thead>
+                  <tbody id="worklog-tbody-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="team-calendar-sidebar">
+          <div class="card team-calendar-stats-card">
+            <h3>이번 달 요약</h3>
+            <div class="team-calendar-stats-grid" id="worklog-stats-grid">
+              <!-- JS renderWorklogStats() -->
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div id="worklog-modal" class="worklog-modal-overlay hidden" aria-hidden="true">
+        <div class="worklog-modal">
+          <div class="worklog-modal-header">
+            <h3 id="worklog-modal-title">업무일지 작성</h3>
+            <button type="button" class="worklog-modal-close" id="worklog-modal-close" aria-label="닫기">×</button>
+          </div>
+          <form id="form-worklog" class="worklog-form">
+            <input type="hidden" id="worklog-edit-id">
+            <div class="worklog-form-row">
+              <label>
+                작성일
+                <input type="date" id="worklog-date" required>
+              </label>
+              <label>
+                작성자
+                <input type="text" id="worklog-author" required placeholder="이름">
+              </label>
+              <label>
+                팀
+                <select id="worklog-team">
+                  <option value="">선택</option>
+                  <option value="sales">영업팀</option>
+                  <option value="design">설계팀</option>
+                  <option value="construction">시공팀</option>
+                  <option value="marketing">마케팅팀</option>
+                  <option value="settlement">정산팀</option>
+                  <option value="management">경영팀</option>
+                </select>
+              </label>
+              <label>
+                소속
+                <select id="worklog-showroom">
+                  <option value="">선택</option>
+                  <option value="headquarters">본사 전시장</option>
+                  <option value="showroom1">1전시장</option>
+                  <option value="showroom3">3전시장</option>
+                  <option value="showroom4">4전시장</option>
+                  <option value="ganghwa">강화전시장</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              제목
+              <input type="text" id="worklog-title" required placeholder="예) 3월 12일 업무보고">
+            </label>
+            <label>
+              오늘 한 업무
+              <textarea id="worklog-content" rows="5" required placeholder="오늘 수행한 업무 내용을 상세히 작성하세요."></textarea>
+            </label>
+            <label>
+              내일 예정 업무
+              <textarea id="worklog-plan" rows="3" placeholder="내일 진행할 업무 계획"></textarea>
+            </label>
+            <label>
+              이슈 및 특이사항
+              <textarea id="worklog-issues" rows="2" placeholder="이슈, 요청사항, 특이사항 등"></textarea>
+            </label>
+            <div class="worklog-form-actions">
+              <button type="button" class="btn btn-danger" id="btn-worklog-delete" style="display:none;">삭제</button>
+              <button type="button" class="btn btn-secondary" id="btn-worklog-print-one" style="display:none;">인쇄</button>
+              <button type="button" class="btn btn-secondary" id="btn-worklog-cancel">취소</button>
+              <button type="submit" class="btn btn-primary">저장</button>
+            </div>
+          </form>
+
+          <div id="worklog-day-entries" class="worklog-day-entries hidden">
+            <h4 id="worklog-day-entries-title">해당 날짜의 업무일지</h4>
+            <ul id="worklog-day-entries-list"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="section-kpi" class="content-section">
       <header class="main-header">
         <h2>KPI</h2>
@@ -2871,6 +3078,7 @@
         <h2>일일 보고</h2>
         <p class="section-desc">비서님이 대표님께 매일의 업무 현황을 보고합니다.</p>
         <button type="button" class="btn btn-secondary no-print btn-section-print" data-print-section="section-ceo-daily">🖨 인쇄</button>
+        <button type="button" class="btn btn-primary no-print" id="btn-ceo-daily-print-with-worklog">🖨 인쇄 + 업무일지</button>
       </header>
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -3995,7 +4203,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260409-13"></script>
+  <script src="js/app.js?v=20260415-05"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>

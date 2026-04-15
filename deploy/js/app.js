@@ -30,6 +30,7 @@
   var STORAGE_PROCUREMENT_SITES = 'seum_procurement_sites';
   var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
   var STORAGE_PROCUREMENT_STD_QTY = 'seum_procurement_std_qty';
+  var STORAGE_WORKLOG = 'seum_worklog';
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '본사 전시장' },
@@ -7724,6 +7725,730 @@
     }
   }
 
+  // =====================================================================
+  // 업무일지 (공통) - 캘린더 형식의 일일 업무보고
+  // =====================================================================
+  var worklogYear = new Date().getFullYear();
+  var worklogMonth = new Date().getMonth();
+  var worklogView = 'month';
+  var worklogInitialized = false;
+
+  function getWorklog() {
+    try {
+      var raw = localStorage.getItem(STORAGE_WORKLOG);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveWorklog(data) {
+    localStorage.setItem(STORAGE_WORKLOG, JSON.stringify(data));
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase || !Array.isArray(data)) return;
+      var rows = data.map(function (w) {
+        return {
+          local_id: w.id || null,
+          work_date: w.date || null,
+          author_name: w.author || null,
+          author_user_id: w.authorUserId || null,
+          team: w.team || null,
+          showroom: w.showroom || null,
+          title: w.title || null,
+          content: w.content || null,
+          plan: w.plan || null,
+          issues: w.issues || null,
+          payload: w
+        };
+      });
+      supabase
+        .from('work_logs')
+        .upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) {
+          if (res && res.error) console.error('Supabase work_logs sync error:', res.error);
+        })
+        .catch(function (err) { console.error('Supabase work_logs sync failed:', err); });
+    } catch (e) {
+      console.error('Supabase work_logs sync exception:', e);
+    }
+  }
+
+  function syncWorklogFromSupabase() {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase) return;
+      supabase
+        .from('work_logs')
+        .select('local_id,work_date,author_name,author_user_id,team,showroom,title,content,plan,issues,payload,created_at,updated_at')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) {
+              console.error('Supabase work_logs load error:', res.error);
+            }
+            return;
+          }
+          var remote = res.data.map(function (row) {
+            var wl = (row.payload && typeof row.payload === 'object') ? row.payload : {};
+            if (!wl.id && row.local_id) wl.id = row.local_id;
+            if (!wl.date && row.work_date) wl.date = row.work_date;
+            if (!wl.author && row.author_name) wl.author = row.author_name;
+            if (!wl.authorUserId && row.author_user_id) wl.authorUserId = row.author_user_id;
+            if (!wl.team && row.team) wl.team = row.team;
+            if (!wl.showroom && row.showroom) wl.showroom = row.showroom;
+            if (!wl.title && row.title) wl.title = row.title;
+            if (!wl.content && row.content) wl.content = row.content;
+            if (!wl.plan && row.plan) wl.plan = row.plan;
+            if (!wl.issues && row.issues) wl.issues = row.issues;
+            if (!wl.createdAt && row.created_at) wl.createdAt = row.created_at;
+            if (!wl.updatedAt && row.updated_at) wl.updatedAt = row.updated_at;
+            return wl;
+          }).filter(function (wl) { return wl && wl.id; });
+          var local = getWorklog();
+          var byId = {};
+          local.forEach(function (wl) { if (wl && wl.id) byId[wl.id] = wl; });
+          // 원격이 최신이면 원격으로, 아니면 로컬 유지
+          remote.forEach(function (rwl) {
+            var existing = byId[rwl.id];
+            if (!existing) { byId[rwl.id] = rwl; return; }
+            var lu = existing.updatedAt || existing.createdAt || '';
+            var ru = rwl.updatedAt || rwl.createdAt || '';
+            if (!lu || ru > lu) byId[rwl.id] = rwl;
+          });
+          var merged = [];
+          for (var k in byId) {
+            if (byId.hasOwnProperty(k)) merged.push(byId[k]);
+          }
+          localStorage.setItem(STORAGE_WORKLOG, JSON.stringify(merged));
+          if (document.getElementById('section-worklog') &&
+              document.getElementById('section-worklog').classList.contains('active') &&
+              typeof renderWorklog === 'function') {
+            renderWorklog();
+          }
+        })
+        .catch(function (err) {
+          console.error('Supabase work_logs sync load failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase work_logs sync load exception:', e);
+    }
+  }
+
+  function deleteWorklogFromSupabase(workId) {
+    try {
+      var supabase = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supabase || !workId) return;
+      supabase.from('work_logs').delete().eq('local_id', workId)
+        .then(function (res) {
+          if (res && res.error) console.error('Supabase work_logs delete error:', res.error);
+        })
+        .catch(function (err) { console.error('Supabase work_logs delete failed:', err); });
+    } catch (e) {
+      console.error('Supabase work_logs delete exception:', e);
+    }
+  }
+
+  function canViewAllWorklogs() {
+    return isAdmin() || isMaster() || isSuperAdmin();
+  }
+
+  function isOwnWorklog(w) {
+    var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+    if (!cur) return false;
+    if (w.authorUserId && cur.authUserId && w.authorUserId === cur.authUserId) return true;
+    if (w.author && cur.name && w.author === cur.name) return true;
+    return false;
+  }
+
+  function canEditWorklog(w) {
+    if (!w) return false;
+    if (isOwnWorklog(w)) return true;
+    return isAdmin() || isMaster() || isSuperAdmin();
+  }
+
+  // Global entry point used by inline onclick on work log 수정/보기 buttons.
+  // Inline onclick avoids any event-delegation timing issues.
+  window.seumOpenWorklogEdit = function (wid) {
+    try {
+      if (!wid) return;
+      var w = getWorklog().find(function (x) { return x.id === wid; });
+      if (!w) {
+        console.warn('[worklog] entry not found for id', wid);
+        alert('해당 업무일지를 찾을 수 없습니다.');
+        return;
+      }
+      openWorklogModal('edit', w);
+    } catch (err) {
+      console.error('[worklog] seumOpenWorklogEdit failed:', err);
+      alert('수정 창을 여는 중 오류: ' + (err && err.message ? err.message : err));
+    }
+  };
+
+  function filterWorklog(logs) {
+    var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
+    var showroomFilter = (document.getElementById('worklog-filter-showroom') || {}).value || '';
+    var authorFilter = ((document.getElementById('worklog-filter-author') || {}).value || '').trim().toLowerCase();
+    var viewAll = canViewAllWorklogs();
+    return logs.filter(function (w) {
+      if (!viewAll && !isOwnWorklog(w)) return false;
+      if (teamFilter && w.team !== teamFilter) return false;
+      if (showroomFilter && w.showroom !== showroomFilter) return false;
+      if (authorFilter && (w.author || '').toLowerCase().indexOf(authorFilter) === -1) return false;
+      return true;
+    });
+  }
+
+  function getWorklogMonthLabel() {
+    return worklogYear + '년 ' + (worklogMonth + 1) + '월';
+  }
+
+  function getWorklogMonthPrefix() {
+    return worklogYear + '-' + String(worklogMonth + 1).padStart(2, '0');
+  }
+
+  function groupWorklogByDate(logs, monthPrefix) {
+    var map = {};
+    logs.forEach(function (w) {
+      var d = w.date || '';
+      if (monthPrefix && d.indexOf(monthPrefix) !== 0) return;
+      if (!map[d]) map[d] = [];
+      map[d].push(w);
+    });
+    return map;
+  }
+
+  function renderWorklogMonth() {
+    var grid = document.getElementById('worklog-grid-month');
+    var label = document.getElementById('worklog-current-label');
+    if (!grid || !label) return;
+    label.textContent = getWorklogMonthLabel();
+    var first = new Date(worklogYear, worklogMonth, 1);
+    var startDay = first.getDay();
+    var daysInMonth = new Date(worklogYear, worklogMonth + 1, 0).getDate();
+    var weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    var logs = filterWorklog(getWorklog());
+    var monthPrefix = getWorklogMonthPrefix();
+    var byDate = groupWorklogByDate(logs, monthPrefix);
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var html = [];
+    for (var w = 0; w < 7; w++) {
+      var cls = 'team-calendar-weekday';
+      if (w === 0) cls += ' sunday';
+      if (w === 6) cls += ' saturday';
+      html.push('<div class="' + cls + '">' + weekdayNames[w] + '</div>');
+    }
+    for (var i = 0; i < startDay; i++) {
+      html.push('<div class="team-calendar-cell team-calendar-cell-empty"></div>');
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      var dateStr = worklogYear + '-' + String(worklogMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      var dayLogs = byDate[dateStr] || [];
+      var eventsHtml = dayLogs.slice(0, 4).map(function (wl) {
+        var clsEv = 'team-calendar-event';
+        if (wl.team && TEAM_LABELS[wl.team]) clsEv += ' team-calendar-event-' + wl.team;
+        var title = wl.title || '(제목 없음)';
+        var author = wl.author || '';
+        return '<button type="button" class="' + clsEv + '" data-worklog-id="' + escapeAttr(wl.id) + '">' +
+          '<span class="team-calendar-event-title">' + escapeHtml(title) + '</span>' +
+          (author ? '<span class="team-calendar-event-meta">' + escapeHtml(author) + '</span>' : '') +
+          '</button>';
+      }).join('');
+      if (dayLogs.length > 4) {
+        eventsHtml += '<div class="team-calendar-event-more">+' + (dayLogs.length - 4) + '건</div>';
+      }
+      html.push(
+        '<div class="team-calendar-cell worklog-cell' + (dateStr === todayStr ? ' today' : '') + '" data-worklog-date="' + dateStr + '">' +
+        '<div class="team-calendar-date">' + day + '</div>' +
+        '<div class="team-calendar-events">' + eventsHtml + '</div>' +
+        '</div>'
+      );
+    }
+    grid.innerHTML = html.join('');
+  }
+
+  function renderWorklogList() {
+    var tbody = document.getElementById('worklog-tbody-list');
+    var label = document.getElementById('worklog-current-label');
+    if (!tbody || !label) return;
+    label.textContent = getWorklogMonthLabel() + ' 리스트';
+    var monthPrefix = getWorklogMonthPrefix();
+    var logs = filterWorklog(getWorklog()).filter(function (w) {
+      return (w.date || '').indexOf(monthPrefix) === 0;
+    });
+    logs.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="no-result-msg">업무일지가 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = logs.map(function (wl) {
+      var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+      var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
+      var summary = (wl.content || '').replace(/\s+/g, ' ').slice(0, 60);
+      if ((wl.content || '').length > 60) summary += '…';
+      var canEdit = canEditWorklog(wl);
+      var wid = escapeAttr(wl.id);
+      var actionHtml = canEdit
+        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">수정</button>'
+        : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">보기</button>';
+      return '<tr>' +
+        '<td>' + escapeHtml(wl.date || '-') + '</td>' +
+        '<td>' + escapeHtml(wl.author || '-') + '</td>' +
+        '<td>' + escapeHtml(teamLabel) + '</td>' +
+        '<td>' + escapeHtml(showroomLabel) + '</td>' +
+        '<td>' + escapeHtml(wl.title || '-') + '</td>' +
+        '<td>' + escapeHtml(summary || '-') + '</td>' +
+        '<td>' + actionHtml + '</td>' +
+        '</tr>';
+    }).join('');
+    // Direct per-button handler as a safety net in case delegation fails.
+    tbody.querySelectorAll('.worklog-edit-btn, .worklog-view-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var wid = btn.getAttribute('data-worklog-id');
+        console.log('[worklog] list edit/view click, id=', wid);
+        try {
+          var w = getWorklog().find(function (x) { return x.id === wid; });
+          if (!w) {
+            console.warn('[worklog] entry not found for id', wid, 'store=', getWorklog());
+            alert('해당 업무일지를 찾을 수 없습니다. (id=' + wid + ')');
+            return;
+          }
+          openWorklogModal('edit', w);
+        } catch (err) {
+          console.error('[worklog] openWorklogModal failed:', err);
+          alert('수정 창을 여는 중 오류: ' + (err && err.message ? err.message : err));
+        }
+      });
+    });
+  }
+
+  function renderWorklogStats() {
+    var wrap = document.getElementById('worklog-stats-grid');
+    if (!wrap) return;
+    var monthPrefix = getWorklogMonthPrefix();
+    var logs = filterWorklog(getWorklog()).filter(function (w) {
+      return (w.date || '').indexOf(monthPrefix) === 0;
+    });
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var todayCount = logs.filter(function (w) { return w.date === todayStr; }).length;
+    var authors = {};
+    logs.forEach(function (w) { if (w.author) authors[w.author] = true; });
+    var authorCount = Object.keys(authors).length;
+    var total = logs.length;
+    wrap.innerHTML =
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">이번 달 일지</div><div class="team-calendar-stat-value">' + total + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">오늘 작성</div><div class="team-calendar-stat-value">' + todayCount + '</div></div>' +
+      '<div class="team-calendar-stat"><div class="team-calendar-stat-label">작성 직원수</div><div class="team-calendar-stat-value">' + authorCount + '</div></div>';
+  }
+
+  function populateWorklogYearSelect() {
+    var sel = document.getElementById('worklog-filter-year');
+    if (!sel || sel.options.length > 0) return;
+    var nowYear = new Date().getFullYear();
+    var html = '';
+    for (var y = nowYear - 2; y <= nowYear + 2; y++) {
+      html += '<option value="' + y + '">' + y + '년</option>';
+    }
+    sel.innerHTML = html;
+    sel.value = String(worklogYear);
+  }
+
+  function syncWorklogFilters() {
+    var ySel = document.getElementById('worklog-filter-year');
+    var mSel = document.getElementById('worklog-filter-month');
+    if (ySel) ySel.value = String(worklogYear);
+    if (mSel) mSel.value = String(worklogMonth + 1);
+  }
+
+  function openWorklogModal(mode, data) {
+    var modal = document.getElementById('worklog-modal');
+    if (!modal) return;
+    var title = document.getElementById('worklog-modal-title');
+    var form = document.getElementById('form-worklog');
+    var delBtn = document.getElementById('btn-worklog-delete');
+    var printOneBtn = document.getElementById('btn-worklog-print-one');
+    var dayWrap = document.getElementById('worklog-day-entries');
+    form.classList.remove('hidden');
+    dayWrap.classList.add('hidden');
+
+    if (mode === 'edit' && data) {
+      title.textContent = '업무일지 수정';
+      document.getElementById('worklog-edit-id').value = data.id || '';
+      document.getElementById('worklog-date').value = data.date || '';
+      document.getElementById('worklog-author').value = data.author || '';
+      document.getElementById('worklog-team').value = data.team || '';
+      document.getElementById('worklog-showroom').value = data.showroom || '';
+      document.getElementById('worklog-title').value = data.title || '';
+      document.getElementById('worklog-content').value = data.content || '';
+      document.getElementById('worklog-plan').value = data.plan || '';
+      document.getElementById('worklog-issues').value = data.issues || '';
+      delBtn.style.display = '';
+      if (printOneBtn) printOneBtn.style.display = '';
+    } else {
+      title.textContent = '업무일지 작성';
+      form.reset();
+      document.getElementById('worklog-edit-id').value = '';
+      var preset = (data && data.date) || new Date().toISOString().slice(0, 10);
+      document.getElementById('worklog-date').value = preset;
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+      if (cur) {
+        document.getElementById('worklog-author').value = cur.name || '';
+        var code = getCurrentTeamCode();
+        if (code) document.getElementById('worklog-team').value = code;
+        var showroomId = resolveShowroomId(cur);
+        if (showroomId) document.getElementById('worklog-showroom').value = showroomId;
+      }
+      delBtn.style.display = 'none';
+      if (printOneBtn) printOneBtn.style.display = 'none';
+    }
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function openWorklogDayList(dateStr) {
+    var modal = document.getElementById('worklog-modal');
+    if (!modal) return;
+    var form = document.getElementById('form-worklog');
+    var dayWrap = document.getElementById('worklog-day-entries');
+    var dayTitle = document.getElementById('worklog-day-entries-title');
+    var dayList = document.getElementById('worklog-day-entries-list');
+    var title = document.getElementById('worklog-modal-title');
+    var logs = filterWorklog(getWorklog()).filter(function (w) { return w.date === dateStr; });
+    title.textContent = dateStr + ' 업무일지';
+    form.classList.add('hidden');
+    dayWrap.classList.remove('hidden');
+    dayTitle.textContent = dateStr + ' 작성된 업무일지 (' + logs.length + '건)';
+    if (!logs.length) {
+      dayList.innerHTML = '<li class="worklog-empty">해당 날짜의 업무일지가 없습니다.</li>';
+    } else {
+      dayList.innerHTML = logs.map(function (wl) {
+        var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '');
+        var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '';
+        var metaParts = [];
+        if (wl.author) metaParts.push(escapeHtml(wl.author));
+        if (teamLabel) metaParts.push(escapeHtml(teamLabel));
+        if (showroomLabel) metaParts.push(escapeHtml(showroomLabel));
+        var canEdit = canEditWorklog(wl);
+        var widDay = escapeAttr(wl.id);
+        var actionBtn = canEdit
+          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">수정</button>'
+          : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">보기</button>';
+        return '<li class="worklog-entry">' +
+          '<div class="worklog-entry-head">' +
+            '<strong>' + escapeHtml(wl.title || '(제목 없음)') + '</strong>' +
+            '<span class="worklog-entry-meta">' + metaParts.join(' · ') + '</span>' +
+          '</div>' +
+          '<div class="worklog-entry-body">' + escapeHtml(wl.content || '') + '</div>' +
+          (wl.plan ? '<div class="worklog-entry-sub"><span>내일 계획</span>' + escapeHtml(wl.plan) + '</div>' : '') +
+          (wl.issues ? '<div class="worklog-entry-sub"><span>이슈</span>' + escapeHtml(wl.issues) + '</div>' : '') +
+          '<div class="worklog-entry-actions">' +
+            actionBtn +
+          '</div>' +
+        '</li>';
+      }).join('');
+      // Direct per-button handler as a safety net in case delegation fails.
+      dayList.querySelectorAll('.worklog-edit-btn, .worklog-view-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          var wid = btn.getAttribute('data-worklog-id');
+          var w = getWorklog().find(function (x) { return x.id === wid; });
+          if (w) openWorklogModal('edit', w);
+          else console.warn('[worklog] entry not found for id', wid);
+        });
+      });
+    }
+    var addBtn = document.createElement('div');
+    addBtn.className = 'worklog-day-add-wrap';
+    addBtn.innerHTML = '<button type="button" class="btn btn-primary" id="worklog-day-add-btn" data-worklog-date="' + escapeAttr(dateStr) + '">이 날짜에 업무일지 작성</button>';
+    dayWrap.querySelector('.worklog-day-add-wrap') && dayWrap.querySelector('.worklog-day-add-wrap').remove();
+    dayWrap.appendChild(addBtn);
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeWorklogModal() {
+    var modal = document.getElementById('worklog-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function buildWorklogEntryPrintHtml(wl) {
+    var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+    var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
+    return '<article class="wl-print-entry">' +
+      '<header class="wl-print-entry-head">' +
+        '<h2>' + escapeHtml(wl.title || '(제목 없음)') + '</h2>' +
+        '<div class="wl-print-meta">' +
+          '<span><strong>날짜</strong> ' + escapeHtml(wl.date || '-') + '</span>' +
+          '<span><strong>작성자</strong> ' + escapeHtml(wl.author || '-') + '</span>' +
+          '<span><strong>팀</strong> ' + escapeHtml(teamLabel) + '</span>' +
+          '<span><strong>소속</strong> ' + escapeHtml(showroomLabel) + '</span>' +
+        '</div>' +
+      '</header>' +
+      '<section class="wl-print-sec">' +
+        '<h3>오늘 한 업무</h3>' +
+        '<p>' + escapeHtml(wl.content || '-') + '</p>' +
+      '</section>' +
+      (wl.plan ? '<section class="wl-print-sec"><h3>내일 예정 업무</h3><p>' + escapeHtml(wl.plan) + '</p></section>' : '') +
+      (wl.issues ? '<section class="wl-print-sec"><h3>이슈 및 특이사항</h3><p>' + escapeHtml(wl.issues) + '</p></section>' : '') +
+      '</article>';
+  }
+
+  function openWorklogPrintWindow(titleText, entriesHtml) {
+    var w = window.open('', '_blank', 'width=820,height=1100');
+    if (!w) {
+      showToast('팝업이 차단되었습니다. 허용 후 다시 시도하세요.', 'error');
+      return;
+    }
+    var styles =
+      '@page{size:A4 portrait;margin:14mm}' +
+      'body{font-family:"Noto Sans KR","Malgun Gothic",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12pt;line-height:1.5}' +
+      '.wl-print-header{border-bottom:2px solid #111;padding-bottom:6mm;margin-bottom:6mm}' +
+      '.wl-print-header h1{margin:0 0 2mm;font-size:18pt}' +
+      '.wl-print-header .wl-print-sub{font-size:10pt;color:#555}' +
+      '.wl-print-entry{border:1px solid #666;border-radius:3px;padding:5mm 6mm;margin-bottom:5mm;break-inside:avoid;page-break-inside:avoid}' +
+      '.wl-print-entry-head{border-bottom:1px solid #bbb;padding-bottom:3mm;margin-bottom:3mm}' +
+      '.wl-print-entry-head h2{margin:0 0 2mm;font-size:14pt}' +
+      '.wl-print-meta{display:flex;flex-wrap:wrap;gap:3mm 8mm;font-size:10pt;color:#333}' +
+      '.wl-print-meta strong{color:#000;margin-right:2mm}' +
+      '.wl-print-sec{margin-top:3mm}' +
+      '.wl-print-sec h3{margin:0 0 1mm;font-size:11pt;color:#000;border-left:3px solid #111;padding-left:2mm}' +
+      '.wl-print-sec p{margin:0;white-space:pre-wrap;font-size:11pt}' +
+      '.wl-print-empty{text-align:center;color:#666;padding:20mm 0;font-size:12pt}' +
+      '@media print{.no-print{display:none}}';
+    w.document.write(
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeHtml(titleText) + '</title><style>' + styles + '</style></head><body>' +
+      '<div class="wl-print-header"><h1>업무일지</h1><div class="wl-print-sub">' + escapeHtml(titleText) + ' · 출력일: ' + new Date().toLocaleString('ko-KR') + '</div></div>' +
+      entriesHtml +
+      '</body></html>'
+    );
+    w.document.close();
+    w.focus();
+    setTimeout(function () { try { w.print(); } catch (e) {} }, 350);
+  }
+
+  function printWorklogSingle(wl) {
+    if (!wl) return;
+    var titleText = (wl.date || '') + ' ' + (wl.author || '') + ' 업무일지';
+    openWorklogPrintWindow(titleText, buildWorklogEntryPrintHtml(wl));
+  }
+
+  function printWorklogVisible() {
+    var logs = filterWorklog(getWorklog());
+    var monthPrefix = getWorklogMonthPrefix();
+    logs = logs.filter(function (w) { return (w.date || '').indexOf(monthPrefix) === 0; });
+    logs.sort(function (a, b) {
+      var ad = a.date || '';
+      var bd = b.date || '';
+      if (ad === bd) return (a.author || '').localeCompare(b.author || '');
+      return ad.localeCompare(bd);
+    });
+    var titleText = getWorklogMonthLabel() + (canViewAllWorklogs() ? ' 전체 업무일지' : ' 내 업무일지');
+    var body = logs.length
+      ? logs.map(buildWorklogEntryPrintHtml).join('')
+      : '<div class="wl-print-empty">출력할 업무일지가 없습니다.</div>';
+    openWorklogPrintWindow(titleText, body);
+  }
+
+  function renderWorklog() {
+    populateWorklogYearSelect();
+    syncWorklogFilters();
+    if (worklogView === 'list') {
+      document.getElementById('worklog-view-month').classList.add('hidden');
+      document.getElementById('worklog-view-list').classList.remove('hidden');
+      renderWorklogList();
+    } else {
+      document.getElementById('worklog-view-month').classList.remove('hidden');
+      document.getElementById('worklog-view-list').classList.add('hidden');
+      renderWorklogMonth();
+    }
+    renderWorklogStats();
+    if (!worklogInitialized) {
+      worklogInitialized = true;
+      initWorklogEvents();
+    }
+    // 페이지 진입 시 Supabase 최신 데이터 가져오기 (비동기)
+    syncWorklogFromSupabase();
+  }
+
+  function initWorklogEvents() {
+    var section = document.getElementById('section-worklog');
+    if (!section) return;
+
+    var addBtn = document.getElementById('btn-worklog-add');
+    if (addBtn) addBtn.addEventListener('click', function () { openWorklogModal('new', null); });
+
+    var printBtn = document.getElementById('btn-worklog-print');
+    if (printBtn) printBtn.addEventListener('click', printWorklogVisible);
+
+    var printOneBtn = document.getElementById('btn-worklog-print-one');
+    if (printOneBtn) printOneBtn.addEventListener('click', function () {
+      var editId = document.getElementById('worklog-edit-id').value;
+      if (!editId) return;
+      var wl = getWorklog().find(function (x) { return x.id === editId; });
+      if (wl) printWorklogSingle(wl);
+    });
+
+    var closeBtn = document.getElementById('worklog-modal-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeWorklogModal);
+    var cancelBtn = document.getElementById('btn-worklog-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeWorklogModal);
+    var modal = document.getElementById('worklog-modal');
+    if (modal) modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeWorklogModal();
+    });
+
+    var form = document.getElementById('form-worklog');
+    if (form) form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('worklog-edit-id').value;
+      var entry = {
+        date: document.getElementById('worklog-date').value,
+        author: document.getElementById('worklog-author').value.trim(),
+        team: document.getElementById('worklog-team').value,
+        showroom: document.getElementById('worklog-showroom').value,
+        title: document.getElementById('worklog-title').value.trim(),
+        content: document.getElementById('worklog-content').value.trim(),
+        plan: document.getElementById('worklog-plan').value.trim(),
+        issues: document.getElementById('worklog-issues').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      if (!entry.date || !entry.author || !entry.title || !entry.content) {
+        showToast('필수 항목을 입력하세요.', 'error');
+        return;
+      }
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+      if (cur && cur.authUserId) entry.authorUserId = cur.authUserId;
+      var logs = getWorklog();
+      if (editId) {
+        logs = logs.map(function (w) { return w.id === editId ? Object.assign({}, w, entry) : w; });
+      } else {
+        entry.id = id();
+        entry.createdAt = new Date().toISOString();
+        logs.push(entry);
+      }
+      saveWorklog(logs);
+      closeWorklogModal();
+      renderWorklog();
+      showToast(editId ? '업무일지가 수정됐습니다.' : '업무일지가 등록됐습니다.');
+    });
+
+    var delBtn = document.getElementById('btn-worklog-delete');
+    if (delBtn) delBtn.addEventListener('click', function () {
+      var editId = document.getElementById('worklog-edit-id').value;
+      if (!editId) return;
+      if (!window.confirm('업무일지를 삭제하시겠습니까?')) return;
+      var logs = getWorklog().filter(function (w) { return w.id !== editId; });
+      saveWorklog(logs);
+      deleteWorklogFromSupabase(editId);
+      closeWorklogModal();
+      renderWorklog();
+      showToast('삭제됐습니다.');
+    });
+
+    // Calendar cell clicks
+    var grid = document.getElementById('worklog-grid-month');
+    if (grid) grid.addEventListener('click', function (e) {
+      var eventBtn = e.target.closest('[data-worklog-id]');
+      if (eventBtn) {
+        var wid = eventBtn.getAttribute('data-worklog-id');
+        var w = getWorklog().find(function (x) { return x.id === wid; });
+        if (w) openWorklogModal('edit', w);
+        return;
+      }
+      var cell = e.target.closest('[data-worklog-date]');
+      if (cell) {
+        var dateStr = cell.getAttribute('data-worklog-date');
+        openWorklogDayList(dateStr);
+      }
+    });
+
+    // Day list (modal) click handling — only "add for this date" button here.
+    // Edit/view buttons are handled by the section-level delegation below.
+    var dayWrap = document.getElementById('worklog-day-entries');
+    if (dayWrap) dayWrap.addEventListener('click', function (e) {
+      var addTrigger = e.target.closest('#worklog-day-add-btn');
+      if (addTrigger) {
+        var d = addTrigger.getAttribute('data-worklog-date');
+        openWorklogModal('new', { date: d });
+      }
+    });
+
+    // Section-wide delegation (works for list tbody, day modal entries,
+    // and any other work log item rendered inside section-worklog)
+    section.addEventListener('click', function (e) {
+      var btn = e.target.closest('.worklog-edit-btn, .worklog-view-btn');
+      if (!btn || !section.contains(btn)) return;
+      var wid = btn.getAttribute('data-worklog-id');
+      if (!wid) return;
+      var w = getWorklog().find(function (x) { return x.id === wid; });
+      if (w) openWorklogModal('edit', w);
+    });
+
+    // View tabs
+    section.querySelectorAll('[data-worklog-view]').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var view = tab.getAttribute('data-worklog-view');
+        worklogView = view;
+        section.querySelectorAll('[data-worklog-view]').forEach(function (t) {
+          t.classList.toggle('active', t === tab);
+        });
+        renderWorklog();
+      });
+    });
+
+    // Prev/Next/Today
+    var prev = document.getElementById('worklog-prev');
+    if (prev) prev.addEventListener('click', function () {
+      worklogMonth -= 1;
+      if (worklogMonth < 0) { worklogMonth = 11; worklogYear -= 1; }
+      populateWorklogYearSelect();
+      renderWorklog();
+    });
+    var next = document.getElementById('worklog-next');
+    if (next) next.addEventListener('click', function () {
+      worklogMonth += 1;
+      if (worklogMonth > 11) { worklogMonth = 0; worklogYear += 1; }
+      populateWorklogYearSelect();
+      renderWorklog();
+    });
+    var today = document.getElementById('worklog-go-today');
+    if (today) today.addEventListener('click', function () {
+      var now = new Date();
+      worklogYear = now.getFullYear();
+      worklogMonth = now.getMonth();
+      renderWorklog();
+    });
+
+    // Filters
+    var ySel = document.getElementById('worklog-filter-year');
+    if (ySel) ySel.addEventListener('change', function () {
+      worklogYear = parseInt(ySel.value, 10) || worklogYear;
+      renderWorklog();
+    });
+    var mSel = document.getElementById('worklog-filter-month');
+    if (mSel) mSel.addEventListener('change', function () {
+      worklogMonth = (parseInt(mSel.value, 10) || 1) - 1;
+      renderWorklog();
+    });
+    var tSel = document.getElementById('worklog-filter-team');
+    if (tSel) tSel.addEventListener('change', renderWorklog);
+    var sSel = document.getElementById('worklog-filter-showroom');
+    if (sSel) sSel.addEventListener('change', renderWorklog);
+    var aInp = document.getElementById('worklog-filter-author');
+    if (aInp) aInp.addEventListener('input', renderWorklog);
+    var reset = document.getElementById('worklog-filter-reset');
+    if (reset) reset.addEventListener('click', function () {
+      if (tSel) tSel.value = '';
+      if (sSel) sSel.value = '';
+      if (aInp) aInp.value = '';
+      renderWorklog();
+    });
+  }
+
   function showSection(sectionId) {
     // ??? ??? ???: admin/master/??????????? ???
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
@@ -7775,6 +8500,7 @@
       fetchActivityLogsForAdmin().then(function (rows) { renderAdminActivityLogs(rows); });
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
+    if (sectionId === 'worklog') renderWorklog();
     if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
@@ -11531,6 +12257,7 @@
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
     syncTeamEventsFromSupabase();
+    syncWorklogFromSupabase();
     syncAnnouncementsFromSupabase();
     syncActivityLogsFromSupabase();
     initMobileSidebar();
@@ -11569,6 +12296,141 @@
     syncCeoReportsFromSupabase();
     initExpenseReport();
     if (typeof window.initMarketing === 'function') window.initMarketing();
+
+    // 대표님 일일보고 + 업무일지 합본 인쇄
+    function cloneSectionForPrint(section) {
+      var clone = section.cloneNode(true);
+      var origInputs = section.querySelectorAll('input, textarea, select');
+      var cloneInputs = clone.querySelectorAll('input, textarea, select');
+      origInputs.forEach(function (orig, i) {
+        var cl = cloneInputs[i];
+        if (!cl) return;
+        if (orig.type === 'checkbox' || orig.type === 'radio') {
+          if (orig.checked) cl.setAttribute('checked', ''); else cl.removeAttribute('checked');
+        } else {
+          cl.setAttribute('value', orig.value);
+          if (cl.tagName === 'TEXTAREA') cl.textContent = orig.value;
+          if (cl.tagName === 'SELECT') {
+            Array.from(cl.options).forEach(function (opt, oi) {
+              if (orig.options[oi] && orig.options[oi].selected) opt.setAttribute('selected', ''); else opt.removeAttribute('selected');
+            });
+          }
+        }
+      });
+      clone.querySelectorAll('.no-print, .btn-section-print').forEach(function (el) { el.remove(); });
+      ['#ceo-daily-preview-box', '#ceo-weekly-preview-box', '#ceo-monthly-preview-box',
+       '#ceo-daily-detail', '#ceo-weekly-detail', '#ceo-monthly-detail'].forEach(function (sel) {
+        var el = clone.querySelector(sel); if (el) el.remove();
+      });
+      ['#tbody-ceo-daily', '#tbody-ceo-weekly', '#tbody-ceo-monthly'].forEach(function (sel) {
+        var el = clone.querySelector(sel);
+        if (el) { var card = el.closest('.card'); if (card) card.remove(); }
+      });
+      return clone;
+    }
+
+    function buildWorklogPrintSection(dateStr) {
+      if (!dateStr) return '';
+      var logs = getWorklog().filter(function (w) { return (w.date || '') === dateStr; });
+      logs.sort(function (a, b) {
+        var at = (a.team || '') + (a.author || '');
+        var bt = (b.team || '') + (b.author || '');
+        return at.localeCompare(bt);
+      });
+      var headerHtml =
+        '<div class="wl-combined-header">' +
+          '<h2>' + escapeHtml(dateStr) + ' 업무일지</h2>' +
+          '<div class="wl-combined-sub">전 직원 일일 업무보고 (' + logs.length + '건)</div>' +
+        '</div>';
+      if (!logs.length) {
+        return '<div class="wl-combined-pagebreak"></div>' + headerHtml +
+          '<div class="wl-combined-empty">해당 날짜에 작성된 업무일지가 없습니다.</div>';
+      }
+      var entriesHtml = logs.map(function (wl) {
+        var teamLabel = TEAM_LABELS[wl.team] || (wl.team || '-');
+        var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
+        return '<article class="wl-combined-entry">' +
+          '<header class="wl-combined-entry-head">' +
+            '<h3>' + escapeHtml(wl.title || '(제목 없음)') + '</h3>' +
+            '<div class="wl-combined-meta">' +
+              '<span><strong>작성자</strong> ' + escapeHtml(wl.author || '-') + '</span>' +
+              '<span><strong>팀</strong> ' + escapeHtml(teamLabel) + '</span>' +
+              '<span><strong>소속</strong> ' + escapeHtml(showroomLabel) + '</span>' +
+            '</div>' +
+          '</header>' +
+          '<section class="wl-combined-sec"><h4>오늘 한 업무</h4><p>' + escapeHtml(wl.content || '-') + '</p></section>' +
+          (wl.plan ? '<section class="wl-combined-sec"><h4>내일 예정 업무</h4><p>' + escapeHtml(wl.plan) + '</p></section>' : '') +
+          (wl.issues ? '<section class="wl-combined-sec"><h4>이슈 및 특이사항</h4><p>' + escapeHtml(wl.issues) + '</p></section>' : '') +
+          '</article>';
+      }).join('');
+      return '<div class="wl-combined-pagebreak"></div>' + headerHtml + entriesHtml;
+    }
+
+    function getCeoDailyPrintStyles() {
+      return '@page{size:A4 portrait;margin:12mm}' +
+        'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12px;line-height:1.4}' +
+        'h2{font-size:1.3rem;margin:0 0 2mm}h3{font-size:1rem;margin:1mm 0}h4{font-size:0.95rem;margin:1mm 0}' +
+        'p{margin:0 0 1mm;color:#555}' +
+        'button,input[type=button],input[type=submit],.btn{display:none!important}' +
+        '.hidden{display:none!important}' +
+        '.card{border:1px solid #ccc;border-radius:4px;padding:3mm 4mm;margin-bottom:4mm;break-inside:avoid}' +
+        '.main-header{margin-bottom:3mm}.section-desc{font-size:0.8rem;color:#555}' +
+        '.form-row{display:flex;gap:3mm;margin-bottom:3mm;grid-column:span 2}' +
+        '.form-actions{display:none!important}' +
+        '#form-ceo-daily,#form-ceo-weekly,#form-ceo-monthly{display:grid;grid-template-columns:1fr 1fr;gap:2mm 4mm}' +
+        '.ceo-block{border:1px solid #ddd;padding:2mm 3mm;margin-bottom:0;break-inside:avoid}' +
+        '.ceo-block:has(textarea){grid-column:span 2}' +
+        '.ceo-block-title{font-weight:700;margin-bottom:1mm;font-size:0.85rem}' +
+        '.ceo-row{display:flex;gap:2mm;margin-bottom:0.5mm;align-items:center}' +
+        '.ceo-label{min-width:6rem;font-size:0.78rem;color:#555;flex-shrink:0}' +
+        '.ceo-sub-label{min-width:5rem;font-size:0.75rem;color:#555;flex-shrink:0}' +
+        '.ceo-input{border:none;border-bottom:1px solid #ccc;flex:1;padding:0;font-size:0.82rem;background:transparent}' +
+        'textarea.ceo-input,textarea{border:1px solid #ccc;width:100%;box-sizing:border-box;padding:1mm 2mm;font-size:0.82rem;background:transparent;resize:none;min-height:10mm;font-family:inherit}' +
+        '.ceo-preview-box{display:none!important}' +
+        'table{width:100%;border-collapse:collapse;font-size:0.78rem}' +
+        'th,td{border:1px solid #999;padding:2mm 3mm}th{background:#f5f5f5;font-weight:600}' +
+        // 합본 업무일지 섹션
+        '.wl-combined-pagebreak{page-break-before:always;break-before:page;height:0}' +
+        '.wl-combined-header{border-bottom:2px solid #111;padding-bottom:4mm;margin-bottom:5mm}' +
+        '.wl-combined-header h2{margin:0 0 2mm;font-size:1.3rem}' +
+        '.wl-combined-sub{font-size:0.85rem;color:#555}' +
+        '.wl-combined-entry{border:1px solid #777;border-radius:3px;padding:4mm 5mm;margin-bottom:4mm;break-inside:avoid;page-break-inside:avoid}' +
+        '.wl-combined-entry-head{border-bottom:1px solid #bbb;padding-bottom:2mm;margin-bottom:2mm}' +
+        '.wl-combined-entry-head h3{margin:0 0 1mm;font-size:1rem}' +
+        '.wl-combined-meta{display:flex;flex-wrap:wrap;gap:2mm 6mm;font-size:0.78rem;color:#333}' +
+        '.wl-combined-meta strong{color:#000;margin-right:1mm}' +
+        '.wl-combined-sec{margin-top:2mm}' +
+        '.wl-combined-sec h4{margin:0 0 1mm;font-size:0.85rem;color:#000;border-left:3px solid #111;padding-left:2mm}' +
+        '.wl-combined-sec p{margin:0;white-space:pre-wrap;font-size:0.82rem;color:#222}' +
+        '.wl-combined-empty{text-align:center;color:#666;padding:10mm 0;font-size:0.9rem}';
+    }
+
+    var ceoDailyCombinedPrintBtn = document.getElementById('btn-ceo-daily-print-with-worklog');
+    if (ceoDailyCombinedPrintBtn) {
+      ceoDailyCombinedPrintBtn.addEventListener('click', function () {
+        var section = document.getElementById('section-ceo-daily');
+        if (!section) return;
+        var dateInput = document.getElementById('ceo-daily-date');
+        var dateStr = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
+        var clone = cloneSectionForPrint(section);
+        var worklogHtml = buildWorklogPrintSection(dateStr);
+        var w = window.open('', '_blank', 'width=820,height=1100');
+        if (!w) {
+          if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 허용 후 다시 시도하세요.', 'error');
+          return;
+        }
+        w.document.write(
+          '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>일일 보고 + 업무일지</title><style>' +
+          getCeoDailyPrintStyles() +
+          '</style></head><body>' +
+          clone.innerHTML + worklogHtml +
+          '</body></html>'
+        );
+        w.document.close();
+        w.focus();
+        setTimeout(function () { try { w.print(); } catch (e) {} }, 400);
+      });
+    }
 
     // 섹션 인쇄 버튼 (새 창 방식)
     document.addEventListener('click', function (e) {
@@ -11698,6 +12560,7 @@
     initAnnouncementFormModal();
     renderHR();
     renderTeamCalendar();
+    renderWorklog();
     renderKPI();
     console.log('???????? OS ??? ??');
   }
