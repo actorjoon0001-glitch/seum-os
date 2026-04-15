@@ -11476,8 +11476,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    ===================================================================== */
 @media print {
   /* 인쇄 중일 때만 인쇄 프레임만 노출 */
-  body.dd-printing > *:not(.dd-print-frame) { display: none !important; }
-  body.dd-printing .dd-print-frame { display: block !important; }
+  /* 인쇄 중에는 .dd-print-frame 과 그 하위 요소만 노출(visibility 기반).
+     .dd-print-frame 이 section 하위에 있어도 내용이 정상 출력됨. */
+  body.dd-printing * { visibility: hidden !important; }
+  body.dd-printing .dd-print-frame,
+  body.dd-printing .dd-print-frame * { visibility: visible !important; }
+  body.dd-printing .dd-print-frame {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+  }
 
   @page {
     size: A4;
@@ -11807,8 +11819,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    팀별 업무일지 인쇄용 @media print
    ===================================================================== */
 @media print {
-  body.tw-printing > *:not(.tw-print-frame) { display: none !important; }
-  body.tw-printing .tw-print-frame { display: block !important; }
+  /* 인쇄 중에는 .tw-print-frame 과 그 하위 요소만 보이게(visibility 기반).
+     .tw-print-frame 이 <section> 안쪽에 있어도 조상은 DOM에 남고 내용만 노출됨. */
+  body.tw-printing * { visibility: hidden !important; }
+  body.tw-printing .tw-print-frame,
+  body.tw-printing .tw-print-frame * { visibility: visible !important; }
+  body.tw-printing .tw-print-frame {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+  }
 
   @page { size: A4; margin: 14mm; }
   html, body { background: #fff !important; color: #000 !important; }
