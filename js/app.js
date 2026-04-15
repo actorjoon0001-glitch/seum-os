@@ -7884,6 +7884,32 @@
     }
   };
 
+  // Global entry point used by inline onclick on work log 삭제 buttons.
+  window.seumDeleteWorklog = function (wid) {
+    try {
+      if (!wid) return;
+      var w = getWorklog().find(function (x) { return x.id === wid; });
+      if (!w) {
+        alert('해당 업무일지를 찾을 수 없습니다.');
+        return;
+      }
+      if (!canEditWorklog(w)) {
+        alert('삭제 권한이 없습니다.');
+        return;
+      }
+      var confirmMsg = '업무일지를 삭제하시겠습니까?\n\n제목: ' + (w.title || '(제목 없음)') + '\n작성자: ' + (w.author || '-') + '\n날짜: ' + (w.date || '-');
+      if (!window.confirm(confirmMsg)) return;
+      var logs = getWorklog().filter(function (x) { return x.id !== wid; });
+      saveWorklog(logs);
+      deleteWorklogFromSupabase(wid);
+      renderWorklog();
+      showToast('삭제됐습니다.');
+    } catch (err) {
+      console.error('[worklog] seumDeleteWorklog failed:', err);
+      alert('삭제 중 오류: ' + (err && err.message ? err.message : err));
+    }
+  };
+
   function filterWorklog(logs) {
     var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
     var showroomFilter = (document.getElementById('worklog-filter-showroom') || {}).value || '';
@@ -7988,7 +8014,8 @@
       var canEdit = canEditWorklog(wl);
       var wid = escapeAttr(wl.id);
       var actionHtml = canEdit
-        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">수정</button>'
+        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">수정</button>' +
+          ' <button type="button" class="btn btn-sm btn-danger worklog-delete-btn" data-worklog-id="' + wid + '" onclick="seumDeleteWorklog(\'' + wid + '\')">삭제</button>'
         : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">보기</button>';
       return '<tr>' +
         '<td>' + escapeHtml(wl.date || '-') + '</td>' +
@@ -8132,7 +8159,8 @@
         var canEdit = canEditWorklog(wl);
         var widDay = escapeAttr(wl.id);
         var actionBtn = canEdit
-          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">수정</button>'
+          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">수정</button>' +
+            ' <button type="button" class="btn btn-sm btn-danger worklog-delete-btn" data-worklog-id="' + widDay + '" onclick="seumDeleteWorklog(\'' + widDay + '\')">삭제</button>'
           : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">보기</button>';
         return '<li class="worklog-entry">' +
           '<div class="worklog-entry-head">' +
