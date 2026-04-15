@@ -156,7 +156,7 @@
           <div class="nav-submenu sidebar-sub collapsed" id="nav-design-sub">
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design">계약 목록</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-priority">우선순위</a>
-            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-worklog">설계업무일지</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-drawings">설계도면</a>
           </div>
         </div>
 
@@ -1306,131 +1306,155 @@
       </div>
     </section>
 
-    <!-- 설계업무일지 섹션 -->
-    <section id="section-design-worklog" class="content-section">
+    <!-- 설계도면 관리 시스템 섹션 -->
+    <section id="section-design-drawings" class="content-section">
       <header class="main-header">
-        <h2>설계 업무일지</h2>
-        <p class="section-desc">설계 업무를 등록하고 진행 단계를 관리합니다.</p>
+        <h2>설계도면 관리</h2>
+        <p class="section-desc">기존 도면을 검색·미리보기·인쇄하여 상담과 설계에 바로 활용합니다.</p>
       </header>
 
       <!-- 액션 바 -->
-      <div class="dw-action-bar">
-        <button type="button" class="btn btn-primary" id="btn-add-dw">+ 업무 등록</button>
-        <label class="btn btn-secondary dw-excel-label" id="btn-excel-upload-label" tabindex="0">
-          📂 엑셀 업로드
-          <input type="file" id="dw-excel-input" accept=".xlsx,.xls,.csv" hidden>
-        </label>
+      <div class="dd-action-bar">
+        <button type="button" class="btn btn-primary" id="btn-add-dd">+ 도면 등록</button>
+        <button type="button" class="btn btn-secondary" id="btn-seed-dd" title="샘플 도면 추가(테스트)">📦 샘플 도면 불러오기</button>
       </div>
 
-      <!-- 업무 등록/수정 폼 -->
-      <div id="dw-form-wrap" class="card hidden">
-        <h3 id="dw-form-title" style="margin-top:0;margin-bottom:1rem;color:#60a5fa;">업무 등록</h3>
-        <form id="form-dw">
-          <input type="hidden" id="dw-edit-id">
-          <div class="dw-form-grid">
-            <div class="dw-form-field">
-              <label for="dw-customer">고객명 *</label>
-              <input type="text" id="dw-customer" placeholder="고객명" required>
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-address">주소 *</label>
-              <input type="text" id="dw-address" placeholder="주소" required>
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-size">크기</label>
-              <input type="text" id="dw-size" placeholder="예: 33평, 100㎡">
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-task">작업</label>
-              <input type="text" id="dw-task" placeholder="작업 내용">
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-date">날짜 *</label>
-              <input type="date" id="dw-date" required>
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-manager">담당자</label>
-              <input type="text" id="dw-manager" placeholder="담당자명">
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-stage">설계단계 *</label>
-              <select id="dw-stage" required>
-                <option value="">선택</option>
-                <option value="상담설계">상담설계</option>
-                <option value="1차도면">1차도면</option>
-                <option value="2차도면">2차도면</option>
-                <option value="3차도면">3차도면</option>
-                <option value="최종도면">최종도면</option>
-                <option value="설계완료">설계완료</option>
-                <option value="시공이관">시공이관</option>
-              </select>
-            </div>
-            <div class="dw-form-field">
-              <label for="dw-memo">비고</label>
-              <input type="text" id="dw-memo" placeholder="비고">
-            </div>
-            <div class="dw-form-field dw-form-field-wide">
-              <label>도면파일</label>
-              <div class="dw-file-row">
-                <input type="text" id="dw-drawing-url" placeholder="파일명 또는 URL">
-                <label class="btn btn-sm btn-secondary dw-file-label">
-                  파일 첨부
-                  <input type="file" id="dw-drawing-file" accept=".pdf,.dwg,.png,.jpg,.jpeg,.zip" hidden>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="dw-form-actions">
-            <button type="submit" class="btn btn-primary">저장</button>
-            <button type="button" class="btn btn-secondary" id="btn-cancel-dw">취소</button>
-          </div>
-        </form>
-      </div>
-
-      <!-- 필터 + 테이블 -->
-      <div class="card">
-        <div class="dw-filter-bar">
-          <div class="contract-search-wrap" style="flex:1;min-width:200px;max-width:320px;">
+      <!-- 검색 + 필터 바 -->
+      <div class="card dd-filter-card">
+        <div class="dd-filter-bar">
+          <div class="contract-search-wrap dd-search-wrap">
             <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
               <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
             </svg>
-            <input type="text" id="dw-search" class="contract-search-input" placeholder="주소, 고객명 검색" autocomplete="off">
-            <button type="button" class="contract-search-clear hidden" id="dw-search-clear" title="검색어 초기화">✕</button>
+            <input type="text" id="dd-search" class="contract-search-input" placeholder="도면명, 설명 키워드 검색" autocomplete="off">
+            <button type="button" class="contract-search-clear hidden" id="dd-search-clear" title="검색어 초기화">✕</button>
           </div>
-          <select id="dw-stage-filter" class="procurement-filter-select">
-            <option value="">전체 단계</option>
-            <option value="상담설계">상담설계</option>
-            <option value="1차도면">1차도면</option>
-            <option value="2차도면">2차도면</option>
-            <option value="3차도면">3차도면</option>
-            <option value="최종도면">최종도면</option>
-            <option value="설계완료">설계완료</option>
-            <option value="시공이관">시공이관</option>
+          <select id="dd-filter-size" class="procurement-filter-select">
+            <option value="">전체 평형</option>
+            <option value="10평대">10평대</option>
+            <option value="20평대">20평대</option>
+            <option value="30평대">30평대</option>
+            <option value="40평대">40평대</option>
+            <option value="50평대 이상">50평대 이상</option>
           </select>
-          <span id="dw-filter-result" class="contract-filter-result"></span>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>날짜</th>
-                <th>고객명</th>
-                <th>주소</th>
-                <th>크기</th>
-                <th>작업</th>
-                <th>설계단계</th>
-                <th>담당자</th>
-                <th>도면파일</th>
-                <th>비고</th>
-                <th>작업</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-dw"></tbody>
-          </table>
+          <select id="dd-filter-type" class="procurement-filter-select">
+            <option value="">전체 타입</option>
+            <option value="단층">단층</option>
+            <option value="복층">복층</option>
+            <option value="체류형쉼터">체류형쉼터</option>
+            <option value="스크린골프">스크린골프</option>
+            <option value="기타">기타</option>
+          </select>
+          <select id="dd-filter-style" class="procurement-filter-select">
+            <option value="">전체 스타일</option>
+            <option value="모던">모던</option>
+            <option value="클래식">클래식</option>
+            <option value="내추럴">내추럴</option>
+            <option value="미니멀">미니멀</option>
+            <option value="한옥풍">한옥풍</option>
+          </select>
+          <label class="dd-favorite-toggle">
+            <input type="checkbox" id="dd-filter-favorite">
+            <span>⭐ 즐겨찾기</span>
+          </label>
+          <span id="dd-filter-result" class="contract-filter-result"></span>
         </div>
       </div>
+
+      <!-- 도면 카드 리스트 -->
+      <div id="dd-list" class="dd-grid"></div>
     </section>
+
+    <!-- 도면 등록/수정 모달 -->
+    <div id="dd-form-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dd-form-title">
+      <div class="modal-content modal-content-wide dd-form-modal-content">
+        <div class="modal-header">
+          <h3 id="dd-form-title" style="margin:0;color:#60a5fa;">도면 등록</h3>
+          <button type="button" class="modal-close" id="dd-form-close" aria-label="닫기">×</button>
+        </div>
+        <form id="form-dd" class="dd-form-body">
+          <input type="hidden" id="dd-edit-id">
+          <div class="dd-form-grid">
+            <div class="dd-form-field dd-form-field-wide">
+              <label for="dd-name">도면명 *</label>
+              <input type="text" id="dd-name" placeholder="예: 모던 복층 32평 A타입" required>
+            </div>
+            <div class="dd-form-field">
+              <label for="dd-size">평형 *</label>
+              <select id="dd-size" required>
+                <option value="">선택</option>
+                <option value="10평대">10평대</option>
+                <option value="20평대">20평대</option>
+                <option value="30평대">30평대</option>
+                <option value="40평대">40평대</option>
+                <option value="50평대 이상">50평대 이상</option>
+              </select>
+            </div>
+            <div class="dd-form-field">
+              <label for="dd-type">타입 *</label>
+              <select id="dd-type" required>
+                <option value="">선택</option>
+                <option value="단층">단층</option>
+                <option value="복층">복층</option>
+                <option value="체류형쉼터">체류형쉼터</option>
+                <option value="스크린골프">스크린골프</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+            <div class="dd-form-field">
+              <label for="dd-style">스타일</label>
+              <select id="dd-style">
+                <option value="">선택</option>
+                <option value="모던">모던</option>
+                <option value="클래식">클래식</option>
+                <option value="내추럴">내추럴</option>
+                <option value="미니멀">미니멀</option>
+                <option value="한옥풍">한옥풍</option>
+              </select>
+            </div>
+            <div class="dd-form-field">
+              <label for="dd-area">실면적(평)</label>
+              <input type="text" id="dd-area" placeholder="예: 32.5">
+            </div>
+            <div class="dd-form-field dd-form-field-wide">
+              <label for="dd-description">설명</label>
+              <textarea id="dd-description" rows="3" placeholder="도면 특징, 용도, 추천 대상 등"></textarea>
+            </div>
+            <div class="dd-form-field dd-form-field-wide">
+              <label>도면 파일 (이미지 또는 PDF)</label>
+              <div class="dd-file-row">
+                <input type="file" id="dd-file" accept="image/*,application/pdf">
+                <span id="dd-file-info" class="dd-file-info">선택된 파일 없음</span>
+              </div>
+              <p class="dd-file-hint">이미지(JPG/PNG) 또는 PDF 업로드 · 최대 4MB 권장 (로컬 저장)</p>
+            </div>
+          </div>
+          <div class="dd-form-actions">
+            <button type="submit" class="btn btn-primary">저장</button>
+            <button type="button" class="btn btn-secondary" id="btn-cancel-dd">취소</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 도면 미리보기 모달 -->
+    <div id="dd-preview-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dd-preview-title">
+      <div class="modal-content modal-content-wide dd-preview-modal-content">
+        <div class="modal-header">
+          <h3 id="dd-preview-title" style="margin:0;color:#60a5fa;">도면 미리보기</h3>
+          <div class="dd-preview-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="dd-preview-print">🖨 인쇄</button>
+            <button type="button" class="modal-close" id="dd-preview-close" aria-label="닫기">×</button>
+          </div>
+        </div>
+        <div class="dd-preview-meta" id="dd-preview-meta"></div>
+        <div class="dd-preview-body" id="dd-preview-body"></div>
+      </div>
+    </div>
+
+    <!-- 인쇄 전용 컨테이너 (화면에는 안 보이고 인쇄 시에만 노출) -->
+    <div id="dd-print-frame" class="dd-print-frame" aria-hidden="true"></div>
 
     <!-- 도면관리 섹션 (기존 설계팀 내용) -->
     <section id="section-design" class="content-section">
