@@ -7860,6 +7860,12 @@
     return false;
   }
 
+  function canEditWorklog(w) {
+    if (!w) return false;
+    if (isOwnWorklog(w)) return true;
+    return isAdmin() || isMaster() || isSuperAdmin();
+  }
+
   function filterWorklog(logs) {
     var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
     var showroomFilter = (document.getElementById('worklog-filter-showroom') || {}).value || '';
@@ -7961,6 +7967,10 @@
       var showroomLabel = wl.showroom ? getShowroomName(wl.showroom) : '-';
       var summary = (wl.content || '').replace(/\s+/g, ' ').slice(0, 60);
       if ((wl.content || '').length > 60) summary += '…';
+      var canEdit = canEditWorklog(wl);
+      var actionHtml = canEdit
+        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + escapeAttr(wl.id) + '">수정</button>'
+        : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button>';
       return '<tr>' +
         '<td>' + escapeHtml(wl.date || '-') + '</td>' +
         '<td>' + escapeHtml(wl.author || '-') + '</td>' +
@@ -7968,7 +7978,7 @@
         '<td>' + escapeHtml(showroomLabel) + '</td>' +
         '<td>' + escapeHtml(wl.title || '-') + '</td>' +
         '<td>' + escapeHtml(summary || '-') + '</td>' +
-        '<td><button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button></td>' +
+        '<td>' + actionHtml + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -8079,6 +8089,10 @@
         if (wl.author) metaParts.push(escapeHtml(wl.author));
         if (teamLabel) metaParts.push(escapeHtml(teamLabel));
         if (showroomLabel) metaParts.push(escapeHtml(showroomLabel));
+        var canEdit = canEditWorklog(wl);
+        var actionBtn = canEdit
+          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + escapeAttr(wl.id) + '">수정</button>'
+          : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button>';
         return '<li class="worklog-entry">' +
           '<div class="worklog-entry-head">' +
             '<strong>' + escapeHtml(wl.title || '(제목 없음)') + '</strong>' +
@@ -8088,7 +8102,7 @@
           (wl.plan ? '<div class="worklog-entry-sub"><span>내일 계획</span>' + escapeHtml(wl.plan) + '</div>' : '') +
           (wl.issues ? '<div class="worklog-entry-sub"><span>이슈</span>' + escapeHtml(wl.issues) + '</div>' : '') +
           '<div class="worklog-entry-actions">' +
-            '<button type="button" class="btn btn-sm btn-secondary worklog-edit-btn" data-worklog-id="' + escapeAttr(wl.id) + '">수정</button>' +
+            actionBtn +
           '</div>' +
         '</li>';
       }).join('');
@@ -8303,7 +8317,7 @@
     // Day list (modal) click handling
     var dayWrap = document.getElementById('worklog-day-entries');
     if (dayWrap) dayWrap.addEventListener('click', function (e) {
-      var editTrigger = e.target.closest('.worklog-edit-btn');
+      var editTrigger = e.target.closest('.worklog-edit-btn, .worklog-view-btn');
       if (editTrigger) {
         var wid = editTrigger.getAttribute('data-worklog-id');
         var w = getWorklog().find(function (x) { return x.id === wid; });
@@ -8320,7 +8334,7 @@
     // List view buttons
     var listTbody = document.getElementById('worklog-tbody-list');
     if (listTbody) listTbody.addEventListener('click', function (e) {
-      var btn = e.target.closest('.worklog-view-btn');
+      var btn = e.target.closest('.worklog-edit-btn, .worklog-view-btn');
       if (!btn) return;
       var wid = btn.getAttribute('data-worklog-id');
       var w = getWorklog().find(function (x) { return x.id === wid; });
