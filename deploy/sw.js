@@ -1,17 +1,21 @@
-// 세움디자인하우징 OS 기본 서비스 워커
-// - PWA 설치 인식용 최소 구현
-// - 복잡한 캐싱은 추후 필요 시 추가
+// 세움디자인하우징 OS Service Worker
+// 기존 캐싱 동작이 배포 후에도 stale 자원을 돌려주는 문제가 생겨
+// 이 워커는 활성화 즉시 모든 캐시를 비우고 스스로 등록 해제한다.
+// 이후에는 일반 네트워크 요청만 남는다.
 
 self.addEventListener('install', function (event) {
-  // 즉시 활성화 필요 시 아래 주석 해제 가능
-  // self.skipWaiting();
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', function (event) {
-  // 이전 버전 정리 등 필요 시 사용
+  event.waitUntil((async function () {
+    try {
+      var names = await caches.keys();
+      await Promise.all(names.map(function (n) { return caches.delete(n); }));
+    } catch (_) {}
+    try { await self.clients.claim(); } catch (_) {}
+    try { await self.registration.unregister(); } catch (_) {}
+  })());
 });
 
-self.addEventListener('fetch', function (event) {
-  // 기본적으로 네트워크 그대로 사용 (캐싱 없음)
-});
-
+// fetch 핸들러는 일부러 추가하지 않는다 (no-op fetch 경고 제거 + 오버헤드 제거).
