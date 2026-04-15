@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260415-18">
+  <link rel="stylesheet" href="./css/style.css?v=20260415-19">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -2909,6 +2909,39 @@
         <div id="tw-members-list" class="tw-members-list"></div>
       </div>
 
+      <!-- 보관된 업무일지 히스토리 -->
+      <div class="card tw-history-card">
+        <div class="tw-history-header">
+          <h3>업무일지 보관함</h3>
+          <div class="tw-history-filter">
+            <label class="tw-history-scope">
+              <input type="checkbox" id="tw-history-all-teams"> 모든 팀 보기
+            </label>
+            <select id="tw-history-limit" class="procurement-filter-select">
+              <option value="20">최근 20건</option>
+              <option value="50" selected>최근 50건</option>
+              <option value="200">최근 200건</option>
+              <option value="0">전체</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table tw-history-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>팀</th>
+                <th>팀장 요약</th>
+                <th>작성 현황</th>
+                <th>최종 수정</th>
+                <th>열기</th>
+              </tr>
+            </thead>
+            <tbody id="tw-history-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- 팀원 작성 모달 -->
       <div id="tw-member-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tw-member-title">
         <div class="modal-content modal-content-wide tw-member-modal-content">
@@ -4347,7 +4380,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260415-18"></script>
+  <script src="js/app.js?v=20260415-19"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
