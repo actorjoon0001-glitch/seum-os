@@ -8532,6 +8532,583 @@
     openWorklogPrintWindow(titleText, body);
   }
 
+  // =====================================================================
+  // 팀별 업무일지 (Team Worklog)
+  // =====================================================================
+  var STORAGE_TEAM_WORKLOGS = 'seum_team_worklogs';
+  var STORAGE_TEAM_WORKLOG_TEAMS = 'seum_team_worklog_teams';
+
+  // 기본 팀 목록 (샘플 팀 불러오기 전에도 빈 상태 가능)
+  var TW_DEFAULT_TEAMS = [
+    { id: 'marketing-hq', name: '본사전시장 마케팅팀', team: '마케팅' },
+    { id: 'sales',        name: '영업팀',            team: '영업' },
+    { id: 'design',       name: '설계팀',            team: '설계' },
+    { id: 'construction', name: '시공팀',            team: '시공' }
+  ];
+
+  // 샘플 팀 멤버 (샘플 불러오기 버튼 시 주입)
+  var TW_DUMMY_MEMBERS = {
+    'marketing-hq': [
+      { authorId: 'tw-m-01', name: '김마케팅', role: 'leader' },
+      { authorId: 'tw-m-02', name: '박콘텐츠', role: 'member' },
+      { authorId: 'tw-m-03', name: '이광고',   role: 'member' }
+    ],
+    'sales': [
+      { authorId: 'tw-s-01', name: '최영업',   role: 'leader' },
+      { authorId: 'tw-s-02', name: '정상담',   role: 'member' },
+      { authorId: 'tw-s-03', name: '한계약',   role: 'member' },
+      { authorId: 'tw-s-04', name: '송방문',   role: 'member' }
+    ],
+    'design': [
+      { authorId: 'tw-d-01', name: '오설계',   role: 'leader' },
+      { authorId: 'tw-d-02', name: '장도면',   role: 'member' },
+      { authorId: 'tw-d-03', name: '윤평면',   role: 'member' }
+    ],
+    'construction': [
+      { authorId: 'tw-c-01', name: '강시공',   role: 'leader' },
+      { authorId: 'tw-c-02', name: '문현장',   role: 'member' },
+      { authorId: 'tw-c-03', name: '배감리',   role: 'member' }
+    ]
+  };
+
+  function twGetTeams() {
+    try {
+      var raw = localStorage.getItem(STORAGE_TEAM_WORKLOG_TEAMS);
+      var arr = raw ? JSON.parse(raw) : [];
+      return arr.length ? arr : TW_DEFAULT_TEAMS.slice();
+    } catch (e) { return TW_DEFAULT_TEAMS.slice(); }
+  }
+  function twSaveTeams(teams) {
+    localStorage.setItem(STORAGE_TEAM_WORKLOG_TEAMS, JSON.stringify(teams));
+  }
+  function twGetWorklogs() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_TEAM_WORKLOGS) || '[]'); }
+    catch (e) { return []; }
+  }
+  function twSaveWorklogs(list) {
+    try { localStorage.setItem(STORAGE_TEAM_WORKLOGS, JSON.stringify(list)); return true; }
+    catch (e) { showToast('저장 용량이 초과됐습니다.', 'error'); return false; }
+  }
+
+  function twSeedDummy() {
+    twSaveTeams(TW_DEFAULT_TEAMS.slice());
+    // 멤버 시드(기존 직원 레코드 유지, 없는 샘플만 추가)
+    var existing = getEmployees();
+    var byId = {};
+    existing.forEach(function (e) { byId[e.id] = true; });
+    var added = [];
+    Object.keys(TW_DUMMY_MEMBERS).forEach(function (teamId) {
+      var teamMeta = TW_DEFAULT_TEAMS.find(function (t) { return t.id === teamId; });
+      TW_DUMMY_MEMBERS[teamId].forEach(function (m) {
+        if (byId[m.authorId]) return;
+        added.push({
+          id: m.authorId,
+          name: m.name,
+          team: teamMeta ? teamMeta.team : '',
+          teamWorklogTeamId: teamId,
+          role: m.role,
+          status: 'active'
+        });
+        byId[m.authorId] = true;
+      });
+    });
+    if (added.length) saveEmployees(existing.concat(added));
+  }
+
+  function twIsAdminLike() {
+    if (typeof isAdmin === 'function' && isAdmin()) return true;
+    if (typeof isMaster === 'function' && isMaster()) return true;
+    if (typeof isSuperAdmin === 'function' && isSuperAdmin()) return true;
+    return false;
+  }
+
+  // 현재 로그인 사용자가 선택된 팀의 팀장인지 판단
+  function twIsLeader(team) {
+    var cur = window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    if (twIsAdminLike()) return true;
+    var role = (cur.role || '').toString().toLowerCase();
+    var isLeaderRole = role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager';
+    if (!isLeaderRole) return false;
+    // 팀 일치(한글 team 필드 기준)
+    if (team && team.team && cur.team && cur.team !== team.team) return false;
+    return true;
+  }
+
+  // 선택된 팀의 팀원 목록 (기존 직원 + 샘플 시드된 직원)
+  function twGetTeamMembers(team) {
+    if (!team) return [];
+    var emps = getEmployees();
+    return emps.filter(function (e) {
+      if (e.status && e.status !== 'active' && e.status !== 'pending') return false;
+      if (e.teamWorklogTeamId === team.id) return true;
+      if (team.team && e.team === team.team) return true;
+      return false;
+    }).sort(function (a, b) {
+      // 팀장을 먼저
+      var ar = (a.role || '').toString().toLowerCase();
+      var br = (b.role || '').toString().toLowerCase();
+      var aLead = (ar === 'leader' || ar === '팀장' || ar === 'team_lead' || ar === 'manager') ? 0 : 1;
+      var bLead = (br === 'leader' || br === '팀장' || br === 'team_lead' || br === 'manager') ? 0 : 1;
+      if (aLead !== bLead) return aLead - bLead;
+      return (a.name || '').localeCompare(b.name || '', 'ko');
+    });
+  }
+
+  function twGetEntry(teamId, date, kind, authorId) {
+    return twGetWorklogs().find(function (w) {
+      return w.teamId === teamId && w.date === date && w.kind === kind &&
+        (kind === 'leader' ? true : w.authorId === authorId);
+    });
+  }
+
+  function twUpsertEntry(entry) {
+    var list = twGetWorklogs();
+    var idx = list.findIndex(function (w) {
+      return w.teamId === entry.teamId && w.date === entry.date && w.kind === entry.kind &&
+        (entry.kind === 'leader' ? true : w.authorId === entry.authorId);
+    });
+    var now = new Date().toISOString();
+    if (idx >= 0) {
+      list[idx] = Object.assign({}, list[idx], entry, { updatedAt: now });
+    } else {
+      list.push(Object.assign({}, entry, { id: id(), createdAt: now, updatedAt: now }));
+    }
+    return twSaveWorklogs(list) ? list : null;
+  }
+
+  function twTodayIso() {
+    var d = new Date();
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  // 상태 추적
+  var _twState = { teamId: null, date: null, initialized: false };
+
+  function _twCurrentTeam() {
+    var teams = twGetTeams();
+    return teams.find(function (t) { return t.id === _twState.teamId; }) || teams[0] || null;
+  }
+
+  function _twRenderLeader(team) {
+    var card = document.getElementById('tw-leader-card');
+    var view = document.getElementById('tw-leader-view');
+    var form = document.getElementById('tw-leader-form');
+    var footer = card ? card.querySelector('.tw-leader-footer') : null;
+    var sub = document.getElementById('tw-leader-sub');
+    var meta = document.getElementById('tw-leader-meta');
+    var editBtn = document.getElementById('tw-leader-edit');
+    if (!view || !form) return;
+
+    var entry = team ? twGetEntry(team.id, _twState.date, 'leader', null) : null;
+    var canEdit = !!team && twIsLeader(team);
+    if (editBtn) {
+      editBtn.classList.toggle('hidden', !canEdit);
+      editBtn.textContent = entry ? '팀장 업무일지 수정' : '팀장 업무일지 작성';
+    }
+    if (sub) {
+      sub.textContent = canEdit
+        ? '팀장 권한으로 작성할 수 있습니다.'
+        : '팀장만 작성할 수 있습니다. (현재 읽기 전용)';
+    }
+    if (meta) {
+      meta.innerHTML = entry
+        ? '작성자 <b>' + escapeHtml(entry.authorName || '-') + '</b><br>' +
+          '최종 수정 ' + escapeHtml((entry.updatedAt || '').slice(0, 16).replace('T', ' '))
+        : '<span style="color:#f87171;">아직 작성되지 않았습니다.</span>';
+    }
+
+    // 뷰 렌더
+    var block = function (label, text, wide) {
+      var content = (text && text.trim())
+        ? '<div class="tw-block-content">' + escapeHtml(text) + '</div>'
+        : '<div class="tw-block-content tw-empty">미작성</div>';
+      return '<div class="tw-block' + (wide ? ' tw-block-wide' : '') + '">' +
+        '<span class="tw-block-label">' + label + '</span>' + content + '</div>';
+    };
+    view.innerHTML =
+      block('팀 전체 업무 요약', entry ? entry.summary : '', true) +
+      block('진행 상황', entry ? entry.progress : '', false) +
+      block('이슈 사항', entry ? entry.issues : '', false) +
+      block('내일 계획', entry ? entry.tomorrow : '', true);
+
+    // 폼 초기값 채우기
+    if (!form.classList.contains('hidden')) return;
+    document.getElementById('tw-leader-summary').value  = entry ? (entry.summary  || '') : '';
+    document.getElementById('tw-leader-progress').value = entry ? (entry.progress || '') : '';
+    document.getElementById('tw-leader-issues').value   = entry ? (entry.issues   || '') : '';
+    document.getElementById('tw-leader-tomorrow').value = entry ? (entry.tomorrow || '') : '';
+  }
+
+  function _twRenderMembers(team) {
+    var listEl = document.getElementById('tw-members-list');
+    var statDone = document.getElementById('tw-stat-done');
+    var statPending = document.getElementById('tw-stat-pending');
+    if (!listEl) return;
+    if (!team) {
+      listEl.innerHTML = '<div class="tw-members-empty">팀을 선택해주세요.</div>';
+      if (statDone) statDone.textContent = '0';
+      if (statPending) statPending.textContent = '0';
+      return;
+    }
+    var members = twGetTeamMembers(team);
+    if (!members.length) {
+      listEl.innerHTML = '<div class="tw-members-empty">팀원이 없습니다. 상단 "샘플 팀 불러오기"를 눌러 더미 팀을 추가하거나, 직원 관리에서 팀원을 등록하세요.</div>';
+      if (statDone) statDone.textContent = '0';
+      if (statPending) statPending.textContent = '0';
+      return;
+    }
+    var me = window.seumAuth && window.seumAuth.currentEmployee;
+    var myId = me ? (me.id || me.authUserId || null) : null;
+    var myName = me ? (me.name || '') : '';
+    var done = 0, pending = 0;
+
+    listEl.innerHTML = members.map(function (m) {
+      var entry = twGetEntry(team.id, _twState.date, 'member', m.id);
+      var isDone = !!entry && !!(entry.tasks && entry.tasks.trim());
+      if (isDone) done++; else pending++;
+
+      var role = (m.role || '').toString().toLowerCase();
+      var isLeaderRole = role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager';
+      var isMe = (myId && m.id === myId) || (!myId && myName && m.name === myName);
+      var canEdit = isMe || twIsAdminLike();
+
+      var head =
+        '<div class="tw-member-head">' +
+          '<span class="tw-member-name">' + escapeHtml(m.name || '이름 없음') +
+            (isLeaderRole ? ' <span class="tw-role-badge">팀장</span>' : '') +
+            (isMe ? ' <span class="tw-me-badge">나</span>' : '') +
+          '</span>' +
+          '<span class="tw-member-status ' + (isDone ? 'tw-done' : 'tw-pending') + '">' +
+            (isDone ? '✅ 작성 완료' : '● 미작성') +
+          '</span>' +
+        '</div>';
+
+      var body;
+      if (isDone) {
+        var block = function (label, text) {
+          if (!text || !text.trim()) return '';
+          return '<div class="tw-block">' +
+            '<span class="tw-block-label">' + label + '</span>' +
+            '<div class="tw-block-content">' + escapeHtml(text) + '</div></div>';
+        };
+        body = '<div class="tw-member-body">' +
+          block('오늘 수행 업무', entry.tasks) +
+          block('이슈 / 공유', entry.issues) +
+          block('내일 계획', entry.tomorrow) +
+          '</div>';
+      } else {
+        body = '<div class="tw-member-empty">오늘 업무일지가 아직 작성되지 않았습니다.</div>';
+      }
+
+      var actions = '<div class="tw-member-actions">' +
+        (canEdit
+          ? '<button type="button" class="btn btn-sm btn-primary" data-tw-act="edit" data-author="' + escapeAttr(m.id) + '">' +
+              (isDone ? '수정' : '작성') + '</button>' +
+            (isDone ? '<button type="button" class="btn btn-sm btn-danger" data-tw-act="delete" data-author="' + escapeAttr(m.id) + '">삭제</button>' : '')
+          : '<span style="font-size:0.75rem;color:#6b7280;">' + (isDone ? '읽기 전용' : '대기 중') + '</span>') +
+        '</div>';
+
+      return '<article class="tw-member-card ' + (isDone ? 'tw-done' : 'tw-pending') + (isMe ? ' tw-is-me' : '') + '"' +
+        ' data-author="' + escapeAttr(m.id) + '" data-name="' + escapeAttr(m.name || '') + '">' +
+        head + body + actions +
+        '</article>';
+    }).join('');
+
+    if (statDone) statDone.textContent = String(done);
+    if (statPending) statPending.textContent = String(pending);
+  }
+
+  function _twPopulateTeamSelect() {
+    var sel = document.getElementById('tw-team-select');
+    if (!sel) return;
+    var teams = twGetTeams();
+    var prev = _twState.teamId;
+    sel.innerHTML = teams.map(function (t) {
+      return '<option value="' + escapeAttr(t.id) + '">' + escapeHtml(t.name) + '</option>';
+    }).join('');
+    // 우선순위: 기존 선택 → 로그인 사용자 팀 → 첫 번째
+    var target = teams.find(function (t) { return t.id === prev; });
+    if (!target) {
+      var me = window.seumAuth && window.seumAuth.currentEmployee;
+      var myTeam = me && me.team;
+      if (myTeam) target = teams.find(function (t) { return t.team === myTeam; });
+    }
+    if (!target) target = teams[0];
+    if (target) {
+      sel.value = target.id;
+      _twState.teamId = target.id;
+    }
+  }
+
+  function renderTeamWorklog() {
+    var sel = document.getElementById('tw-team-select');
+    var dateInput = document.getElementById('tw-date');
+    if (!sel || !dateInput) return;
+
+    if (!_twState.date) _twState.date = twTodayIso();
+    if (!dateInput.value) dateInput.value = _twState.date;
+
+    _twPopulateTeamSelect();
+    var team = _twCurrentTeam();
+    _twRenderLeader(team);
+    _twRenderMembers(team);
+
+    if (!_twState.initialized) {
+      _twState.initialized = true;
+      _twInitEvents();
+    }
+  }
+
+  function _twOpenMemberModal(member, team) {
+    if (!member || !team) return;
+    var modal = document.getElementById('tw-member-modal');
+    if (!modal) return;
+    var entry = twGetEntry(team.id, _twState.date, 'member', member.id);
+    document.getElementById('tw-member-title').textContent =
+      member.name + ' 업무일지 · ' + _twState.date;
+    document.getElementById('tw-member-author-id').value = member.id;
+    document.getElementById('tw-member-tasks').value    = entry ? (entry.tasks || '')    : '';
+    document.getElementById('tw-member-issues').value   = entry ? (entry.issues || '')   : '';
+    document.getElementById('tw-member-tomorrow').value = entry ? (entry.tomorrow || '') : '';
+    modal.classList.remove('hidden');
+  }
+
+  function _twCloseMemberModal() {
+    var modal = document.getElementById('tw-member-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function _twPrintAll() {
+    var team = _twCurrentTeam();
+    if (!team) { showToast('팀을 먼저 선택하세요.', 'error'); return; }
+    var frame = document.getElementById('tw-print-frame');
+    if (!frame) return;
+
+    var leader = twGetEntry(team.id, _twState.date, 'leader', null);
+    var members = twGetTeamMembers(team);
+    var memberRows = members.map(function (m) {
+      var e = twGetEntry(team.id, _twState.date, 'member', m.id);
+      var cell = function (txt) {
+        if (!txt || !txt.trim()) return '<td class="tw-print-empty">미작성</td>';
+        return '<td>' + escapeHtml(txt) + '</td>';
+      };
+      var role = (m.role || '').toString().toLowerCase();
+      var isLeaderRole = role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager';
+      return '<tr>' +
+        '<td>' + escapeHtml(m.name || '-') + (isLeaderRole ? ' (팀장)' : '') + '</td>' +
+        cell(e && e.tasks) +
+        cell(e && e.issues) +
+        cell(e && e.tomorrow) +
+        '</tr>';
+    }).join('');
+
+    var leaderBlocks = function () {
+      var block = function (label, text, wide) {
+        var content = (text && text.trim())
+          ? escapeHtml(text)
+          : '<span style="color:#888;font-style:italic;">미작성</span>';
+        return '<div class="tw-print-block' + (wide ? ' tw-print-block-wide' : '') + '">' +
+          '<div class="tw-print-block-label">' + label + '</div>' +
+          '<div class="tw-print-block-content">' + content + '</div></div>';
+      };
+      return '<div class="tw-print-grid">' +
+        block('팀 전체 업무 요약', leader && leader.summary,  true) +
+        block('진행 상황',         leader && leader.progress, false) +
+        block('이슈 사항',         leader && leader.issues,   false) +
+        block('내일 계획',         leader && leader.tomorrow, true) +
+        '</div>';
+    }();
+
+    var totalCount = members.length;
+    var doneCount = members.filter(function (m) {
+      var e = twGetEntry(team.id, _twState.date, 'member', m.id);
+      return !!(e && e.tasks && e.tasks.trim());
+    }).length;
+
+    frame.innerHTML =
+      '<div class="tw-print-head">' +
+        '<h1>' + escapeHtml(team.name) + ' 업무일지</h1>' +
+        '<p>기준일: ' + escapeHtml(_twState.date) + ' · 작성 ' + doneCount + '/' + totalCount + '명</p>' +
+      '</div>' +
+      '<div class="tw-print-section">' +
+        '<h2>팀장 보고</h2>' +
+        '<div style="font-size:10pt;margin:2px 0 4px;">작성자: ' +
+          escapeHtml((leader && leader.authorName) || '미작성') + '</div>' +
+        leaderBlocks +
+      '</div>' +
+      '<div class="tw-print-section">' +
+        '<h2>팀원 업무</h2>' +
+        '<table class="tw-print-table">' +
+          '<thead><tr><th style="width:18%;">팀원</th><th style="width:34%;">오늘 업무</th>' +
+          '<th style="width:24%;">이슈/공유</th><th style="width:24%;">내일 계획</th></tr></thead>' +
+          '<tbody>' + (memberRows || '<tr><td colspan="4" class="tw-print-empty">팀원이 없습니다.</td></tr>') + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="tw-print-foot">세움OS · 출력일: ' + new Date().toLocaleString('ko-KR') + '</div>';
+
+    document.body.classList.add('tw-printing');
+    var cleanup = function () {
+      document.body.classList.remove('tw-printing');
+      frame.innerHTML = '';
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(function () { window.print(); }, 80);
+  }
+
+  function _twInitEvents() {
+    // 팀 선택
+    var sel = document.getElementById('tw-team-select');
+    if (sel) sel.addEventListener('change', function () {
+      _twState.teamId = sel.value;
+      var form = document.getElementById('tw-leader-form');
+      if (form) form.classList.add('hidden');
+      renderTeamWorklog();
+    });
+
+    // 날짜
+    var dateInput = document.getElementById('tw-date');
+    if (dateInput) dateInput.addEventListener('change', function () {
+      _twState.date = dateInput.value || twTodayIso();
+      var form = document.getElementById('tw-leader-form');
+      if (form) form.classList.add('hidden');
+      renderTeamWorklog();
+    });
+
+    // 샘플 불러오기
+    var btnSeed = document.getElementById('tw-btn-seed');
+    if (btnSeed) btnSeed.addEventListener('click', function () {
+      twSeedDummy();
+      renderTeamWorklog();
+      showToast('샘플 팀 및 팀원이 추가됐습니다.');
+    });
+
+    // 인쇄
+    var btnPrint = document.getElementById('tw-btn-print');
+    if (btnPrint) btnPrint.addEventListener('click', _twPrintAll);
+
+    // 팀장 편집 토글
+    var btnLead = document.getElementById('tw-leader-edit');
+    var leadForm = document.getElementById('tw-leader-form');
+    var leadView = document.getElementById('tw-leader-view');
+    if (btnLead) btnLead.addEventListener('click', function () {
+      if (!leadForm || !leadView) return;
+      leadForm.classList.remove('hidden');
+      leadView.style.display = 'none';
+      btnLead.classList.add('hidden');
+    });
+    var btnLeadCancel = document.getElementById('tw-leader-cancel');
+    if (btnLeadCancel) btnLeadCancel.addEventListener('click', function () {
+      if (leadForm) leadForm.classList.add('hidden');
+      if (leadView) leadView.style.display = '';
+      renderTeamWorklog();
+    });
+
+    // 팀장 저장
+    if (leadForm) leadForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var team = _twCurrentTeam();
+      if (!team) return;
+      if (!twIsLeader(team)) {
+        showToast('팀장만 작성할 수 있습니다.', 'error');
+        return;
+      }
+      var cur = window.seumAuth && window.seumAuth.currentEmployee;
+      var entry = {
+        teamId:    team.id,
+        date:      _twState.date,
+        kind:      'leader',
+        authorId:  cur ? (cur.id || cur.authUserId || '') : '',
+        authorName:cur ? (cur.name || '팀장') : '팀장',
+        summary:   document.getElementById('tw-leader-summary').value.trim(),
+        progress:  document.getElementById('tw-leader-progress').value.trim(),
+        issues:    document.getElementById('tw-leader-issues').value.trim(),
+        tomorrow:  document.getElementById('tw-leader-tomorrow').value.trim()
+      };
+      if (!twUpsertEntry(entry)) return;
+      if (leadForm) leadForm.classList.add('hidden');
+      if (leadView) leadView.style.display = '';
+      renderTeamWorklog();
+      showToast('팀장 업무일지가 저장됐습니다.');
+    });
+
+    // 팀원 카드 이벤트 위임
+    var listEl = document.getElementById('tw-members-list');
+    if (listEl) listEl.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-tw-act]');
+      if (!btn) return;
+      var act = btn.getAttribute('data-tw-act');
+      var authorId = btn.getAttribute('data-author');
+      var team = _twCurrentTeam();
+      if (!team || !authorId) return;
+      var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
+      if (!member) return;
+
+      if (act === 'edit') {
+        var cur = window.seumAuth && window.seumAuth.currentEmployee;
+        var myId = cur ? (cur.id || cur.authUserId) : null;
+        var isMe = myId && member.id === myId;
+        if (!isMe && !twIsAdminLike()) {
+          showToast('본인 업무일지만 수정할 수 있습니다.', 'error');
+          return;
+        }
+        _twOpenMemberModal(member, team);
+      } else if (act === 'delete') {
+        if (!confirm(member.name + ' 업무일지를 삭제하시겠습니까?')) return;
+        var list = twGetWorklogs().filter(function (w) {
+          return !(w.teamId === team.id && w.date === _twState.date && w.kind === 'member' && w.authorId === member.id);
+        });
+        if (!twSaveWorklogs(list)) return;
+        renderTeamWorklog();
+        showToast('삭제됐습니다.');
+      }
+    });
+
+    // 팀원 모달 저장
+    var memForm = document.getElementById('tw-member-form');
+    if (memForm) memForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var team = _twCurrentTeam();
+      if (!team) return;
+      var authorId = document.getElementById('tw-member-author-id').value;
+      var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
+      if (!member) return;
+      var cur = window.seumAuth && window.seumAuth.currentEmployee;
+      var myId = cur ? (cur.id || cur.authUserId) : null;
+      if (member.id !== myId && !twIsAdminLike()) {
+        showToast('본인 업무일지만 저장할 수 있습니다.', 'error');
+        return;
+      }
+      var tasks = document.getElementById('tw-member-tasks').value.trim();
+      if (!tasks) { showToast('오늘 수행한 업무는 필수입니다.', 'error'); return; }
+      var entry = {
+        teamId:     team.id,
+        date:       _twState.date,
+        kind:       'member',
+        authorId:   member.id,
+        authorName: member.name,
+        tasks:      tasks,
+        issues:     document.getElementById('tw-member-issues').value.trim(),
+        tomorrow:   document.getElementById('tw-member-tomorrow').value.trim()
+      };
+      if (!twUpsertEntry(entry)) return;
+      _twCloseMemberModal();
+      renderTeamWorklog();
+      showToast('저장됐습니다.');
+    });
+
+    var memClose = document.getElementById('tw-member-close');
+    if (memClose) memClose.addEventListener('click', _twCloseMemberModal);
+    var memCancel = document.getElementById('tw-member-cancel');
+    if (memCancel) memCancel.addEventListener('click', _twCloseMemberModal);
+    var memModal = document.getElementById('tw-member-modal');
+    if (memModal) memModal.addEventListener('click', function (e) {
+      if (e.target === memModal) memModal.classList.add('hidden');
+    });
+  }
+
   function renderWorklog() {
     populateWorklogYearSelect();
     syncWorklogFilters();
@@ -8771,6 +9348,7 @@
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
     if (sectionId === 'worklog') renderWorklog();
+    if (sectionId === 'team-worklog') renderTeamWorklog();
     if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');
@@ -12831,6 +13409,7 @@
     renderHR();
     renderTeamCalendar();
     renderWorklog();
+    renderTeamWorklog();
     renderKPI();
     console.log('???????? OS ??? ??');
   }
