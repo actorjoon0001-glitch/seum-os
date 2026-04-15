@@ -52,6 +52,7 @@
   var STORAGE_PROCUREMENT_ORDER_ITEMS = 'seum_procurement_order_items';
   var STORAGE_PROCUREMENT_STD_QTY = 'seum_procurement_std_qty';
   var STORAGE_WORKLOG = 'seum_worklog';
+  var STORAGE_WORKLOG_DELETED = 'seum_worklog_deleted';
 
   var SHOWROOMS = [
     { id: 'headquarters', name: '본사 전시장' },
@@ -7763,6 +7764,34 @@
     }
   }
 
+  // Tombstones: IDs of work logs the user deleted locally. Used to
+  // prevent Supabase sync from resurrecting rows whose delete-from-remote
+  // is still in flight or transiently failed. Entries older than 30 days
+  // are pruned automatically.
+  function getWorklogDeleted() {
+    try {
+      var raw = localStorage.getItem(STORAGE_WORKLOG_DELETED);
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return [];
+      var cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      return arr.filter(function (t) { return t && t.id && t.at && t.at >= cutoff; });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function addWorklogDeleted(wid) {
+    if (!wid) return;
+    var list = getWorklogDeleted().filter(function (t) { return t.id !== wid; });
+    list.push({ id: wid, at: Date.now() });
+    try { localStorage.setItem(STORAGE_WORKLOG_DELETED, JSON.stringify(list)); } catch (e) {}
+  }
+
+  function isWorklogDeleted(wid) {
+    if (!wid) return false;
+    return getWorklogDeleted().some(function (t) { return t.id === wid; });
+  }
+
   function saveWorklog(data) {
     localStorage.setItem(STORAGE_WORKLOG, JSON.stringify(data));
     try {
@@ -7824,11 +7853,11 @@
             if (!wl.createdAt && row.created_at) wl.createdAt = row.created_at;
             if (!wl.updatedAt && row.updated_at) wl.updatedAt = row.updated_at;
             return wl;
-          }).filter(function (wl) { return wl && wl.id; });
+          }).filter(function (wl) { return wl && wl.id && !isWorklogDeleted(wl.id); });
           var local = getWorklog();
           var byId = {};
           local.forEach(function (wl) { if (wl && wl.id) byId[wl.id] = wl; });
-          // 원격이 최신이면 원격으로, 아니면 로컬 유지
+          // 원격이 최신이면 원격으로, 아니면 로컬 유지. 단 삭제 tombstone 에 있는 id 는 제외.
           remote.forEach(function (rwl) {
             var existing = byId[rwl.id];
             if (!existing) { byId[rwl.id] = rwl; return; }
@@ -7903,6 +7932,7 @@
     if (!canEditWorklog(w)) return;
     var confirmMsg = '업무일지를 삭제하시겠습니까?\n\n제목: ' + (w.title || '(제목 없음)') + '\n작성자: ' + (w.author || '-') + '\n날짜: ' + (w.date || '-');
     if (!window.confirm(confirmMsg)) return;
+    addWorklogDeleted(wid);
     var logs = getWorklog().filter(function (x) { return x.id !== wid; });
     saveWorklog(logs);
     deleteWorklogFromSupabase(wid);
@@ -8337,6 +8367,7 @@
       var editId = document.getElementById('worklog-edit-id').value;
       if (!editId) return;
       if (!window.confirm('업무일지를 삭제하시겠습니까?')) return;
+      addWorklogDeleted(editId);
       var logs = getWorklog().filter(function (w) { return w.id !== editId; });
       saveWorklog(logs);
       deleteWorklogFromSupabase(editId);
