@@ -7987,9 +7987,19 @@
         ev.preventDefault();
         ev.stopPropagation();
         var wid = btn.getAttribute('data-worklog-id');
-        var w = getWorklog().find(function (x) { return x.id === wid; });
-        if (w) openWorklogModal('edit', w);
-        else console.warn('[worklog] entry not found for id', wid);
+        console.log('[worklog] list edit/view click, id=', wid);
+        try {
+          var w = getWorklog().find(function (x) { return x.id === wid; });
+          if (!w) {
+            console.warn('[worklog] entry not found for id', wid, 'store=', getWorklog());
+            alert('해당 업무일지를 찾을 수 없습니다. (id=' + wid + ')');
+            return;
+          }
+          openWorklogModal('edit', w);
+        } catch (err) {
+          console.error('[worklog] openWorklogModal failed:', err);
+          alert('수정 창을 여는 중 오류: ' + (err && err.message ? err.message : err));
+        }
       });
     });
   }
