@@ -406,15 +406,16 @@
 
   /**
    * 계약 1건이 키워드에 매칭되는지 확인
-   * 현재 검색 대상: 건축주명, 주소(siteAddress)
-   * 향후 확장: 담당자(salesPerson), 상태 등 fields 배열에 추가
+   * 검색 대상: 건축주명, 주소(siteAddress), 담당자(salesPerson)
+   * → 영업팀 직원이 본인 이름으로 검색 시 본인이 계약한 건이 모두 노출됨
    */
   function matchesKeyword(contract, keyword) {
     if (!keyword) return true;
     var kw = keyword.toLowerCase();
     var fields = [
       contract.customerName || '',
-      contract.siteAddress  || ''
+      contract.siteAddress  || '',
+      contract.salesPerson  || ''
     ];
     return fields.some(function (f) {
       return f.toLowerCase().indexOf(kw) !== -1;
