@@ -7918,18 +7918,19 @@
 
   // Global entry point for 수정/보기 click (invoked by document-level delegation).
   window.seumOpenWorklogEdit = function (wid) {
-    if (!wid) return;
+    if (!wid) { showToast('업무일지 ID 가 비어있습니다.', 'error'); return; }
     var w = getWorklog().find(function (x) { return x.id === wid; });
-    if (!w) return;
-    openWorklogModal('edit', w);
+    if (!w) { showToast('해당 업무일지를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.', 'error'); return; }
+    try { openWorklogModal('edit', w); }
+    catch (err) { console.error('[worklog] openWorklogModal failed:', err); showToast('수정 창을 여는 중 오류가 발생했습니다.', 'error'); }
   };
 
   // Global entry point for 삭제 click (invoked by document-level delegation).
   window.seumDeleteWorklog = function (wid) {
-    if (!wid) return;
+    if (!wid) { showToast('업무일지 ID 가 비어있습니다.', 'error'); return; }
     var w = getWorklog().find(function (x) { return x.id === wid; });
-    if (!w) return;
-    if (!canEditWorklog(w)) return;
+    if (!w) { showToast('해당 업무일지를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.', 'error'); return; }
+    if (!canEditWorklog(w)) { showToast('삭제 권한이 없습니다.', 'error'); return; }
     var confirmMsg = '업무일지를 삭제하시겠습니까?\n\n제목: ' + (w.title || '(제목 없음)') + '\n작성자: ' + (w.author || '-') + '\n날짜: ' + (w.date || '-');
     if (!window.confirm(confirmMsg)) return;
     addWorklogDeleted(wid);

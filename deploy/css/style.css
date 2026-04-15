@@ -10977,8 +10977,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* 리스트 행 버튼은 hover 시 translateY 로 살짝 떠오르는 기본 효과를 끔.
    작은 테이블 셀 안에서 이 효과가 마우스 hit-test 영역도 같이 움직여
    hover on/off 가 빠르게 반복되며 버튼이 깜빡이는 현상이 생김. */
-#section-worklog .data-table .btn:hover {
-  transform: none;
+#section-worklog .btn:hover,
+#section-worklog .btn:focus {
+  transform: none !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
 }
 
 #section-worklog .no-result-msg {
