@@ -7981,6 +7981,17 @@
         '<td>' + actionHtml + '</td>' +
         '</tr>';
     }).join('');
+    // Direct per-button handler as a safety net in case delegation fails.
+    tbody.querySelectorAll('.worklog-edit-btn, .worklog-view-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var wid = btn.getAttribute('data-worklog-id');
+        var w = getWorklog().find(function (x) { return x.id === wid; });
+        if (w) openWorklogModal('edit', w);
+        else console.warn('[worklog] entry not found for id', wid);
+      });
+    });
   }
 
   function renderWorklogStats() {
@@ -8106,6 +8117,17 @@
           '</div>' +
         '</li>';
       }).join('');
+      // Direct per-button handler as a safety net in case delegation fails.
+      dayList.querySelectorAll('.worklog-edit-btn, .worklog-view-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          var wid = btn.getAttribute('data-worklog-id');
+          var w = getWorklog().find(function (x) { return x.id === wid; });
+          if (w) openWorklogModal('edit', w);
+          else console.warn('[worklog] entry not found for id', wid);
+        });
+      });
     }
     var addBtn = document.createElement('div');
     addBtn.className = 'worklog-day-add-wrap';
