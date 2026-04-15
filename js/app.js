@@ -1,44 +1,27 @@
 (function () {
   'use strict';
-  console.log('app.js loaded [v=20260415-09]');
+  console.log('app.js loaded');
 
-  // Early top-level click logger + handler for work log 수정/삭제 buttons.
-  // Attached at script parse time so it is guaranteed to be registered
-  // before any user interaction.
+  // Document-level delegation for work log 수정/삭제 buttons.
+  // Attached at script parse time so it is registered before any user
+  // interaction, and uses capture phase so it is not blocked by any
+  // intermediate handler that might call stopPropagation.
   document.addEventListener('click', function (e) {
-    // Log EVERY click so we can verify the event system works at all.
-    try {
-      var t = e.target;
-      var desc = t && t.tagName ? t.tagName.toLowerCase() : String(t);
-      if (t && t.className && typeof t.className === 'string') desc += '.' + t.className.replace(/\s+/g, '.');
-      console.log('[click]', desc, 'text=', (t && t.textContent ? t.textContent.slice(0, 20) : ''));
-    } catch (_) {}
-
     var editBtn = e.target.closest && e.target.closest('.worklog-edit-btn, .worklog-view-btn');
     if (editBtn) {
       var wid = editBtn.getAttribute('data-worklog-id');
-      console.log('[worklog] edit/view click captured, id=', wid);
-      if (typeof window.seumOpenWorklogEdit === 'function') {
-        window.seumOpenWorklogEdit(wid);
-      } else {
-        alert('seumOpenWorklogEdit 함수가 아직 준비되지 않았습니다. 페이지를 새로고침해주세요.');
-      }
+      if (typeof window.seumOpenWorklogEdit === 'function') window.seumOpenWorklogEdit(wid);
       e.preventDefault();
       return;
     }
     var delBtn = e.target.closest && e.target.closest('.worklog-delete-btn');
     if (delBtn) {
       var wid2 = delBtn.getAttribute('data-worklog-id');
-      console.log('[worklog] delete click captured, id=', wid2);
-      if (typeof window.seumDeleteWorklog === 'function') {
-        window.seumDeleteWorklog(wid2);
-      } else {
-        alert('seumDeleteWorklog 함수가 아직 준비되지 않았습니다. 페이지를 새로고침해주세요.');
-      }
+      if (typeof window.seumDeleteWorklog === 'function') window.seumDeleteWorklog(wid2);
       e.preventDefault();
       return;
     }
-  }, true); // capture phase so nothing can stop us
+  }, true);
 
   function showToast(msg, type) {
     var el = document.getElementById('seum-toast');
@@ -7904,48 +7887,27 @@
     return isAdmin() || isMaster() || isSuperAdmin();
   }
 
-  // Global entry point used by inline onclick on work log 수정/보기 buttons.
-  // Inline onclick avoids any event-delegation timing issues.
+  // Global entry point for 수정/보기 click (invoked by document-level delegation).
   window.seumOpenWorklogEdit = function (wid) {
-    try {
-      if (!wid) return;
-      var w = getWorklog().find(function (x) { return x.id === wid; });
-      if (!w) {
-        console.warn('[worklog] entry not found for id', wid);
-        alert('해당 업무일지를 찾을 수 없습니다.');
-        return;
-      }
-      openWorklogModal('edit', w);
-    } catch (err) {
-      console.error('[worklog] seumOpenWorklogEdit failed:', err);
-      alert('수정 창을 여는 중 오류: ' + (err && err.message ? err.message : err));
-    }
+    if (!wid) return;
+    var w = getWorklog().find(function (x) { return x.id === wid; });
+    if (!w) return;
+    openWorklogModal('edit', w);
   };
 
-  // Global entry point used by inline onclick on work log 삭제 buttons.
+  // Global entry point for 삭제 click (invoked by document-level delegation).
   window.seumDeleteWorklog = function (wid) {
-    try {
-      if (!wid) return;
-      var w = getWorklog().find(function (x) { return x.id === wid; });
-      if (!w) {
-        alert('해당 업무일지를 찾을 수 없습니다.');
-        return;
-      }
-      if (!canEditWorklog(w)) {
-        alert('삭제 권한이 없습니다.');
-        return;
-      }
-      var confirmMsg = '업무일지를 삭제하시겠습니까?\n\n제목: ' + (w.title || '(제목 없음)') + '\n작성자: ' + (w.author || '-') + '\n날짜: ' + (w.date || '-');
-      if (!window.confirm(confirmMsg)) return;
-      var logs = getWorklog().filter(function (x) { return x.id !== wid; });
-      saveWorklog(logs);
-      deleteWorklogFromSupabase(wid);
-      renderWorklog();
-      showToast('삭제됐습니다.');
-    } catch (err) {
-      console.error('[worklog] seumDeleteWorklog failed:', err);
-      alert('삭제 중 오류: ' + (err && err.message ? err.message : err));
-    }
+    if (!wid) return;
+    var w = getWorklog().find(function (x) { return x.id === wid; });
+    if (!w) return;
+    if (!canEditWorklog(w)) return;
+    var confirmMsg = '업무일지를 삭제하시겠습니까?\n\n제목: ' + (w.title || '(제목 없음)') + '\n작성자: ' + (w.author || '-') + '\n날짜: ' + (w.date || '-');
+    if (!window.confirm(confirmMsg)) return;
+    var logs = getWorklog().filter(function (x) { return x.id !== wid; });
+    saveWorklog(logs);
+    deleteWorklogFromSupabase(wid);
+    renderWorklog();
+    showToast('삭제됐습니다.');
   };
 
   function filterWorklog(logs) {
@@ -8052,9 +8014,9 @@
       var canEdit = canEditWorklog(wl);
       var wid = escapeAttr(wl.id);
       var actionHtml = canEdit
-        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">수정</button>' +
-          ' <button type="button" class="btn btn-sm btn-danger worklog-delete-btn" data-worklog-id="' + wid + '" onclick="seumDeleteWorklog(\'' + wid + '\')">삭제</button>'
-        : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">보기</button>';
+        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + wid + '">수정</button>' +
+          ' <button type="button" class="btn btn-sm btn-danger worklog-delete-btn" data-worklog-id="' + wid + '">삭제</button>'
+        : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + wid + '">보기</button>';
       return '<tr>' +
         '<td>' + escapeHtml(wl.date || '-') + '</td>' +
         '<td>' + escapeHtml(wl.author || '-') + '</td>' +
@@ -8065,27 +8027,6 @@
         '<td>' + actionHtml + '</td>' +
         '</tr>';
     }).join('');
-    // Direct per-button handler as a safety net in case delegation fails.
-    tbody.querySelectorAll('.worklog-edit-btn, .worklog-view-btn').forEach(function (btn) {
-      btn.addEventListener('click', function (ev) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        var wid = btn.getAttribute('data-worklog-id');
-        console.log('[worklog] list edit/view click, id=', wid);
-        try {
-          var w = getWorklog().find(function (x) { return x.id === wid; });
-          if (!w) {
-            console.warn('[worklog] entry not found for id', wid, 'store=', getWorklog());
-            alert('해당 업무일지를 찾을 수 없습니다. (id=' + wid + ')');
-            return;
-          }
-          openWorklogModal('edit', w);
-        } catch (err) {
-          console.error('[worklog] openWorklogModal failed:', err);
-          alert('수정 창을 여는 중 오류: ' + (err && err.message ? err.message : err));
-        }
-      });
-    });
   }
 
   function renderWorklogStats() {
@@ -8197,9 +8138,9 @@
         var canEdit = canEditWorklog(wl);
         var widDay = escapeAttr(wl.id);
         var actionBtn = canEdit
-          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">수정</button>' +
-            ' <button type="button" class="btn btn-sm btn-danger worklog-delete-btn" data-worklog-id="' + widDay + '" onclick="seumDeleteWorklog(\'' + widDay + '\')">삭제</button>'
-          : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">보기</button>';
+          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + widDay + '">수정</button>' +
+            ' <button type="button" class="btn btn-sm btn-danger worklog-delete-btn" data-worklog-id="' + widDay + '">삭제</button>'
+          : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + widDay + '">보기</button>';
         return '<li class="worklog-entry">' +
           '<div class="worklog-entry-head">' +
             '<strong>' + escapeHtml(wl.title || '(제목 없음)') + '</strong>' +
@@ -8213,17 +8154,6 @@
           '</div>' +
         '</li>';
       }).join('');
-      // Direct per-button handler as a safety net in case delegation fails.
-      dayList.querySelectorAll('.worklog-edit-btn, .worklog-view-btn').forEach(function (btn) {
-        btn.addEventListener('click', function (ev) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          var wid = btn.getAttribute('data-worklog-id');
-          var w = getWorklog().find(function (x) { return x.id === wid; });
-          if (w) openWorklogModal('edit', w);
-          else console.warn('[worklog] entry not found for id', wid);
-        });
-      });
     }
     var addBtn = document.createElement('div');
     addBtn.className = 'worklog-day-add-wrap';
@@ -8443,16 +8373,6 @@
       }
     });
 
-    // Section-wide delegation (works for list tbody, day modal entries,
-    // and any other work log item rendered inside section-worklog)
-    section.addEventListener('click', function (e) {
-      var btn = e.target.closest('.worklog-edit-btn, .worklog-view-btn');
-      if (!btn || !section.contains(btn)) return;
-      var wid = btn.getAttribute('data-worklog-id');
-      if (!wid) return;
-      var w = getWorklog().find(function (x) { return x.id === wid; });
-      if (w) openWorklogModal('edit', w);
-    });
 
     // View tabs
     section.querySelectorAll('[data-worklog-view]').forEach(function (tab) {
