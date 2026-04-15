@@ -280,9 +280,9 @@
       return isDesign || isSales || isConstruction || isMarketing || isSettlement;
     }
 
-    // 설계업무일지: 설계팀 + master/admin만 접근
-    if (sectionId === 'design-worklog') {
-      return isDesign;
+    // 설계도면 관리: 설계팀 + 영업팀 + master/admin 접근 (함께 사용하는 도면 라이브러리)
+    if (sectionId === 'design-drawings') {
+      return isDesign || isSales;
     }
 
     // 우선순위: 설계팀 + 영업팀 + 시공팀 + 정산팀 + master/admin 접근 (시공팀·정산팀은 조회 전용)
@@ -319,8 +319,8 @@
   }
 
   function updateDesignWorklogNavVisibility() {
-    var el = document.querySelector('[data-section="design-worklog"]');
-    if (el) el.classList.toggle('hidden', !canAccessTeamSection('design-worklog'));
+    var el = document.querySelector('[data-section="design-drawings"]');
+    if (el) el.classList.toggle('hidden', !canAccessTeamSection('design-drawings'));
   }
 
   function updateConstructionRestrictedNavVisibility() {
@@ -3548,65 +3548,193 @@
   }
 
   // =====================================================================
-  // 설계 업무일지 - 렌더
+  // 설계도면 관리 시스템 - Storage / State
   // =====================================================================
-  function renderDesignWorklog() {
-    var logs = getDesignWorklog();
-    var keyword = ((document.getElementById('dw-search') || {}).value || '').toLowerCase();
-    var stageFilter = (document.getElementById('dw-stage-filter') || {}).value || '';
-    if (keyword) {
-      logs = logs.filter(function (l) {
-        return (l.address || '').toLowerCase().indexOf(keyword) !== -1 ||
-               (l.customerName || '').toLowerCase().indexOf(keyword) !== -1;
+  var STORAGE_DESIGN_DRAWINGS = 'seum_design_drawings';
+
+  function getDesignDrawings() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_DESIGN_DRAWINGS) || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveDesignDrawings(list) {
+    try {
+      localStorage.setItem(STORAGE_DESIGN_DRAWINGS, JSON.stringify(list));
+      return true;
+    } catch (e) {
+      showToast('저장 용량 초과: 큰 파일은 압축하거나 더 작은 파일을 사용하세요.', 'error');
+      return false;
+    }
+  }
+
+  // 샘플 SVG 썸네일(더미 데이터용) - 간단한 평면도 느낌
+  function _ddDummySvg(label) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280">' +
+      '<rect width="400" height="280" fill="#f3f4f6"/>' +
+      '<rect x="30" y="30" width="340" height="220" fill="#fff" stroke="#1f2937" stroke-width="3"/>' +
+      '<line x1="200" y1="30" x2="200" y2="250" stroke="#1f2937" stroke-width="2"/>' +
+      '<line x1="30" y1="150" x2="370" y2="150" stroke="#1f2937" stroke-width="2"/>' +
+      '<rect x="50" y="50" width="130" height="80" fill="none" stroke="#6366f1" stroke-width="2" stroke-dasharray="4 3"/>' +
+      '<rect x="220" y="50" width="130" height="80" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="4 3"/>' +
+      '<rect x="50" y="170" width="300" height="60" fill="none" stroke="#f59e0b" stroke-width="2"/>' +
+      '<text x="200" y="270" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#374151">' +
+        (label || '도면') + '</text></svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  var DD_DUMMY_DATA = [
+    {
+      name: '모던 단층 28평 A타입', size: '20평대', houseType: '단층', style: '모던',
+      area: '28.5',
+      description: '박공지붕 모던 단층형. 오픈 거실 + 방 2개, 드레스룸 포함. 방문 상담용 기본안.'
+    },
+    {
+      name: '복층 32평 가족형 B타입', size: '30평대', houseType: '복층', style: '내추럴',
+      area: '32.0',
+      description: '1층 LDK + 마스터룸, 2층 자녀방 2 + 다락. 30평대 베스트 도면.'
+    },
+    {
+      name: '체류형쉼터 6평 미니멀', size: '10평대', houseType: '체류형쉼터', style: '미니멀',
+      area: '6.0',
+      description: '법정 체류형쉼터 규격 6평. 미니 주방 + 화장실 + 데크 포함. 빠른 인허가.'
+    },
+    {
+      name: '스크린골프룸 15평 상업형', size: '10평대', houseType: '스크린골프', style: '모던',
+      area: '15.2',
+      description: '스크린 2타석 + 대기 라운지. 간판/입구 동선 반영된 상업 도면.'
+    },
+    {
+      name: '클래식 복층 42평 프리미엄', size: '40평대', houseType: '복층', style: '클래식',
+      area: '42.8',
+      description: '1층 거실 보이드 + 2층 복도형. 마스터 스위트룸, 워크인 클로젯 포함.'
+    }
+  ];
+
+  function seedDesignDrawings(force) {
+    var existing = getDesignDrawings();
+    if (!force && existing.length) return existing;
+    var me = (window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+    var creator = (me && me.name) || '시스템';
+    var nowIso = new Date().toISOString();
+    var seeded = DD_DUMMY_DATA.map(function (d, idx) {
+      return Object.assign({}, d, {
+        id: id(),
+        fileType: 'image',
+        fileDataUrl: _ddDummySvg(d.name),
+        fileName: (d.name || 'drawing') + '.svg',
+        favorite: idx === 1, // B타입을 베스트로
+        createdBy: creator,
+        createdAt: nowIso,
+        updatedAt: nowIso
       });
+    });
+    var merged = existing.concat(seeded);
+    saveDesignDrawings(merged);
+    return merged;
+  }
+
+  // =====================================================================
+  // 설계도면 관리 시스템 - 필터 & 렌더
+  // =====================================================================
+  function _getDdFilters() {
+    return {
+      keyword: ((document.getElementById('dd-search') || {}).value || '').toLowerCase().trim(),
+      size:    (document.getElementById('dd-filter-size') || {}).value || '',
+      type:    (document.getElementById('dd-filter-type') || {}).value || '',
+      style:   (document.getElementById('dd-filter-style') || {}).value || '',
+      favorite:!!((document.getElementById('dd-filter-favorite') || {}).checked)
+    };
+  }
+
+  function _filterDrawings(list, f) {
+    return list.filter(function (d) {
+      if (f.size && d.size !== f.size) return false;
+      if (f.type && d.houseType !== f.type) return false;
+      if (f.style && d.style !== f.style) return false;
+      if (f.favorite && !d.favorite) return false;
+      if (f.keyword) {
+        var hay = ((d.name || '') + ' ' + (d.description || '') + ' ' + (d.style || '') +
+                   ' ' + (d.houseType || '') + ' ' + (d.size || '')).toLowerCase();
+        if (hay.indexOf(f.keyword) === -1) return false;
+      }
+      return true;
+    });
+  }
+
+  function _ddThumbHtml(d) {
+    if (d.fileType === 'image' && d.fileDataUrl) {
+      return '<img class="dd-thumb-img" src="' + escapeAttr(d.fileDataUrl) + '" alt="' + escapeAttr(d.name || '도면') + '" loading="lazy">';
     }
-    if (stageFilter) {
-      logs = logs.filter(function (l) { return l.stage === stageFilter; });
+    if (d.fileType === 'pdf') {
+      return '<div class="dd-thumb-pdf"><span class="dd-thumb-pdf-icon">📄</span><span class="dd-thumb-pdf-label">PDF</span></div>';
     }
-    // 날짜 내림차순 정렬
-    logs = logs.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    return '<div class="dd-thumb-empty">파일 없음</div>';
+  }
 
-    var tbody = document.getElementById('tbody-dw');
-    if (!tbody) return;
-    tbody.innerHTML = logs.map(function (l) {
-      var stageClass = DW_STAGE_COLOR[l.stage] || '';
-      var stageHtml = '<span class="dw-stage-badge ' + stageClass + '">' + escapeHtml(l.stage || '-') + '</span>';
-      var drawingHtml = l.drawingUrl
-        ? '<a href="' + escapeAttr(l.drawingUrl) + '" target="_blank" class="dw-file-link" title="' + escapeAttr(l.drawingUrl) + '">' +
-            (l.drawingUrl.length > 16 ? l.drawingUrl.slice(0, 15) + '…' : l.drawingUrl) + '</a>'
-        : '-';
-      var transferBtn = l.stage !== '시공이관'
-        ? '<button type="button" class="btn btn-sm dw-transfer-btn" data-id="' + escapeAttr(l.id) + '" title="시공팀으로 이관">시공이관</button> '
-        : '<span class="dw-transferred-badge">이관완료</span> ';
-      return '<tr>' +
-        '<td>' + (l.date || '-') + '</td>' +
-        '<td>' + escapeHtml(l.customerName || '-') + '</td>' +
-        '<td>' + escapeHtml(l.address || '-') + '</td>' +
-        '<td>' + escapeHtml(l.size || '-') + '</td>' +
-        '<td>' + escapeHtml(l.task || '-') + '</td>' +
-        '<td>' + stageHtml + '</td>' +
-        '<td>' + escapeHtml(l.manager || '-') + '</td>' +
-        '<td>' + drawingHtml + '</td>' +
-        '<td>' + escapeHtml(l.memo || '-') + '</td>' +
-        '<td class="dw-action-cell">' + transferBtn +
-          '<button type="button" class="btn btn-sm btn-secondary btn-edit-dw" data-id="' + escapeAttr(l.id) + '">수정</button> ' +
-          '<button type="button" class="btn btn-sm btn-danger btn-delete-dw" data-id="' + escapeAttr(l.id) + '">삭제</button>' +
-        '</td>' +
-        '</tr>';
-    }).join('') || '<tr><td colspan="10" class="no-result-msg">업무일지 데이터가 없습니다. 업무를 등록하거나 엑셀을 업로드하세요.</td></tr>';
+  function renderDesignDrawings() {
+    var container = document.getElementById('dd-list');
+    if (!container) return;
+    var all = getDesignDrawings();
+    var f = _getDdFilters();
+    var filtered = _filterDrawings(all, f);
+    // 즐겨찾기 먼저, 그 다음 최근 등록순
+    filtered.sort(function (a, b) {
+      if ((b.favorite ? 1 : 0) !== (a.favorite ? 1 : 0)) return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
 
-    // 필터 결과 카운트
-    var resultEl = document.getElementById('dw-filter-result');
-    if (resultEl) resultEl.textContent = '총 ' + logs.length + '건';
+    if (!filtered.length) {
+      container.innerHTML = '<div class="dd-empty">' +
+        (all.length ? '조건에 맞는 도면이 없습니다.' : '등록된 도면이 없습니다. "+ 도면 등록" 또는 "샘플 도면 불러오기"를 눌러 시작하세요.') +
+        '</div>';
+    } else {
+      container.innerHTML = filtered.map(function (d) {
+        var tags = [];
+        if (d.size) tags.push('<span class="dd-tag dd-tag-size">' + escapeHtml(d.size) + '</span>');
+        if (d.houseType) tags.push('<span class="dd-tag dd-tag-type">' + escapeHtml(d.houseType) + '</span>');
+        if (d.style) tags.push('<span class="dd-tag dd-tag-style">' + escapeHtml(d.style) + '</span>');
+        var favClass = d.favorite ? ' dd-fav-on' : '';
+        var createdLabel = (d.createdAt || '').slice(0, 10);
+        return '<article class="dd-card" data-id="' + escapeAttr(d.id) + '">' +
+          '<div class="dd-card-thumb" data-act="preview" data-id="' + escapeAttr(d.id) + '">' +
+            _ddThumbHtml(d) +
+            '<button type="button" class="dd-fav-btn' + favClass + '" data-act="fav" data-id="' + escapeAttr(d.id) + '" title="즐겨찾기">★</button>' +
+          '</div>' +
+          '<div class="dd-card-body">' +
+            '<h4 class="dd-card-title" title="' + escapeAttr(d.name || '') + '">' + escapeHtml(d.name || '제목 없음') + '</h4>' +
+            '<div class="dd-card-tags">' + tags.join('') + '</div>' +
+            (d.description ? '<p class="dd-card-desc">' + escapeHtml(d.description) + '</p>' : '') +
+            '<div class="dd-card-meta">' +
+              '<span>' + escapeHtml(d.createdBy || '-') + '</span>' +
+              '<span>' + escapeHtml(createdLabel || '-') + '</span>' +
+            '</div>' +
+            '<div class="dd-card-actions">' +
+              '<button type="button" class="btn btn-sm btn-primary" data-act="preview" data-id="' + escapeAttr(d.id) + '">미리보기</button>' +
+              '<button type="button" class="btn btn-sm btn-secondary" data-act="print" data-id="' + escapeAttr(d.id) + '">🖨 인쇄</button>' +
+              '<button type="button" class="btn btn-sm btn-secondary" data-act="duplicate" data-id="' + escapeAttr(d.id) + '" title="이 도면 기반으로 복제">복제</button>' +
+              '<button type="button" class="btn btn-sm btn-secondary" data-act="edit" data-id="' + escapeAttr(d.id) + '">수정</button>' +
+              '<button type="button" class="btn btn-sm btn-danger" data-act="delete" data-id="' + escapeAttr(d.id) + '">삭제</button>' +
+            '</div>' +
+          '</div>' +
+          '</article>';
+      }).join('');
+    }
 
-    // 검색 초기화 버튼
-    var clearBtn = document.getElementById('dw-search-clear');
-    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
+    var resultEl = document.getElementById('dd-filter-result');
+    if (resultEl) {
+      var parts = [];
+      if (f.keyword) parts.push('"' + f.keyword + '"');
+      if (f.size) parts.push(f.size);
+      if (f.type) parts.push(f.type);
+      if (f.style) parts.push(f.style);
+      if (f.favorite) parts.push('⭐');
+      resultEl.textContent = (parts.length ? parts.join(' / ') + ' · ' : '') + '총 ' + filtered.length + '건';
+    }
+    var clearBtn = document.getElementById('dd-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !f.keyword);
 
-    // 미초기화 시 이벤트 등록
-    if (!designWorklogInitialized) {
-      designWorklogInitialized = true;
-      initDesignWorklogEvents();
+    if (!designDrawingsInitialized) {
+      designDrawingsInitialized = true;
+      initDesignDrawingsEvents();
     }
   }
 
@@ -3682,168 +3810,291 @@
   }
 
   // =====================================================================
-  // 설계 업무일지 - 이벤트 초기화
+  // 설계도면 관리 시스템 - 이벤트 & 기능
   // =====================================================================
-  var designWorklogInitialized = false;
+  var designDrawingsInitialized = false;
+  var _ddPendingFile = null; // { type, dataUrl, name }
 
-  function initDesignWorklogEvents() {
-    // 업무 등록 버튼
-    var btnAdd = document.getElementById('btn-add-dw');
-    if (btnAdd) btnAdd.addEventListener('click', function () {
-      document.getElementById('dw-edit-id').value = '';
-      document.getElementById('form-dw').reset();
-      document.getElementById('dw-form-title').textContent = '업무 등록';
-      document.getElementById('dw-form-wrap').classList.remove('hidden');
-    });
+  function _ddOpenFormModal(drawing) {
+    var modal = document.getElementById('dd-form-modal');
+    if (!modal) return;
+    var form = document.getElementById('form-dd');
+    if (form) form.reset();
+    _ddPendingFile = null;
+    var info = document.getElementById('dd-file-info');
+    if (info) info.textContent = drawing && drawing.fileName ? '기존: ' + drawing.fileName : '선택된 파일 없음';
+    document.getElementById('dd-edit-id').value = drawing ? (drawing.id || '') : '';
+    document.getElementById('dd-form-title').textContent = drawing && drawing.id ? '도면 수정' : '도면 등록';
+    if (drawing) {
+      document.getElementById('dd-name').value = drawing.name || '';
+      document.getElementById('dd-size').value = drawing.size || '';
+      document.getElementById('dd-type').value = drawing.houseType || '';
+      document.getElementById('dd-style').value = drawing.style || '';
+      document.getElementById('dd-area').value = drawing.area || '';
+      document.getElementById('dd-description').value = drawing.description || '';
+    }
+    modal.classList.remove('hidden');
+  }
 
-    // 취소 버튼
-    var btnCancel = document.getElementById('btn-cancel-dw');
-    if (btnCancel) btnCancel.addEventListener('click', function () {
-      document.getElementById('dw-form-wrap').classList.add('hidden');
-    });
+  function _ddCloseFormModal() {
+    var modal = document.getElementById('dd-form-modal');
+    if (modal) modal.classList.add('hidden');
+    _ddPendingFile = null;
+  }
 
-    // 도면파일 첨부 → 파일명을 URL 필드에 표시
-    var dwFileInput = document.getElementById('dw-drawing-file');
-    if (dwFileInput) dwFileInput.addEventListener('change', function () {
-      if (dwFileInput.files && dwFileInput.files[0]) {
-        document.getElementById('dw-drawing-url').value = dwFileInput.files[0].name;
+  function _ddOpenPreview(d) {
+    var modal = document.getElementById('dd-preview-modal');
+    var body = document.getElementById('dd-preview-body');
+    var meta = document.getElementById('dd-preview-meta');
+    var title = document.getElementById('dd-preview-title');
+    if (!modal || !body) return;
+    title.textContent = d.name || '도면 미리보기';
+    var metaParts = [];
+    if (d.size) metaParts.push('평형: ' + d.size);
+    if (d.houseType) metaParts.push('타입: ' + d.houseType);
+    if (d.style) metaParts.push('스타일: ' + d.style);
+    if (d.area) metaParts.push('실면적: ' + d.area + '평');
+    if (d.createdBy) metaParts.push('등록자: ' + d.createdBy);
+    if (d.createdAt) metaParts.push('등록일: ' + (d.createdAt || '').slice(0, 10));
+    meta.innerHTML = metaParts.map(function (p) { return '<span>' + escapeHtml(p) + '</span>'; }).join('') +
+      (d.description ? '<p class="dd-preview-desc">' + escapeHtml(d.description) + '</p>' : '');
+    if (d.fileType === 'image' && d.fileDataUrl) {
+      body.innerHTML = '<img class="dd-preview-img" src="' + escapeAttr(d.fileDataUrl) + '" alt="' + escapeAttr(d.name || '') + '">';
+    } else if (d.fileType === 'pdf' && d.fileDataUrl) {
+      body.innerHTML = '<iframe class="dd-preview-pdf" src="' + escapeAttr(d.fileDataUrl) + '" title="PDF 미리보기"></iframe>';
+    } else {
+      body.innerHTML = '<div class="dd-empty">첨부된 파일이 없습니다.</div>';
+    }
+    modal.dataset.id = d.id;
+    modal.classList.remove('hidden');
+  }
+
+  function _ddClosePreview() {
+    var modal = document.getElementById('dd-preview-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function _ddPrintDrawing(d) {
+    if (!d) return;
+    var frame = document.getElementById('dd-print-frame');
+    if (!frame) return;
+    var meta = [
+      d.size ? '평형: ' + escapeHtml(d.size) : '',
+      d.houseType ? '타입: ' + escapeHtml(d.houseType) : '',
+      d.style ? '스타일: ' + escapeHtml(d.style) : '',
+      d.area ? '실면적: ' + escapeHtml(d.area) + '평' : ''
+    ].filter(Boolean).join(' · ');
+    var body = '';
+    if (d.fileType === 'image' && d.fileDataUrl) {
+      body = '<img class="dd-print-img" src="' + escapeAttr(d.fileDataUrl) + '" alt="' + escapeAttr(d.name || '') + '">';
+    } else if (d.fileType === 'pdf' && d.fileDataUrl) {
+      // PDF는 새 창으로 열어서 브라우저 내장 인쇄 사용 (가장 안정적)
+      var win = window.open(d.fileDataUrl, '_blank');
+      if (win) {
+        showToast('새 창에서 PDF가 열렸습니다. 브라우저 인쇄(Ctrl+P)를 사용하세요.');
+      } else {
+        showToast('팝업 차단을 해제한 후 다시 시도하세요.', 'error');
       }
+      return;
+    } else {
+      showToast('인쇄할 파일이 없습니다.', 'error');
+      return;
+    }
+    frame.innerHTML =
+      '<div class="dd-print-page">' +
+        '<header class="dd-print-header">' +
+          '<h1>' + escapeHtml(d.name || '도면') + '</h1>' +
+          (meta ? '<p>' + meta + '</p>' : '') +
+        '</header>' +
+        '<div class="dd-print-body">' + body + '</div>' +
+        '<footer class="dd-print-footer">' +
+          (d.createdBy ? '등록자: ' + escapeHtml(d.createdBy) + ' · ' : '') +
+          (d.createdAt ? '등록일: ' + escapeHtml((d.createdAt || '').slice(0, 10)) : '') +
+        '</footer>' +
+      '</div>';
+    document.body.classList.add('dd-printing');
+    var cleanup = function () {
+      document.body.classList.remove('dd-printing');
+      frame.innerHTML = '';
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    // 이미지 로드 후 인쇄(로드 전 인쇄되면 빈 칸 출력될 수 있음)
+    var img = frame.querySelector('img');
+    var doPrint = function () { setTimeout(function () { window.print(); }, 80); };
+    if (img && !img.complete) { img.addEventListener('load', doPrint); img.addEventListener('error', doPrint); }
+    else { doPrint(); }
+  }
+
+  function initDesignDrawingsEvents() {
+    // 등록 버튼
+    var btnAdd = document.getElementById('btn-add-dd');
+    if (btnAdd) btnAdd.addEventListener('click', function () { _ddOpenFormModal(null); });
+
+    // 샘플 불러오기
+    var btnSeed = document.getElementById('btn-seed-dd');
+    if (btnSeed) btnSeed.addEventListener('click', function () {
+      seedDesignDrawings(false);
+      renderDesignDrawings();
+      showToast('샘플 도면이 추가됐습니다.');
     });
 
-    // 업무 등록/수정 폼 저장
-    var formDw = document.getElementById('form-dw');
-    if (formDw) formDw.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var editId = document.getElementById('dw-edit-id').value;
-      var entry = {
-        customerName: document.getElementById('dw-customer').value.trim(),
-        address: document.getElementById('dw-address').value.trim(),
-        size: document.getElementById('dw-size').value.trim(),
-        task: document.getElementById('dw-task').value.trim(),
-        date: document.getElementById('dw-date').value,
-        manager: document.getElementById('dw-manager').value.trim(),
-        stage: document.getElementById('dw-stage').value,
-        memo: document.getElementById('dw-memo').value.trim(),
-        drawingUrl: document.getElementById('dw-drawing-url').value.trim(),
-        updatedAt: new Date().toISOString()
+    // 폼 모달 닫기
+    var btnClose = document.getElementById('dd-form-close');
+    if (btnClose) btnClose.addEventListener('click', _ddCloseFormModal);
+    var btnCancel = document.getElementById('btn-cancel-dd');
+    if (btnCancel) btnCancel.addEventListener('click', _ddCloseFormModal);
+
+    // 파일 선택 → FileReader로 Data URL 변환
+    var fileInput = document.getElementById('dd-file');
+    if (fileInput) fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      var info = document.getElementById('dd-file-info');
+      if (!file) { _ddPendingFile = null; if (info) info.textContent = '선택된 파일 없음'; return; }
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('파일이 너무 큽니다(5MB 초과). 압축 후 다시 시도하세요.', 'error');
+        fileInput.value = ''; return;
+      }
+      var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      var isImg = /^image\//.test(file.type);
+      if (!isPdf && !isImg) { showToast('이미지 또는 PDF 파일만 업로드 가능합니다.', 'error'); fileInput.value = ''; return; }
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        _ddPendingFile = { type: isPdf ? 'pdf' : 'image', dataUrl: ev.target.result, name: file.name };
+        if (info) info.textContent = file.name + ' (' + (isPdf ? 'PDF' : '이미지') + ')';
       };
-      if (!entry.customerName || !entry.address || !entry.date || !entry.stage) return;
-      var logs = getDesignWorklog();
+      reader.onerror = function () { showToast('파일을 읽을 수 없습니다.', 'error'); };
+      reader.readAsDataURL(file);
+    });
+
+    // 저장
+    var form = document.getElementById('form-dd');
+    if (form) form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var editId = document.getElementById('dd-edit-id').value;
+      var entry = {
+        name:        document.getElementById('dd-name').value.trim(),
+        size:        document.getElementById('dd-size').value,
+        houseType:   document.getElementById('dd-type').value,
+        style:       document.getElementById('dd-style').value,
+        area:        document.getElementById('dd-area').value.trim(),
+        description: document.getElementById('dd-description').value.trim(),
+        updatedAt:   new Date().toISOString()
+      };
+      if (!entry.name || !entry.size || !entry.houseType) {
+        showToast('도면명, 평형, 타입은 필수입니다.', 'error'); return;
+      }
+      var list = getDesignDrawings();
+      var me = (window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
       if (editId) {
-        logs = logs.map(function (l) { return l.id === editId ? Object.assign({}, l, entry) : l; });
+        list = list.map(function (d) {
+          if (d.id !== editId) return d;
+          var next = Object.assign({}, d, entry);
+          if (_ddPendingFile) {
+            next.fileType = _ddPendingFile.type;
+            next.fileDataUrl = _ddPendingFile.dataUrl;
+            next.fileName = _ddPendingFile.name;
+          }
+          return next;
+        });
       } else {
         entry.id = id();
         entry.createdAt = new Date().toISOString();
-        logs.push(entry);
-      }
-      saveDesignWorklog(logs);
-      document.getElementById('dw-form-wrap').classList.add('hidden');
-      renderDesignWorklog();
-      showToast(editId ? '수정됐습니다.' : '업무일지가 등록됐습니다.');
-    });
-
-    // 검색 & 필터
-    var dwSearch = document.getElementById('dw-search');
-    if (dwSearch) dwSearch.addEventListener('input', renderDesignWorklog);
-    var dwSearchClear = document.getElementById('dw-search-clear');
-    if (dwSearchClear) dwSearchClear.addEventListener('click', function () {
-      document.getElementById('dw-search').value = '';
-      renderDesignWorklog();
-    });
-    var dwStageFilter = document.getElementById('dw-stage-filter');
-    if (dwStageFilter) dwStageFilter.addEventListener('change', renderDesignWorklog);
-
-    // 테이블 이벤트 위임 (수정/삭제/시공이관)
-    var tbodyDw = document.getElementById('tbody-dw');
-    if (tbodyDw) tbodyDw.addEventListener('click', function (e) {
-      var editBtn = e.target.closest('.btn-edit-dw');
-      var delBtn = e.target.closest('.btn-delete-dw');
-      var transferBtn = e.target.closest('.dw-transfer-btn');
-
-      if (editBtn) {
-        var lid = editBtn.getAttribute('data-id');
-        var log = getDesignWorklog().find(function (l) { return l.id === lid; });
-        if (!log) return;
-        document.getElementById('dw-edit-id').value = log.id;
-        document.getElementById('dw-customer').value = log.customerName || '';
-        document.getElementById('dw-address').value = log.address || '';
-        document.getElementById('dw-size').value = log.size || '';
-        document.getElementById('dw-task').value = log.task || '';
-        document.getElementById('dw-date').value = log.date || '';
-        document.getElementById('dw-manager').value = log.manager || '';
-        document.getElementById('dw-stage').value = log.stage || '';
-        document.getElementById('dw-memo').value = log.memo || '';
-        document.getElementById('dw-drawing-url').value = log.drawingUrl || '';
-        document.getElementById('dw-form-title').textContent = '업무 수정';
-        document.getElementById('dw-form-wrap').classList.remove('hidden');
-        document.getElementById('dw-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-
-      if (delBtn) {
-        if (!confirm('업무일지를 삭제하시겠습니까?')) return;
-        var did = delBtn.getAttribute('data-id');
-        saveDesignWorklog(getDesignWorklog().filter(function (l) { return l.id !== did; }));
-        renderDesignWorklog();
-        showToast('삭제됐습니다.');
-      }
-
-      if (transferBtn) {
-        var tid = transferBtn.getAttribute('data-id');
-        var logs = getDesignWorklog().map(function (l) {
-          return l.id === tid ? Object.assign({}, l, { stage: '시공이관', updatedAt: new Date().toISOString() }) : l;
-        });
-        saveDesignWorklog(logs);
-        renderDesignWorklog();
-        showToast('시공팀으로 이관됐습니다.');
-      }
-    });
-
-    // 엑셀 업로드
-    var excelInput = document.getElementById('dw-excel-input');
-    if (excelInput) excelInput.addEventListener('change', function () {
-      var file = excelInput.files && excelInput.files[0];
-      if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function (ev) {
-        try {
-          var XLSX = window.XLSX;
-          if (!XLSX) { showToast('엑셀 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도하세요.', 'error'); return; }
-          var wb = XLSX.read(ev.target.result, { type: 'binary', cellDates: true });
-          var ws = wb.Sheets[wb.SheetNames[0]];
-          var rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-          var COL_MAP = {
-            '주소': 'address', '고객명': 'customerName', '크기': 'size',
-            '작업': 'task', '날짜': 'date', '비고': 'memo',
-            '담당자': 'manager', '설계단계': 'stage', '도면파일': 'drawingUrl'
-          };
-          var imported = rows.filter(function (r) { return r['고객명'] || r['주소']; }).map(function (r) {
-            var entry = { id: id(), createdAt: new Date().toISOString() };
-            Object.keys(COL_MAP).forEach(function (col) {
-              var val = r[col];
-              if (col === '날짜' && val instanceof Date) {
-                val = val.toISOString().slice(0, 10);
-              } else if (col === '날짜' && typeof val === 'number') {
-                // Excel serial date
-                var d = new Date((val - 25569) * 86400 * 1000);
-                val = d.toISOString().slice(0, 10);
-              }
-              entry[COL_MAP[col]] = String(val || '').trim();
-            });
-            // 설계단계 유효성 검사
-            if (DW_STAGES.indexOf(entry.stage) === -1) entry.stage = '상담설계';
-            return entry;
-          });
-          if (!imported.length) { showToast('가져올 데이터가 없습니다. 열 이름을 확인하세요.', 'error'); return; }
-          var logs = getDesignWorklog().concat(imported);
-          saveDesignWorklog(logs);
-          renderDesignWorklog();
-          showToast(imported.length + '건을 업로드했습니다.');
-        } catch (err) {
-          showToast('엑셀 파싱 오류: ' + err.message, 'error');
+        entry.createdBy = (me && me.name) || '미지정';
+        entry.favorite = false;
+        if (_ddPendingFile) {
+          entry.fileType = _ddPendingFile.type;
+          entry.fileDataUrl = _ddPendingFile.dataUrl;
+          entry.fileName = _ddPendingFile.name;
+        } else {
+          entry.fileType = 'image';
+          entry.fileDataUrl = _ddDummySvg(entry.name);
+          entry.fileName = entry.name + '.svg';
         }
-        excelInput.value = '';
-      };
-      reader.readAsBinaryString(file);
+        list.push(entry);
+      }
+      if (!saveDesignDrawings(list)) return;
+      _ddCloseFormModal();
+      renderDesignDrawings();
+      showToast(editId ? '도면이 수정됐습니다.' : '도면이 등록됐습니다.');
+    });
+
+    // 검색/필터
+    var fields = ['dd-search', 'dd-filter-size', 'dd-filter-type', 'dd-filter-style', 'dd-filter-favorite'];
+    fields.forEach(function (fid) {
+      var el = document.getElementById(fid);
+      if (!el) return;
+      var evt = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';
+      el.addEventListener(evt, renderDesignDrawings);
+    });
+    var ddClear = document.getElementById('dd-search-clear');
+    if (ddClear) ddClear.addEventListener('click', function () {
+      var s = document.getElementById('dd-search'); if (s) s.value = '';
+      renderDesignDrawings();
+    });
+
+    // 카드 영역 이벤트 위임
+    var listEl = document.getElementById('dd-list');
+    if (listEl) listEl.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      var act = btn.getAttribute('data-act');
+      var did = btn.getAttribute('data-id');
+      var all = getDesignDrawings();
+      var d = all.find(function (x) { return x.id === did; });
+      if (!d) return;
+
+      if (act === 'preview') _ddOpenPreview(d);
+      else if (act === 'print') _ddPrintDrawing(d);
+      else if (act === 'edit') _ddOpenFormModal(d);
+      else if (act === 'delete') {
+        if (!confirm('이 도면을 삭제하시겠습니까?')) return;
+        var next = all.filter(function (x) { return x.id !== did; });
+        if (!saveDesignDrawings(next)) return;
+        renderDesignDrawings();
+        showToast('삭제됐습니다.');
+      } else if (act === 'duplicate') {
+        var copy = Object.assign({}, d, {
+          id: id(),
+          name: (d.name || '도면') + ' (복제)',
+          favorite: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: ((window.seumAuth && window.seumAuth.currentEmployee && window.seumAuth.currentEmployee.name) || d.createdBy || '미지정')
+        });
+        all.push(copy);
+        if (!saveDesignDrawings(all)) return;
+        renderDesignDrawings();
+        showToast('도면이 복제됐습니다. 이어서 수정하세요.');
+        _ddOpenFormModal(copy);
+      } else if (act === 'fav') {
+        var toggled = all.map(function (x) {
+          return x.id === did ? Object.assign({}, x, { favorite: !x.favorite }) : x;
+        });
+        if (!saveDesignDrawings(toggled)) return;
+        renderDesignDrawings();
+      }
+      e.stopPropagation();
+    });
+
+    // 미리보기 모달 이벤트
+    var prvClose = document.getElementById('dd-preview-close');
+    if (prvClose) prvClose.addEventListener('click', _ddClosePreview);
+    var prvPrint = document.getElementById('dd-preview-print');
+    if (prvPrint) prvPrint.addEventListener('click', function () {
+      var modal = document.getElementById('dd-preview-modal');
+      var pid = modal && modal.dataset ? modal.dataset.id : '';
+      var d = getDesignDrawings().find(function (x) { return x.id === pid; });
+      if (d) _ddPrintDrawing(d);
+    });
+
+    // 모달 배경 클릭 닫기
+    ['dd-form-modal', 'dd-preview-modal'].forEach(function (mid) {
+      var m = document.getElementById(mid);
+      if (!m) return;
+      m.addEventListener('click', function (e) {
+        if (e.target === m) m.classList.add('hidden');
+      });
     });
   }
 
@@ -8484,7 +8735,7 @@
       sectionId === 'design' || sectionId === 'construction' ||
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard' ||
-      sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-worklog' || sectionId === 'design-schedule' ||
+      sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-drawings' || sectionId === 'design-schedule' ||
       sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
@@ -8503,7 +8754,7 @@
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
     if (sectionId === 'settlement-dashboard') renderSettlementDashboard();
-    if (sectionId === 'design-worklog') renderDesignWorklog();
+    if (sectionId === 'design-drawings') renderDesignDrawings();
     if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'design-priority') renderDesignPriority();
     if (sectionId === 'announcements') renderAnnouncementsPage();
@@ -8546,7 +8797,7 @@
         if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'design' || sectionId === 'design-worklog' || sectionId === 'design-schedule' || sectionId === 'design-priority') {
+    if (sectionId === 'design' || sectionId === 'design-drawings' || sectionId === 'design-schedule' || sectionId === 'design-priority') {
       var desSub = document.getElementById('nav-design-sub');
       var desGroup = document.getElementById('sidebar-group-design');
       if (desSub && desGroup) {
@@ -12567,7 +12818,7 @@
       renderSales();
     }
     renderDesign();
-    renderDesignWorklog();
+    renderDesignDrawings();
     renderConstructionWorklog();
     initConstructionWorklogEvents();
     renderConstruction();
