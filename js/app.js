@@ -1,6 +1,36 @@
 (function () {
   'use strict';
-  console.log('app.js loaded');
+  console.log('app.js loaded [v=20260415-08]');
+
+  // Early top-level click logger + handler for work log 수정/삭제 buttons.
+  // Attached at script parse time so it is guaranteed to be registered
+  // before any user interaction.
+  document.addEventListener('click', function (e) {
+    var editBtn = e.target.closest && e.target.closest('.worklog-edit-btn, .worklog-view-btn');
+    if (editBtn) {
+      var wid = editBtn.getAttribute('data-worklog-id');
+      console.log('[worklog] edit/view click captured, id=', wid);
+      if (typeof window.seumOpenWorklogEdit === 'function') {
+        window.seumOpenWorklogEdit(wid);
+      } else {
+        alert('seumOpenWorklogEdit 함수가 아직 준비되지 않았습니다. 페이지를 새로고침해주세요.');
+      }
+      e.preventDefault();
+      return;
+    }
+    var delBtn = e.target.closest && e.target.closest('.worklog-delete-btn');
+    if (delBtn) {
+      var wid2 = delBtn.getAttribute('data-worklog-id');
+      console.log('[worklog] delete click captured, id=', wid2);
+      if (typeof window.seumDeleteWorklog === 'function') {
+        window.seumDeleteWorklog(wid2);
+      } else {
+        alert('seumDeleteWorklog 함수가 아직 준비되지 않았습니다. 페이지를 새로고침해주세요.');
+      }
+      e.preventDefault();
+      return;
+    }
+  }, true); // capture phase so nothing can stop us
 
   function showToast(msg, type) {
     var el = document.getElementById('seum-toast');
