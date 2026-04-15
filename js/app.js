@@ -7866,6 +7866,24 @@
     return isAdmin() || isMaster() || isSuperAdmin();
   }
 
+  // Global entry point used by inline onclick on work log 수정/보기 buttons.
+  // Inline onclick avoids any event-delegation timing issues.
+  window.seumOpenWorklogEdit = function (wid) {
+    try {
+      if (!wid) return;
+      var w = getWorklog().find(function (x) { return x.id === wid; });
+      if (!w) {
+        console.warn('[worklog] entry not found for id', wid);
+        alert('해당 업무일지를 찾을 수 없습니다.');
+        return;
+      }
+      openWorklogModal('edit', w);
+    } catch (err) {
+      console.error('[worklog] seumOpenWorklogEdit failed:', err);
+      alert('수정 창을 여는 중 오류: ' + (err && err.message ? err.message : err));
+    }
+  };
+
   function filterWorklog(logs) {
     var teamFilter = (document.getElementById('worklog-filter-team') || {}).value || '';
     var showroomFilter = (document.getElementById('worklog-filter-showroom') || {}).value || '';
@@ -7968,9 +7986,10 @@
       var summary = (wl.content || '').replace(/\s+/g, ' ').slice(0, 60);
       if ((wl.content || '').length > 60) summary += '…';
       var canEdit = canEditWorklog(wl);
+      var wid = escapeAttr(wl.id);
       var actionHtml = canEdit
-        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + escapeAttr(wl.id) + '">수정</button>'
-        : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button>';
+        ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">수정</button>'
+        : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + wid + '" onclick="seumOpenWorklogEdit(\'' + wid + '\')">보기</button>';
       return '<tr>' +
         '<td>' + escapeHtml(wl.date || '-') + '</td>' +
         '<td>' + escapeHtml(wl.author || '-') + '</td>' +
@@ -8111,9 +8130,10 @@
         if (teamLabel) metaParts.push(escapeHtml(teamLabel));
         if (showroomLabel) metaParts.push(escapeHtml(showroomLabel));
         var canEdit = canEditWorklog(wl);
+        var widDay = escapeAttr(wl.id);
         var actionBtn = canEdit
-          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + escapeAttr(wl.id) + '">수정</button>'
-          : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + escapeAttr(wl.id) + '">보기</button>';
+          ? '<button type="button" class="btn btn-sm btn-primary worklog-edit-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">수정</button>'
+          : '<button type="button" class="btn btn-sm btn-secondary worklog-view-btn" data-worklog-id="' + widDay + '" onclick="seumOpenWorklogEdit(\'' + widDay + '\')">보기</button>';
         return '<li class="worklog-entry">' +
           '<div class="worklog-entry-head">' +
             '<strong>' + escapeHtml(wl.title || '(제목 없음)') + '</strong>' +
