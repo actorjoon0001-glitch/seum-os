@@ -8314,16 +8314,10 @@
       }
     });
 
-    // Day list (modal) click handling
+    // Day list (modal) click handling — only "add for this date" button here.
+    // Edit/view buttons are handled by the section-level delegation below.
     var dayWrap = document.getElementById('worklog-day-entries');
     if (dayWrap) dayWrap.addEventListener('click', function (e) {
-      var editTrigger = e.target.closest('.worklog-edit-btn, .worklog-view-btn');
-      if (editTrigger) {
-        var wid = editTrigger.getAttribute('data-worklog-id');
-        var w = getWorklog().find(function (x) { return x.id === wid; });
-        if (w) openWorklogModal('edit', w);
-        return;
-      }
       var addTrigger = e.target.closest('#worklog-day-add-btn');
       if (addTrigger) {
         var d = addTrigger.getAttribute('data-worklog-date');
@@ -8331,12 +8325,13 @@
       }
     });
 
-    // List view buttons
-    var listTbody = document.getElementById('worklog-tbody-list');
-    if (listTbody) listTbody.addEventListener('click', function (e) {
+    // Section-wide delegation (works for list tbody, day modal entries,
+    // and any other work log item rendered inside section-worklog)
+    section.addEventListener('click', function (e) {
       var btn = e.target.closest('.worklog-edit-btn, .worklog-view-btn');
-      if (!btn) return;
+      if (!btn || !section.contains(btn)) return;
       var wid = btn.getAttribute('data-worklog-id');
+      if (!wid) return;
       var w = getWorklog().find(function (x) { return x.id === wid; });
       if (w) openWorklogModal('edit', w);
     });
