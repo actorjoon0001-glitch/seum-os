@@ -1,11 +1,19 @@
 (function () {
   'use strict';
-  console.log('app.js loaded [v=20260415-08]');
+  console.log('app.js loaded [v=20260415-09]');
 
   // Early top-level click logger + handler for work log 수정/삭제 buttons.
   // Attached at script parse time so it is guaranteed to be registered
   // before any user interaction.
   document.addEventListener('click', function (e) {
+    // Log EVERY click so we can verify the event system works at all.
+    try {
+      var t = e.target;
+      var desc = t && t.tagName ? t.tagName.toLowerCase() : String(t);
+      if (t && t.className && typeof t.className === 'string') desc += '.' + t.className.replace(/\s+/g, '.');
+      console.log('[click]', desc, 'text=', (t && t.textContent ? t.textContent.slice(0, 20) : ''));
+    } catch (_) {}
+
     var editBtn = e.target.closest && e.target.closest('.worklog-edit-btn, .worklog-view-btn');
     if (editBtn) {
       var wid = editBtn.getAttribute('data-worklog-id');
