@@ -11528,3 +11528,375 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     color: #555;
   }
 }
+
+/* =====================================================================
+   팀별 업무일지 (Team Worklog)
+   ===================================================================== */
+.tw-control-card { margin-bottom: 1rem; }
+.tw-control-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: flex-end;
+}
+.tw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.tw-field label {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+.tw-field select,
+.tw-field input[type="date"] {
+  min-width: 140px;
+  padding: 0.45rem 0.65rem;
+  background: #0f172a;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-size: 0.92rem;
+}
+.tw-field-status {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+.tw-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+}
+.tw-status-chip b { font-weight: 700; }
+.tw-status-done    { background: rgba(16,185,129,0.15); color: #6ee7b7; border-color: rgba(16,185,129,0.35); }
+.tw-status-pending { background: rgba(239,68,68,0.15);  color: #fca5a5; border-color: rgba(239,68,68,0.35); }
+.tw-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+/* 팀장 카드 */
+.tw-leader-card {
+  border-left: 4px solid #60a5fa;
+  margin-bottom: 1rem;
+}
+.tw-leader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.tw-leader-title {
+  margin: 0;
+  color: #60a5fa;
+  font-size: 1.05rem;
+}
+.tw-leader-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+.tw-leader-meta {
+  font-size: 0.82rem;
+  color: #9ca3af;
+  text-align: right;
+  line-height: 1.5;
+}
+.tw-leader-meta b { color: #e5e7eb; }
+.tw-leader-view {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1rem;
+}
+.tw-leader-view .tw-block {
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  min-height: 60px;
+}
+.tw-leader-view .tw-block-wide { grid-column: 1 / -1; }
+.tw-block-label {
+  display: block;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tw-block-content {
+  font-size: 0.92rem;
+  color: #e5e7eb;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.tw-block-content.tw-empty { color: #6b7280; font-style: italic; }
+.tw-leader-footer {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+.tw-leader-form { margin-top: 0.5rem; }
+.tw-leader-form.hidden { display: none; }
+
+/* 폼 공통 */
+.tw-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1rem;
+}
+.tw-form-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.tw-form-field-wide { grid-column: 1 / -1; }
+.tw-form-field label {
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+.tw-form-field textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  background: #0f172a;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+.tw-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* 팀원 영역 */
+.tw-members-card { padding-bottom: 1rem; }
+.tw-members-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.tw-members-header h3 {
+  margin: 0;
+  color: #e5e7eb;
+  font-size: 1rem;
+}
+.tw-members-note {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+.tw-members-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+.tw-member-card {
+  border: 1px solid #374151;
+  border-radius: 10px;
+  background: var(--bg-card, #1f2937);
+  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+}
+.tw-member-card.tw-done     { border-left: 4px solid #10b981; }
+.tw-member-card.tw-pending  { border-left: 4px solid #ef4444; }
+.tw-member-card.tw-is-me    { box-shadow: 0 0 0 2px rgba(96,165,250,0.35) inset; }
+.tw-member-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+.tw-member-name {
+  font-weight: 600;
+  color: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.tw-role-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #1e3a8a;
+  color: #bfdbfe;
+  font-weight: 600;
+}
+.tw-me-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #14532d;
+  color: #bbf7d0;
+}
+.tw-member-status {
+  font-size: 0.76rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.tw-member-status.tw-done    { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+.tw-member-status.tw-pending { background: rgba(239,68,68,0.15);  color: #fca5a5; }
+.tw-member-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.tw-member-body .tw-block {
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+}
+.tw-member-empty {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.86rem;
+  padding: 0.8rem 0.4rem;
+  background: rgba(239,68,68,0.05);
+  border: 1px dashed rgba(239,68,68,0.35);
+  border-radius: 6px;
+}
+.tw-member-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+.tw-member-actions .btn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+}
+.tw-members-empty {
+  grid-column: 1 / -1;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #9ca3af;
+  border: 1px dashed #374151;
+  border-radius: 8px;
+}
+
+/* 팀원 모달 */
+.tw-member-modal-content { max-width: 640px; width: 100%; }
+.tw-member-form-body { padding: 0 1.25rem 1rem; }
+
+/* 인쇄 프레임 (평시 숨김) */
+.tw-print-frame { display: none; }
+
+@media (max-width: 720px) {
+  .tw-leader-view,
+  .tw-form-grid { grid-template-columns: 1fr; }
+  .tw-actions { margin-left: 0; width: 100%; }
+  .tw-members-list { grid-template-columns: 1fr; }
+}
+
+/* =====================================================================
+   팀별 업무일지 인쇄용 @media print
+   ===================================================================== */
+@media print {
+  body.tw-printing > *:not(.tw-print-frame) { display: none !important; }
+  body.tw-printing .tw-print-frame { display: block !important; }
+
+  @page { size: A4; margin: 14mm; }
+  html, body { background: #fff !important; color: #000 !important; }
+
+  .tw-print-frame {
+    width: 100%;
+    background: #fff;
+    color: #000;
+    font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  }
+  .tw-print-head {
+    border-bottom: 2px solid #000;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .tw-print-head h1 {
+    margin: 0;
+    font-size: 18pt;
+    color: #000;
+  }
+  .tw-print-head p {
+    margin: 0;
+    font-size: 10pt;
+    color: #333;
+  }
+  .tw-print-section {
+    margin-bottom: 8mm;
+    page-break-inside: avoid;
+  }
+  .tw-print-section h2 {
+    font-size: 12pt;
+    margin: 0 0 4px;
+    padding: 3px 6px;
+    background: #e5e7eb;
+    color: #000;
+    border-left: 3px solid #111;
+  }
+  .tw-print-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px 6px;
+    margin-top: 4px;
+  }
+  .tw-print-grid .tw-print-block-wide { grid-column: 1 / -1; }
+  .tw-print-grid .tw-print-block {
+    border: 1px solid #000;
+    padding: 5px 7px;
+    font-size: 10pt;
+  }
+  .tw-print-block-label {
+    font-weight: 700;
+    font-size: 9pt;
+    margin-bottom: 2px;
+    letter-spacing: 0.03em;
+  }
+  .tw-print-block-content {
+    white-space: pre-wrap;
+    line-height: 1.4;
+  }
+  .tw-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+  .tw-print-table th,
+  .tw-print-table td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    vertical-align: top;
+    text-align: left;
+  }
+  .tw-print-table th {
+    background: #f3f4f6;
+    font-weight: 700;
+  }
+  .tw-print-table td.tw-print-empty {
+    color: #888;
+    font-style: italic;
+  }
+  .tw-print-foot {
+    margin-top: 6mm;
+    border-top: 1px solid #999;
+    padding-top: 4px;
+    font-size: 9pt;
+    color: #555;
+    text-align: right;
+  }
+}
