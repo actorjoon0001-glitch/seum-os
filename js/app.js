@@ -8537,49 +8537,89 @@
   // =====================================================================
   var STORAGE_TEAM_WORKLOGS = 'seum_team_worklogs';
   var STORAGE_TEAM_WORKLOG_TEAMS = 'seum_team_worklog_teams';
+  // 기본 팀 목록 스키마 버전. 변경 시 사용자 로컬 저장소 자동 마이그레이션.
+  var TW_DEFAULT_TEAMS_VERSION = 2;
 
-  // 기본 팀 목록 (샘플 팀 불러오기 전에도 빈 상태 가능)
+  // 기본 팀 목록 (본사 4팀 + 전시장 영업팀 5팀)
   var TW_DEFAULT_TEAMS = [
-    { id: 'marketing-hq', name: '본사전시장 마케팅팀', team: '마케팅' },
-    { id: 'sales',        name: '영업팀',            team: '영업' },
-    { id: 'design',       name: '설계팀',            team: '설계' },
-    { id: 'construction', name: '시공팀',            team: '시공' }
+    { id: 'hq-marketing',    name: '본사 마케팅팀',      team: '마케팅' },
+    { id: 'hq-design',       name: '본사 설계팀',        team: '설계'   },
+    { id: 'hq-construction', name: '본사 시공팀',        team: '시공'   },
+    { id: 'hq-settlement',   name: '본사 정산팀',        team: '정산'   },
+    { id: 'sr1-sales',       name: '1전시장 영업팀',     team: '영업', showroom: 'showroom1'    },
+    { id: 'sr3-sales',       name: '3전시장 영업팀',     team: '영업', showroom: 'showroom3'    },
+    { id: 'sr4-sales',       name: '4전시장 영업팀',     team: '영업', showroom: 'showroom4'    },
+    { id: 'ganghwa-sales',   name: '강화전시장 영업팀',  team: '영업', showroom: 'ganghwa'      },
+    { id: 'andong-sales',    name: '안동전시장 영업팀',  team: '영업', showroom: 'andong'       }
   ];
 
   // 샘플 팀 멤버 (샘플 불러오기 버튼 시 주입)
   var TW_DUMMY_MEMBERS = {
-    'marketing-hq': [
-      { authorId: 'tw-m-01', name: '김마케팅', role: 'leader' },
-      { authorId: 'tw-m-02', name: '박콘텐츠', role: 'member' },
-      { authorId: 'tw-m-03', name: '이광고',   role: 'member' }
+    'hq-marketing': [
+      { authorId: 'tw-hmk-01', name: '김마케팅', role: 'leader' },
+      { authorId: 'tw-hmk-02', name: '박콘텐츠', role: 'member' },
+      { authorId: 'tw-hmk-03', name: '이광고',   role: 'member' }
     ],
-    'sales': [
-      { authorId: 'tw-s-01', name: '최영업',   role: 'leader' },
-      { authorId: 'tw-s-02', name: '정상담',   role: 'member' },
-      { authorId: 'tw-s-03', name: '한계약',   role: 'member' },
-      { authorId: 'tw-s-04', name: '송방문',   role: 'member' }
+    'hq-design': [
+      { authorId: 'tw-hds-01', name: '오설계',   role: 'leader' },
+      { authorId: 'tw-hds-02', name: '장도면',   role: 'member' },
+      { authorId: 'tw-hds-03', name: '윤평면',   role: 'member' }
     ],
-    'design': [
-      { authorId: 'tw-d-01', name: '오설계',   role: 'leader' },
-      { authorId: 'tw-d-02', name: '장도면',   role: 'member' },
-      { authorId: 'tw-d-03', name: '윤평면',   role: 'member' }
+    'hq-construction': [
+      { authorId: 'tw-hcs-01', name: '강시공',   role: 'leader' },
+      { authorId: 'tw-hcs-02', name: '문현장',   role: 'member' },
+      { authorId: 'tw-hcs-03', name: '배감리',   role: 'member' }
     ],
-    'construction': [
-      { authorId: 'tw-c-01', name: '강시공',   role: 'leader' },
-      { authorId: 'tw-c-02', name: '문현장',   role: 'member' },
-      { authorId: 'tw-c-03', name: '배감리',   role: 'member' }
+    'hq-settlement': [
+      { authorId: 'tw-hst-01', name: '서정산',   role: 'leader' },
+      { authorId: 'tw-hst-02', name: '조회계',   role: 'member' },
+      { authorId: 'tw-hst-03', name: '안재무',   role: 'member' }
+    ],
+    'sr1-sales': [
+      { authorId: 'tw-s1-01', name: '최영업',   role: 'leader' },
+      { authorId: 'tw-s1-02', name: '정상담',   role: 'member' },
+      { authorId: 'tw-s1-03', name: '한계약',   role: 'member' }
+    ],
+    'sr3-sales': [
+      { authorId: 'tw-s3-01', name: '송방문',   role: 'leader' },
+      { authorId: 'tw-s3-02', name: '노상담',   role: 'member' },
+      { authorId: 'tw-s3-03', name: '황견적',   role: 'member' }
+    ],
+    'sr4-sales': [
+      { authorId: 'tw-s4-01', name: '유전시',   role: 'leader' },
+      { authorId: 'tw-s4-02', name: '임방문',   role: 'member' },
+      { authorId: 'tw-s4-03', name: '남계약',   role: 'member' }
+    ],
+    'ganghwa-sales': [
+      { authorId: 'tw-gh-01', name: '권강화',   role: 'leader' },
+      { authorId: 'tw-gh-02', name: '하상담',   role: 'member' },
+      { authorId: 'tw-gh-03', name: '신계약',   role: 'member' }
+    ],
+    'andong-sales': [
+      { authorId: 'tw-ad-01', name: '고안동',   role: 'leader' },
+      { authorId: 'tw-ad-02', name: '손상담',   role: 'member' },
+      { authorId: 'tw-ad-03', name: '전계약',   role: 'member' }
     ]
   };
 
   function twGetTeams() {
     try {
+      var verRaw = localStorage.getItem(STORAGE_TEAM_WORKLOG_TEAMS + ':v');
+      var ver = verRaw ? parseInt(verRaw, 10) : 1;
       var raw = localStorage.getItem(STORAGE_TEAM_WORKLOG_TEAMS);
       var arr = raw ? JSON.parse(raw) : [];
-      return arr.length ? arr : TW_DEFAULT_TEAMS.slice();
+      // 스키마 버전이 낮거나 저장된 목록이 없으면 기본 목록으로 교체
+      if (ver < TW_DEFAULT_TEAMS_VERSION || !arr.length) {
+        arr = TW_DEFAULT_TEAMS.slice();
+        localStorage.setItem(STORAGE_TEAM_WORKLOG_TEAMS, JSON.stringify(arr));
+        localStorage.setItem(STORAGE_TEAM_WORKLOG_TEAMS + ':v', String(TW_DEFAULT_TEAMS_VERSION));
+      }
+      return arr;
     } catch (e) { return TW_DEFAULT_TEAMS.slice(); }
   }
   function twSaveTeams(teams) {
     localStorage.setItem(STORAGE_TEAM_WORKLOG_TEAMS, JSON.stringify(teams));
+    localStorage.setItem(STORAGE_TEAM_WORKLOG_TEAMS + ':v', String(TW_DEFAULT_TEAMS_VERSION));
   }
   function twGetWorklogs() {
     try { return JSON.parse(localStorage.getItem(STORAGE_TEAM_WORKLOGS) || '[]'); }
@@ -8592,10 +8632,12 @@
 
   function twSeedDummy() {
     twSaveTeams(TW_DEFAULT_TEAMS.slice());
-    // 멤버 시드(기존 직원 레코드 유지, 없는 샘플만 추가)
-    var existing = getEmployees();
+    // 이전 시드에서 생성된 더미 직원(id가 'tw-'로 시작) 제거 후 재생성
+    var emps = getEmployees().filter(function (e) {
+      return !(e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
+    });
     var byId = {};
-    existing.forEach(function (e) { byId[e.id] = true; });
+    emps.forEach(function (e) { byId[e.id] = true; });
     var added = [];
     Object.keys(TW_DUMMY_MEMBERS).forEach(function (teamId) {
       var teamMeta = TW_DEFAULT_TEAMS.find(function (t) { return t.id === teamId; });
@@ -8605,6 +8647,7 @@
           id: m.authorId,
           name: m.name,
           team: teamMeta ? teamMeta.team : '',
+          showroom: teamMeta ? (teamMeta.showroom || '') : '',
           teamWorklogTeamId: teamId,
           role: m.role,
           status: 'active'
@@ -8612,7 +8655,7 @@
         byId[m.authorId] = true;
       });
     });
-    if (added.length) saveEmployees(existing.concat(added));
+    saveEmployees(emps.concat(added));
   }
 
   function twIsAdminLike() {
@@ -8635,24 +8678,46 @@
     return true;
   }
 
-  // 선택된 팀의 팀원 목록 (기존 직원 + 샘플 시드된 직원)
+  // 선택된 팀의 팀원 목록
+  // 매칭 우선순위:
+  //  1) teamWorklogTeamId === team.id (정확 매칭)
+  //  2) 같은 team 문자열을 공유하는 팀이 여러 개(예: 영업팀 5개)인 경우
+  //     showroom 필드로도 매칭 (team + showroom 둘 다 일치)
+  //  3) 같은 team 문자열을 쓰는 팀이 유일할 때만 team 필드 단독 매칭 fallback
   function twGetTeamMembers(team) {
     if (!team) return [];
-    var emps = getEmployees();
-    return emps.filter(function (e) {
-      if (e.status && e.status !== 'active' && e.status !== 'pending') return false;
-      if (e.teamWorklogTeamId === team.id) return true;
-      if (team.team && e.team === team.team) return true;
-      return false;
-    }).sort(function (a, b) {
-      // 팀장을 먼저
-      var ar = (a.role || '').toString().toLowerCase();
-      var br = (b.role || '').toString().toLowerCase();
-      var aLead = (ar === 'leader' || ar === '팀장' || ar === 'team_lead' || ar === 'manager') ? 0 : 1;
-      var bLead = (br === 'leader' || br === '팀장' || br === 'team_lead' || br === 'manager') ? 0 : 1;
-      if (aLead !== bLead) return aLead - bLead;
-      return (a.name || '').localeCompare(b.name || '', 'ko');
+    var sortTeam = function (arr) {
+      return arr.slice().sort(function (a, b) {
+        var ar = (a.role || '').toString().toLowerCase();
+        var br = (b.role || '').toString().toLowerCase();
+        var aLead = (ar === 'leader' || ar === '팀장' || ar === 'team_lead' || ar === 'manager') ? 0 : 1;
+        var bLead = (br === 'leader' || br === '팀장' || br === 'team_lead' || br === 'manager') ? 0 : 1;
+        if (aLead !== bLead) return aLead - bLead;
+        return (a.name || '').localeCompare(b.name || '', 'ko');
+      });
+    };
+    var active = getEmployees().filter(function (e) {
+      return !(e.status && e.status !== 'active' && e.status !== 'pending');
     });
+    // 1) teamWorklogTeamId 정확 매칭
+    var specific = active.filter(function (e) { return e.teamWorklogTeamId === team.id; });
+    if (specific.length) return sortTeam(specific);
+
+    // 2) 같은 team 문자열을 공유하는 팀이 여러 개면 showroom 조합으로 매칭
+    var teams = twGetTeams();
+    var sharing = team.team ? teams.filter(function (t) { return t.team === team.team; }) : [];
+    if (sharing.length > 1) {
+      if (!team.showroom) return []; // 본사 공통일 경우 showroom 없음 → 수동 배정 필요
+      return sortTeam(active.filter(function (e) {
+        return e.team === team.team && (e.showroom || '') === team.showroom;
+      }));
+    }
+
+    // 3) team 문자열이 유일한 경우 (본사 마케팅/설계/시공/정산) fallback
+    if (team.team) {
+      return sortTeam(active.filter(function (e) { return e.team === team.team; }));
+    }
+    return [];
   }
 
   function twGetEntry(teamId, date, kind, authorId) {
