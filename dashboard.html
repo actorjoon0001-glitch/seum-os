@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260415-20">
+  <link rel="stylesheet" href="./css/style.css?v=20260416-01">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -189,6 +189,7 @@
 
       <div class="nav-section" id="nav-section-manage">
         <div class="nav-section-title">관리</div>
+        <a href="#" class="nav-item" data-section="org-structure">운영 구조</a>
         <a href="#" class="nav-item" data-section="hr">인사(HR)</a>
         <a href="#" class="nav-item" data-section="kpi">KPI</a>
       </div>
@@ -2601,6 +2602,65 @@
       </div>
     </section>
 
+    <section id="section-org-structure" class="content-section">
+      <header class="main-header">
+        <h2>운영 구조</h2>
+        <p class="section-desc">회사 전체 조직 및 팀 구조를 한눈에 확인할 수 있는 운영 흐름 페이지입니다.</p>
+      </header>
+
+      <div class="org-chart" aria-label="세움디자인하우징 운영 구조">
+        <!-- 상단: 대표이사 → 본부장 -->
+        <div class="org-top">
+          <div class="org-node org-node-exec org-node-ceo" data-org-role="ceo">
+            <span class="org-node-label">대표이사</span>
+            <span class="org-node-role">CEO</span>
+          </div>
+          <div class="org-connector org-connector-vertical" aria-hidden="true"></div>
+          <div class="org-node org-node-exec org-node-director" data-org-role="director">
+            <span class="org-node-label">본부장</span>
+            <span class="org-node-role">Head of Operations</span>
+          </div>
+        </div>
+
+        <!-- 중간 커넥터: 본부장 → 팀 라인 -->
+        <div class="org-branch" aria-hidden="true">
+          <div class="org-branch-down"></div>
+          <div class="org-branch-horizontal"></div>
+        </div>
+
+        <!-- 하단: 팀 카드 (수평) -->
+        <div class="org-teams">
+          <button type="button" class="org-team-card" data-org-team="marketing" data-section-target="marketing">
+            <span class="org-team-icon" aria-hidden="true">📣</span>
+            <span class="org-team-name">마케팅팀</span>
+            <span class="org-team-desc">홍보·콘텐츠·방문예약</span>
+          </button>
+          <button type="button" class="org-team-card" data-org-team="sales" data-section-target="sales-contracts">
+            <span class="org-team-icon" aria-hidden="true">💼</span>
+            <span class="org-team-name">영업팀</span>
+            <span class="org-team-desc">상담·계약·고객관리</span>
+          </button>
+          <button type="button" class="org-team-card" data-org-team="design" data-section-target="design">
+            <span class="org-team-icon" aria-hidden="true">📐</span>
+            <span class="org-team-name">설계팀</span>
+            <span class="org-team-desc">도면·인허가·착공</span>
+          </button>
+          <button type="button" class="org-team-card" data-org-team="construction" data-section-target="construction">
+            <span class="org-team-icon" aria-hidden="true">🏗️</span>
+            <span class="org-team-name">시공팀</span>
+            <span class="org-team-desc">현장·발주·공정관리</span>
+          </button>
+          <button type="button" class="org-team-card" data-org-team="settlement" data-section-target="settlement-dashboard">
+            <span class="org-team-icon" aria-hidden="true">💰</span>
+            <span class="org-team-name">정산팀</span>
+            <span class="org-team-desc">입금·수금·인센티브</span>
+          </button>
+        </div>
+
+        <p class="org-footnote">팀 카드를 클릭하면 해당 팀 페이지로 이동합니다.</p>
+      </div>
+    </section>
+
     <section id="section-hr" class="content-section">
       <header class="main-header">
         <h2>인사(HR)</h2>
@@ -4380,7 +4440,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260415-20"></script>
+  <script src="js/app.js?v=20260416-01"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>

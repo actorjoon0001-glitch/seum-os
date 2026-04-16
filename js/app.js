@@ -9543,7 +9543,7 @@
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
       return;
     }
-    if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
+    if ((sectionId === 'hr' || sectionId === 'kpi' || sectionId === 'org-structure') && !canSeeManageSection()) {
       return;
     }
     if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
@@ -9780,6 +9780,16 @@
         ceoToggle.setAttribute('aria-expanded', ceoSub.classList.contains('collapsed') ? 'false' : 'true');
       });
     }
+
+    // 운영 구조: 팀 카드 클릭 시 해당 팀 섹션으로 이동
+    // (data-section-target 속성을 사용하므로 추후 개인/팀원 리스트 등으로 확장 가능)
+    document.querySelectorAll('.org-team-card').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        e.preventDefault();
+        var target = card.getAttribute('data-section-target');
+        if (target) showSection(target);
+      });
+    });
   }
 
   function initVisitForm() {
