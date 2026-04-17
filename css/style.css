@@ -12566,3 +12566,103 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .attendance-cal-table td.attendance-cal-team-col,
   .attendance-cal-table thead th.attendance-cal-team-col { left: 5.5rem; min-width: 7rem; }
 }
+
+/* ============================================================
+   근태관리 - 전시장/팀 그룹핑 (월간 캘린더 개선)
+   ============================================================ */
+
+.attendance-cal-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.attendance-cal-showroom-block {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #161616;
+  overflow: hidden;
+}
+
+.attendance-cal-team-block {
+  border-top: 1px solid var(--border);
+}
+.attendance-cal-team-block:first-child { border-top: none; }
+
+.attendance-cal-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-label);
+  text-align: left;
+}
+
+.attendance-cal-showroom-toggle {
+  background: #1C1C1C;
+  color: var(--text-title);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.attendance-cal-team-toggle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-label);
+  padding: 0.55rem 1rem 0.55rem 1.75rem;
+  background: #181818;
+}
+
+.attendance-cal-group-caret {
+  display: inline-block;
+  width: 0.8rem;
+  transform: rotate(0deg);
+  transition: transform 0.15s;
+  color: var(--text-sub);
+}
+
+.attendance-cal-group-toggle.is-collapsed .attendance-cal-group-caret {
+  transform: rotate(-90deg);
+}
+
+.attendance-cal-group-label { flex: 1; }
+
+.attendance-cal-group-count {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  background: #2a2a2a;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+
+.attendance-cal-showroom-body {
+  padding: 0.25rem 0 0.5rem;
+}
+
+.attendance-cal-scroll-sub {
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  max-height: 60vh;
+}
+
+.attendance-cal-scroll-sub .attendance-cal-table thead th {
+  background: #131313;
+}
+
+.attendance-cal-cell-hit {
+  outline: 2px solid rgba(255,255,255,0.25);
+  outline-offset: -2px;
+}
+
+.attendance-cal-cell-dim { opacity: 0.35; }
+
+@media (max-width: 720px) {
+  .attendance-cal-group-toggle { padding: 0.6rem 0.75rem; }
+  .attendance-cal-team-toggle { padding-left: 1.25rem; }
+}

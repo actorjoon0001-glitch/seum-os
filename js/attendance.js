@@ -331,10 +331,16 @@
     month: 0,
     showroom: '',
     team: '',
-    employees: [],           // 현재 권한으로 볼 수 있는 직원 목록
-    records: {},             // key: authUserId + '|' + dateKey → attendance row
-    currentCell: null,       // 상세 모달에 표시 중인 셀 정보
+    status: '',               // 상태 필터 (빈 문자열이면 전체)
+    groupMode: 'showroom_team', // showroom_team | showroom | team | flat
+    employees: [],            // 현재 권한으로 볼 수 있는 직원 목록
+    records: {},              // key: authUserId + '|' + dateKey → attendance row
+    collapsed: {},            // 그룹 접힘 상태. key: group id(예 'sr:headquarters' / 'tm:headquarters|영업')
+    currentCell: null,        // 상세 모달에 표시 중인 셀 정보
   };
+
+  var SHOWROOM_ORDER = ['headquarters', 'showroom1', 'showroom3', 'showroom4', 'ganghwa', '_etc'];
+  var TEAM_ORDER = ['영업', '설계', '시공', '마케팅', '정산', '경영', '_etc'];
 
   var SHOWROOM_LABEL = {
     headquarters: '본사 전시장',
@@ -436,12 +442,16 @@
     var mSel = $('attendance-cal-month');
     var srSel = $('attendance-cal-showroom');
     var tSel = $('attendance-cal-team');
+    var stSel = $('attendance-cal-status');
+    var gmSel = $('attendance-cal-groupmode');
     if (ySel) ySel.value = String(calState.year);
     if (mSel) mSel.value = String(calState.month);
     if (srSel) srSel.value = calState.showroom || '';
     if (tSel) tSel.value = calState.team || '';
+    if (stSel) stSel.value = calState.status || '';
+    if (gmSel) gmSel.value = calState.groupMode || 'showroom_team';
 
-    // 권한별 필터 잠금: 팀장=본인 팀/전시장 고정, 일반 직원=필터 숨김
+    // 권한별 필터 잠금
     var me = currentEmployee();
     var isAdm = isAdminUser();
     var isMgr = isManagerUser();
@@ -463,6 +473,7 @@
       var parts = [];
       if (calState.showroom) parts.push(SHOWROOM_LABEL[calState.showroom] || calState.showroom);
       if (calState.team) parts.push(calState.team + '팀');
+      if (calState.status) parts.push('상태: ' + (STATUS_LABEL[calState.status] || calState.status));
       if (!isAdminUser() && !isManagerUser()) parts.push('본인만');
       hint.textContent = parts.join(' · ');
     }
@@ -478,73 +489,254 @@
     return map;
   }
 
-  function renderCalendarGrid() {
-    var thead = $('attendance-cal-thead');
-    var tbody = $('attendance-cal-tbody');
-    var empty = $('attendance-cal-empty');
-    if (!thead || !tbody) return;
-    var days = daysInMonth(calState.year, calState.month);
+  function escAttr(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
 
-    // header
+  function buildHeaderHtml(days) {
+    var y = calState.year, m = calState.month;
     var th = '<tr><th class="attendance-cal-name-col">이름</th><th class="attendance-cal-team-col">팀 / 소속</th>';
     for (var d = 1; d <= days; d++) {
-      var weekday = new Date(calState.year, calState.month - 1, d).getDay();
+      var weekday = new Date(y, m - 1, d).getDay();
       var wkClass = weekday === 0 ? ' attendance-cal-sun' : (weekday === 6 ? ' attendance-cal-sat' : '');
       th += '<th class="attendance-cal-day' + wkClass + '">' + d + '</th>';
     }
     th += '</tr>';
-    thead.innerHTML = th;
+    return th;
+  }
 
-    // body
+  function buildEmployeeRowHtml(emp, days) {
+    var y = calState.year, m = calState.month;
+    var teamLabel = (emp.team ? emp.team + '팀' : '-');
+    var shLabel = emp.showroom ? (SHOWROOM_LABEL[emp.showroom] || emp.showroom) : '';
+    var html = '<tr>';
+    html += '<td class="attendance-cal-name-col" title="' + escAttr(emp.name) + '">' + (emp.name || '-') + '</td>';
+    html += '<td class="attendance-cal-team-col"><div class="attendance-cal-team-name">' + teamLabel + '</div>' +
+            (shLabel ? '<div class="attendance-cal-team-sub">' + shLabel + '</div>' : '') + '</td>';
+    for (var d = 1; d <= days; d++) {
+      var dateKey = y + '-' + pad2(m) + '-' + pad2(d);
+      var rec = calState.records[emp.auth_user_id + '|' + dateKey] || null;
+      var st = inferCellStatus(rec);
+      var highlight = (calState.status && calState.status === st) ? ' attendance-cal-cell-hit' : '';
+      var dim = (calState.status && calState.status !== st) ? ' attendance-cal-cell-dim' : '';
+      html += '<td class="attendance-cal-cell attendance-status-' + st + highlight + dim + '" ' +
+              'data-user-id="' + escAttr(emp.auth_user_id) + '" ' +
+              'data-user-name="' + escAttr(emp.name) + '" ' +
+              'data-team="' + escAttr(emp.team) + '" ' +
+              'data-showroom="' + escAttr(emp.showroom) + '" ' +
+              'data-date="' + dateKey + '" ' +
+              'title="' + escAttr(emp.name) + ' / ' + dateKey + ' / ' + (STATUS_LABEL[st] || '미기록') + '">' +
+              statusChar(st) + '</td>';
+    }
+    html += '</tr>';
+    return html;
+  }
+
+  /** 월 내에 해당 상태의 셀을 1개 이상 가진 직원만 남긴다. */
+  function employeeMatchesStatus(emp, status, days) {
+    if (!status) return true;
+    var y = calState.year, m = calState.month;
+    for (var d = 1; d <= days; d++) {
+      var dateKey = y + '-' + pad2(m) + '-' + pad2(d);
+      var rec = calState.records[emp.auth_user_id + '|' + dateKey] || null;
+      if (inferCellStatus(rec) === status) return true;
+    }
+    return false;
+  }
+
+  /** 전시장 → 팀 → 직원 트리로 그룹핑. */
+  function groupEmployees(rows) {
+    var shMap = {};
+    rows.forEach(function (e) {
+      var sr = e.showroom || '_etc';
+      var tm = e.team || '_etc';
+      if (!shMap[sr]) shMap[sr] = {};
+      if (!shMap[sr][tm]) shMap[sr][tm] = [];
+      shMap[sr][tm].push(e);
+    });
+    var present = SHOWROOM_ORDER.filter(function (k) { return shMap[k]; });
+    Object.keys(shMap).forEach(function (k) { if (present.indexOf(k) < 0) present.push(k); });
+    return present.map(function (sr) {
+      var teams = shMap[sr];
+      var tkeys = TEAM_ORDER.filter(function (k) { return teams[k]; });
+      Object.keys(teams).forEach(function (k) { if (tkeys.indexOf(k) < 0) tkeys.push(k); });
+      return {
+        showroom: sr,
+        teams: tkeys.map(function (t) {
+          return {
+            team: t,
+            employees: teams[t].slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); })
+          };
+        })
+      };
+    });
+  }
+
+  function showroomLabel(sr) {
+    if (!sr || sr === '_etc') return '기타 전시장';
+    return SHOWROOM_LABEL[sr] || sr;
+  }
+  function teamLabel(tm) {
+    if (!tm || tm === '_etc') return '기타 팀';
+    return tm + '팀';
+  }
+
+  function isGroupCollapsed(key) { return !!calState.collapsed[key]; }
+
+  function buildSubTableHtml(employees, days) {
+    var html = '<div class="attendance-cal-scroll attendance-cal-scroll-sub">';
+    html += '<table class="attendance-cal-table">';
+    html += '<thead>' + buildHeaderHtml(days) + '</thead>';
+    html += '<tbody>';
+    employees.forEach(function (e) { html += buildEmployeeRowHtml(e, days); });
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  function buildTeamBlockHtml(showroomKey, teamKey, employees, days) {
+    var gkey = 'tm:' + showroomKey + '|' + teamKey;
+    var collapsed = isGroupCollapsed(gkey);
+    var html = '<div class="attendance-cal-team-block">';
+    html += '<button type="button" class="attendance-cal-group-toggle attendance-cal-team-toggle' +
+            (collapsed ? ' is-collapsed' : '') + '" data-toggle-group="' + escAttr(gkey) + '">';
+    html += '<span class="attendance-cal-group-caret">▾</span>';
+    html += '<span class="attendance-cal-group-label">' + teamLabel(teamKey) + '</span>';
+    html += '<span class="attendance-cal-group-count">' + employees.length + '명</span>';
+    html += '</button>';
+    if (!collapsed) html += buildSubTableHtml(employees, days);
+    html += '</div>';
+    return html;
+  }
+
+  function buildShowroomBlockHtml(group, days, mode) {
+    var gkey = 'sr:' + group.showroom;
+    var collapsed = isGroupCollapsed(gkey);
+    var total = 0;
+    group.teams.forEach(function (t) { total += t.employees.length; });
+    var html = '<section class="attendance-cal-showroom-block">';
+    html += '<button type="button" class="attendance-cal-group-toggle attendance-cal-showroom-toggle' +
+            (collapsed ? ' is-collapsed' : '') + '" data-toggle-group="' + escAttr(gkey) + '">';
+    html += '<span class="attendance-cal-group-caret">▾</span>';
+    html += '<span class="attendance-cal-group-label">' + showroomLabel(group.showroom) + '</span>';
+    html += '<span class="attendance-cal-group-count">' + total + '명</span>';
+    html += '</button>';
+    if (!collapsed) {
+      if (mode === 'showroom_team') {
+        html += '<div class="attendance-cal-showroom-body">';
+        group.teams.forEach(function (t) {
+          html += buildTeamBlockHtml(group.showroom, t.team, t.employees, days);
+        });
+        html += '</div>';
+      } else {
+        // 전시장만 그룹핑: 전시장 아래에 전체 직원 테이블 1개
+        var all = [];
+        group.teams.forEach(function (t) { all = all.concat(t.employees); });
+        all.sort(function (a, b) {
+          var t = (a.team || '').localeCompare(b.team || '');
+          return t !== 0 ? t : (a.name || '').localeCompare(b.name || '');
+        });
+        html += buildSubTableHtml(all, days);
+      }
+    }
+    html += '</section>';
+    return html;
+  }
+
+  function renderCalendarGrid() {
+    var container = $('attendance-cal-groups');
+    var empty = $('attendance-cal-empty');
+    if (!container) return;
+    var days = daysInMonth(calState.year, calState.month);
+
+    // 1) 기본 필터 (전시장/팀)
     var rows = calState.employees.slice();
-    // 필터 적용 (팀/전시장 선택 시 추가 필터 — 관리자 뷰)
     if (calState.showroom) rows = rows.filter(function (e) { return (e.showroom || '') === calState.showroom; });
     if (calState.team) rows = rows.filter(function (e) { return (e.team || '') === calState.team; });
 
+    // 2) 상태 필터: 월 안에서 해당 상태가 하나라도 있는 직원만
+    if (calState.status) {
+      rows = rows.filter(function (e) { return employeeMatchesStatus(e, calState.status, days); });
+    }
+
     if (!rows.length) {
-      tbody.innerHTML = '';
+      container.innerHTML = '';
       if (empty) empty.classList.remove('hidden');
       return;
     }
     if (empty) empty.classList.add('hidden');
 
-    var html = '';
-    rows.forEach(function (emp) {
-      html += '<tr>';
-      html += '<td class="attendance-cal-name-col" title="' + (emp.name || '') + '">' + (emp.name || '-') + '</td>';
-      var teamLabel = (emp.team ? emp.team + '팀' : '-');
-      var shLabel = emp.showroom ? (SHOWROOM_LABEL[emp.showroom] || emp.showroom) : '';
-      html += '<td class="attendance-cal-team-col"><div class="attendance-cal-team-name">' + teamLabel + '</div>' +
-              (shLabel ? '<div class="attendance-cal-team-sub">' + shLabel + '</div>' : '') + '</td>';
-      for (var d2 = 1; d2 <= days; d2++) {
-        var dateKey = calState.year + '-' + pad2(calState.month) + '-' + pad2(d2);
-        var rec = calState.records[emp.auth_user_id + '|' + dateKey] || null;
-        var st = inferCellStatus(rec);
-        var ch = statusChar(st);
-        var lbl = STATUS_LABEL[st] || '미기록';
-        html += '<td class="attendance-cal-cell attendance-status-' + st + '" ' +
-                'data-user-id="' + emp.auth_user_id + '" ' +
-                'data-user-name="' + (emp.name || '').replace(/"/g, '&quot;') + '" ' +
-                'data-team="' + (emp.team || '') + '" ' +
-                'data-showroom="' + (emp.showroom || '') + '" ' +
-                'data-date="' + dateKey + '" ' +
-                'title="' + (emp.name || '') + ' / ' + dateKey + ' / ' + lbl + '">' + ch + '</td>';
-      }
-      html += '</tr>';
-    });
-    tbody.innerHTML = html;
+    var mode = calState.groupMode || 'showroom_team';
+
+    if (mode === 'flat') {
+      container.innerHTML = buildSubTableHtml(
+        rows.slice().sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }),
+        days
+      );
+      return;
+    }
+
+    if (mode === 'team') {
+      // 팀만 그룹핑 (전시장 무시)
+      var teamMap = {};
+      rows.forEach(function (e) {
+        var t = e.team || '_etc';
+        if (!teamMap[t]) teamMap[t] = [];
+        teamMap[t].push(e);
+      });
+      var tkeys = TEAM_ORDER.filter(function (k) { return teamMap[k]; });
+      Object.keys(teamMap).forEach(function (k) { if (tkeys.indexOf(k) < 0) tkeys.push(k); });
+      var html = '';
+      tkeys.forEach(function (t) {
+        html += buildTeamBlockHtml('_all', t,
+          teamMap[t].sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); }),
+          days);
+      });
+      container.innerHTML = html;
+      return;
+    }
+
+    // showroom_team 또는 showroom 모드
+    var groups = groupEmployees(rows);
+    var outHtml = '';
+    groups.forEach(function (g) { outHtml += buildShowroomBlockHtml(g, days, mode); });
+    container.innerHTML = outHtml;
   }
 
   async function loadAndRenderCalendar() {
     populateCalYearSelect();
     syncCalFilters();
     updateCalTitle();
-    var body = $('attendance-cal-tbody');
-    if (body) body.innerHTML = '<tr><td colspan="33" class="attendance-cal-loading">불러오는 중...</td></tr>';
+    var container = $('attendance-cal-groups');
+    if (container) container.innerHTML = '<p class="attendance-cal-loading">불러오는 중...</p>';
     var emps = await fetchVisibleEmployees();
     calState.employees = emps;
     var recs = await fetchMonthRecords(calState.year, calState.month, calState.showroom, calState.team);
     calState.records = buildRecordMap(recs);
+    renderCalendarGrid();
+  }
+
+  function listAllGroupKeys() {
+    var keys = [];
+    var rows = calState.employees.slice();
+    if (calState.showroom) rows = rows.filter(function (e) { return (e.showroom || '') === calState.showroom; });
+    if (calState.team) rows = rows.filter(function (e) { return (e.team || '') === calState.team; });
+    var mode = calState.groupMode || 'showroom_team';
+    if (mode === 'flat') return keys;
+    var groups = groupEmployees(rows);
+    groups.forEach(function (g) {
+      keys.push('sr:' + g.showroom);
+      if (mode === 'showroom_team') g.teams.forEach(function (t) { keys.push('tm:' + g.showroom + '|' + t.team); });
+    });
+    if (mode === 'team') {
+      var teamSet = {};
+      rows.forEach(function (e) { teamSet[e.team || '_etc'] = true; });
+      Object.keys(teamSet).forEach(function (t) { keys.push('tm:_all|' + t); });
+    }
+    return keys;
+  }
+
+  function collapseAll(collapsed) {
+    var keys = listAllGroupKeys();
+    calState.collapsed = {};
+    if (collapsed) keys.forEach(function (k) { calState.collapsed[k] = true; });
     renderCalendarGrid();
   }
 
@@ -689,23 +881,44 @@
     var mSel = $('attendance-cal-month');
     var srSel = $('attendance-cal-showroom');
     var tSel = $('attendance-cal-team');
+    var stSel = $('attendance-cal-status');
+    var gmSel = $('attendance-cal-groupmode');
     if (ySel) ySel.addEventListener('change', function () { calState.year = Number(ySel.value); loadAndRenderCalendar(); });
     if (mSel) mSel.addEventListener('change', function () { calState.month = Number(mSel.value); loadAndRenderCalendar(); });
     if (srSel) srSel.addEventListener('change', function () { calState.showroom = srSel.value; loadAndRenderCalendar(); });
     if (tSel) tSel.addEventListener('change', function () { calState.team = tSel.value; loadAndRenderCalendar(); });
+    if (stSel) stSel.addEventListener('change', function () { calState.status = stSel.value; updateCalTitle(); renderCalendarGrid(); });
+    if (gmSel) gmSel.addEventListener('change', function () { calState.groupMode = gmSel.value; renderCalendarGrid(); });
+
     var resetBtn = $('attendance-cal-reset');
     if (resetBtn) resetBtn.addEventListener('click', function () {
       var now = new Date();
       calState.year = now.getFullYear();
       calState.month = now.getMonth() + 1;
+      calState.status = '';
+      calState.groupMode = 'showroom_team';
+      calState.collapsed = {};
       if (isAdminUser()) { calState.showroom = ''; calState.team = ''; }
       loadAndRenderCalendar();
     });
     var refreshBtn = $('attendance-cal-refresh');
     if (refreshBtn) refreshBtn.addEventListener('click', loadAndRenderCalendar);
 
-    var tbody = $('attendance-cal-tbody');
-    if (tbody) tbody.addEventListener('click', function (e) {
+    var collapseAllBtn = $('attendance-cal-collapse-all');
+    if (collapseAllBtn) collapseAllBtn.addEventListener('click', function () { collapseAll(true); });
+    var expandAllBtn = $('attendance-cal-expand-all');
+    if (expandAllBtn) expandAllBtn.addEventListener('click', function () { collapseAll(false); });
+
+    var groups = $('attendance-cal-groups');
+    if (groups) groups.addEventListener('click', function (e) {
+      var toggle = e.target.closest && e.target.closest('.attendance-cal-group-toggle');
+      if (toggle) {
+        var key = toggle.getAttribute('data-toggle-group');
+        if (!key) return;
+        calState.collapsed[key] = !calState.collapsed[key];
+        renderCalendarGrid();
+        return;
+      }
       var td = e.target.closest && e.target.closest('.attendance-cal-cell');
       if (!td) return;
       openDetailModal({
