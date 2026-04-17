@@ -572,6 +572,8 @@
       .forEach(function (id) { var el = $(id); if (el) el.disabled = !canEdit; });
     var saveBtn = $('btn-attendance-detail-save');
     if (saveBtn) saveBtn.style.display = canEdit ? '' : 'none';
+    var delBtn = $('btn-attendance-detail-delete');
+    if (delBtn) delBtn.style.display = (canEdit && rec && rec.id) ? '' : 'none';
 
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
@@ -641,6 +643,27 @@
     }
   }
 
+  async function deleteDetail() {
+    if (!isAdminUser()) { showToast('삭제 권한이 없습니다.', 'error'); return; }
+    var cell = calState.currentCell;
+    if (!cell) return;
+    var rec = calState.records[cell.userId + '|' + cell.date];
+    if (!rec || !rec.id) { showToast('삭제할 기록이 없습니다.', 'error'); return; }
+    if (!window.confirm((cell.name || '직원') + ' / ' + cell.date + ' 의 근태 기록을 삭제하시겠습니까?')) return;
+    var client = supa();
+    if (!client) return;
+    try {
+      var r = await client.from(TABLE).delete().eq('id', rec.id);
+      if (r.error) throw r.error;
+      delete calState.records[cell.userId + '|' + cell.date];
+      renderCalendarGrid();
+      closeDetailModal();
+      showToast('근태 기록이 삭제됐습니다.');
+    } catch (err) {
+      showToast('삭제 실패: ' + (err && err.message ? err.message : '오류'), 'error');
+    }
+  }
+
   // ────────── 탭 전환 & 이벤트 ──────────
 
   function switchTab(tab) {
@@ -702,6 +725,8 @@
     if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeDetailModal(); });
     var form = $('form-attendance-detail');
     if (form) form.addEventListener('submit', saveDetail);
+    var delBtn = $('btn-attendance-detail-delete');
+    if (delBtn) delBtn.addEventListener('click', deleteDetail);
   }
 
   function init() {
