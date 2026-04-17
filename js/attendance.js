@@ -28,6 +28,8 @@
     outside: '외근',
     business_trip: '출장',
     vacation: '휴가',
+    half_am: '오전 반차',
+    half_pm: '오후 반차',
     sick: '병가'
   };
 
@@ -135,14 +137,16 @@
 
   function leaveTypeLabelKo(type) {
     if (type === 'annual') return '연차';
+    if (type === 'half_am') return '오전 반차';
+    if (type === 'half_pm') return '오후 반차';
     if (type === 'half') return '반차';
     if (type === 'sick') return '병가';
     if (type === 'outside') return '외근';
     return '휴가';
   }
   function leaveBlocksCheckIn(type) {
-    // 연차/반차/병가는 출근 차단. 외근은 허용.
-    return type === 'annual' || type === 'half' || type === 'sick';
+    // 연차/병가는 출근 차단. 반차(오전/오후)/외근은 출근 허용.
+    return type === 'annual' || type === 'sick';
   }
 
   /** 오늘 레코드 업서트. */
@@ -220,6 +224,8 @@
       'attendance-status-outside',
       'attendance-status-business_trip',
       'attendance-status-vacation',
+      'attendance-status-half_am',
+      'attendance-status-half_pm',
       'attendance-status-sick'
     );
     el.classList.add('attendance-status-' + status);
@@ -250,8 +256,7 @@
 
     // 오늘이 승인된 월차/병가/외근인 경우: leave 우선 표시
     if (leaveToday) {
-      var mapped = (leaveToday.type === 'annual' || leaveToday.type === 'half') ? 'vacation'
-        : (leaveToday.type === 'sick' ? 'sick' : 'outside');
+      var mapped = leaveTypeToStatus(leaveToday.type) || 'vacation';
       applyStatusBadge(badgeEl, mapped);
       if (inEl) inEl.textContent = rec && rec.check_in ? toHHMM(rec.check_in) : '-';
       if (outEl) outEl.textContent = rec && rec.check_out ? toHHMM(rec.check_out) : '-';
@@ -486,13 +491,16 @@
   }
 
   function leaveTypeToStatus(type) {
-    if (type === 'annual' || type === 'half') return 'vacation';
+    if (type === 'annual') return 'vacation';
+    if (type === 'half_am') return 'half_am';
+    if (type === 'half_pm') return 'half_pm';
+    if (type === 'half') return 'vacation'; // 레거시
     if (type === 'sick') return 'sick';
     if (type === 'outside') return 'outside';
     return null;
   }
   function priorityOf(status) {
-    var order = { outside: 1, business_trip: 2, vacation: 3, sick: 4 };
+    var order = { outside: 1, business_trip: 2, half_am: 3, half_pm: 3, vacation: 4, sick: 5 };
     return order[status] || 0;
   }
 
@@ -516,6 +524,8 @@
       case 'outside': return '외';
       case 'business_trip': return '출';
       case 'vacation': return '휴';
+      case 'half_am': return '오';  // 오전 반차
+      case 'half_pm': return '후';  // 오후 반차
       case 'sick': return '병';
       default: return '·';
     }

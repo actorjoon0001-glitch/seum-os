@@ -14,10 +14,14 @@
 
   var TYPE_LABEL = {
     annual: '연차',
-    half: '반차',
+    half_am: '오전 반차',
+    half_pm: '오후 반차',
+    half: '반차',           // 레거시 호환 (기존 데이터 표시용)
     sick: '병가',
     outside: '외근'
   };
+
+  function isHalfType(type) { return type === 'half' || type === 'half_am' || type === 'half_pm'; }
   var STATUS_LABEL = {
     pending: '대기',
     approved: '승인',
@@ -77,10 +81,10 @@
     return Math.floor(ms / 86400000) + 1;
   }
 
-  /** 차감 일수 계산: 연차=날짜수, 반차=0.5, 병가/외근=0 */
+  /** 차감 일수 계산: 연차=날짜수, 반차(오전/오후)=0.5, 병가/외근=0 */
   function computeDeduction(type, start, end) {
     if (type === 'annual') return Math.max(0, countDays(start, end));
-    if (type === 'half') return 0.5;
+    if (isHalfType(type)) return 0.5;
     return 0;
   }
 
@@ -377,10 +381,10 @@
     var reason = $('leave-req-reason').value.trim();
     if (!type || !start || !end) { showToast('유형/시작일/종료일을 입력하세요.', 'error'); return; }
     if (end < start) { showToast('종료일이 시작일보다 빠를 수 없습니다.', 'error'); return; }
-    if (type === 'half' && start !== end) { showToast('반차는 하루만 선택할 수 있습니다.', 'error'); return; }
+    if (isHalfType(type) && start !== end) { showToast('반차는 하루만 선택할 수 있습니다.', 'error'); return; }
 
-    // 연차/반차는 출근 기록이 있는 날에 신청 불가
-    if (type === 'annual' || type === 'half') {
+    // 연차는 출근 기록이 있는 날에 신청 불가 (반차는 반나절 출근 가능성 있어 허용)
+    if (type === 'annual') {
       try {
         var conf = await client.from('attendance')
           .select('date, check_in')
@@ -454,9 +458,9 @@
       }).eq('id', id).select('*').maybeSingle();
       if (up.error) throw up.error;
 
-      // 연차/반차는 balance 차감 (remain_days 음수 방지 가드)
+      // 연차/반차(오전/오후)는 balance 차감 (remain_days 음수 방지 가드)
       var deduct = Number(req.days) || 0;
-      if (deduct > 0 && (req.type === 'annual' || req.type === 'half')) {
+      if (deduct > 0 && (req.type === 'annual' || isHalfType(req.type))) {
         var year = new Date(req.start_date).getFullYear() || new Date().getFullYear();
         var br = await client.from(TABLE_BAL).select('*').eq('user_id', req.user_id).eq('year', year).maybeSingle();
         var bal = (br && !br.error) ? br.data : null;
@@ -537,6 +541,8 @@
     $('leave-req-end').value = k;
     $('leave-req-reason').value = '';
     $('leave-req-edit-id').value = '';
+    var hintInit = $('leave-req-hint');
+    if (hintInit) hintInit.textContent = '';
     recalcDays();
     var modal = $('leave-modal');
     modal.classList.remove('hidden');
@@ -552,10 +558,23 @@
     var type = $('leave-req-type').value;
     var s = $('leave-req-start').value;
     var e = $('leave-req-end').value;
-    if (type === 'half' && s && !e) $('leave-req-end').value = s;
-    if (type === 'half' && s && e && s !== e) $('leave-req-end').value = s;
+    // 반차는 하루 단위만 허용: 종료일을 시작일로 맞춤
+    if (isHalfType(type)) {
+      if (s && !e) $('leave-req-end').value = s;
+      if (s && e && s !== e) $('leave-req-end').value = s;
+    }
     var days = computeDeduction(type, $('leave-req-start').value, $('leave-req-end').value);
     $('leave-req-days').value = fmtDays(days) + '일';
+
+    var hint = $('leave-req-hint');
+    if (hint) {
+      if (type === 'half_am') hint.textContent = '오전 반차: 0.5일 차감. 오후 근무 시 출근 체크 가능합니다.';
+      else if (type === 'half_pm') hint.textContent = '오후 반차: 0.5일 차감. 오전 근무 시 출근 체크 가능합니다.';
+      else if (type === 'annual') hint.textContent = '연차는 시작일~종료일 사이 전 일자가 차감됩니다. 이미 출근 기록이 있으면 신청할 수 없습니다.';
+      else if (type === 'sick') hint.textContent = '병가는 잔여 연차에서 차감되지 않습니다. 캘린더에만 반영됩니다.';
+      else if (type === 'outside') hint.textContent = '외근은 잔여 연차에서 차감되지 않으며 승인일에도 출근 체크가 가능합니다.';
+      else hint.textContent = '';
+    }
   }
 
   // ───────── 로드 & 렌더 ─────────
