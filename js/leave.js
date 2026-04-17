@@ -371,10 +371,10 @@
     var client = supa();
     if (!client) return;
 
-    var type = $('leave-type').value;
-    var start = $('leave-start').value;
-    var end = $('leave-end').value;
-    var reason = $('leave-reason').value.trim();
+    var type = $('leave-req-type').value;
+    var start = $('leave-req-start').value;
+    var end = $('leave-req-end').value;
+    var reason = $('leave-req-reason').value.trim();
     if (!type || !start || !end) { showToast('유형/시작일/종료일을 입력하세요.', 'error'); return; }
     if (end < start) { showToast('종료일이 시작일보다 빠를 수 없습니다.', 'error'); return; }
     if (type === 'half' && start !== end) { showToast('반차는 하루만 선택할 수 있습니다.', 'error'); return; }
@@ -532,11 +532,11 @@
   function openModal() {
     var today = new Date();
     var k = today.getFullYear() + '-' + pad2(today.getMonth() + 1) + '-' + pad2(today.getDate());
-    $('leave-type').value = 'annual';
-    $('leave-start').value = k;
-    $('leave-end').value = k;
-    $('leave-reason').value = '';
-    $('leave-edit-id').value = '';
+    $('leave-req-type').value = 'annual';
+    $('leave-req-start').value = k;
+    $('leave-req-end').value = k;
+    $('leave-req-reason').value = '';
+    $('leave-req-edit-id').value = '';
     recalcDays();
     var modal = $('leave-modal');
     modal.classList.remove('hidden');
@@ -549,13 +549,13 @@
   }
 
   function recalcDays() {
-    var type = $('leave-type').value;
-    var s = $('leave-start').value;
-    var e = $('leave-end').value;
-    if (type === 'half' && s && !e) $('leave-end').value = s;
-    if (type === 'half' && s && e && s !== e) $('leave-end').value = s;
-    var days = computeDeduction(type, $('leave-start').value, $('leave-end').value);
-    $('leave-days').value = fmtDays(days) + '일';
+    var type = $('leave-req-type').value;
+    var s = $('leave-req-start').value;
+    var e = $('leave-req-end').value;
+    if (type === 'half' && s && !e) $('leave-req-end').value = s;
+    if (type === 'half' && s && e && s !== e) $('leave-req-end').value = s;
+    var days = computeDeduction(type, $('leave-req-start').value, $('leave-req-end').value);
+    $('leave-req-days').value = fmtDays(days) + '일';
   }
 
   // ───────── 로드 & 렌더 ─────────
@@ -611,10 +611,10 @@
     if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
     var modal = $('leave-modal');
     if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
-    var form = $('form-leave');
+    var form = $('form-leave-req');
     if (form) form.addEventListener('submit', submitRequest);
 
-    ['leave-type', 'leave-start', 'leave-end'].forEach(function (id) {
+    ['leave-req-type', 'leave-req-start', 'leave-req-end'].forEach(function (id) {
       var el = $(id);
       if (el) el.addEventListener('change', recalcDays);
     });
