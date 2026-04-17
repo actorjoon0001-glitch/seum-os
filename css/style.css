@@ -12666,3 +12666,129 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .attendance-cal-group-toggle { padding: 0.6rem 0.75rem; }
   .attendance-cal-team-toggle { padding-left: 1.25rem; }
 }
+
+/* ============================================================
+   월차/연차 관리 (Leave)
+   ============================================================ */
+
+.leave-balance-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.leave-balance-card {
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.leave-balance-label {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+.leave-balance-value {
+  font-size: 1.8rem;
+  color: var(--text-title);
+  font-variant-numeric: tabular-nums;
+}
+
+.leave-balance-used   { color: #fbbf24; }
+.leave-balance-remain { color: #4ade80; }
+
+.leave-balance-unit {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  margin-top: -0.2rem;
+}
+
+.leave-my-card,
+.leave-admin-card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.leave-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.leave-card-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-title);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.leave-count-badge {
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(239,68,68,0.2);
+  color: #fecaca;
+  border: 1px solid rgba(239,68,68,0.35);
+  text-align: center;
+}
+
+.leave-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.leave-status,
+.leave-type {
+  display: inline-block;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.leave-status-pending  { background: rgba(245,158,11,0.18); color: #fde68a; border-color: rgba(245,158,11,0.35); }
+.leave-status-approved { background: rgba(34,197,94,0.18);  color: #86efac; border-color: rgba(34,197,94,0.35); }
+.leave-status-rejected { background: rgba(239,68,68,0.18);  color: #fca5a5; border-color: rgba(239,68,68,0.35); }
+
+.leave-type-annual  { background: rgba(79,140,255,0.18); color: #bcd4ff; border-color: rgba(79,140,255,0.35); }
+.leave-type-half    { background: rgba(139,92,246,0.18); color: #ddd6fe; border-color: rgba(139,92,246,0.35); }
+.leave-type-sick    { background: rgba(234,88,12,0.18);  color: #fed7aa; border-color: rgba(234,88,12,0.35); }
+.leave-type-outside { background: rgba(236,72,153,0.18); color: #fbcfe8; border-color: rgba(236,72,153,0.35); }
+
+.leave-rejected-reason {
+  font-size: 0.7rem;
+  color: #fca5a5;
+  margin-top: 0.2rem;
+}
+
+.leave-reason-cell {
+  max-width: 20rem;
+  white-space: normal;
+}
+
+.leave-admin-actions-cell { white-space: nowrap; }
+
+.leave-empty {
+  text-align: center;
+  color: var(--text-sub);
+  padding: 1.2rem 0;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .leave-balance-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .leave-card-head { flex-direction: column; align-items: flex-start; }
+  .leave-card-actions { width: 100%; }
+}

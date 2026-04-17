@@ -9592,6 +9592,7 @@
     if (sectionId === 'worklog') renderWorklog();
     if (sectionId === 'team-worklog') renderTeamWorklog();
     if (sectionId === 'attendance' && window.seumAttendance && typeof window.seumAttendance.render === 'function') window.seumAttendance.render();
+    if (sectionId === 'leave' && window.seumLeave && typeof window.seumLeave.render === 'function') window.seumLeave.render();
     if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
     if (sectionId === 'ceo-daily') renderCeoReport('daily');

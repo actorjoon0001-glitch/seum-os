@@ -335,6 +335,7 @@
     groupMode: 'showroom_team', // showroom_team | showroom | team | flat
     employees: [],            // 현재 권한으로 볼 수 있는 직원 목록
     records: {},              // key: authUserId + '|' + dateKey → attendance row
+    leaves: {},               // key: authUserId + '|' + dateKey → 'vacation'|'sick'|'outside'|'business_trip'
     collapsed: {},            // 그룹 접힘 상태. key: group id(예 'sr:headquarters' / 'tm:headquarters|영업')
     currentCell: null,        // 상세 모달에 표시 중인 셀 정보
   };
@@ -397,7 +398,53 @@
     } catch (e) { return []; }
   }
 
-  function inferCellStatus(rec) {
+  /** 해당 월에 겹치는 승인된 월차/연차/병가/외근을 user_id+date 맵으로 반환. */
+  async function fetchMonthApprovedLeaves(year, month) {
+    var client = supa();
+    if (!client) return {};
+    var range = monthDateRange(year, month);
+    try {
+      var r = await client.from('leave_requests').select('user_id, type, start_date, end_date, status')
+        .eq('status', 'approved')
+        .lte('start_date', range.last)
+        .gte('end_date', range.first);
+      if (r.error || !Array.isArray(r.data)) return {};
+      var map = {};
+      r.data.forEach(function (lv) {
+        if (!lv.user_id || !lv.start_date || !lv.end_date) return;
+        var mapped = leaveTypeToStatus(lv.type);
+        if (!mapped) return;
+        var s = new Date(lv.start_date + 'T00:00:00');
+        var e = new Date(lv.end_date + 'T00:00:00');
+        var first = new Date(range.first + 'T00:00:00');
+        var last = new Date(range.last + 'T00:00:00');
+        if (s < first) s = first;
+        if (e > last) e = last;
+        for (var d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+          var key = lv.user_id + '|' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+          // 우선순위: sick > vacation > business_trip > outside (가장 강한 상태 남김)
+          var prev = map[key];
+          if (!prev || priorityOf(mapped) > priorityOf(prev)) map[key] = mapped;
+        }
+      });
+      return map;
+    } catch (e) { return {}; }
+  }
+
+  function leaveTypeToStatus(type) {
+    if (type === 'annual' || type === 'half') return 'vacation';
+    if (type === 'sick') return 'sick';
+    if (type === 'outside') return 'outside';
+    return null;
+  }
+  function priorityOf(status) {
+    var order = { outside: 1, business_trip: 2, vacation: 3, sick: 4 };
+    return order[status] || 0;
+  }
+
+  function inferCellStatus(rec, leaveStatus) {
+    // 승인된 월차가 있으면 최우선 적용 (출근 기록보다 우선)
+    if (leaveStatus) return leaveStatus;
     if (!rec) return 'empty';
     var manual = ['vacation', 'sick', 'outside', 'business_trip', 'absent'];
     if (manual.indexOf(rec.status) >= 0) return rec.status;
@@ -514,7 +561,8 @@
     for (var d = 1; d <= days; d++) {
       var dateKey = y + '-' + pad2(m) + '-' + pad2(d);
       var rec = calState.records[emp.auth_user_id + '|' + dateKey] || null;
-      var st = inferCellStatus(rec);
+      var leaveSt = calState.leaves[emp.auth_user_id + '|' + dateKey] || null;
+      var st = inferCellStatus(rec, leaveSt);
       var highlight = (calState.status && calState.status === st) ? ' attendance-cal-cell-hit' : '';
       var dim = (calState.status && calState.status !== st) ? ' attendance-cal-cell-dim' : '';
       html += '<td class="attendance-cal-cell attendance-status-' + st + highlight + dim + '" ' +
@@ -537,7 +585,8 @@
     for (var d = 1; d <= days; d++) {
       var dateKey = y + '-' + pad2(m) + '-' + pad2(d);
       var rec = calState.records[emp.auth_user_id + '|' + dateKey] || null;
-      if (inferCellStatus(rec) === status) return true;
+      var leaveSt = calState.leaves[emp.auth_user_id + '|' + dateKey] || null;
+      if (inferCellStatus(rec, leaveSt) === status) return true;
     }
     return false;
   }
@@ -710,6 +759,7 @@
     calState.employees = emps;
     var recs = await fetchMonthRecords(calState.year, calState.month, calState.showroom, calState.team);
     calState.records = buildRecordMap(recs);
+    calState.leaves = await fetchMonthApprovedLeaves(calState.year, calState.month);
     renderCalendarGrid();
   }
 
