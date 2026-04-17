@@ -184,6 +184,7 @@
 
       if (r.data) {
         // 정책 일수 갱신 (total_days / 메타데이터). used_days는 유지.
+        // remain_days 음수 방지: total_days >= used_days 보장
         var patch = {
           hire_date: hireDate || null,
           service_years: calc.serviceYears,
@@ -191,7 +192,10 @@
           allowance_method: calc.method,
           computed_at: new Date().toISOString()
         };
-        if (hireDate) patch.total_days = calc.total;
+        if (hireDate) {
+          var currentUsed = Number(r.data.used_days || 0);
+          patch.total_days = Math.max(calc.total, currentUsed);
+        }
         var up = await client.from(TABLE_BAL).update(patch).eq('id', r.data.id).select('*').maybeSingle();
         return up.data || r.data;
       }
@@ -374,6 +378,23 @@
     if (!type || !start || !end) { showToast('유형/시작일/종료일을 입력하세요.', 'error'); return; }
     if (end < start) { showToast('종료일이 시작일보다 빠를 수 없습니다.', 'error'); return; }
     if (type === 'half' && start !== end) { showToast('반차는 하루만 선택할 수 있습니다.', 'error'); return; }
+
+    // 연차/반차는 출근 기록이 있는 날에 신청 불가
+    if (type === 'annual' || type === 'half') {
+      try {
+        var conf = await client.from('attendance')
+          .select('date, check_in')
+          .eq('user_id', emp.authUserId)
+          .gte('date', start).lte('date', end)
+          .not('check_in', 'is', null);
+        if (conf.data && conf.data.length > 0) {
+          var days = conf.data.map(function (x) { return x.date; }).join(', ');
+          showToast('이미 출근 기록이 있어 연차 신청이 불가합니다: ' + days, 'error');
+          return;
+        }
+      } catch (e) {}
+    }
+
     var deduct = computeDeduction(type, start, end);
 
     var payload = {
@@ -433,14 +454,23 @@
       }).eq('id', id).select('*').maybeSingle();
       if (up.error) throw up.error;
 
-      // 연차/반차는 balance 차감
+      // 연차/반차는 balance 차감 (remain_days 음수 방지 가드)
       var deduct = Number(req.days) || 0;
       if (deduct > 0 && (req.type === 'annual' || req.type === 'half')) {
         var year = new Date(req.start_date).getFullYear() || new Date().getFullYear();
         var br = await client.from(TABLE_BAL).select('*').eq('user_id', req.user_id).eq('year', year).maybeSingle();
-        if (!br.error && br.data) {
-          var newUsed = Number(br.data.used_days || 0) + deduct;
-          await client.from(TABLE_BAL).update({ used_days: newUsed }).eq('id', br.data.id);
+        var bal = (br && !br.error) ? br.data : null;
+        var total = bal ? Number(bal.total_days || 0) : 15;
+        var used = bal ? Number(bal.used_days || 0) : 0;
+        if (used + deduct > total) {
+          // 승인 취소: pending 으로 롤백
+          await client.from(TABLE_REQ).update({ status: 'pending', approved_by: null, approved_at: null }).eq('id', id);
+          showToast('잔여 연차 부족 (총 ' + total + '일 / 사용 ' + used + '일 / 신청 ' + deduct + '일). 승인이 취소됐습니다.', 'error');
+          await reloadAll();
+          return;
+        }
+        if (bal) {
+          await client.from(TABLE_BAL).update({ used_days: used + deduct }).eq('id', bal.id);
         } else {
           await client.from(TABLE_BAL).insert({
             user_id: req.user_id,
