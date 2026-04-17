@@ -12792,3 +12792,42 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .leave-card-head { flex-direction: column; align-items: flex-start; }
   .leave-card-actions { width: 100%; }
 }
+
+/* ============================================================
+   월차/연차 - 법정 기준 계산 UI
+   ============================================================ */
+
+.leave-balance-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.leave-balance-year-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+.leave-balance-year-label select { min-width: 8rem; }
+
+.leave-balance-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.leave-balance-hint {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.8rem;
+  color: var(--text-sub);
+}
+
+.leave-balance-hint-warn {
+  color: #fbbf24;
+}

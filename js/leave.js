@@ -29,6 +29,8 @@
     myFilter: '',
     adminFilter: 'pending',
     balance: null,
+    balanceYear: new Date().getFullYear(),
+    myHireDate: null,
     myRequests: [],
     adminRequests: []
   };
@@ -101,27 +103,133 @@
            ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   }
 
-  // ───────── 잔여일 ─────────
+  // ───────── 연차 산정 (근로기준법 제60조) ─────────
 
-  async function ensureBalance(authUserId, emp) {
+  /**
+   * 입사일과 기준연도로 해당 연도 연차 총일수 계산.
+   * 1) 근속 1년 미만 → 해당 연도 기준 "개근 가능 월수"만큼 부여, 최대 11일
+   *    (월 개근 여부는 앱에서 따로 추적하지 않으므로 실제 근무한 전월 개수로 근사)
+   * 2) 근속 1년 이상 → 15일
+   * 3) 근속 3년 이상 → (근속연수-1)/2 만큼 가산 (16, 17, ... 25일 한도)
+   * 4) 최대 25일
+   */
+  function computeLeaveAllowance(hireDate, year) {
+    if (!hireDate) return { total: 0, method: 'none', serviceYears: 0, serviceMonths: 0 };
+    var hire = new Date(hireDate);
+    if (isNaN(hire.getTime())) return { total: 0, method: 'none', serviceYears: 0, serviceMonths: 0 };
+
+    // 기준 시점: 기준연도 말(12/31)
+    var ref = new Date(year, 11, 31);
+    if (ref < hire) return { total: 0, method: 'none', serviceYears: 0, serviceMonths: 0 };
+
+    // 근속 연수/개월 계산
+    var years = ref.getFullYear() - hire.getFullYear();
+    var months = (ref.getFullYear() - hire.getFullYear()) * 12 + (ref.getMonth() - hire.getMonth());
+    if (ref.getDate() < hire.getDate()) { months -= 1; years -= (ref.getMonth() === hire.getMonth() ? 1 : 0); }
+    // 보정: 월/일 기준으로 아직 1년이 안 됐으면 years -= 1
+    var anniversary = new Date(hire.getFullYear() + years, hire.getMonth(), hire.getDate());
+    if (anniversary > ref) years -= 1;
+    if (years < 0) years = 0;
+    if (months < 0) months = 0;
+
+    if (years < 1) {
+      // 1년 미만: 월 1일 × 개근월수, 최대 11
+      // months = 지금까지 완주한 개월 수(ref 기준)
+      var monthly = Math.min(11, months);
+      return { total: monthly, method: 'monthly', serviceYears: years, serviceMonths: months };
+    }
+
+    // 1년 이상
+    var base = 15;
+    var extra = 0;
+    if (years >= 3) extra = Math.floor((years - 1) / 2);
+    var total = Math.min(25, base + extra);
+    return { total: total, method: 'annual', serviceYears: years, serviceMonths: months };
+  }
+
+  /** employees 테이블에서 입사일 포함 직원 정보 조회. */
+  async function fetchEmployeeByAuthId(authUserId) {
     var client = supa();
     if (!client || !authUserId) return null;
-    var year = new Date().getFullYear();
     try {
+      var r = await client.from('employees').select('id, name, team, showroom, hire_date').eq('auth_user_id', authUserId).maybeSingle();
+      if (r.error) return null;
+      return r.data || null;
+    } catch (e) { return null; }
+  }
+
+  // ───────── 잔여일 ─────────
+
+  /**
+   * 기준연도 balance 조회·생성 + 법정 기준으로 total_days 갱신.
+   * used_days 는 그대로 유지한다.
+   */
+  async function ensureBalance(authUserId, emp, year) {
+    var client = supa();
+    if (!client || !authUserId) return null;
+    year = year || new Date().getFullYear();
+    try {
+      // 입사일 확보 (세션 캐시 → DB)
+      var hireDate = (emp && emp.hire_date) || state.myHireDate;
+      if (!hireDate) {
+        var detail = await fetchEmployeeByAuthId(authUserId);
+        if (detail) { hireDate = detail.hire_date || null; if (detail && !emp) emp = detail; }
+      }
+      state.myHireDate = hireDate;
+
+      var calc = computeLeaveAllowance(hireDate, year);
+
       var r = await client.from(TABLE_BAL).select('*').eq('user_id', authUserId).eq('year', year).maybeSingle();
       if (r.error) return null;
-      if (r.data) return r.data;
-      // 없으면 기본 15일로 신규 생성
+
+      if (r.data) {
+        // 정책 일수 갱신 (total_days / 메타데이터). used_days는 유지.
+        var patch = {
+          hire_date: hireDate || null,
+          service_years: calc.serviceYears,
+          service_months: calc.serviceMonths,
+          allowance_method: calc.method,
+          computed_at: new Date().toISOString()
+        };
+        if (hireDate) patch.total_days = calc.total;
+        var up = await client.from(TABLE_BAL).update(patch).eq('id', r.data.id).select('*').maybeSingle();
+        return up.data || r.data;
+      }
+
       var ins = await client.from(TABLE_BAL).insert({
         user_id: authUserId,
         employee_id: emp ? (emp.id || null) : null,
         user_name: emp ? (emp.name || null) : null,
         year: year,
-        total_days: 15,
-        used_days: 0
+        total_days: hireDate ? calc.total : 15,
+        used_days: 0,
+        hire_date: hireDate || null,
+        service_years: calc.serviceYears,
+        service_months: calc.serviceMonths,
+        allowance_method: calc.method,
+        computed_at: new Date().toISOString()
       }).select('*').maybeSingle();
       return ins.data || null;
     } catch (e) { return null; }
+  }
+
+  /** 관리자: 전 직원 해당 연도 balance 재계산. */
+  async function recomputeAllBalances(year) {
+    if (!isAdminUser()) { showToast('권한이 없습니다.', 'error'); return 0; }
+    var client = supa();
+    if (!client) return 0;
+    var r = await client.from('employees').select('id, auth_user_id, name, team, showroom, hire_date').eq('status', 'approved');
+    if (r.error || !Array.isArray(r.data)) return 0;
+    var list = r.data.filter(function (e) { return e && e.auth_user_id; });
+    var count = 0;
+    for (var i = 0; i < list.length; i++) {
+      var emp = list[i];
+      try {
+        await ensureBalance(emp.auth_user_id, { id: emp.id, name: emp.name, hire_date: emp.hire_date }, year);
+        count++;
+      } catch (e) {}
+    }
+    return count;
   }
 
   function renderBalance(bal) {
@@ -129,6 +237,24 @@
     $('leave-balance-used').textContent  = bal ? fmtDays(bal.used_days)  : '-';
     $('leave-balance-remain').textContent= bal ? fmtDays(bal.remain_days): '-';
     $('leave-balance-year').textContent  = bal ? (bal.year + '년') : '-';
+    var hint = $('leave-balance-hint');
+    if (hint) {
+      if (!bal || !bal.hire_date) {
+        hint.textContent = '입사일이 등록돼있지 않아 기본 15일을 적용 중입니다. 인사관리에서 입사일을 등록하면 법정 기준으로 자동 계산됩니다.';
+        hint.classList.add('leave-balance-hint-warn');
+      } else {
+        var method = bal.allowance_method === 'monthly' ? '월 단위(1년 미만)' : '연 단위';
+        var sy = Number(bal.service_years || 0);
+        var sm = Number(bal.service_months || 0);
+        var yrs = Math.floor(sy);
+        var extraMonths = sm - yrs * 12;
+        var svc = yrs + '년' + (extraMonths > 0 ? ' ' + extraMonths + '개월' : '');
+        hint.textContent = '입사일 ' + bal.hire_date + ' · 근속 ' + svc + ' · 산정방식: ' + method;
+        hint.classList.remove('leave-balance-hint-warn');
+      }
+    }
+    var ySel = $('leave-balance-year-select');
+    if (ySel && bal) ySel.value = String(bal.year);
   }
 
   // ───────── 신청 목록 ─────────
@@ -407,17 +533,35 @@
   async function reloadAll() {
     var emp = currentEmployee();
     if (!emp) return;
-    var bal = await ensureBalance(emp.authUserId, emp);
+    populateYearSelect();
+    var bal = await ensureBalance(emp.authUserId, emp, state.balanceYear);
     state.balance = bal;
     renderBalance(bal);
     state.myRequests = await fetchMyRequests(emp.authUserId, state.myFilter);
     renderMyList(state.myRequests);
     if (isAdminUser()) {
       $('leave-admin-card').classList.remove('hidden');
+      var rec = $('btn-leave-recompute-all');
+      if (rec) rec.classList.remove('hidden');
       state.adminRequests = await fetchAllRequests(state.adminFilter);
       renderAdminList(state.adminRequests);
     } else {
       $('leave-admin-card').classList.add('hidden');
+      var rec2 = $('btn-leave-recompute-all');
+      if (rec2) rec2.classList.add('hidden');
+    }
+  }
+
+  function populateYearSelect() {
+    var sel = $('leave-balance-year-select');
+    if (!sel || sel.options.length) return;
+    var y = new Date().getFullYear();
+    for (var i = y - 3; i <= y + 1; i++) {
+      var opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = i + '년';
+      if (i === y) opt.selected = true;
+      sel.appendChild(opt);
     }
   }
 
@@ -478,6 +622,33 @@
     if (rejectModal) rejectModal.addEventListener('click', function (e) { if (e.target === rejectModal) closeRejectModal(); });
     var rejectForm = $('form-leave-reject');
     if (rejectForm) rejectForm.addEventListener('submit', submitReject);
+
+    var yearSel = $('leave-balance-year-select');
+    if (yearSel) yearSel.addEventListener('change', function () {
+      state.balanceYear = Number(yearSel.value);
+      reloadAll();
+    });
+    var recomputeBtn = $('btn-leave-recompute-self');
+    if (recomputeBtn) recomputeBtn.addEventListener('click', async function () {
+      var emp = currentEmployee();
+      if (!emp) return;
+      state.myHireDate = null; // 캐시 무효화
+      await ensureBalance(emp.authUserId, emp, state.balanceYear);
+      await reloadAll();
+      showToast('내 연차가 재계산됐습니다.');
+    });
+    var recomputeAllBtn = $('btn-leave-recompute-all');
+    if (recomputeAllBtn) recomputeAllBtn.addEventListener('click', async function () {
+      if (!window.confirm(state.balanceYear + '년 기준으로 전 직원 연차를 재계산합니다. 진행할까요?')) return;
+      recomputeAllBtn.disabled = true;
+      try {
+        var n = await recomputeAllBalances(state.balanceYear);
+        showToast('전 직원 ' + n + '명 연차가 재계산됐습니다.');
+        await reloadAll();
+      } finally {
+        recomputeAllBtn.disabled = false;
+      }
+    });
   }
 
   function init() {

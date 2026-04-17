@@ -3465,6 +3465,17 @@
         </div>
       </header>
 
+      <div class="leave-balance-toolbar">
+        <label class="leave-balance-year-label">
+          기준연도
+          <select id="leave-balance-year-select"></select>
+        </label>
+        <div class="leave-balance-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-leave-recompute-self">내 연차 재계산</button>
+          <button type="button" class="btn btn-secondary btn-sm hidden" id="btn-leave-recompute-all">전 직원 재계산</button>
+        </div>
+      </div>
+
       <div class="leave-balance-cards" id="leave-balance-cards">
         <div class="card leave-balance-card">
           <span class="leave-balance-label">총 연차</span>
@@ -3486,6 +3497,7 @@
           <strong class="leave-balance-value" id="leave-balance-year">-</strong>
         </div>
       </div>
+      <p class="leave-balance-hint" id="leave-balance-hint"></p>
 
       <div class="card leave-my-card">
         <div class="leave-card-head">
