@@ -118,6 +118,7 @@
         <a href="#" class="nav-item" data-section="team-calendar">운영 캘린더</a>
         <a href="#" class="nav-item" data-section="worklog">업무일지</a>
         <a href="#" class="nav-item" data-section="team-worklog">팀별 업무일지</a>
+        <a href="#" class="nav-item" data-section="attendance">근태관리</a>
       </div>
 
       <div class="nav-section">
@@ -3243,6 +3244,45 @@
       </div>
     </section>
 
+    <section id="section-attendance" class="content-section">
+      <header class="main-header">
+        <h2>근태관리</h2>
+        <p class="section-desc">오늘의 출근·퇴근을 기록하고 현재 상태를 확인합니다.</p>
+      </header>
+
+      <div class="card attendance-today-card" id="attendance-today-card">
+        <div class="attendance-today-head">
+          <div>
+            <p class="attendance-today-date" id="attendance-today-date">-</p>
+            <h3 class="attendance-today-name" id="attendance-today-name">-</h3>
+          </div>
+          <span class="attendance-today-status-badge attendance-status-before" id="attendance-today-status-badge">출근전</span>
+        </div>
+
+        <div class="attendance-today-grid">
+          <div class="attendance-today-cell">
+            <span class="attendance-today-label">출근 시간</span>
+            <strong class="attendance-today-value" id="attendance-today-checkin">-</strong>
+          </div>
+          <div class="attendance-today-cell">
+            <span class="attendance-today-label">퇴근 시간</span>
+            <strong class="attendance-today-value" id="attendance-today-checkout">-</strong>
+          </div>
+          <div class="attendance-today-cell">
+            <span class="attendance-today-label">누적 근무</span>
+            <strong class="attendance-today-value" id="attendance-today-duration">-</strong>
+          </div>
+        </div>
+
+        <div class="attendance-today-actions">
+          <button type="button" class="btn btn-primary attendance-big-btn" id="btn-attendance-checkin">출근하기</button>
+          <button type="button" class="btn btn-danger attendance-big-btn" id="btn-attendance-checkout">퇴근하기</button>
+        </div>
+
+        <p class="attendance-today-hint" id="attendance-today-hint"></p>
+      </div>
+    </section>
+
     <section id="section-kpi" class="content-section">
       <header class="main-header">
         <h2>KPI</h2>
@@ -4445,5 +4485,6 @@
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/marketing.js"></script>
+  <script src="js/attendance.js"></script>
 </body>
 </html>
