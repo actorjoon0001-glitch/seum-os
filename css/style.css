@@ -12831,3 +12831,49 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .leave-balance-hint-warn {
   color: #fbbf24;
 }
+
+/* ============================================================
+   월차/연차 - 반차(오전/오후) 상태 표시
+   ============================================================ */
+
+/* 신청 모달 안내 문구 */
+.leave-req-hint {
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: #93c5fd;
+  min-height: 1.1em;
+}
+
+/* 근태 캘린더 셀 - 오전 반차는 왼쪽 반, 오후 반차는 오른쪽 반 */
+.attendance-cal-cell.attendance-status-half_am {
+  background: linear-gradient(to right, rgba(236,72,153,0.28) 0%, rgba(236,72,153,0.28) 50%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.02) 100%);
+  color: #fbcfe8;
+}
+.attendance-cal-cell.attendance-status-half_pm {
+  background: linear-gradient(to right, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.02) 50%, rgba(236,72,153,0.28) 50%, rgba(236,72,153,0.28) 100%);
+  color: #fbcfe8;
+}
+
+/* 범례 칩 */
+.attendance-cal-chip.attendance-status-half_am {
+  background: linear-gradient(to right, rgba(236,72,153,0.5) 50%, transparent 50%);
+}
+.attendance-cal-chip.attendance-status-half_pm {
+  background: linear-gradient(to right, transparent 50%, rgba(236,72,153,0.5) 50%);
+}
+
+/* 오늘 카드 상태 뱃지 */
+.attendance-today-status-badge.attendance-status-half_am,
+.attendance-today-status-badge.attendance-status-half_pm {
+  background: rgba(236,72,153,0.18);
+  color: #fbcfe8;
+  border: 1px solid rgba(236,72,153,0.35);
+}
+
+/* 월차 목록 - 유형 뱃지 */
+.leave-type-half_am,
+.leave-type-half_pm {
+  background: rgba(236,72,153,0.18);
+  color: #fbcfe8;
+  border-color: rgba(236,72,153,0.35);
+}

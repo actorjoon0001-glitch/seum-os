@@ -3374,7 +3374,9 @@
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-late"></span>지각</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-outside"></span>외근</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-business_trip"></span>출장</span>
-            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-vacation"></span>휴가</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-vacation"></span>휴가(연차)</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-half_am"></span>오전 반차</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-half_pm"></span>오후 반차</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-sick"></span>병가</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-absent"></span>결근</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-empty"></span>미기록</span>
@@ -3578,7 +3580,8 @@
                 유형
                 <select id="leave-req-type" required>
                   <option value="annual">연차</option>
-                  <option value="half">반차</option>
+                  <option value="half_am">오전 반차</option>
+                  <option value="half_pm">오후 반차</option>
                   <option value="sick">병가</option>
                   <option value="outside">외근</option>
                 </select>
@@ -3596,6 +3599,7 @@
                 <input type="text" id="leave-req-days" readonly>
               </label>
             </div>
+            <p class="leave-req-hint" id="leave-req-hint"></p>
             <label>
               사유
               <textarea id="leave-req-reason" rows="3" placeholder="사유를 입력하세요"></textarea>
