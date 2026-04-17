@@ -119,6 +119,7 @@
         <a href="#" class="nav-item" data-section="worklog">업무일지</a>
         <a href="#" class="nav-item" data-section="team-worklog">팀별 업무일지</a>
         <a href="#" class="nav-item" data-section="attendance">근태관리</a>
+        <a href="#" class="nav-item" data-section="leave">월차/연차</a>
       </div>
 
       <div class="nav-section">
@@ -3453,6 +3454,169 @@
       </div>
     </section>
 
+    <section id="section-leave" class="content-section">
+      <header class="main-header main-header-with-action">
+        <div>
+          <h2>월차 / 연차</h2>
+          <p class="section-desc">연차·반차·병가·외근을 신청하고 관리자가 승인하면 근태 캘린더에 반영됩니다.</p>
+        </div>
+        <div class="worklog-header-actions">
+          <button type="button" class="btn btn-primary" id="btn-leave-new">월차 신청</button>
+        </div>
+      </header>
+
+      <div class="leave-balance-cards" id="leave-balance-cards">
+        <div class="card leave-balance-card">
+          <span class="leave-balance-label">총 연차</span>
+          <strong class="leave-balance-value" id="leave-balance-total">-</strong>
+          <span class="leave-balance-unit">일</span>
+        </div>
+        <div class="card leave-balance-card">
+          <span class="leave-balance-label">사용</span>
+          <strong class="leave-balance-value leave-balance-used" id="leave-balance-used">-</strong>
+          <span class="leave-balance-unit">일</span>
+        </div>
+        <div class="card leave-balance-card">
+          <span class="leave-balance-label">잔여</span>
+          <strong class="leave-balance-value leave-balance-remain" id="leave-balance-remain">-</strong>
+          <span class="leave-balance-unit">일</span>
+        </div>
+        <div class="card leave-balance-card">
+          <span class="leave-balance-label">기준연도</span>
+          <strong class="leave-balance-value" id="leave-balance-year">-</strong>
+        </div>
+      </div>
+
+      <div class="card leave-my-card">
+        <div class="leave-card-head">
+          <h3>내 신청 내역</h3>
+          <div class="leave-card-actions">
+            <select id="leave-my-filter">
+              <option value="">전체</option>
+              <option value="pending">대기</option>
+              <option value="approved">승인</option>
+              <option value="rejected">반려</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-leave-refresh">새로고침</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table leave-my-table">
+            <thead>
+              <tr>
+                <th>유형</th>
+                <th>기간</th>
+                <th>일수</th>
+                <th>사유</th>
+                <th>상태</th>
+                <th>신청일</th>
+                <th>액션</th>
+              </tr>
+            </thead>
+            <tbody id="leave-my-tbody"></tbody>
+          </table>
+        </div>
+        <p class="leave-empty hidden" id="leave-my-empty">신청 내역이 없습니다.</p>
+      </div>
+
+      <div class="card leave-admin-card hidden" id="leave-admin-card">
+        <div class="leave-card-head">
+          <h3>승인 대기 <span class="leave-count-badge" id="leave-pending-count">0</span></h3>
+          <div class="leave-card-actions">
+            <select id="leave-admin-filter">
+              <option value="pending">대기</option>
+              <option value="approved">승인</option>
+              <option value="rejected">반려</option>
+              <option value="">전체</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-leave-admin-refresh">새로고침</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table leave-admin-table">
+            <thead>
+              <tr>
+                <th>신청자</th>
+                <th>팀 / 소속</th>
+                <th>유형</th>
+                <th>기간</th>
+                <th>일수</th>
+                <th>사유</th>
+                <th>상태</th>
+                <th>신청일</th>
+                <th>액션</th>
+              </tr>
+            </thead>
+            <tbody id="leave-admin-tbody"></tbody>
+          </table>
+        </div>
+        <p class="leave-empty hidden" id="leave-admin-empty">해당 상태의 신청이 없습니다.</p>
+      </div>
+
+      <div id="leave-modal" class="worklog-modal-overlay hidden" aria-hidden="true">
+        <div class="worklog-modal">
+          <div class="worklog-modal-header">
+            <h3 id="leave-modal-title">월차 신청</h3>
+            <button type="button" class="worklog-modal-close" id="leave-modal-close" aria-label="닫기">×</button>
+          </div>
+          <form id="form-leave" class="worklog-form">
+            <input type="hidden" id="leave-edit-id">
+            <div class="worklog-form-row">
+              <label>
+                유형
+                <select id="leave-type" required>
+                  <option value="annual">연차</option>
+                  <option value="half">반차</option>
+                  <option value="sick">병가</option>
+                  <option value="outside">외근</option>
+                </select>
+              </label>
+              <label>
+                시작일
+                <input type="date" id="leave-start" required>
+              </label>
+              <label>
+                종료일
+                <input type="date" id="leave-end" required>
+              </label>
+              <label>
+                차감 일수
+                <input type="text" id="leave-days" readonly>
+              </label>
+            </div>
+            <label>
+              사유
+              <textarea id="leave-reason" rows="3" placeholder="사유를 입력하세요"></textarea>
+            </label>
+            <div class="worklog-form-actions">
+              <button type="button" class="btn btn-secondary" id="btn-leave-cancel">취소</button>
+              <button type="submit" class="btn btn-primary">신청</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="leave-reject-modal" class="worklog-modal-overlay hidden" aria-hidden="true">
+        <div class="worklog-modal leave-reject-modal">
+          <div class="worklog-modal-header">
+            <h3>반려 사유</h3>
+            <button type="button" class="worklog-modal-close" id="leave-reject-close" aria-label="닫기">×</button>
+          </div>
+          <form id="form-leave-reject" class="worklog-form">
+            <input type="hidden" id="leave-reject-id">
+            <label>
+              반려 사유
+              <textarea id="leave-reject-reason" rows="3" required placeholder="반려 사유를 입력하세요"></textarea>
+            </label>
+            <div class="worklog-form-actions">
+              <button type="button" class="btn btn-secondary" id="btn-leave-reject-cancel">취소</button>
+              <button type="submit" class="btn btn-danger">반려</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
     <section id="section-kpi" class="content-section">
       <header class="main-header">
         <h2>KPI</h2>
@@ -4656,5 +4820,6 @@
   <script src="js/notifications.js"></script>
   <script src="js/marketing.js"></script>
   <script src="js/attendance.js"></script>
+  <script src="js/leave.js"></script>
 </body>
 </html>
