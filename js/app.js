@@ -343,29 +343,9 @@
     if (section) section.classList.toggle('hidden', !isAdmin() && !isSuperAdmin());
   }
 
-  /** 인사(HR)만 별도 허용 — admin/master + 정산팀(모든 직급). */
-  function canSeeHRSection() {
-    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
-    if (!cur) return false;
-    if (canSeeManageSection()) return true;
-    if (isSuperAdmin()) return true;
-    var team = (cur.team || '').trim();
-    if (team === '정산') return true;
-    return false;
-  }
-
   function updateManageNavVisibility() {
     var section = document.getElementById('nav-section-manage');
-    // 관리 섹션 컨테이너는 KPI/운영구조 접근자(admin/master) 또는 HR 접근자(정산팀 포함) 중 하나라도 있으면 표시
-    var visible = canSeeManageSection() || canSeeHRSection();
-    if (section) section.classList.toggle('hidden', !visible);
-    // 개별 항목: 정산팀만 HR 접근. KPI/운영구조는 admin/master 전용으로 숨김
-    var hrItem = document.querySelector('[data-section="hr"]');
-    if (hrItem) hrItem.classList.toggle('hidden', !canSeeHRSection());
-    var kpiItem = document.querySelector('[data-section="kpi"]');
-    if (kpiItem) kpiItem.classList.toggle('hidden', !canSeeManageSection());
-    var orgItem = document.querySelector('[data-section="org-structure"]');
-    if (orgItem) orgItem.classList.toggle('hidden', !canSeeManageSection());
+    if (section) section.classList.toggle('hidden', !canSeeManageSection());
   }
 
   function canSeeCeoSection() {
@@ -9563,10 +9543,7 @@
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
       return;
     }
-    if (sectionId === 'hr' && !canSeeHRSection()) {
-      return;
-    }
-    if ((sectionId === 'kpi' || sectionId === 'org-structure') && !canSeeManageSection()) {
+    if ((sectionId === 'hr' || sectionId === 'kpi' || sectionId === 'org-structure') && !canSeeManageSection()) {
       return;
     }
     if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
