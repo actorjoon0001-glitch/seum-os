@@ -1965,6 +1965,28 @@
     });
   }
 
+  /** 허가도면/토목도면 파일 업로드 공용 헬퍼. kind='permit' | 'civil'. */
+  function uploadStageDrawingAttachment(kind, contractId, file) {
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase || !contractId || !file) return Promise.resolve(null);
+    var year = new Date().getFullYear();
+    var safeName = sanitizeNoticeFileName(file.name || kind);
+    var bucket = 'contract_files';
+    var folder = (kind === 'civil') ? 'civil_drawings' : 'permit_drawings';
+    var path = folder + '/' + year + '/' + contractId + '/' + Date.now() + '_' + safeName;
+    return supabase.storage.from(bucket).upload(path, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: true
+    }).then(function (res) {
+      if (res && res.error) { console.error(bucket + ' ' + folder + ' upload error', res.error); return null; }
+      var publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      return { url: publicUrl, path: path, name: file.name || safeName };
+    }).catch(function (err) {
+      console.error(bucket + ' ' + folder + ' upload failed', err);
+      return null;
+    });
+  }
+
   /** ??? ???? ?????(notice_comments ??, ??????????) */
   function renderNoticeComments(comments) {
     var listEl = document.getElementById('noticeCommentsList');
@@ -4436,6 +4458,18 @@
       '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-drawing-3 drawing-url-input" placeholder="파일 업로드 후 URL" value="' + escapeAttr(d3Attachment) + '"><input type="file" class="design-inline-drawing-file-3" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-upload-3">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-drawing-open-3">열기</button></div>' +
       '<div class="drawing-file-list" data-input-selector=".design-inline-drawing-3"></div>' +
       '</div>' +
+      '<div class="design-discussion-card design-permit-card">' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">허가도면</span></div>' +
+      '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.permitDrawingAttachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-permit-drawing drawing-url-input" placeholder="파일 업로드 후 URL 자동 입력 (또는 직접 입력)" value="' + escapeAttr(c.permitDrawingAttachment || '') + '"><input type="file" class="design-inline-permit-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-permit-drawing-upload">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-permit-drawing-open">열기</button></div>' +
+      '<div class="drawing-file-list" data-input-selector=".design-inline-permit-drawing"></div>' +
+      '</div>' +
+      '<div class="design-discussion-card design-civil-card">' +
+      '<div class="design-discussion-header"><span class="design-discussion-title">토목도면</span></div>' +
+      '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.civilDrawingAttachment) + '</div></div>' +
+      '<div class="design-detail-field design-detail-field-upload design-discussion-file-row"><label>파일</label><input type="text" class="design-inline-civil-drawing drawing-url-input" placeholder="파일 업로드 후 URL 자동 입력 (또는 직접 입력)" value="' + escapeAttr(c.civilDrawingAttachment || '') + '"><input type="file" class="design-inline-civil-drawing-file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf,.zip" multiple hidden><button type="button" class="btn btn-sm btn-secondary design-inline-civil-drawing-upload">파일 업로드</button><button type="button" class="btn btn-sm btn-secondary design-inline-civil-drawing-open">열기</button></div>' +
+      '<div class="drawing-file-list" data-input-selector=".design-inline-civil-drawing"></div>' +
+      '</div>' +
       '<div class="design-discussion-card design-construction-card">' +
       '<div class="design-discussion-header"><span class="design-discussion-title">시공 도면</span></div>' +
       '<div class="design-detail-field"><label>현재 도면 URL</label><div class="design-detail-view-only">' + linkOrText(c.constructionDrawingAttachment) + '</div></div>' +
@@ -4870,6 +4904,8 @@
     c.designDrawing3SalesMemo = d3MemoSalesEl && d3MemoSalesEl.value ? d3MemoSalesEl.value.trim() : '';
     c.designDrawing3Final = !!(d3FinalEl && d3FinalEl.checked);
     c.constructionDrawingAttachment = (sel('.design-inline-construction-drawing', 'design-inline-construction-drawing') || {}).value.trim() || '';
+    c.permitDrawingAttachment = (sel('.design-inline-permit-drawing', 'design-inline-permit-drawing') || {}).value.trim() || '';
+    c.civilDrawingAttachment = (sel('.design-inline-civil-drawing', 'design-inline-civil-drawing') || {}).value.trim() || '';
     c.architectInfo = (sel('.design-inline-architect', 'design-inline-architect') || {}).value.trim() || '';
     c.designContactName = (sel('.design-inline-contact-name', 'design-inline-contact-name') || {}).value.trim() || '';
     c.designContactPhone = (sel('.design-inline-contact-phone', 'design-inline-contact-phone') || {}).value.trim() || '';
@@ -5031,6 +5067,45 @@
           });
         }
       }
+      // 허가도면/토목도면 업로드 처리
+      var permitCivilMatch = null;
+      if (e.target.classList.contains('design-inline-permit-drawing-file')) permitCivilMatch = 'permit';
+      else if (e.target.classList.contains('design-inline-civil-drawing-file')) permitCivilMatch = 'civil';
+      if (permitCivilMatch) {
+        var kind = permitCivilMatch;
+        var inputSel = '.design-inline-' + kind + '-drawing';
+        var field = (kind === 'civil') ? 'civilDrawingAttachment' : 'permitDrawingAttachment';
+        var form = e.target.closest('form');
+        var contractId = form && (form.querySelector('.design-inline-contract-id') || {}).value;
+        var files = Array.prototype.slice.call(e.target.files || []);
+        if (contractId && files.length) {
+          Promise.all(files.map(function (file) {
+            return uploadStageDrawingAttachment(kind, contractId, file);
+          })).then(function (results) {
+            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
+            var liveForm = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
+            var liveInp = liveForm && liveForm.querySelector(inputSel);
+            var contracts = getContracts();
+            var c = contracts.find(function (x) { return x.id === contractId; });
+            var baseVal = liveInp && liveInp.value ? liveInp.value : (c && c[field] ? c[field] : '');
+            var existingUrls = parseDrawingUrls(baseVal);
+            existingUrls = existingUrls.concat(urls);
+            var newVal = serializeDrawingUrls(existingUrls);
+            if (c) { c[field] = newVal; saveContracts(contracts); }
+            if (liveInp) {
+              liveInp.value = newVal;
+              var listEl = liveForm.querySelector('.drawing-file-list[data-input-selector="' + inputSel + '"]');
+              if (listEl) refreshDrawingFileListForInput(liveInp, listEl);
+              var card = liveInp.closest('.design-discussion-card');
+              if (card) {
+                var viewEl = card.querySelector('.design-detail-view-only');
+                if (viewEl) viewEl.innerHTML = linkOrText(newVal);
+              }
+            }
+          }).finally(function () { e.target.value = ''; });
+        }
+      }
     });
     document.addEventListener('submit', function (e) {
       if (e.target.id === 'form-design-inline' || e.target.classList.contains('form-design-inline-inline')) {
@@ -5073,6 +5148,16 @@
         var fileInput = form && form.querySelector('.design-inline-construction-drawing-file');
         if (fileInput) fileInput.click();
       }
+      if (e.target.classList.contains('design-inline-permit-drawing-upload')) {
+        var form = e.target.closest('form');
+        var fileInput = form && form.querySelector('.design-inline-permit-drawing-file');
+        if (fileInput) fileInput.click();
+      }
+      if (e.target.classList.contains('design-inline-civil-drawing-upload')) {
+        var form = e.target.closest('form');
+        var fileInput = form && form.querySelector('.design-inline-civil-drawing-file');
+        if (fileInput) fileInput.click();
+      }
       if (e.target.classList.contains('design-inline-drawing-open') ||
         e.target.classList.contains('design-inline-drawing-open-2') ||
         e.target.classList.contains('design-inline-drawing-open-3')) {
@@ -5092,6 +5177,20 @@
       if (e.target.classList.contains('design-inline-construction-drawing-open')) {
         var form = e.target.closest('form');
         var inp = form && form.querySelector('.design-inline-construction-drawing');
+        var raw = inp && inp.value ? inp.value.trim() : '';
+        if (raw) {
+          var parts = raw.split(/\s+/);
+          var val = parts[parts.length - 1];
+          if (/^https?:\/\//i.test(val)) window.open(val, '_blank');
+          else window.alert('유효한 URL이 아닙니다. https:// 로 시작하는 URL을 입력해 주세요.');
+        } else window.alert('파일이 없습니다.');
+      }
+      if (e.target.classList.contains('design-inline-permit-drawing-open') ||
+          e.target.classList.contains('design-inline-civil-drawing-open')) {
+        var form = e.target.closest('form');
+        var openSel = e.target.classList.contains('design-inline-permit-drawing-open')
+          ? '.design-inline-permit-drawing' : '.design-inline-civil-drawing';
+        var inp = form && form.querySelector(openSel);
         var raw = inp && inp.value ? inp.value.trim() : '';
         if (raw) {
           var parts = raw.split(/\s+/);
