@@ -3571,12 +3571,12 @@
             <h3 id="leave-modal-title">월차 신청</h3>
             <button type="button" class="worklog-modal-close" id="leave-modal-close" aria-label="닫기">×</button>
           </div>
-          <form id="form-leave" class="worklog-form">
-            <input type="hidden" id="leave-edit-id">
+          <form id="form-leave-req" class="worklog-form">
+            <input type="hidden" id="leave-req-edit-id">
             <div class="worklog-form-row">
               <label>
                 유형
-                <select id="leave-type" required>
+                <select id="leave-req-type" required>
                   <option value="annual">연차</option>
                   <option value="half">반차</option>
                   <option value="sick">병가</option>
@@ -3585,20 +3585,20 @@
               </label>
               <label>
                 시작일
-                <input type="date" id="leave-start" required>
+                <input type="date" id="leave-req-start" required>
               </label>
               <label>
                 종료일
-                <input type="date" id="leave-end" required>
+                <input type="date" id="leave-req-end" required>
               </label>
               <label>
                 차감 일수
-                <input type="text" id="leave-days" readonly>
+                <input type="text" id="leave-req-days" readonly>
               </label>
             </div>
             <label>
               사유
-              <textarea id="leave-reason" rows="3" placeholder="사유를 입력하세요"></textarea>
+              <textarea id="leave-req-reason" rows="3" placeholder="사유를 입력하세요"></textarea>
             </label>
             <div class="worklog-form-actions">
               <button type="button" class="btn btn-secondary" id="btn-leave-cancel">취소</button>
