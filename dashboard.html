@@ -3336,7 +3336,33 @@
                 <option value="경영">경영팀</option>
               </select>
             </label>
+            <label>
+              상태
+              <select id="attendance-cal-status">
+                <option value="">전체</option>
+                <option value="working">근무중</option>
+                <option value="finished">퇴근완료</option>
+                <option value="late">지각</option>
+                <option value="absent">결근</option>
+                <option value="outside">외근</option>
+                <option value="business_trip">출장</option>
+                <option value="vacation">휴가</option>
+                <option value="sick">병가</option>
+                <option value="empty">미기록</option>
+              </select>
+            </label>
+            <label>
+              보기
+              <select id="attendance-cal-groupmode">
+                <option value="showroom_team">전시장 → 팀</option>
+                <option value="showroom">전시장만</option>
+                <option value="team">팀만</option>
+                <option value="flat">그룹 없이</option>
+              </select>
+            </label>
             <div class="attendance-cal-filter-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-collapse-all">모두 접기</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-expand-all">모두 펼치기</button>
               <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-reset">필터 초기화</button>
               <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-refresh">새로고침</button>
             </div>
@@ -3359,11 +3385,8 @@
             <h3 class="attendance-cal-title" id="attendance-cal-title">-</h3>
             <p class="attendance-cal-hint" id="attendance-cal-hint"></p>
           </div>
-          <div class="attendance-cal-scroll">
-            <table class="attendance-cal-table" id="attendance-cal-table">
-              <thead id="attendance-cal-thead"></thead>
-              <tbody id="attendance-cal-tbody"></tbody>
-            </table>
+          <div class="attendance-cal-groups" id="attendance-cal-groups">
+            <!-- JS: 전시장/팀 그룹별 서브 테이블 렌더 -->
           </div>
           <p class="attendance-cal-empty hidden" id="attendance-cal-empty">표시할 직원이 없습니다.</p>
         </div>
