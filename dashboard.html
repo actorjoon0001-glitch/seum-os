@@ -3250,6 +3250,12 @@
         <p class="section-desc">오늘의 출근·퇴근을 기록하고 현재 상태를 확인합니다.</p>
       </header>
 
+      <div class="attendance-tabs" role="tablist">
+        <button type="button" class="attendance-tab active" data-attendance-tab="today" role="tab">오늘</button>
+        <button type="button" class="attendance-tab" data-attendance-tab="calendar" role="tab">월간 캘린더</button>
+      </div>
+
+      <div class="attendance-tab-panel" id="attendance-panel-today">
       <div class="card attendance-today-card" id="attendance-today-card">
         <div class="attendance-today-head">
           <div>
@@ -3280,6 +3286,146 @@
         </div>
 
         <p class="attendance-today-hint" id="attendance-today-hint"></p>
+      </div>
+      </div>
+
+      <div class="attendance-tab-panel hidden" id="attendance-panel-calendar">
+        <div class="card attendance-cal-filters">
+          <div class="attendance-cal-filters-row">
+            <label>
+              연도
+              <select id="attendance-cal-year"></select>
+            </label>
+            <label>
+              월
+              <select id="attendance-cal-month">
+                <option value="1">1월</option>
+                <option value="2">2월</option>
+                <option value="3">3월</option>
+                <option value="4">4월</option>
+                <option value="5">5월</option>
+                <option value="6">6월</option>
+                <option value="7">7월</option>
+                <option value="8">8월</option>
+                <option value="9">9월</option>
+                <option value="10">10월</option>
+                <option value="11">11월</option>
+                <option value="12">12월</option>
+              </select>
+            </label>
+            <label>
+              전시장
+              <select id="attendance-cal-showroom">
+                <option value="">전체</option>
+                <option value="headquarters">본사 전시장</option>
+                <option value="showroom1">1전시장</option>
+                <option value="showroom3">3전시장</option>
+                <option value="showroom4">4전시장</option>
+                <option value="ganghwa">강화전시장</option>
+              </select>
+            </label>
+            <label>
+              팀
+              <select id="attendance-cal-team">
+                <option value="">전체</option>
+                <option value="영업">영업팀</option>
+                <option value="설계">설계팀</option>
+                <option value="시공">시공팀</option>
+                <option value="마케팅">마케팅팀</option>
+                <option value="정산">정산팀</option>
+                <option value="경영">경영팀</option>
+              </select>
+            </label>
+            <div class="attendance-cal-filter-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-reset">필터 초기화</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-refresh">새로고침</button>
+            </div>
+          </div>
+          <div class="attendance-cal-legend">
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-working"></span>근무중</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-finished"></span>퇴근완료</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-late"></span>지각</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-outside"></span>외근</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-business_trip"></span>출장</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-vacation"></span>휴가</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-sick"></span>병가</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-absent"></span>결근</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-empty"></span>미기록</span>
+          </div>
+        </div>
+
+        <div class="card attendance-cal-wrap">
+          <div class="attendance-cal-title-row">
+            <h3 class="attendance-cal-title" id="attendance-cal-title">-</h3>
+            <p class="attendance-cal-hint" id="attendance-cal-hint"></p>
+          </div>
+          <div class="attendance-cal-scroll">
+            <table class="attendance-cal-table" id="attendance-cal-table">
+              <thead id="attendance-cal-thead"></thead>
+              <tbody id="attendance-cal-tbody"></tbody>
+            </table>
+          </div>
+          <p class="attendance-cal-empty hidden" id="attendance-cal-empty">표시할 직원이 없습니다.</p>
+        </div>
+      </div>
+
+      <div id="attendance-detail-modal" class="worklog-modal-overlay hidden" aria-hidden="true">
+        <div class="worklog-modal attendance-detail-modal">
+          <div class="worklog-modal-header">
+            <h3 id="attendance-detail-title">근태 상세</h3>
+            <button type="button" class="worklog-modal-close" id="attendance-detail-close" aria-label="닫기">×</button>
+          </div>
+          <form id="form-attendance-detail" class="worklog-form">
+            <input type="hidden" id="attendance-detail-user-id">
+            <input type="hidden" id="attendance-detail-date">
+            <div class="worklog-form-row">
+              <label>
+                이름
+                <input type="text" id="attendance-detail-name" readonly>
+              </label>
+              <label>
+                팀 / 소속
+                <input type="text" id="attendance-detail-team" readonly>
+              </label>
+              <label>
+                날짜
+                <input type="text" id="attendance-detail-date-view" readonly>
+              </label>
+            </div>
+            <div class="worklog-form-row">
+              <label>
+                출근 시각
+                <input type="time" id="attendance-detail-checkin" step="60">
+              </label>
+              <label>
+                퇴근 시각
+                <input type="time" id="attendance-detail-checkout" step="60">
+              </label>
+              <label>
+                근무 상태
+                <select id="attendance-detail-status">
+                  <option value="before">출근전</option>
+                  <option value="working">근무중</option>
+                  <option value="finished">퇴근완료</option>
+                  <option value="late">지각</option>
+                  <option value="absent">결근</option>
+                  <option value="outside">외근</option>
+                  <option value="business_trip">출장</option>
+                  <option value="vacation">휴가</option>
+                  <option value="sick">병가</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              비고 / 메모
+              <textarea id="attendance-detail-note" rows="2" placeholder="사유, 특이사항 등"></textarea>
+            </label>
+            <div class="worklog-form-actions">
+              <button type="button" class="btn btn-secondary" id="btn-attendance-detail-cancel">닫기</button>
+              <button type="submit" class="btn btn-primary" id="btn-attendance-detail-save">저장</button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
 
