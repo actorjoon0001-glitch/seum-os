@@ -114,6 +114,37 @@
     } catch (e) { return null; }
   }
 
+  /** 오늘 본인 승인된 월차/연차/병가/외근 1건 조회 (없으면 null). */
+  async function getMyApprovedLeaveForToday() {
+    var emp = currentEmployee();
+    var client = supa();
+    if (!emp || !emp.authUserId || !client) return null;
+    var dateKey = toDateKey(new Date());
+    try {
+      var r = await client.from('leave_requests')
+        .select('type, start_date, end_date')
+        .eq('user_id', emp.authUserId)
+        .eq('status', 'approved')
+        .lte('start_date', dateKey)
+        .gte('end_date', dateKey)
+        .limit(1);
+      if (r.error || !Array.isArray(r.data) || !r.data.length) return null;
+      return r.data[0];
+    } catch (e) { return null; }
+  }
+
+  function leaveTypeLabelKo(type) {
+    if (type === 'annual') return '연차';
+    if (type === 'half') return '반차';
+    if (type === 'sick') return '병가';
+    if (type === 'outside') return '외근';
+    return '휴가';
+  }
+  function leaveBlocksCheckIn(type) {
+    // 연차/반차/병가는 출근 차단. 외근은 허용.
+    return type === 'annual' || type === 'half' || type === 'sick';
+  }
+
   /** 오늘 레코드 업서트. */
   async function upsertMyToday(patch) {
     var emp = currentEmployee();
@@ -142,6 +173,10 @@
   }
 
   async function checkIn() {
+    var leaveToday = await getMyApprovedLeaveForToday();
+    if (leaveToday && leaveBlocksCheckIn(leaveToday.type)) {
+      return { ok: false, reason: 'on_leave', leaveType: leaveToday.type };
+    }
     var existing = await getMyTodayRecord();
     if (existing && existing.check_in) {
       return { ok: false, reason: 'already_checked_in', record: existing };
@@ -198,7 +233,7 @@
     return Math.max(0, Math.floor((end - start) / 60000));
   }
 
-  function renderCard(rec) {
+  function renderCard(rec, leaveToday) {
     var emp = currentEmployee();
     var dateEl = $('attendance-today-date');
     var nameEl = $('attendance-today-name');
@@ -213,8 +248,26 @@
     if (dateEl) dateEl.textContent = formatDateKo(new Date());
     if (nameEl) nameEl.textContent = (emp && emp.name) ? emp.name + ' 님' : '로그인 정보 없음';
 
+    // 오늘이 승인된 월차/병가/외근인 경우: leave 우선 표시
+    if (leaveToday) {
+      var mapped = (leaveToday.type === 'annual' || leaveToday.type === 'half') ? 'vacation'
+        : (leaveToday.type === 'sick' ? 'sick' : 'outside');
+      applyStatusBadge(badgeEl, mapped);
+      if (inEl) inEl.textContent = rec && rec.check_in ? toHHMM(rec.check_in) : '-';
+      if (outEl) outEl.textContent = rec && rec.check_out ? toHHMM(rec.check_out) : '-';
+      if (durEl) durEl.textContent = formatDuration(calcLiveDuration(rec));
+      var blocked = leaveBlocksCheckIn(leaveToday.type);
+      if (btnIn) btnIn.disabled = blocked || !!(rec && rec.check_in) || busy;
+      if (btnOut) btnOut.disabled = blocked || !(rec && rec.check_in) || !!(rec && rec.check_out) || busy;
+      if (hintEl) {
+        hintEl.textContent = '오늘은 ' + leaveTypeLabelKo(leaveToday.type) + ' 사용일' +
+          (blocked ? '이라 출근이 필요하지 않습니다.' : '입니다.');
+      }
+      if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
+      return;
+    }
+
     var status = (rec && rec.status) || STATUS.BEFORE;
-    // check_in/check_out 으로 파생 상태 보정 (수동 상태 값은 유지)
     var manual = ['vacation', 'sick', 'outside', 'business_trip', 'absent'];
     if (manual.indexOf(status) < 0) {
       if (rec && rec.check_in && rec.check_out) status = isLate(rec.check_in) ? STATUS.LATE : STATUS.FINISHED;
@@ -238,7 +291,6 @@
       else hintEl.textContent = '오늘 퇴근 기록이 완료됐습니다.';
     }
 
-    // 근무중일 때만 실시간 카운트 갱신
     if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
     if (hasIn && !hasOut) {
       renderTimer = setInterval(function () {
@@ -255,7 +307,8 @@
       return;
     }
     var rec = await getMyTodayRecord();
-    renderCard(rec);
+    var leaveToday = await getMyApprovedLeaveForToday();
+    renderCard(rec, leaveToday);
   }
 
   async function handleCheckIn() {
@@ -265,6 +318,7 @@
       var r = await checkIn();
       if (!r.ok) {
         if (r.reason === 'already_checked_in') showToast('이미 오늘 출근 처리됐습니다.', 'error');
+        else if (r.reason === 'on_leave') showToast('오늘은 ' + leaveTypeLabelKo(r.leaveType) + ' 사용일이라 출근할 수 없습니다.', 'error');
         else showToast('출근 처리에 실패했습니다.', 'error');
       } else {
         showToast('출근이 기록됐습니다.');
