@@ -9543,7 +9543,7 @@
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
       return;
     }
-    if ((sectionId === 'hr' || sectionId === 'kpi' || sectionId === 'org-structure') && !canSeeManageSection()) {
+    if ((sectionId === 'hr' || sectionId === 'kpi') && !canSeeManageSection()) {
       return;
     }
     if ((sectionId === 'ceo-daily' || sectionId === 'ceo-weekly' || sectionId === 'ceo-monthly' || sectionId === 'ceo-dashboard' || sectionId === 'ceo-expense') && !canSeeCeoSection()) {
