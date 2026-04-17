@@ -297,6 +297,413 @@
     }
   }
 
+  // ────────── 권한 ──────────
+
+  function isAdminUser() {
+    var emp = currentEmployee();
+    if (!emp) return false;
+    var p = (emp.permission || '').toLowerCase();
+    var r = (emp.role || '').toLowerCase();
+    if (p === 'admin' || p === 'master' || r === 'admin' || r === 'master') return true;
+    if (typeof window.seumIsSuperAdmin === 'function' && window.seumIsSuperAdmin()) return true;
+    // fallback: localStorage 보완 조회 (app.js 패턴과 동일)
+    try {
+      var list = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var me = list.find(function (x) { return (x.name || '') === (emp.name || ''); });
+      if (me && ((me.permission || '').toLowerCase() === 'admin' || (me.permission || '').toLowerCase() === 'master')) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function isManagerUser() {
+    var emp = currentEmployee();
+    if (!emp) return false;
+    var p = (emp.permission || '').toLowerCase();
+    var r = (emp.role || '').toLowerCase();
+    return p === 'manager' || r === 'manager';
+  }
+
+  // ────────── 월간 캘린더 ──────────
+
+  var calState = {
+    inited: false,
+    year: 0,
+    month: 0,
+    showroom: '',
+    team: '',
+    employees: [],           // 현재 권한으로 볼 수 있는 직원 목록
+    records: {},             // key: authUserId + '|' + dateKey → attendance row
+    currentCell: null,       // 상세 모달에 표시 중인 셀 정보
+  };
+
+  var SHOWROOM_LABEL = {
+    headquarters: '본사 전시장',
+    showroom1: '1전시장',
+    showroom3: '3전시장',
+    showroom4: '4전시장',
+    ganghwa: '강화전시장'
+  };
+
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+  function monthDateRange(y, m) {
+    var last = daysInMonth(y, m);
+    return {
+      first: y + '-' + pad2(m) + '-01',
+      last: y + '-' + pad2(m) + '-' + pad2(last),
+      days: last
+    };
+  }
+
+  /** 권한에 따라 볼 수 있는 직원 후보를 Supabase에서 조회. */
+  async function fetchVisibleEmployees() {
+    var client = supa();
+    var me = currentEmployee();
+    if (!client || !me) return [];
+    try {
+      var q = client.from('employees').select('id, auth_user_id, name, team, showroom, permission, status').eq('status', 'approved');
+      var r = await q;
+      if (r.error || !Array.isArray(r.data)) return [];
+      var list = r.data.filter(function (e) { return e && e.auth_user_id; });
+      if (isAdminUser()) return list;
+      if (isManagerUser()) {
+        return list.filter(function (e) {
+          return (e.team || '') === (me.team || '') && (e.showroom || '') === (me.showroom || '');
+        });
+      }
+      // 일반 직원: 본인만
+      return list.filter(function (e) { return e.auth_user_id === me.authUserId; });
+    } catch (e) { return []; }
+  }
+
+  /** 해당 월의 attendance 레코드 조회 (필터 적용). */
+  async function fetchMonthRecords(year, month, showroom, team) {
+    var client = supa();
+    if (!client) return [];
+    var range = monthDateRange(year, month);
+    try {
+      var q = client.from(TABLE).select('*').gte('date', range.first).lte('date', range.last);
+      if (showroom) q = q.eq('showroom', showroom);
+      if (team) q = q.eq('team', team);
+      var r = await q;
+      if (r.error || !Array.isArray(r.data)) return [];
+      return r.data;
+    } catch (e) { return []; }
+  }
+
+  function inferCellStatus(rec) {
+    if (!rec) return 'empty';
+    var manual = ['vacation', 'sick', 'outside', 'business_trip', 'absent'];
+    if (manual.indexOf(rec.status) >= 0) return rec.status;
+    if (rec.check_in && rec.check_out) return isLate(rec.check_in) ? 'late' : 'finished';
+    if (rec.check_in) return isLate(rec.check_in) ? 'late' : 'working';
+    return 'empty';
+  }
+
+  function statusChar(status) {
+    switch (status) {
+      case 'working': return '근';
+      case 'finished': return '퇴';
+      case 'late': return '지';
+      case 'absent': return '결';
+      case 'outside': return '외';
+      case 'business_trip': return '출';
+      case 'vacation': return '휴';
+      case 'sick': return '병';
+      default: return '·';
+    }
+  }
+
+  function populateCalYearSelect() {
+    var sel = $('attendance-cal-year');
+    if (!sel || sel.options.length) return;
+    var now = new Date();
+    var y = now.getFullYear();
+    for (var i = y - 2; i <= y + 1; i++) {
+      var opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = i + '년';
+      sel.appendChild(opt);
+    }
+  }
+
+  function syncCalFilters() {
+    var now = new Date();
+    if (!calState.year) calState.year = now.getFullYear();
+    if (!calState.month) calState.month = now.getMonth() + 1;
+
+    var ySel = $('attendance-cal-year');
+    var mSel = $('attendance-cal-month');
+    var srSel = $('attendance-cal-showroom');
+    var tSel = $('attendance-cal-team');
+    if (ySel) ySel.value = String(calState.year);
+    if (mSel) mSel.value = String(calState.month);
+    if (srSel) srSel.value = calState.showroom || '';
+    if (tSel) tSel.value = calState.team || '';
+
+    // 권한별 필터 잠금: 팀장=본인 팀/전시장 고정, 일반 직원=필터 숨김
+    var me = currentEmployee();
+    var isAdm = isAdminUser();
+    var isMgr = isManagerUser();
+    if (srSel) srSel.disabled = !isAdm;
+    if (tSel) tSel.disabled = !isAdm;
+    if (!isAdm && (isMgr || !!me)) {
+      if (srSel && me && me.showroom) srSel.value = me.showroom;
+      if (tSel && me && me.team) tSel.value = me.team;
+      calState.showroom = (me && me.showroom) || '';
+      calState.team = (me && me.team) || '';
+    }
+  }
+
+  function updateCalTitle() {
+    var el = $('attendance-cal-title');
+    var hint = $('attendance-cal-hint');
+    if (el) el.textContent = calState.year + '년 ' + calState.month + '월 근태 현황';
+    if (hint) {
+      var parts = [];
+      if (calState.showroom) parts.push(SHOWROOM_LABEL[calState.showroom] || calState.showroom);
+      if (calState.team) parts.push(calState.team + '팀');
+      if (!isAdminUser() && !isManagerUser()) parts.push('본인만');
+      hint.textContent = parts.join(' · ');
+    }
+  }
+
+  function buildRecordMap(records) {
+    var map = {};
+    records.forEach(function (r) {
+      if (!r || !r.user_id || !r.date) return;
+      var key = r.user_id + '|' + r.date;
+      map[key] = r;
+    });
+    return map;
+  }
+
+  function renderCalendarGrid() {
+    var thead = $('attendance-cal-thead');
+    var tbody = $('attendance-cal-tbody');
+    var empty = $('attendance-cal-empty');
+    if (!thead || !tbody) return;
+    var days = daysInMonth(calState.year, calState.month);
+
+    // header
+    var th = '<tr><th class="attendance-cal-name-col">이름</th><th class="attendance-cal-team-col">팀 / 소속</th>';
+    for (var d = 1; d <= days; d++) {
+      var weekday = new Date(calState.year, calState.month - 1, d).getDay();
+      var wkClass = weekday === 0 ? ' attendance-cal-sun' : (weekday === 6 ? ' attendance-cal-sat' : '');
+      th += '<th class="attendance-cal-day' + wkClass + '">' + d + '</th>';
+    }
+    th += '</tr>';
+    thead.innerHTML = th;
+
+    // body
+    var rows = calState.employees.slice();
+    // 필터 적용 (팀/전시장 선택 시 추가 필터 — 관리자 뷰)
+    if (calState.showroom) rows = rows.filter(function (e) { return (e.showroom || '') === calState.showroom; });
+    if (calState.team) rows = rows.filter(function (e) { return (e.team || '') === calState.team; });
+
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      if (empty) empty.classList.remove('hidden');
+      return;
+    }
+    if (empty) empty.classList.add('hidden');
+
+    var html = '';
+    rows.forEach(function (emp) {
+      html += '<tr>';
+      html += '<td class="attendance-cal-name-col" title="' + (emp.name || '') + '">' + (emp.name || '-') + '</td>';
+      var teamLabel = (emp.team ? emp.team + '팀' : '-');
+      var shLabel = emp.showroom ? (SHOWROOM_LABEL[emp.showroom] || emp.showroom) : '';
+      html += '<td class="attendance-cal-team-col"><div class="attendance-cal-team-name">' + teamLabel + '</div>' +
+              (shLabel ? '<div class="attendance-cal-team-sub">' + shLabel + '</div>' : '') + '</td>';
+      for (var d2 = 1; d2 <= days; d2++) {
+        var dateKey = calState.year + '-' + pad2(calState.month) + '-' + pad2(d2);
+        var rec = calState.records[emp.auth_user_id + '|' + dateKey] || null;
+        var st = inferCellStatus(rec);
+        var ch = statusChar(st);
+        var lbl = STATUS_LABEL[st] || '미기록';
+        html += '<td class="attendance-cal-cell attendance-status-' + st + '" ' +
+                'data-user-id="' + emp.auth_user_id + '" ' +
+                'data-user-name="' + (emp.name || '').replace(/"/g, '&quot;') + '" ' +
+                'data-team="' + (emp.team || '') + '" ' +
+                'data-showroom="' + (emp.showroom || '') + '" ' +
+                'data-date="' + dateKey + '" ' +
+                'title="' + (emp.name || '') + ' / ' + dateKey + ' / ' + lbl + '">' + ch + '</td>';
+      }
+      html += '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  async function loadAndRenderCalendar() {
+    populateCalYearSelect();
+    syncCalFilters();
+    updateCalTitle();
+    var body = $('attendance-cal-tbody');
+    if (body) body.innerHTML = '<tr><td colspan="33" class="attendance-cal-loading">불러오는 중...</td></tr>';
+    var emps = await fetchVisibleEmployees();
+    calState.employees = emps;
+    var recs = await fetchMonthRecords(calState.year, calState.month, calState.showroom, calState.team);
+    calState.records = buildRecordMap(recs);
+    renderCalendarGrid();
+  }
+
+  // ────────── 셀 상세/수정 ──────────
+
+  function openDetailModal(cellInfo) {
+    calState.currentCell = cellInfo;
+    var modal = $('attendance-detail-modal');
+    if (!modal) return;
+    var rec = calState.records[cellInfo.userId + '|' + cellInfo.date] || null;
+    $('attendance-detail-user-id').value = cellInfo.userId;
+    $('attendance-detail-date').value = cellInfo.date;
+    $('attendance-detail-name').value = cellInfo.name || '-';
+    var teamTxt = (cellInfo.team ? cellInfo.team + '팀' : '-');
+    var shTxt = cellInfo.showroom ? (SHOWROOM_LABEL[cellInfo.showroom] || cellInfo.showroom) : '';
+    $('attendance-detail-team').value = teamTxt + (shTxt ? ' / ' + shTxt : '');
+    $('attendance-detail-date-view').value = cellInfo.date;
+    $('attendance-detail-checkin').value = rec && rec.check_in ? toHHMM(rec.check_in) : '';
+    $('attendance-detail-checkout').value = rec && rec.check_out ? toHHMM(rec.check_out) : '';
+    $('attendance-detail-status').value = (rec && rec.status) || inferCellStatus(rec);
+    $('attendance-detail-note').value = (rec && rec.note) || '';
+
+    var canEdit = isAdminUser();
+    ['attendance-detail-checkin', 'attendance-detail-checkout', 'attendance-detail-status', 'attendance-detail-note']
+      .forEach(function (id) { var el = $(id); if (el) el.disabled = !canEdit; });
+    var saveBtn = $('btn-attendance-detail-save');
+    if (saveBtn) saveBtn.style.display = canEdit ? '' : 'none';
+
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeDetailModal() {
+    var modal = $('attendance-detail-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    calState.currentCell = null;
+  }
+
+  function combineDateTime(dateKey, hhmm) {
+    if (!dateKey || !hhmm) return null;
+    var parts = hhmm.split(':');
+    if (parts.length !== 2) return null;
+    var dateParts = dateKey.split('-');
+    var dt = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]), Number(parts[0]), Number(parts[1]), 0, 0);
+    return dt.toISOString();
+  }
+
+  async function saveDetail(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!isAdminUser()) { showToast('수정 권한이 없습니다.', 'error'); return; }
+    var cell = calState.currentCell;
+    if (!cell) return;
+    var client = supa();
+    if (!client) return;
+    var me = currentEmployee();
+    var emp = calState.employees.find(function (x) { return x.auth_user_id === cell.userId; }) || {};
+    var checkInVal = $('attendance-detail-checkin').value;
+    var checkOutVal = $('attendance-detail-checkout').value;
+    var status = $('attendance-detail-status').value;
+    var note = $('attendance-detail-note').value;
+
+    var payload = {
+      local_id: 'att_' + cell.userId + '_' + cell.date,
+      user_id: cell.userId,
+      employee_id: emp.id || null,
+      user_name: emp.name || cell.name || null,
+      team: emp.team || cell.team || null,
+      showroom: emp.showroom || cell.showroom || null,
+      date: cell.date,
+      check_in: combineDateTime(cell.date, checkInVal),
+      check_out: combineDateTime(cell.date, checkOutVal),
+      status: status,
+      note: note,
+      updated_by: me ? me.authUserId : null
+    };
+    if (payload.check_in) payload.is_late = isLate(payload.check_in);
+    if (payload.check_in && payload.check_out) {
+      var d1 = new Date(payload.check_in).getTime();
+      var d2 = new Date(payload.check_out).getTime();
+      payload.work_minutes = Math.max(0, Math.floor((d2 - d1) / 60000));
+    }
+
+    try {
+      var r = await client.from(TABLE).upsert(payload, { onConflict: 'local_id' }).select('*').maybeSingle();
+      if (r.error) throw r.error;
+      calState.records[cell.userId + '|' + cell.date] = r.data;
+      renderCalendarGrid();
+      closeDetailModal();
+      showToast('근태 정보가 저장됐습니다.');
+    } catch (err) {
+      showToast('저장 실패: ' + (err && err.message ? err.message : '오류'), 'error');
+    }
+  }
+
+  // ────────── 탭 전환 & 이벤트 ──────────
+
+  function switchTab(tab) {
+    var tabs = document.querySelectorAll('.attendance-tab');
+    tabs.forEach(function (btn) { btn.classList.toggle('active', btn.getAttribute('data-attendance-tab') === tab); });
+    var todayPanel = $('attendance-panel-today');
+    var calPanel = $('attendance-panel-calendar');
+    if (todayPanel) todayPanel.classList.toggle('hidden', tab !== 'today');
+    if (calPanel) calPanel.classList.toggle('hidden', tab !== 'calendar');
+    if (tab === 'calendar' && !calState.inited) {
+      calState.inited = true;
+      loadAndRenderCalendar();
+    } else if (tab === 'calendar') {
+      loadAndRenderCalendar();
+    }
+  }
+
+  function initCalendarEvents() {
+    document.querySelectorAll('.attendance-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () { switchTab(btn.getAttribute('data-attendance-tab')); });
+    });
+    var ySel = $('attendance-cal-year');
+    var mSel = $('attendance-cal-month');
+    var srSel = $('attendance-cal-showroom');
+    var tSel = $('attendance-cal-team');
+    if (ySel) ySel.addEventListener('change', function () { calState.year = Number(ySel.value); loadAndRenderCalendar(); });
+    if (mSel) mSel.addEventListener('change', function () { calState.month = Number(mSel.value); loadAndRenderCalendar(); });
+    if (srSel) srSel.addEventListener('change', function () { calState.showroom = srSel.value; loadAndRenderCalendar(); });
+    if (tSel) tSel.addEventListener('change', function () { calState.team = tSel.value; loadAndRenderCalendar(); });
+    var resetBtn = $('attendance-cal-reset');
+    if (resetBtn) resetBtn.addEventListener('click', function () {
+      var now = new Date();
+      calState.year = now.getFullYear();
+      calState.month = now.getMonth() + 1;
+      if (isAdminUser()) { calState.showroom = ''; calState.team = ''; }
+      loadAndRenderCalendar();
+    });
+    var refreshBtn = $('attendance-cal-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', loadAndRenderCalendar);
+
+    var tbody = $('attendance-cal-tbody');
+    if (tbody) tbody.addEventListener('click', function (e) {
+      var td = e.target.closest && e.target.closest('.attendance-cal-cell');
+      if (!td) return;
+      openDetailModal({
+        userId: td.getAttribute('data-user-id'),
+        name: td.getAttribute('data-user-name'),
+        team: td.getAttribute('data-team'),
+        showroom: td.getAttribute('data-showroom'),
+        date: td.getAttribute('data-date')
+      });
+    });
+
+    var closeBtn = $('attendance-detail-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeDetailModal);
+    var cancelBtn = $('btn-attendance-detail-cancel');
+    if (cancelBtn) cancelBtn.addEventListener('click', closeDetailModal);
+    var modal = $('attendance-detail-modal');
+    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeDetailModal(); });
+    var form = $('form-attendance-detail');
+    if (form) form.addEventListener('submit', saveDetail);
+  }
+
   function init() {
     if (inited) return;
     inited = true;
@@ -304,11 +711,13 @@
     var btnOut = $('btn-attendance-checkout');
     if (btnIn) btnIn.addEventListener('click', handleCheckIn);
     if (btnOut) btnOut.addEventListener('click', handleCheckOut);
+    initCalendarEvents();
   }
 
   window.seumAttendance = {
     init: init,
-    render: function () { init(); render(); }
+    render: function () { init(); render(); },
+    renderCalendar: function () { init(); switchTab('calendar'); }
   };
 
   if (document.readyState === 'loading') {
