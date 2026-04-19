@@ -2923,6 +2923,30 @@
         </div>
       </div>
 
+      <!-- 팀 업무일지 캘린더 -->
+      <div class="card tw-calendar-card">
+        <div class="tw-calendar-header">
+          <div>
+            <h3 class="tw-calendar-title">팀 업무일지 캘린더</h3>
+            <p class="tw-calendar-hint">팀을 선택한 뒤 날짜 칸을 누르면 해당일 업무일지가 열립니다. 전 직원이 본인 팀 업무일지를 열람할 수 있습니다.</p>
+          </div>
+          <div class="tw-calendar-toolbar">
+            <button type="button" class="btn btn-secondary btn-sm" id="tw-cal-prev">이전</button>
+            <div class="tw-calendar-current-label" id="tw-cal-label"></div>
+            <button type="button" class="btn btn-secondary btn-sm" id="tw-cal-next">다음</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="tw-cal-today">오늘</button>
+          </div>
+        </div>
+        <div class="team-calendar team-calendar-month">
+          <div class="team-calendar-grid" id="tw-calendar-grid"></div>
+        </div>
+        <div class="tw-calendar-legend">
+          <span class="tw-cal-badge tw-cal-badge-leader">팀장</span>
+          <span class="tw-cal-badge tw-cal-badge-member">팀원 n</span>
+          <span class="tw-calendar-legend-text">· 팀장 작성 여부와 팀원 작성 수를 표시합니다.</span>
+        </div>
+      </div>
+
       <!-- 팀장 작성 영역 -->
       <div class="card tw-leader-card" id="tw-leader-card">
         <div class="tw-leader-header">

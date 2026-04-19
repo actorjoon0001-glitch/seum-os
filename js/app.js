@@ -8922,6 +8922,8 @@
 
   // 상태 추적
   var _twState = { teamId: null, date: null, initialized: false };
+  // 캘린더 뷰 상태 (표시 중인 년/월)
+  var _twCalState = { year: null, month: null };
 
   function _twCurrentTeam() {
     var teams = twGetTeams();
@@ -9089,6 +9091,7 @@
 
     _twPopulateTeamSelect();
     var team = _twCurrentTeam();
+    _twRenderCalendar(team);
     _twRenderLeader(team);
     _twRenderMembers(team);
     _twRenderHistory();
@@ -9107,6 +9110,75 @@
         });
       } catch (_e) {}
     }
+  }
+
+  // 팀 업무일지 월간 캘린더 렌더 — 현재 선택 팀의 날짜별 작성 현황 표시
+  function _twRenderCalendar(team) {
+    var grid = document.getElementById('tw-calendar-grid');
+    var label = document.getElementById('tw-cal-label');
+    if (!grid || !label) return;
+
+    // 최초 진입 시 _twState.date 기준으로 캘린더 년/월 초기화
+    if (_twCalState.year == null || _twCalState.month == null) {
+      var baseStr = _twState.date || twTodayIso();
+      var baseParts = baseStr.split('-');
+      _twCalState.year = parseInt(baseParts[0], 10);
+      _twCalState.month = parseInt(baseParts[1], 10) - 1;
+    }
+
+    var y = _twCalState.year;
+    var m = _twCalState.month;
+    label.textContent = y + '년 ' + (m + 1) + '월';
+
+    var first = new Date(y, m, 1);
+    var startDay = first.getDay();
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+    var todayStr = twTodayIso();
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+
+    // 현재 선택 팀의 업무일지만 날짜별 집계
+    var logs = twGetWorklogs();
+    if (team) logs = logs.filter(function (w) { return w.teamId === team.id; });
+    var byDate = {};
+    logs.forEach(function (w) {
+      if (!w.date) return;
+      if (!byDate[w.date]) byDate[w.date] = { leader: false, memberCount: 0 };
+      if (w.kind === 'leader' && w.summary && w.summary.trim()) byDate[w.date].leader = true;
+      if (w.kind === 'member' && w.tasks && w.tasks.trim()) byDate[w.date].memberCount++;
+    });
+
+    var weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    var html = [];
+    for (var i = 0; i < 7; i++) {
+      var wcls = 'team-calendar-weekday';
+      if (i === 0) wcls += ' sunday';
+      if (i === 6) wcls += ' saturday';
+      html.push('<div class="' + wcls + '">' + weekdayNames[i] + '</div>');
+    }
+    for (var pre = 0; pre < startDay; pre++) {
+      html.push('<div class="team-calendar-cell team-calendar-cell-empty"></div>');
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      var dateStr = y + '-' + pad(m + 1) + '-' + pad(day);
+      var rec = byDate[dateStr];
+      var cls = 'team-calendar-cell tw-cal-cell';
+      if (dateStr === todayStr) cls += ' today';
+      if (dateStr === _twState.date) cls += ' tw-cal-cell-selected';
+      var badgeHtml = '';
+      if (rec) {
+        var parts = [];
+        if (rec.leader) parts.push('<span class="tw-cal-badge tw-cal-badge-leader">팀장</span>');
+        if (rec.memberCount > 0) parts.push('<span class="tw-cal-badge tw-cal-badge-member">팀원 ' + rec.memberCount + '</span>');
+        if (parts.length) badgeHtml = '<div class="tw-cal-badges">' + parts.join('') + '</div>';
+      }
+      html.push(
+        '<div class="' + cls + '" data-tw-cal-date="' + dateStr + '" role="button" tabindex="0">' +
+        '<div class="team-calendar-date">' + day + '</div>' +
+        badgeHtml +
+        '</div>'
+      );
+    }
+    grid.innerHTML = html.join('');
   }
 
   // 보관함(히스토리) 렌더 — 날짜별 요약, 전 팀 또는 현재 팀 필터
@@ -9347,6 +9419,48 @@
       if (leadView) leadView.style.display = '';
       renderTeamWorklog();
       showToast('팀장 업무일지가 저장됐습니다.');
+    });
+
+    // 캘린더 네비게이션
+    var btnCalPrev = document.getElementById('tw-cal-prev');
+    if (btnCalPrev) btnCalPrev.addEventListener('click', function () {
+      if (_twCalState.year == null) { _twCalState.year = new Date().getFullYear(); _twCalState.month = new Date().getMonth(); }
+      _twCalState.month--;
+      if (_twCalState.month < 0) { _twCalState.month = 11; _twCalState.year--; }
+      renderTeamWorklog();
+    });
+    var btnCalNext = document.getElementById('tw-cal-next');
+    if (btnCalNext) btnCalNext.addEventListener('click', function () {
+      if (_twCalState.year == null) { _twCalState.year = new Date().getFullYear(); _twCalState.month = new Date().getMonth(); }
+      _twCalState.month++;
+      if (_twCalState.month > 11) { _twCalState.month = 0; _twCalState.year++; }
+      renderTeamWorklog();
+    });
+    var btnCalToday = document.getElementById('tw-cal-today');
+    if (btnCalToday) btnCalToday.addEventListener('click', function () {
+      var d = new Date();
+      _twCalState.year = d.getFullYear();
+      _twCalState.month = d.getMonth();
+      _twState.date = twTodayIso();
+      var di = document.getElementById('tw-date');
+      if (di) di.value = _twState.date;
+      renderTeamWorklog();
+    });
+    var calGrid = document.getElementById('tw-calendar-grid');
+    if (calGrid) calGrid.addEventListener('click', function (e) {
+      var cell = e.target.closest('[data-tw-cal-date]');
+      if (!cell) return;
+      var date = cell.getAttribute('data-tw-cal-date');
+      if (!date) return;
+      _twState.date = date;
+      var di = document.getElementById('tw-date');
+      if (di) di.value = date;
+      var parts = date.split('-');
+      _twCalState.year = parseInt(parts[0], 10);
+      _twCalState.month = parseInt(parts[1], 10) - 1;
+      var form = document.getElementById('tw-leader-form');
+      if (form) form.classList.add('hidden');
+      renderTeamWorklog();
     });
 
     // 히스토리 필터 변경
