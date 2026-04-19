@@ -674,6 +674,8 @@
     var myShowroom = (typeof window.resolveShowroomId === 'function') ? window.resolveShowroomId(_cur) : ((_cur && (_cur.showroom || _cur.showroomId)) ? (_cur.showroom || _cur.showroomId) : '');
     var isDesignTeam = (myTeam === '설계');
     var isConstructionTeam = (myTeam === '시공' || myTeam === '시공팀');
+    var isMarketingTeam = (myTeam === '마케팅' || myTeam === '마케팅팀');
+    var isSettlementTeam = (myTeam === '정산' || myTeam === '정산팀');
     var contracts = typeof window.getContracts === 'function' ? window.getContracts() : [];
     var store = getContractChatStore();
     var list = [];
@@ -683,7 +685,10 @@
       var design = (c.designContactName || c.designPermitDesigner || '').trim();
       var construction = (c.constructionManager || '').trim();
       var isSameShowroom = isManagerUser && myShowroom && (c.showroomId || '') === myShowroom;
-      var isAssignee = (sales === myName) || (design === myName) || (construction === myName) || isDesignTeam || isConstructionTeam || isSameShowroom;
+      // 본사 팀들(설계/시공/마케팅/정산)은 전 계약 열람 가능 — 담당 여부 무관
+      var isAssignee = (sales === myName) || (design === myName) || (construction === myName)
+        || isDesignTeam || isConstructionTeam || isMarketingTeam || isSettlementTeam
+        || isSameShowroom;
       if (!isAssignee && !isAdminUser) return;
 
       ensureContractChatRoom(c.id);
