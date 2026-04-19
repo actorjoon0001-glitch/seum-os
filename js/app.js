@@ -8777,7 +8777,10 @@
       });
     };
     var active = getEmployees().filter(function (e) {
-      return !(e.status && e.status !== 'active' && e.status !== 'pending');
+      if (e.status && e.status !== 'active' && e.status !== 'pending') return false;
+      // 과거 샘플 시드로 주입된 더미 직원(id가 'tw-' 로 시작)을 팀원 리스트에서 제외
+      if (e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0) return false;
+      return true;
     });
 
     // A) 명시 배정
@@ -13630,7 +13633,34 @@
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
 
+  // 과거 팀 업무일지 샘플 시드에서 생성된 더미 직원을 영구 제거.
+  // id 가 'tw-' 로 시작하는 레코드 + 해당 직원이 작성한 팀별 업무일지 엔트리를 모두 정리.
+  function cleanupTwSampleEmployees() {
+    try {
+      var emps = getEmployees();
+      var dummyIds = {};
+      var cleaned = emps.filter(function (e) {
+        if (e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0) {
+          dummyIds[e.id] = true;
+          return false;
+        }
+        return true;
+      });
+      if (cleaned.length !== emps.length) saveEmployees(cleaned);
+
+      // 팀별 업무일지에서 더미 직원이 작성한 멤버 엔트리도 제거
+      if (typeof twGetWorklogs === 'function' && typeof twSaveWorklogs === 'function') {
+        var logs = twGetWorklogs();
+        var filtered = logs.filter(function (w) {
+          return !(w.kind === 'member' && w.authorId && dummyIds[w.authorId]);
+        });
+        if (filtered.length !== logs.length) twSaveWorklogs(filtered);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   function init() {
+    cleanupTwSampleEmployees();
     ensureSamples();
     ensureEmployeesAndKpi();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
