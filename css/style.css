@@ -11805,6 +11805,68 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .tw-member-modal-content { max-width: 640px; width: 100%; }
 .tw-member-form-body { padding: 0 1.25rem 1rem; }
 
+/* 팀 업무일지 캘린더 */
+.tw-calendar-card { margin-top: 1rem; }
+.tw-calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.tw-calendar-title { margin: 0 0 4px; }
+.tw-calendar-hint { color: #94a3b8; font-size: 12px; margin: 0; }
+.tw-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tw-calendar-current-label {
+  font-weight: 600;
+  min-width: 110px;
+  text-align: center;
+}
+.tw-cal-cell { cursor: pointer; }
+.tw-cal-cell:hover { background: rgba(96, 165, 250, 0.08); }
+.tw-cal-cell-selected {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+.tw-cal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.tw-cal-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.tw-cal-badge-leader {
+  background: rgba(37, 99, 235, 0.22);
+  color: #bfdbfe;
+}
+.tw-cal-badge-member {
+  background: rgba(16, 185, 129, 0.22);
+  color: #bbf7d0;
+}
+.tw-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.tw-calendar-legend-text { color: #94a3b8; }
+
 /* 보관함 히스토리 */
 .tw-history-card { margin-top: 1rem; }
 .tw-history-header {
