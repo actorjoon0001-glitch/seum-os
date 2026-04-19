@@ -2387,6 +2387,115 @@ button,
 }
 .team-off-form-actions .btn-danger { margin-right: auto; }
 
+/* 직원별 체크 패널 */
+.team-off-check-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+}
+.team-off-check-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.team-off-check-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.team-off-check-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+.team-off-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.team-off-check-item {
+  display: grid;
+  grid-template-columns: 1fr 9.5rem;
+  align-items: center;
+  gap: 8px;
+  padding: 0.4rem 0.55rem;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.team-off-check-item-on {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+.team-off-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-width: 0;
+  color: #e2e8f0;
+}
+.team-off-check-box {
+  width: 18px;
+  height: 18px;
+  accent-color: #3b82f6;
+  flex-shrink: 0;
+}
+.team-off-check-box:disabled { cursor: not-allowed; opacity: 0.5; }
+.team-off-check-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.team-off-check-me {
+  font-size: 0.68rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.3);
+  color: #bfdbfe;
+  font-weight: 700;
+}
+.team-off-check-role {
+  font-size: 0.68rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(234, 179, 8, 0.25);
+  color: #fde68a;
+  font-weight: 700;
+}
+.team-off-check-type {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  background: #111827;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.team-off-check-type:disabled { opacity: 0.45; cursor: not-allowed; }
+.team-off-check-empty {
+  padding: 1rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+@media (max-width: 640px) {
+  .team-off-check-item { grid-template-columns: 1fr; }
+  .team-off-check-list { max-height: 48vh; }
+}
+
 .team-off-day-list {
   padding: 0 1.1rem 1rem;
   overflow-y: auto;
