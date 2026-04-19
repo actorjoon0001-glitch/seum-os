@@ -9022,13 +9022,9 @@
       return;
     }
     var members = twGetTeamMembers(team);
-    if (!members.length) {
-      listEl.innerHTML = '<div class="tw-members-empty">팀원이 없습니다. 직원 관리에서 팀원을 등록하거나, 회원가입 시 올바른 팀/전시장을 선택해 주세요.</div>';
-      if (statDone) statDone.textContent = '0';
-      if (statPending) statPending.textContent = '0';
-      return;
-    }
     var me = window.seumAuth && window.seumAuth.currentEmployee;
+    // 팀원이 DB에 없어도 로그인한 본인은 반드시 리스트에 포함되도록 주입은 아래에서 처리.
+    // 여기서 조기 리턴하면 본인 행도 사라져 저장 버튼이 안 나오는 버그가 있어 제거함.
     // 본인 여부는 id 또는 authUserId 중 하나라도 일치하거나 이름이 같으면 true.
     // 로그인한 직원 레코드의 id/authUserId 가 서로 다른 컬럼으로 매칭될 수 있어
     // 과도하게 제한하지 않도록 복수 키 비교.
@@ -9073,6 +9069,14 @@
           __self: true
         }]);
       }
+    }
+
+    // 본인 주입 후에도 리스트가 완전히 비면(비로그인) 안내문 노출 후 종료
+    if (!members.length) {
+      listEl.innerHTML = '<div class="tw-members-empty">로그인 후 팀 업무일지를 작성할 수 있습니다.</div>';
+      if (statDone) statDone.textContent = '0';
+      if (statPending) statPending.textContent = '0';
+      return;
     }
     var done = 0, pending = 0;
 
