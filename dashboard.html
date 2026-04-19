@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-13">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-14">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -2510,18 +2510,30 @@
     <section id="section-admin-employees" class="content-section">
       <header class="main-header">
         <h2>직원 관리</h2>
-        <p class="section-desc">직원 목록 조회 및 팀·역할·전시장 수정 <span id="admin-employees-count" class="admin-employees-count"></span></p>
+        <p class="section-desc">전시장 · 팀 단위로 그룹화해 직원을 관리합니다. <span id="admin-employees-count" class="admin-employees-count"></span></p>
       </header>
-      <div class="card">
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>이름</th><th>이메일</th><th>팀</th><th>역할(role)</th><th>전시장</th><th>상태</th><th>작업</th></tr>
-            </thead>
-            <tbody id="tbody-admin-employees"></tbody>
-          </table>
+      <div class="card admin-emp-filters-card">
+        <div class="admin-emp-filters-row">
+          <label class="admin-emp-filter-field">
+            <span class="admin-emp-filter-label">전시장</span>
+            <select id="admin-emp-filter-showroom"><option value="">전체 전시장</option></select>
+          </label>
+          <label class="admin-emp-filter-field">
+            <span class="admin-emp-filter-label">팀</span>
+            <select id="admin-emp-filter-team"><option value="">전체 팀</option></select>
+          </label>
+          <label class="admin-emp-filter-field admin-emp-filter-search">
+            <span class="admin-emp-filter-label">검색</span>
+            <input type="text" id="admin-emp-filter-search" placeholder="이름 또는 이메일">
+          </label>
+          <div class="admin-emp-filter-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="admin-emp-filter-reset">초기화</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="admin-emp-expand-all">모두 펼치기</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="admin-emp-collapse-all">모두 접기</button>
+          </div>
         </div>
       </div>
+      <div class="admin-emp-groups" id="admin-emp-groups"></div>
     </section>
 
     <section id="section-admin-presence" class="content-section">
@@ -5013,7 +5025,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260419-24"></script>
+  <script src="js/app.js?v=20260419-25"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>

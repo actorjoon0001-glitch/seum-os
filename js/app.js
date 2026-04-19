@@ -12495,45 +12495,260 @@
   var TEAM_OPTIONS = ['마케팅', '영업', '설계', '시공', '정산', '경영', '사무', '본사'];
   var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master'];
 
-  function renderAdminEmployees() {
-    var tbody = document.getElementById('tbody-admin-employees');
+  // 직원 관리 — 전시장 → 팀 그룹 구조
+  var _adminEmpState = {
+    all: [],              // 전체 직원 목록 (Supabase fetch 결과)
+    collapsed: {},        // 접힌 전시장 그룹 id 맵 — { 'headquarters': true, ... }
+    initialized: false
+  };
+
+  function _adminEmpPopulateFilters() {
+    var srSel = document.getElementById('admin-emp-filter-showroom');
+    var tmSel = document.getElementById('admin-emp-filter-team');
+    if (srSel && srSel.children.length <= 1) {
+      SHOWROOMS.forEach(function (s) {
+        var opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        srSel.appendChild(opt);
+      });
+      // 안동전시장이 SHOWROOMS 에 없을 수 있어 보강
+      if (!SHOWROOMS.some(function (s) { return s.id === 'andong'; })) {
+        var opt2 = document.createElement('option');
+        opt2.value = 'andong'; opt2.textContent = '안동전시장';
+        srSel.appendChild(opt2);
+      }
+    }
+    if (tmSel && tmSel.children.length <= 1) {
+      TEAM_OPTIONS.forEach(function (t) {
+        var opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t + '팀';
+        tmSel.appendChild(opt);
+      });
+    }
+  }
+
+  function _adminEmpInitEvents() {
+    if (_adminEmpState.initialized) return;
+    _adminEmpState.initialized = true;
+    var ids = ['admin-emp-filter-showroom', 'admin-emp-filter-team'];
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', _adminEmpRenderGroups);
+    });
+    var search = document.getElementById('admin-emp-filter-search');
+    if (search) search.addEventListener('input', _adminEmpRenderGroups);
+    var reset = document.getElementById('admin-emp-filter-reset');
+    if (reset) reset.addEventListener('click', function () {
+      ['admin-emp-filter-showroom', 'admin-emp-filter-team'].forEach(function (id) {
+        var el = document.getElementById(id); if (el) el.value = '';
+      });
+      if (search) search.value = '';
+      _adminEmpRenderGroups();
+    });
+    var expandAll = document.getElementById('admin-emp-expand-all');
+    if (expandAll) expandAll.addEventListener('click', function () {
+      _adminEmpState.collapsed = {};
+      _adminEmpRenderGroups();
+    });
+    var collapseAll = document.getElementById('admin-emp-collapse-all');
+    if (collapseAll) collapseAll.addEventListener('click', function () {
+      var all = {};
+      _adminEmpGetShowroomKeys(_adminEmpState.all).forEach(function (k) { all[k] = true; });
+      _adminEmpState.collapsed = all;
+      _adminEmpRenderGroups();
+    });
+
+    // 그룹 헤더 클릭 (토글) + 저장/삭제 위임
+    var groupsEl = document.getElementById('admin-emp-groups');
+    if (groupsEl) groupsEl.addEventListener('click', function (e) {
+      var toggleBtn = e.target.closest('[data-admin-emp-toggle]');
+      if (toggleBtn) {
+        var key = toggleBtn.getAttribute('data-admin-emp-toggle');
+        _adminEmpState.collapsed[key] = !_adminEmpState.collapsed[key];
+        _adminEmpRenderGroups();
+        return;
+      }
+      // 저장/삭제는 기존 initAdminEmployees 의 위임으로 처리하도록 className 유지
+      var saveBtn = e.target.closest('.btn-admin-emp-save');
+      var delBtn = e.target.closest('.btn-admin-emp-delete');
+      if (!saveBtn && !delBtn) return;
+      var supabase = window.seumSupabase;
+      if (!supabase) return;
+      if (saveBtn) {
+        var sid = saveBtn.getAttribute('data-id');
+        var row = groupsEl.querySelector('[data-id="' + sid + '"]');
+        if (!row || !sid) return;
+        var team = row.querySelector('.admin-emp-team') && row.querySelector('.admin-emp-team').value;
+        var role = row.querySelector('.admin-emp-role') && row.querySelector('.admin-emp-role').value;
+        var showroom = row.querySelector('.admin-emp-showroom') && row.querySelector('.admin-emp-showroom').value;
+        saveBtn.disabled = true;
+        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null, permission: role || null }).eq('id', sid)
+          .then(function (res) {
+            if (res.error) throw res.error;
+            renderAdminEmployees();
+            showToast && showToast('저장되었습니다.');
+          })
+          .catch(function (err) { saveBtn.disabled = false; alert('저장에 실패했습니다.'); console.error(err); });
+      } else if (delBtn) {
+        var did = delBtn.getAttribute('data-id');
+        if (!did || !confirm('해당 직원을 삭제하시겠습니까?')) return;
+        supabase.from('employees').delete().eq('id', did)
+          .then(function () { renderAdminEmployees(); })
+          .catch(function (err) { alert('삭제에 실패했습니다.'); console.error(err); });
+      }
+    });
+  }
+
+  function _adminEmpGetShowroomKeys(list) {
+    var seen = {};
+    var keys = [];
+    SHOWROOMS.forEach(function (s) { keys.push(s.id); seen[s.id] = true; });
+    if (!seen['andong']) keys.push('andong');
+    list.forEach(function (e) {
+      var sr = e.showroom || '_unassigned';
+      if (!seen[sr]) { seen[sr] = true; keys.push(sr); }
+    });
+    if (!seen['_unassigned']) keys.push('_unassigned');
+    return keys;
+  }
+
+  function _adminEmpShowroomLabel(id) {
+    if (id === '_unassigned') return '미배정';
+    if (typeof getShowroomName === 'function') {
+      var n = getShowroomName(id);
+      if (n && n !== id) return n;
+    }
+    var known = { headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', andong: '안동전시장' };
+    return known[id] || id;
+  }
+
+  function _adminEmpApplyFilters(list) {
+    var srFilter = (document.getElementById('admin-emp-filter-showroom') || {}).value || '';
+    var tmFilter = (document.getElementById('admin-emp-filter-team') || {}).value || '';
+    var q = ((document.getElementById('admin-emp-filter-search') || {}).value || '').trim().toLowerCase();
+    return list.filter(function (e) {
+      if (srFilter) {
+        var sr = e.showroom || '_unassigned';
+        if (sr !== srFilter) return false;
+      }
+      if (tmFilter && (e.team || '') !== tmFilter) return false;
+      if (q) {
+        var hay = ((e.name || '') + ' ' + (e.email || '')).toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+  }
+
+  function _adminEmpRenderGroups() {
+    var groupsEl = document.getElementById('admin-emp-groups');
     var countEl = document.getElementById('admin-employees-count');
-    if (!tbody) return;
-    var supabase = typeof window !== 'undefined' && window.seumSupabase;
-    if (!supabase) {
-      tbody.innerHTML = '<tr><td colspan="7">Supabase를 사용할 수 없습니다.</td></tr>';
+    if (!groupsEl) return;
+    var filtered = _adminEmpApplyFilters(_adminEmpState.all);
+    if (countEl) countEl.textContent = filtered.length ? '총 ' + filtered.length + '명' : '';
+    if (!filtered.length) {
+      groupsEl.innerHTML = '<div class="admin-emp-empty">표시할 직원이 없습니다.</div>';
       return;
     }
-    supabase.from('employees').select('id, name, email, team, role, showroom, status')
-      .order('id', { ascending: true })
+    // 전시장 키 순서(기본 정의 우선) + 나오지 않는 키 제외
+    var byShowroom = {};
+    filtered.forEach(function (e) {
+      var sr = e.showroom || '_unassigned';
+      if (!byShowroom[sr]) byShowroom[sr] = [];
+      byShowroom[sr].push(e);
+    });
+    var showroomOrder = _adminEmpGetShowroomKeys(_adminEmpState.all).filter(function (k) { return byShowroom[k] && byShowroom[k].length; });
+
+    groupsEl.innerHTML = showroomOrder.map(function (sr) {
+      var members = byShowroom[sr];
+      // 팀별 그룹핑
+      var byTeam = {};
+      members.forEach(function (e) {
+        var t = e.team || '_no_team';
+        if (!byTeam[t]) byTeam[t] = [];
+        byTeam[t].push(e);
+      });
+      var teamOrder = TEAM_OPTIONS.filter(function (t) { return byTeam[t]; });
+      Object.keys(byTeam).forEach(function (t) { if (teamOrder.indexOf(t) < 0) teamOrder.push(t); });
+
+      var collapsed = !!_adminEmpState.collapsed[sr];
+      var srName = _adminEmpShowroomLabel(sr);
+      var teamBlocks = collapsed ? '' : teamOrder.map(function (t) {
+        var teamName = t === '_no_team' ? '팀 미배정' : t + '팀';
+        return (
+          '<div class="admin-emp-team-block">' +
+            '<div class="admin-emp-team-header">' +
+              '<span class="admin-emp-team-name">' + escapeHtml(teamName) + '</span>' +
+              '<span class="admin-emp-team-count">' + byTeam[t].length + '명</span>' +
+            '</div>' +
+            '<div class="table-wrap">' +
+              '<table class="data-table admin-emp-table">' +
+                '<thead><tr><th style="width:20%;">이름</th><th style="width:22%;">이메일</th><th style="width:12%;">팀</th><th style="width:12%;">역할</th><th style="width:14%;">전시장</th><th style="width:8%;">상태</th><th style="width:12%;">작업</th></tr></thead>' +
+                '<tbody>' + byTeam[t].map(function (emp) {
+                  var teamOpts = TEAM_OPTIONS.map(function (tt) {
+                    return '<option value="' + tt + '"' + ((emp.team || '') === tt ? ' selected' : '') + '>' + tt + '</option>';
+                  }).join('');
+                  var roleOpts = ROLE_OPTIONS.map(function (r) {
+                    return '<option value="' + r + '"' + ((emp.role || '') === r ? ' selected' : '') + '>' + r + '</option>';
+                  }).join('');
+                  var srOpts = _adminEmpGetShowroomKeys(_adminEmpState.all).filter(function (k) { return k !== '_unassigned'; }).map(function (k) {
+                    return '<option value="' + escapeAttr(k) + '"' + ((emp.showroom || '') === k ? ' selected' : '') + '>' + escapeHtml(_adminEmpShowroomLabel(k)) + '</option>';
+                  }).join('');
+                  return '<tr data-id="' + escapeAttr(emp.id) + '">' +
+                    '<td><strong>' + escapeHtml(emp.name || '-') + '</strong></td>' +
+                    '<td>' + escapeHtml(emp.email || '-') + '</td>' +
+                    '<td><select class="admin-emp-team">' + teamOpts + '</select></td>' +
+                    '<td><select class="admin-emp-role">' + roleOpts + '</select></td>' +
+                    '<td><select class="admin-emp-showroom">' + srOpts + '</select></td>' +
+                    '<td>' + escapeHtml(emp.status || '-') + '</td>' +
+                    '<td>' +
+                      '<button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + escapeAttr(emp.id) + '">저장</button> ' +
+                      '<button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + escapeAttr(emp.id) + '">삭제</button>' +
+                    '</td>' +
+                  '</tr>';
+                }).join('') + '</tbody>' +
+              '</table>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      return (
+        '<div class="admin-emp-showroom-group' + (collapsed ? ' is-collapsed' : '') + '">' +
+          '<button type="button" class="admin-emp-showroom-header" data-admin-emp-toggle="' + escapeAttr(sr) + '">' +
+            '<span class="admin-emp-showroom-toggle">' + (collapsed ? '▶' : '▼') + '</span>' +
+            '<span class="admin-emp-showroom-name">' + escapeHtml(srName) + '</span>' +
+            '<span class="admin-emp-showroom-count">' + members.length + '명</span>' +
+          '</button>' +
+          teamBlocks +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function renderAdminEmployees() {
+    _adminEmpPopulateFilters();
+    _adminEmpInitEvents();
+    var groupsEl = document.getElementById('admin-emp-groups');
+    var countEl = document.getElementById('admin-employees-count');
+    if (!groupsEl) return;
+    var supabase = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supabase) {
+      groupsEl.innerHTML = '<div class="admin-emp-empty">Supabase를 사용할 수 없습니다.</div>';
+      return;
+    }
+    supabase.from('employees').select('id, name, email, team, role, showroom, status, position_name')
+      .order('showroom', { ascending: true })
+      .order('team', { ascending: true })
+      .order('name', { ascending: true })
       .then(function (res) {
-        var list = res.data || [];
-        if (countEl) {
-          var total = list.length || 0;
-          countEl.textContent = total ? '총 ' + total + '명' : '';
-        }
-        if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = list.map(function (emp, idx) {
-          var teamOpts = TEAM_OPTIONS.map(function (t) {
-            return '<option value="' + t + '"' + ((emp.team || '') === t ? ' selected' : '') + '>' + t + '</option>';
-          }).join('');
-          var roleOpts = ROLE_OPTIONS.map(function (r) {
-            return '<option value="' + r + '"' + ((emp.role || '') === r ? ' selected' : '') + '>' + r + '</option>';
-          }).join('');
-          var srOpts = SHOWROOMS.map(function (s) {
-            var val = emp.showroom || '';
-            var isSelected = (val === s.id) || (val === s.name);
-            return '<option value="' + (s.id || '') + '"' + (isSelected ? ' selected' : '') + '>' + (s.name || s.id) + '</option>';
-          }).join('');
-          var numberLabel = (idx + 1) + '. ';
-          return '<tr data-id="' + emp.id + '"><td>' + numberLabel + (emp.name || '-') + '</td><td>' + (emp.email || '-') + '</td><td><select class="admin-emp-team">' + teamOpts + '</select></td><td><select class="admin-emp-role">' + roleOpts + '</select></td><td><select class="admin-emp-showroom">' + srOpts + '</select></td><td>' + (emp.status || '-') + '</td><td><button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + emp.id + '">저장</button> <button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + emp.id + '">삭제</button></td></tr>';
-        });
+        _adminEmpState.all = res.data || [];
+        _adminEmpRenderGroups();
       })
       .catch(function (err) {
-        tbody.innerHTML = '<tr><td colspan="7">직원 목록을 불러오지 못했습니다.</td></tr>';
+        groupsEl.innerHTML = '<div class="admin-emp-empty">직원 목록을 불러오지 못했습니다.</div>';
         console.error(err);
       });
   }
@@ -12679,6 +12894,8 @@
   }
 
   function initAdminEmployees() {
+    // 새 구조(전시장→팀 그룹)는 _adminEmpInitEvents() 에서 이벤트를 직접 처리.
+    // 과거 tbody-admin-employees 테이블이 남아있다면 하위 호환 위해 계속 핸들링.
     var tbody = document.getElementById('tbody-admin-employees');
     if (!tbody) return;
     tbody.addEventListener('click', function (e) {
