@@ -10296,7 +10296,14 @@
     }
     if (sectionId === 'team-calendar') renderTeamCalendar();
     if (sectionId === 'worklog') renderWorklog();
-    if (sectionId === 'team-worklog') renderTeamWorklog();
+    if (sectionId === 'team-worklog') {
+      renderTeamWorklog();
+      // 팀 업무일지 진입 시 Supabase 에서 최신 데이터 재동기화 — 같은 팀원들의
+      // 최근 저장 내용을 놓치지 않고 반영하기 위함.
+      if (typeof twRemoteSyncAll === 'function') {
+        try { twRemoteSyncAll(); } catch (e) {}
+      }
+    }
     if (sectionId === 'dashboard' && window.seumAttendance && typeof window.seumAttendance.render === 'function') window.seumAttendance.render();
     if (sectionId === 'dashboard' && window.seumTeamOff && typeof window.seumTeamOff.syncDashboard === 'function') window.seumTeamOff.syncDashboard();
     if (sectionId === 'attendance' && window.seumTeamOff && typeof window.seumTeamOff.render === 'function') window.seumTeamOff.render();
