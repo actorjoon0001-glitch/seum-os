@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-09">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-10">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3410,6 +3410,10 @@
             <h3 class="team-off-label" id="team-off-label">-</h3>
             <button type="button" class="btn btn-secondary btn-sm" id="team-off-next">다음</button>
             <button type="button" class="btn btn-secondary btn-sm" id="team-off-today">오늘</button>
+            <label class="team-off-team-picker hidden" id="team-off-team-picker">
+              <span class="team-off-team-picker-label">조회 팀</span>
+              <select id="team-off-team-select"></select>
+            </label>
           </div>
           <div class="team-off-meta">
             <span class="team-off-scope">
@@ -5011,6 +5015,6 @@
   <script src="js/marketing.js"></script>
   <script src="js/attendance.js?v=20260419-04"></script>
   <script src="js/leave.js"></script>
-  <script src="js/team-off.js?v=20260419-03"></script>
+  <script src="js/team-off.js?v=20260419-04"></script>
 </body>
 </html>

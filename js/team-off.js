@@ -83,9 +83,23 @@
     if (!cur) return [];
     var emps = (typeof window.getEmployees === 'function') ? window.getEmployees() : [];
     emps = emps.filter(function (e) {
-      return !(e.status && e.status !== 'active' && e.status !== 'pending');
+      if (!e) return false;
+      if (e.status && e.status !== 'active' && e.status !== 'pending' && e.status !== 'approved') return false;
+      if (e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0) return false;
+      return true;
     });
-    if (isAdminLike()) return emps;
+    if (isAdminLike()) {
+      // 관리자/마스터: scopeTeamId 가 설정되어 있으면 해당 팀 직원만, 빈 값이면 전체
+      var scopedDef = getScopedTeamDef();
+      if (scopedDef) {
+        return emps.filter(function (e) {
+          if (e.team !== scopedDef.team) return false;
+          if (scopedDef.showroom && e.showroom && e.showroom !== scopedDef.showroom) return false;
+          return true;
+        });
+      }
+      return emps;
+    }
     if (!cur.team) return emps.filter(function (e) {
       return (e.id || e.authUserId) === (cur.id || cur.authUserId);
     });
@@ -103,6 +117,11 @@
   function myTeamLabel() {
     var cur = currentEmployee();
     if (!cur) return '-';
+    // 관리자/마스터가 특정 팀을 선택했으면 그 팀 이름, 전체면 '전체 팀'
+    if (isAdminLike()) {
+      var scoped = getScopedTeamDef();
+      return scoped ? scoped.name : '전체 팀';
+    }
     var parts = [];
     if (cur.team) parts.push(cur.team + '팀');
     if (cur.showroom) {
@@ -113,10 +132,61 @@
     return parts.length ? parts.join(' · ') : '소속 정보 없음';
   }
 
+  // 관리자/마스터용 팀 선택 드롭다운 렌더 + 노출
+  function renderTeamPicker() {
+    var pickerEl = $('team-off-team-picker');
+    var selEl = $('team-off-team-select');
+    if (!pickerEl || !selEl) return;
+    if (!isAdminLike()) {
+      pickerEl.classList.add('hidden');
+      return;
+    }
+    pickerEl.classList.remove('hidden');
+    var teams = getTeamDefs();
+    var html = '<option value="">전체 팀</option>';
+    teams.forEach(function (t) {
+      html += '<option value="' + escapeHtml(t.id) + '">' + escapeHtml(t.name) + '</option>';
+    });
+    selEl.innerHTML = html;
+    selEl.value = _state.scopeTeamId || '';
+  }
+
+  // 팀 정의 조회 (TW_DEFAULT_TEAMS 가 app.js 에 있어 직접 접근 못 함 → window.seumTwTeams 또는 추정)
+  function getTeamDefs() {
+    // TW_DEFAULT_TEAMS 와 동일한 정의 (팀 휴무는 직원 team/showroom 매칭 기준)
+    return [
+      { id: 'hq-marketing',    name: '본사 마케팅팀',   team: '마케팅' },
+      { id: 'hq-sales',        name: '본사 영업팀',     team: '영업', showroom: 'headquarters' },
+      { id: 'hq-design',       name: '본사 설계팀',     team: '설계' },
+      { id: 'hq-construction', name: '본사 시공팀',     team: '시공' },
+      { id: 'hq-settlement',   name: '본사 정산팀',     team: '정산' },
+      { id: 'sr1-sales',       name: '1전시장 영업팀',  team: '영업', showroom: 'showroom1' },
+      { id: 'sr3-sales',       name: '3전시장 영업팀',  team: '영업', showroom: 'showroom3' },
+      { id: 'sr4-sales',       name: '4전시장 영업팀',  team: '영업', showroom: 'showroom4' },
+      { id: 'ganghwa-sales',   name: '강화전시장 영업팀', team: '영업', showroom: 'ganghwa' },
+      { id: 'andong-sales',    name: '안동전시장 영업팀', team: '영업', showroom: 'andong' }
+    ];
+  }
+
   function filterOffForMyTeam(all) {
     var cur = currentEmployee();
     if (!cur) return [];
-    if (isAdminLike()) return all.slice();
+    var canViewAll = isAdminLike();
+
+    // 관리자/마스터: scopeTeamId 가 설정되어 있으면 해당 팀만 필터, 빈 값이면 전체
+    if (canViewAll) {
+      if (!_state.scopeTeamId) return all.slice();
+      var teamDef = getTeamDefs().find(function (t) { return t.id === _state.scopeTeamId; });
+      if (!teamDef) return all.slice();
+      return all.filter(function (o) {
+        if (!o) return false;
+        if (o.team !== teamDef.team) return false;
+        if (teamDef.showroom && o.showroom && o.showroom !== teamDef.showroom) return false;
+        return true;
+      });
+    }
+
+    // 일반 직원: 본인 팀만
     return all.filter(function (o) {
       if (!o) return false;
       if (cur.team && o.team && o.team !== cur.team) return false;
@@ -125,11 +195,18 @@
     });
   }
 
+  function getScopedTeamDef() {
+    // 관리자/마스터용: 현재 선택된 팀 정의
+    if (!_state.scopeTeamId) return null;
+    return getTeamDefs().find(function (t) { return t.id === _state.scopeTeamId; }) || null;
+  }
+
   // ───────── 상태 ─────────
   var _state = {
     year: null,
     month: null,      // 0-11
-    initialized: false
+    initialized: false,
+    scopeTeamId: ''   // 관리자/마스터용 팀 필터 (빈 값 = 전체 팀)
   };
 
   function initState() {
@@ -152,6 +229,7 @@
     if (label) label.textContent = _state.year + '년 ' + (_state.month + 1) + '월';
     var teamEl = $('team-off-team-label');
     if (teamEl) teamEl.textContent = myTeamLabel();
+    renderTeamPicker();
   }
 
   function renderCalendar() {
@@ -451,6 +529,13 @@
       if (_state.month > 11) { _state.month = 0; _state.year++; }
       render();
     });
+    // 관리자/마스터용 팀 필터 변경
+    var teamSel = $('team-off-team-select');
+    if (teamSel) teamSel.addEventListener('change', function () {
+      _state.scopeTeamId = teamSel.value || '';
+      render();
+    });
+
     var btnToday = $('team-off-today');
     if (btnToday) btnToday.addEventListener('click', function () {
       var d = new Date();
