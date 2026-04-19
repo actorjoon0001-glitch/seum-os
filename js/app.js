@@ -9223,31 +9223,37 @@
     var isLeaderUser = twIsLeader(team);
     var isAdmin = twIsAdminLike();
 
-    // 보장: 로그인만 되어 있으면 팀원 리스트에 본인을 반드시 포함시킨다.
-    // 팀 일치 판정(team+showroom)이 데이터 불일치로 실패해도 본인 업무일지 작성은 항상 가능하도록.
-    // id 는 employee.id / authUserId / name 기반으로 안정화해 저장이 같은 레코드에 모이게 한다.
+    // 본인이 이 팀에 소속된 경우에만 자동 주입.
+    // 다른 팀을 열람할 때는 본인을 팀원 목록에 섞지 않음 (팀당 정확한 구성원만 표시).
     if (me) {
       var alreadyListed = members.some(function (m) { return _twIsSameEmp(m); });
       if (!alreadyListed) {
-        var selfId = me.id || me.authUserId || ('self-' + (me.name || 'me'));
-        // 직원 레코드에서 position_name 조회 (currentEmployee 에 없을 수 있음)
-        var fromEmp = getEmployees().find(function (e) {
-          if (me.id && e.id === me.id) return true;
-          if (me.authUserId && e.authUserId === me.authUserId) return true;
-          if (me.name && e.name === me.name) return true;
-          return false;
-        });
-        members = members.concat([{
-          id: selfId,
-          authUserId: me.authUserId || me.id || null,
-          name: me.name || '나',
-          team: me.team || '',
-          showroom: me.showroom || '',
-          role: me.role || (fromEmp && fromEmp.role) || 'member',
-          position_name: (fromEmp && (fromEmp.position_name || fromEmp.position)) || '',
-          status: me.status || 'active',
-          __self: true
-        }]);
+        var meBelongs =
+          (me.teamWorklogTeamId && me.teamWorklogTeamId === team.id) ||
+          (team.team && me.team === team.team && (
+            !team.showroom ||
+            (team.showroom && (me.showroom || '') === team.showroom)
+          ));
+        if (meBelongs) {
+          var selfId = me.id || me.authUserId || ('self-' + (me.name || 'me'));
+          var fromEmp = getEmployees().find(function (e) {
+            if (me.id && e.id === me.id) return true;
+            if (me.authUserId && e.authUserId === me.authUserId) return true;
+            if (me.name && e.name === me.name) return true;
+            return false;
+          });
+          members = members.concat([{
+            id: selfId,
+            authUserId: me.authUserId || me.id || null,
+            name: me.name || '나',
+            team: me.team || '',
+            showroom: me.showroom || '',
+            role: me.role || (fromEmp && fromEmp.role) || 'member',
+            position_name: (fromEmp && (fromEmp.position_name || fromEmp.position)) || '',
+            status: me.status || 'active',
+            __self: true
+          }]);
+        }
       }
     }
 
