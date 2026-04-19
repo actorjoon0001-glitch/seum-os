@@ -9713,6 +9713,73 @@
     setTimeout(function () { window.print(); }, 80);
   }
 
+  // 업무일지 보관함 상세 모달 열기 — 특정 (팀, 날짜) 의 팀장 코멘트 + 팀원 기록 전체를 읽기 전용으로 노출
+  function _twOpenHistoryDetail(teamId, date) {
+    var modal = document.getElementById('tw-history-detail-modal');
+    var titleEl = document.getElementById('tw-history-detail-title');
+    var subEl = document.getElementById('tw-history-detail-sub');
+    var bodyEl = document.getElementById('tw-history-detail-body');
+    if (!modal || !bodyEl) return;
+
+    var team = twGetTeams().find(function (t) { return t.id === teamId; });
+    modal.setAttribute('data-team', teamId);
+    modal.setAttribute('data-date', date);
+    if (titleEl) titleEl.textContent = (team ? team.name : teamId) + ' 업무일지';
+    if (subEl) subEl.textContent = date;
+
+    var logs = twGetWorklogs().filter(function (w) { return w.teamId === teamId && w.date === date; });
+    var leader = logs.find(function (w) { return w.kind === 'leader'; });
+    var members = logs.filter(function (w) { return w.kind === 'member'; })
+      .sort(function (a, b) { return (a.authorName || '').localeCompare(b.authorName || '', 'ko'); });
+
+    var leaderSection = '<div class="tw-hd-section">' +
+      '<h4 class="tw-hd-section-title">📣 팀장 코멘트</h4>' +
+      '<div class="tw-hd-content' + (leader && leader.summary && leader.summary.trim() ? '' : ' tw-hd-empty') + '">' +
+        (leader && leader.summary && leader.summary.trim() ? escapeHtml(leader.summary) : '(작성되지 않음)') +
+      '</div>' +
+      '</div>';
+
+    var memberSection;
+    if (!members.length) {
+      memberSection = '<div class="tw-hd-section">' +
+        '<h4 class="tw-hd-section-title">📝 팀원 업무일지</h4>' +
+        '<div class="tw-hd-empty">작성된 팀원 업무일지가 없습니다.</div>' +
+        '</div>';
+    } else {
+      memberSection = '<div class="tw-hd-section">' +
+        '<h4 class="tw-hd-section-title">📝 팀원 업무일지 (' + members.length + '명)</h4>' +
+        members.map(function (m) {
+          var role = (m.roleType || '').toLowerCase();
+          var isLead = role === '팀장' || role === 'leader';
+          var chip = isLead
+            ? '<span class="tw-role-chip tw-role-chip-leader">[팀장]</span>'
+            : '<span class="tw-role-chip tw-role-chip-member">[팀원]</span>';
+          var pos = m.position ? '<span class="tw-hd-position">· ' + escapeHtml(m.position) + '</span>' : '';
+          var content = (m.tasks && m.tasks.trim())
+            ? escapeHtml(m.tasks)
+            : '<span class="tw-hd-empty-inline">(미작성)</span>';
+          return '<div class="tw-hd-member">' +
+            '<div class="tw-hd-member-head">' + chip +
+              '<span class="tw-hd-name">' + escapeHtml(m.authorName || '-') + '</span>' + pos +
+            '</div>' +
+            '<div class="tw-hd-content">' + content + '</div>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+    }
+
+    bodyEl.innerHTML = leaderSection + memberSection;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function _twCloseHistoryDetail() {
+    var modal = document.getElementById('tw-history-detail-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
   function _twInitEvents() {
     // 팀 선택 — 마스터/슈퍼어드민이 아니면 본인 팀 외 선택을 리셋
     var sel = document.getElementById('tw-team-select');
@@ -9814,7 +9881,7 @@
     var histLimit = document.getElementById('tw-history-limit');
     if (histLimit) histLimit.addEventListener('change', _twRenderHistory);
 
-    // 히스토리 행 '열기' 클릭 시 해당 팀+날짜로 이동
+    // 히스토리 행 '열기' 클릭 시 해당 팀+날짜의 상세 모달 오픈
     var histBody = document.getElementById('tw-history-tbody');
     if (histBody) histBody.addEventListener('click', function (e) {
       var btn = e.target.closest('[data-tw-hist-open]');
@@ -9824,15 +9891,34 @@
       var tid = tr.getAttribute('data-tw-hist-team');
       var date = tr.getAttribute('data-tw-hist-date');
       if (!tid || !date) return;
+      _twOpenHistoryDetail(tid, date);
+    });
+
+    // 상세 모달 내부 이벤트
+    var histDetailClose = document.getElementById('tw-history-detail-close');
+    if (histDetailClose) histDetailClose.addEventListener('click', _twCloseHistoryDetail);
+    var histDetailOk = document.getElementById('tw-history-detail-ok');
+    if (histDetailOk) histDetailOk.addEventListener('click', _twCloseHistoryDetail);
+    var histDetailGoto = document.getElementById('tw-history-detail-goto');
+    if (histDetailGoto) histDetailGoto.addEventListener('click', function () {
+      var modal = document.getElementById('tw-history-detail-modal');
+      var tid = modal && modal.getAttribute('data-team');
+      var date = modal && modal.getAttribute('data-date');
+      if (!tid || !date) return;
       _twState.teamId = tid;
       _twState.date = date;
       var ts = document.getElementById('tw-team-select');
       if (ts) ts.value = tid;
       var di = document.getElementById('tw-date');
       if (di) di.value = date;
+      _twCloseHistoryDetail();
       renderTeamWorklog();
       var card = document.getElementById('tw-leader-comment-card');
       if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    var histDetailModal = document.getElementById('tw-history-detail-modal');
+    if (histDetailModal) histDetailModal.addEventListener('click', function (e) {
+      if (e.target === histDetailModal) _twCloseHistoryDetail();
     });
 
     // 팀원 인라인: 저장 / 초기화 이벤트 위임

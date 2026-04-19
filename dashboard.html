@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-07">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-08">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3130,6 +3130,26 @@
         </div>
       </div>
 
+      <!-- 업무일지 보관함 상세 모달 -->
+      <div id="tw-history-detail-modal" class="team-off-modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="team-off-modal tw-history-detail-modal">
+          <div class="team-off-modal-head">
+            <div>
+              <h3 id="tw-history-detail-title">팀 업무일지 상세</h3>
+              <p class="tw-history-detail-sub" id="tw-history-detail-sub">-</p>
+            </div>
+            <button type="button" class="team-off-modal-close" id="tw-history-detail-close" aria-label="닫기">×</button>
+          </div>
+          <div class="tw-history-detail-body" id="tw-history-detail-body">
+            <!-- JS 렌더 -->
+          </div>
+          <div class="team-off-form-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="tw-history-detail-goto">이 날짜로 이동</button>
+            <button type="button" class="btn btn-primary btn-sm" id="tw-history-detail-ok">닫기</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 팀원 작성 모달 -->
       <div id="tw-member-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="tw-member-title">
         <div class="modal-content modal-content-wide tw-member-modal-content">
@@ -4984,7 +5004,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260419-21"></script>
+  <script src="js/app.js?v=20260419-22"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>

@@ -12876,6 +12876,74 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* 보관함 히스토리 */
 .tw-history-card { margin-top: 1rem; }
+
+/* 업무일지 보관함 상세 모달 */
+.tw-history-detail-modal { max-width: 680px; }
+.tw-history-detail-sub {
+  margin: 2px 0 0;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+.tw-history-detail-body {
+  padding: 0 1.1rem 0.5rem;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+.tw-hd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.tw-hd-section:last-child { border-bottom: none; }
+.tw-hd-section-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  color: #60a5fa;
+  font-weight: 700;
+}
+.tw-hd-content {
+  padding: 0.5rem 0.7rem;
+  background: rgba(15, 23, 42, 0.55);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  color: #e5e7eb;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+.tw-hd-content.tw-hd-empty,
+.tw-hd-empty {
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.82rem;
+}
+.tw-hd-empty-inline {
+  color: #f87171;
+  font-size: 0.82rem;
+}
+.tw-hd-member {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  border-top: 1px dashed rgba(148, 163, 184, 0.15);
+}
+.tw-hd-member:first-of-type { border-top: none; }
+.tw-hd-member-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tw-hd-name {
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.tw-hd-position {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
 .tw-history-header {
   display: flex;
   justify-content: space-between;
