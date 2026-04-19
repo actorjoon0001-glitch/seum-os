@@ -8811,11 +8811,11 @@
   }
 
   // 선택된 팀의 팀원 목록
-  // 매칭 우선순위:
-  //  1) teamWorklogTeamId === team.id (정확 매칭)
-  //  2) 같은 team 문자열을 공유하는 팀이 여러 개(예: 영업팀 5개)인 경우
-  //     showroom 필드로도 매칭 (team + showroom 둘 다 일치)
-  //  3) 같은 team 문자열을 쓰는 팀이 유일할 때만 team 필드 단독 매칭 fallback
+  // 매칭 규칙(중복 제거 후 합집합):
+  //  A) teamWorklogTeamId === team.id (명시 배정)
+  //  B) team 문자열 일치 + (팀에 showroom 지정이면 showroom 까지 일치 / 아니면 team 만 일치)
+  //     같은 team 을 공유하는 팀이 여러 개인데 팀에 showroom 이 없으면 수동 배정 필요
+  //     → 이 경우 B 규칙에서 제외
   function twGetTeamMembers(team) {
     if (!team) return [];
     var sortTeam = function (arr) {
@@ -8831,25 +8831,36 @@
     var active = getEmployees().filter(function (e) {
       return !(e.status && e.status !== 'active' && e.status !== 'pending');
     });
-    // 1) teamWorklogTeamId 정확 매칭
-    var specific = active.filter(function (e) { return e.teamWorklogTeamId === team.id; });
-    if (specific.length) return sortTeam(specific);
 
-    // 2) 같은 team 문자열을 공유하는 팀이 여러 개면 showroom 조합으로 매칭
-    var teams = twGetTeams();
-    var sharing = team.team ? teams.filter(function (t) { return t.team === team.team; }) : [];
-    if (sharing.length > 1) {
-      if (!team.showroom) return []; // 본사 공통일 경우 showroom 없음 → 수동 배정 필요
-      return sortTeam(active.filter(function (e) {
-        return e.team === team.team && (e.showroom || '') === team.showroom;
-      }));
-    }
+    // A) 명시 배정
+    var byId = active.filter(function (e) { return e.teamWorklogTeamId === team.id; });
 
-    // 3) team 문자열이 유일한 경우 (본사 마케팅/설계/시공/정산) fallback
+    // B) team/showroom 매칭 (중복은 나중에 제거)
+    var byTeam = [];
     if (team.team) {
-      return sortTeam(active.filter(function (e) { return e.team === team.team; }));
+      var teams = twGetTeams();
+      var sharing = teams.filter(function (t) { return t.team === team.team; });
+      if (team.showroom) {
+        byTeam = active.filter(function (e) {
+          return e.team === team.team && (e.showroom || '') === team.showroom;
+        });
+      } else if (sharing.length <= 1) {
+        // team 이 유일한 경우 (본사 마케팅/설계/시공/정산 등)
+        byTeam = active.filter(function (e) { return e.team === team.team; });
+      }
+      // sharing.length > 1 && !team.showroom → 수동 배정(A)만 사용
     }
-    return [];
+
+    // 합집합 (id 기준 중복 제거)
+    var seen = {};
+    var combined = [];
+    byId.concat(byTeam).forEach(function (e) {
+      var key = e.id || e.authUserId || e.name;
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      combined.push(e);
+    });
+    return sortTeam(combined);
   }
 
   function twGetEntry(teamId, date, kind, authorId) {
