@@ -3547,7 +3547,44 @@
         var cid = btn.getAttribute('data-contract-id');
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
-        if (c) { c.priorityDone = true; saveContracts(cs); savePriorityField(cid, true, !!c.isUrgent); renderDesignPriority(); }
+        if (!c) return;
+        c.priorityDone = true;
+        saveContracts(cs);
+        savePriorityField(cid, true, !!c.isUrgent);
+        renderDesignPriority();
+
+        // 알림 전송: 시공팀 전체 + 담당 영업사원 (+ 마스터/관리자는 auto 수신)
+        //  · 계약서 등록 알림과 동일한 구조로 seumNotifications.send 재사용
+        try {
+          var notif = window.seumNotifications && window.seumNotifications.send;
+          if (typeof notif === 'function') {
+            var title = '✅ 설계 작업 완료';
+            var body = '고객 ' + (c.customerName || '-')
+              + ' · 모델 ' + (c.contractModelName || c.contractModel || '-')
+              + (c.salesPerson ? ' · 담당 ' + c.salesPerson : '');
+            // 1) 시공팀 전체 (마스터/관리자는 team 과 무관하게 수신)
+            notif({
+              contractId: c.id,
+              customerName: c.customerName || '',
+              salesPerson: c.salesPerson || '',
+              recipientTeam: '시공',
+              title: title,
+              body: body
+            });
+            // 2) 담당 영업사원 (개인 지정) — team 이 영업이 아닌 다른 팀일 수도 있어 별도 알림
+            if (c.salesPerson) {
+              notif({
+                contractId: c.id,
+                customerName: c.customerName || '',
+                salesPerson: c.salesPerson || '',
+                recipientTeam: null,
+                recipientName: c.salesPerson,
+                title: title,
+                body: body
+              });
+            }
+          }
+        } catch (err) { console.warn('[priority-done] notify failed:', err); }
       });
     });
 
