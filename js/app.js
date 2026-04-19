@@ -8909,13 +8909,34 @@
       });
   }
 
+  // entry.authorId 가 employees.id (integer) 일 수 있으므로 auth_user_id (UUID) 로 변환.
+  // UUID 가 없으면 null 반환 — Supabase user_id 컬럼은 UUID 타입이라 숫자를 그대로 넣으면 실패.
+  function _twResolveAuthUserId(entry) {
+    if (!entry) return null;
+    if (entry.authorAuthUserId) return entry.authorAuthUserId;
+    try {
+      var emps = getEmployees();
+      var target = emps.find(function (e) {
+        if (!e) return false;
+        if (entry.authorId && (e.id === entry.authorId || e.authUserId === entry.authorId)) return true;
+        if (entry.authorName && e.name === entry.authorName) return true;
+        return false;
+      });
+      if (target && target.authUserId) return target.authUserId;
+    } catch (e) {}
+    // 본인 저장 케이스면 현재 로그인 UUID 로 fallback
+    var me = window.seumAuth && window.seumAuth.currentEmployee;
+    if (me && me.authUserId && entry.authorName && me.name === entry.authorName) return me.authUserId;
+    return null;
+  }
+
   function twRemoteUpsertEntry(entry) {
     var supabase = _twSupa();
     if (!supabase) return;
     if (!entry || !entry.teamId || !entry.date) return;
     try {
       twRemoteEnsureReport(entry.teamId, entry.date).then(function (reportId) {
-        if (!reportId) return;
+        if (!reportId) { console.warn('[tw remote] no reportId — ensureReport returned empty'); return; }
         if (entry.kind === 'leader') {
           // 팀장 코멘트 → team_reports.leader_comment
           supabase.from('team_reports')
@@ -8923,14 +8944,20 @@
             .eq('id', reportId)
             .then(function (r) {
               if (r && r.error) console.warn('[tw remote] leader update failed:', r.error);
+              else console.log('[tw remote] leader saved');
             });
         } else {
-          // 팀원 업무 → team_report_items upsert
+          // 팀원 업무 → team_report_items upsert (user_id 는 auth.users UUID)
+          var authUserId = _twResolveAuthUserId(entry);
+          if (!authUserId) {
+            console.warn('[tw remote] cannot resolve auth_user_id for entry:', entry.authorName, entry.authorId);
+            return;
+          }
           var content = entry.tasks || '';
           var done = content && content.trim();
           supabase.from('team_report_items').upsert({
             report_id: reportId,
-            user_id: entry.authorId || null,
+            user_id: authUserId,
             author_name: entry.authorName || '',
             role_type: entry.roleType || '팀원',
             position: entry.position || '',
@@ -8938,6 +8965,7 @@
             status: done ? '작성완료' : '미작성'
           }, { onConflict: 'report_id,user_id' }).then(function (r) {
             if (r && r.error) console.warn('[tw remote] item upsert failed:', r.error);
+            else console.log('[tw remote] item saved for', entry.authorName);
           });
         }
       }, function (err) { console.warn('[tw remote] ensureReport rejected:', err); });
@@ -8962,10 +8990,12 @@
               .eq('id', reportId)
               .then(function (r) { if (r && r.error) console.warn('[tw remote] leader clear failed:', r.error); });
           } else {
+            var authUserId = _twResolveAuthUserId({ authorId: authorId });
+            if (!authUserId) { console.warn('[tw remote] cannot resolve auth_user_id for delete:', authorId); return; }
             supabase.from('team_report_items')
               .delete()
               .eq('report_id', reportId)
-              .eq('user_id', authorId)
+              .eq('user_id', authUserId)
               .then(function (r) { if (r && r.error) console.warn('[tw remote] item delete failed:', r.error); });
           }
         });
@@ -8986,10 +9016,10 @@
             return;
           }
           if (!Array.isArray(res.data)) return;
-          var rows = [];
+          var remoteRows = [];
           res.data.forEach(function (rep) {
             if (rep.leader_comment && rep.leader_comment.trim()) {
-              rows.push({
+              remoteRows.push({
                 id: 'tw-leader-' + rep.id,
                 teamId: rep.team_id,
                 date: rep.report_date,
@@ -9003,7 +9033,7 @@
               });
             }
             (rep.team_report_items || []).forEach(function (it) {
-              rows.push({
+              remoteRows.push({
                 id: 'tw-item-' + (it.id || (rep.id + '-' + (it.user_id || ''))),
                 teamId: rep.team_id,
                 date: rep.report_date,
@@ -9020,8 +9050,27 @@
               });
             });
           });
-          // 로컬 캐시 교체 (원격 = 소스 오브 트루스)
-          twSaveWorklogs(rows);
+
+          // 머지 전략: 원격 = 소스 오브 트루스. (teamId, date, kind, authorId) 기준
+          //  · 원격에 있으면 원격 버전으로 교체
+          //  · 원격에 없는 로컬 엔트리는 보존 (아직 Supabase 반영 대기 중이거나 실패한 저장 포함)
+          //  이 방식이 중요한 이유: Supabase insert 가 비동기로 늦게 반영되면
+          //  이 시점에 remoteRows 가 비어있는 상태로 로컬을 통째로 지울 수 있음.
+          var keyOf = function (w) {
+            return (w.teamId || '') + '|' + (w.date || '') + '|' + (w.kind || '') +
+                   '|' + (w.kind === 'leader' ? '' : (w.authorId || ''));
+          };
+          var remoteKeys = {};
+          remoteRows.forEach(function (r) { remoteKeys[keyOf(r)] = true; });
+          var localKept = twGetWorklogs().filter(function (w) {
+            // 내용이 있는 로컬 엔트리 중 원격에 없는 것은 유지
+            if (remoteKeys[keyOf(w)]) return false;
+            if (w.kind === 'leader' && w.summary && w.summary.trim()) return true;
+            if (w.kind === 'member' && w.tasks && w.tasks.trim()) return true;
+            return false;
+          });
+          twSaveWorklogs(remoteRows.concat(localKept));
+
           // 현재 화면이 팀 업무일지면 재렌더
           var active = document.querySelector('#section-team-worklog.active');
           if (active && typeof renderTeamWorklog === 'function') renderTeamWorklog();
