@@ -2196,11 +2196,7 @@ button,
   outline: 2px solid #60a5fa;
   outline-offset: -2px;
 }
-/* 주말 컬럼에 살짝 다른 톤 */
-.team-off-grid > .team-off-cell:nth-child(7n+1):not(.team-off-cell-empty) { background: rgba(127, 29, 29, 0.14); }
-.team-off-grid > .team-off-cell:nth-child(7n):not(.team-off-cell-empty) { background: rgba(29, 78, 216, 0.10); }
-.team-off-grid > .team-off-cell:nth-child(7n+1):hover { background: rgba(127, 29, 29, 0.22); }
-.team-off-grid > .team-off-cell:nth-child(7n):hover { background: rgba(29, 78, 216, 0.18); }
+/* 주말 자동 색상 제거 — 영업팀 등 주말 근무 팀 고려, 휴무는 명시 등록만 색 표시 */
 
 .team-off-cell-empty {
   background: rgba(15, 23, 42, 0.4) !important;
@@ -2278,8 +2274,7 @@ button,
   color: #dbeafe;
   font-size: 0.95rem;
 }
-.team-off-grid > .team-off-cell:nth-child(7n+1) .team-off-date-num { color: #fca5a5; }
-.team-off-grid > .team-off-cell:nth-child(7n) .team-off-date-num { color: #93c5fd; }
+/* 날짜 숫자도 주말 자동 색 제거 — 모든 셀 동일 톤 */
 .team-off-cell-count {
   font-size: 0.65rem;
   font-weight: 700;
