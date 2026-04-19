@@ -9847,23 +9847,31 @@
       if (member.name && cur.name && member.name === cur.name) return true;
       return false;
     }
+    // 팀원 찾기 — data 속성(문자열) 과 employees.id(숫자) 간 타입 차이 때문에 반드시 String() 비교
+    function _twFindMemberById(team, rawId) {
+      if (!team || rawId == null) return null;
+      var key = String(rawId);
+      return twGetTeamMembers(team).find(function (m) {
+        return String(m.id) === key || String(m.authUserId || '') === key;
+      }) || null;
+    }
+
     if (inlineList) inlineList.addEventListener('click', function (e) {
       var team = _twCurrentTeam();
       if (!team) return;
       var saveBtn = e.target.closest('[data-tw-inline-save]');
       if (saveBtn) {
         var authorId = saveBtn.getAttribute('data-tw-inline-save');
-        var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
-        if (!member) return;
+        var member = _twFindMemberById(team, authorId);
+        if (!member) { console.warn('[tw] member not found for save:', authorId); return; }
         var isMe = _twIsMyRow(member);
         if (!isMe && !twIsLeader(team) && !twIsAdminLike()) {
           showToast('본인 입력칸만 수정할 수 있습니다.', 'error');
           return;
         }
-        var ta = inlineList.querySelector('textarea[data-tw-inline-author="' + member.id.replace(/["\\]/g, '\\$&') + '"]');
+        var ta = inlineList.querySelector('textarea[data-tw-inline-author="' + String(member.id).replace(/["\\]/g, '\\$&') + '"]');
         var tasks = ta ? ta.value.trim() : '';
         if (!tasks) { showToast('내용을 입력해 주세요.', 'error'); return; }
-        // role_type / position 정보를 Supabase team_report_items 에 함께 기록
         var memberRole = (member.role || '').toString().toLowerCase();
         var memberIsLeader = memberRole === 'leader' || memberRole === '팀장' || memberRole === 'team_lead' || memberRole === 'manager';
         var entry = {
@@ -9871,6 +9879,7 @@
           date: _twState.date,
           kind: 'member',
           authorId: member.id,
+          authorAuthUserId: member.authUserId || null,
           authorName: member.name || '',
           roleType: memberIsLeader ? '팀장' : '팀원',
           position: member.position_name || member.position || '',
@@ -9879,7 +9888,7 @@
           tomorrow: ''
         };
         if (!twUpsertEntry(entry)) return;
-        var savedEl = inlineList.querySelector('[data-tw-inline-saved="' + member.id.replace(/["\\]/g, '\\$&') + '"]');
+        var savedEl = inlineList.querySelector('[data-tw-inline-saved="' + String(member.id).replace(/["\\]/g, '\\$&') + '"]');
         if (savedEl) {
           savedEl.textContent = '저장 완료';
           setTimeout(function () { savedEl.textContent = ''; }, 2500);
@@ -9891,8 +9900,8 @@
       var clearBtn = e.target.closest('[data-tw-inline-clear]');
       if (clearBtn) {
         var clearAuthorId = clearBtn.getAttribute('data-tw-inline-clear');
-        var cm = twGetTeamMembers(team).find(function (m) { return m.id === clearAuthorId; });
-        if (!cm) return;
+        var cm = _twFindMemberById(team, clearAuthorId);
+        if (!cm) { console.warn('[tw] member not found for clear:', clearAuthorId); return; }
         if (!_twIsMyRow(cm) && !twIsLeader(team) && !twIsAdminLike()) {
           showToast('본인 입력칸만 초기화할 수 있습니다.', 'error');
           return;
