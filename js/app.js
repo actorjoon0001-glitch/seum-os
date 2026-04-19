@@ -8784,6 +8784,22 @@
     if (twIsAdminLike()) return true;
     var cur = window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur) return false;
+
+    // 1) 직원 레코드에 teamWorklogTeamId 가 명시되어 있으면 그걸로 판단
+    if (cur.teamWorklogTeamId) return cur.teamWorklogTeamId === team.id;
+
+    // 2) 본인 team 필드가 팀의 team 과 일치
+    if (team.team && cur.team && cur.team === team.team) {
+      // 해당 팀이 showroom 지정이면 showroom 도 일치해야 함 (영업팀 다수 구분)
+      if (team.showroom) {
+        if ((cur.showroom || '') === team.showroom) return true;
+      } else {
+        // 본사 공통 팀(마케팅/설계/시공/정산 등) — showroom 미지정이면 team 일치만으로 허용
+        return true;
+      }
+    }
+
+    // 3) id/name 기반 최종 fallback — twGetTeamMembers 에 명시 배정된 경우
     var myId = cur.id || cur.authUserId || '';
     var myName = cur.name || '';
     var members = twGetTeamMembers(team);
