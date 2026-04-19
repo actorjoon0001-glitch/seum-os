@@ -1159,7 +1159,28 @@
     }
   }
 
+  // 대시보드 빠른실행 근태 카드의 실시간 시계
+  var _dashClockTimer = null;
+  function startDashboardClock() {
+    var clockEl = document.getElementById('dash-attendance-clock');
+    if (!clockEl) return;
+    function tick() {
+      var d = new Date();
+      var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      clockEl.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+    tick();
+    if (_dashClockTimer) clearInterval(_dashClockTimer);
+    _dashClockTimer = setInterval(tick, 1000);
+  }
+
   function renderDashboard() {
+    // 대시보드 진입 시 근태 카드 렌더 + 시계 시작
+    startDashboardClock();
+    if (window.seumAttendance && typeof window.seumAttendance.render === 'function') {
+      try { window.seumAttendance.render(); } catch (e) { /* ignore */ }
+    }
+
     var _dashIsPrivileged = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
     var _dashMyShowroom = getMyShowroomId();
     var _allContracts = getContracts();
@@ -9830,6 +9851,7 @@
     if (sectionId === 'team-calendar') renderTeamCalendar();
     if (sectionId === 'worklog') renderWorklog();
     if (sectionId === 'team-worklog') renderTeamWorklog();
+    if (sectionId === 'dashboard' && window.seumAttendance && typeof window.seumAttendance.render === 'function') window.seumAttendance.render();
     if (sectionId === 'attendance' && window.seumAttendance && typeof window.seumAttendance.render === 'function') window.seumAttendance.render();
     if (sectionId === 'leave' && window.seumLeave && typeof window.seumLeave.render === 'function') window.seumLeave.render();
     if (sectionId === 'construction-worklog') renderConstructionWorklog();
