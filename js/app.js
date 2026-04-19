@@ -8885,9 +8885,15 @@
   //   team_report_items.report_id / user_id / author_name / role_type /
   //                      position / content / status
   // ─────────────────────────────────────────────────────────────
+  function _twSupa() {
+    var s = (typeof window !== 'undefined') && (window.seumSupabase || window.supabase);
+    return (s && typeof s.from === 'function') ? s : null;
+  }
+
   function twRemoteEnsureReport(teamId, reportDate) {
     // (team_id, report_date) 레포트가 없으면 생성. 이미 있으면 id 반환.
-    if (typeof supabase === 'undefined' || !supabase) return Promise.resolve(null);
+    var supabase = _twSupa();
+    if (!supabase) return Promise.resolve(null);
     return supabase.from('team_reports')
       .select('id')
       .eq('team_id', teamId)
@@ -8904,7 +8910,8 @@
   }
 
   function twRemoteUpsertEntry(entry) {
-    if (typeof supabase === 'undefined' || !supabase) return;
+    var supabase = _twSupa();
+    if (!supabase) return;
     if (!entry || !entry.teamId || !entry.date) return;
     try {
       twRemoteEnsureReport(entry.teamId, entry.date).then(function (reportId) {
@@ -8938,7 +8945,8 @@
   }
 
   function twRemoteDeleteEntry(teamId, reportDate, kind, authorId) {
-    if (typeof supabase === 'undefined' || !supabase) return;
+    var supabase = _twSupa();
+    if (!supabase) return;
     try {
       supabase.from('team_reports')
         .select('id')
@@ -8967,7 +8975,8 @@
   // 앱 초기화 시 Supabase 에서 팀 업무일지 전체를 끌어와 localStorage 캐시로 사용.
   // 테이블이 없거나 RLS 로 거부되어도 기존 로컬 데이터 그대로 유지.
   function twRemoteSyncAll() {
-    if (typeof supabase === 'undefined' || !supabase) return;
+    var supabase = _twSupa();
+    if (!supabase) return;
     try {
       supabase.from('team_reports')
         .select('id, team_id, report_date, leader_comment, updated_at, created_at, team_report_items(id, user_id, author_name, role_type, position, content, status, updated_at, created_at)')
@@ -13826,7 +13835,8 @@
   // 한 번 채워두면 실제 팀원들이 바로 보임.
   // 컬럼 환경이 달라도 깨지지 않도록 select('*') 사용.
   function syncEmployeesFromSupabase() {
-    if (typeof supabase === 'undefined' || !supabase) return;
+    var supabase = (typeof window !== 'undefined') && (window.seumSupabase || window.supabase);
+    if (!supabase || typeof supabase.from !== 'function') return;
     try {
       supabase.from('employees')
         .select('*')
