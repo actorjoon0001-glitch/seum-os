@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-04">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-05">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3005,10 +3005,6 @@
             <label for="tw-date">날짜</label>
             <input type="date" id="tw-date">
           </div>
-          <div class="tw-field tw-field-status">
-            <span class="tw-status-chip tw-status-done"><b id="tw-stat-done">0</b> 작성 완료</span>
-            <span class="tw-status-chip tw-status-pending"><b id="tw-stat-pending">0</b> 미작성</span>
-          </div>
           <div class="tw-actions">
             <button type="button" class="btn btn-primary" id="tw-btn-print">🖨 A4 출력</button>
           </div>
@@ -3039,69 +3035,35 @@
         </div>
       </div>
 
-      <!-- 팀 공동 업무일지 작성 영역 (팀원 누구나 작성/수정 가능) -->
-      <div class="card tw-leader-card" id="tw-leader-card">
-        <div class="tw-leader-header">
+      <!-- 팀장 코멘트 (팀장 전용 작성) -->
+      <div class="card tw-leader-comment-card" id="tw-leader-comment-card">
+        <div class="tw-leader-comment-head">
           <div>
-            <h3 class="tw-leader-title">팀 업무일지</h3>
-            <p class="tw-leader-sub" id="tw-leader-sub">팀원 누구나 작성·수정할 수 있습니다.</p>
+            <h3 class="tw-leader-comment-title">📣 팀장 코멘트</h3>
+            <p class="tw-leader-comment-sub" id="tw-leader-comment-sub">팀 전체 요약·지시사항·내일 계획을 한눈에 공유합니다.</p>
           </div>
-          <div class="tw-leader-meta" id="tw-leader-meta"></div>
+          <div class="tw-leader-comment-meta" id="tw-leader-comment-meta"></div>
         </div>
-        <div id="tw-leader-view" class="tw-leader-view"></div>
-        <form id="tw-leader-form" class="tw-leader-form hidden">
-          <div class="tw-author-info" id="tw-author-info" aria-live="polite">
-            <div class="tw-author-row tw-author-row-select">
-              <label class="tw-author-label" for="tw-write-team">작성 팀</label>
-              <select id="tw-write-team" class="tw-author-select"></select>
-            </div>
-            <div class="tw-author-row">
-              <span class="tw-author-label">작성자</span>
-              <span class="tw-author-value" id="tw-author-name">-</span>
-            </div>
-            <div class="tw-author-row">
-              <span class="tw-author-label">내 소속</span>
-              <span class="tw-author-value" id="tw-author-own">-</span>
-            </div>
-            <div class="tw-author-warn hidden" id="tw-author-warn">
-              ⚠ 선택된 팀과 내 소속이 일치하지 않습니다. 이사님 보고는 팀별로 그룹화되므로 본인 팀이 맞는지 확인해 주세요.
-            </div>
-          </div>
-          <div class="tw-form-grid">
-            <div class="tw-form-field tw-form-field-wide">
-              <label for="tw-leader-summary">팀 전체 업무 요약</label>
-              <textarea id="tw-leader-summary" rows="3" placeholder="오늘 팀이 수행한 주요 업무 요약"></textarea>
-            </div>
-            <div class="tw-form-field">
-              <label for="tw-leader-progress">진행 상황</label>
-              <textarea id="tw-leader-progress" rows="3" placeholder="진행률 / 주요 마일스톤"></textarea>
-            </div>
-            <div class="tw-form-field">
-              <label for="tw-leader-issues">이슈 사항</label>
-              <textarea id="tw-leader-issues" rows="3" placeholder="리스크 / 지연 / 의사결정 필요"></textarea>
-            </div>
-            <div class="tw-form-field tw-form-field-wide">
-              <label for="tw-leader-tomorrow">내일 계획</label>
-              <textarea id="tw-leader-tomorrow" rows="2" placeholder="내일 팀 우선순위"></textarea>
-            </div>
-          </div>
-          <div class="tw-form-actions">
-            <button type="submit" class="btn btn-primary">저장</button>
-            <button type="button" class="btn btn-secondary" id="tw-leader-cancel">취소</button>
-          </div>
-        </form>
-        <div class="tw-leader-footer">
-          <button type="button" class="btn btn-primary btn-sm" id="tw-leader-edit">팀 업무일지 작성/수정</button>
+        <textarea id="tw-leader-comment" class="tw-leader-comment-textarea" rows="3" placeholder="팀 전체 요약 · 지시사항 · 내일 계획 (팀장 전용)"></textarea>
+        <div class="tw-leader-comment-actions">
+          <span class="tw-leader-comment-saved" id="tw-leader-comment-saved"></span>
+          <button type="button" class="btn btn-primary btn-sm" id="tw-leader-comment-save">저장</button>
         </div>
       </div>
 
-      <!-- 팀원 작성 영역 -->
-      <div class="card tw-members-card">
-        <div class="tw-members-header">
-          <h3>팀원 업무일지</h3>
-          <span class="tw-members-note">본인 카드만 수정할 수 있습니다. 미작성자는 빨간 표시로 구분됩니다.</span>
+      <!-- 팀원 업무일지 (인라인 작성 — 팝업/추가 버튼 없이 바로 입력) -->
+      <div class="card tw-members-inline-card">
+        <div class="tw-members-inline-head">
+          <div>
+            <h3>📝 팀원 업무일지</h3>
+            <p class="tw-members-inline-hint">본인 이름 옆 입력창에 오늘 업무를 바로 작성하세요. 저장 버튼을 눌러 반영합니다.</p>
+          </div>
+          <div class="tw-members-inline-stats">
+            <span class="tw-status-chip tw-status-done"><b id="tw-stat-done">0</b> 작성 완료</span>
+            <span class="tw-status-chip tw-status-pending"><b id="tw-stat-pending">0</b> 미작성</span>
+          </div>
         </div>
-        <div id="tw-members-list" class="tw-members-list"></div>
+        <div id="tw-members-inline-list" class="tw-members-inline-list"></div>
       </div>
 
       <!-- 보관된 업무일지 히스토리 -->
@@ -4991,7 +4953,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260419-02"></script>
+  <script src="js/app.js?v=20260419-05"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
