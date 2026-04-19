@@ -53,6 +53,93 @@
     catch (e) { showToast('저장 용량이 초과됐습니다.', 'error'); return false; }
   }
 
+  function _supa() {
+    var s = (typeof window !== 'undefined') && (window.seumSupabase || window.supabase);
+    return (s && typeof s.from === 'function') ? s : null;
+  }
+
+  // 월차/연차 신청(leave_requests) 에서 승인된 항목을 가져와 휴무 엔트리로 변환.
+  // 월간 근무 캘린더에서 보이는 휴무들이 팀 휴무 캘린더에도 노출되도록 합집합 처리.
+  var _leaveCache = {};   // 'YYYY-MM' → 변환된 엔트리 배열
+  function fetchMonthLeaves(year, month) {
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve([]);
+    var key = year + '-' + pad(month + 1);
+    var first = key + '-01';
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var last = key + '-' + pad(lastDay);
+    return supabase.from('leave_requests')
+      .select('id, user_id, type, start_date, end_date, status')
+      .eq('status', 'approved')
+      .lte('start_date', last)
+      .gte('end_date', first)
+      .then(function (r) {
+        if (r && r.error) { console.warn('[team-off] leave fetch failed:', r.error); return []; }
+        return Array.isArray(r && r.data) ? r.data : [];
+      }, function () { return []; });
+  }
+
+  function mapLeaveTypeToOff(t) {
+    if (t === 'annual') return 'annual';
+    if (t === 'half_am') return 'half_am';
+    if (t === 'half_pm') return 'half_pm';
+    if (t === 'half') return 'half';
+    if (t === 'sick' || t === 'outside' || t === 'business_trip') return 'other';
+    return 'other';
+  }
+  function _leaveTypeKo(t) {
+    return ({ annual:'연차', half_am:'오전 반차', half_pm:'오후 반차', half:'반차',
+              sick:'병가', outside:'외근', business_trip:'출장' })[t] || t;
+  }
+
+  function expandLeaveToOffEntries(leaves) {
+    if (!leaves || !leaves.length) return [];
+    var emps = (typeof window.getEmployees === 'function') ? window.getEmployees() : [];
+    var byAuth = {};
+    emps.forEach(function (e) { if (e && e.authUserId) byAuth[e.authUserId] = e; });
+    var entries = [];
+    leaves.forEach(function (lv) {
+      var emp = byAuth[lv.user_id];
+      if (!emp) return;
+      var type = mapLeaveTypeToOff(lv.type);
+      var start = new Date(lv.start_date + 'T00:00:00');
+      var end = new Date(lv.end_date + 'T00:00:00');
+      var memo = '신청 ' + _leaveTypeKo(lv.type);
+      for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        var dateStr = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        entries.push({
+          id: 'leave-' + lv.id + '-' + dateStr,
+          employeeId: emp.id,
+          employeeName: emp.name || '',
+          team: emp.team || '',
+          showroom: emp.showroom || '',
+          date: dateStr,
+          type: type,
+          memo: memo,
+          __fromLeave: true
+        });
+      }
+    });
+    return entries;
+  }
+
+  function getAllWithLeaves() {
+    // 로컬 휴무 + 캐시된 월차/연차(승인됨) 합집합. (employeeId, date) 기준 dedup.
+    var local = getAll();
+    var leaves = [];
+    Object.keys(_leaveCache).forEach(function (k) { leaves = leaves.concat(_leaveCache[k]); });
+    var seen = {};
+    var out = [];
+    local.concat(leaves).forEach(function (o) {
+      if (!o || !o.date || !o.employeeId) return;
+      var key = String(o.employeeId) + '|' + o.date;
+      if (seen[key]) return;  // 로컬이 우선 (먼저 들어옴)
+      seen[key] = true;
+      out.push(o);
+    });
+    return out;
+  }
+
   // ───────── 권한 ─────────
   function currentEmployee() {
     return (window.seumAuth && window.seumAuth.currentEmployee) || null;
@@ -222,6 +309,19 @@
     ensureInit();
     renderHeader();
     renderCalendar();
+    // 현재 월의 승인된 휴가 신청을 비동기로 가져와 캐시 후 재렌더 — 캘린더에 합쳐 표시
+    ensureLeavesForMonth(_state.year, _state.month);
+  }
+
+  function ensureLeavesForMonth(year, month) {
+    var key = year + '-' + pad(month + 1);
+    if (_leaveCache[key] != null) return; // 이미 가져온 적 있으면 패스 (재진입 시 즉시 사용)
+    _leaveCache[key] = []; // 동시 다발 fetch 방지용 마커
+    fetchMonthLeaves(year, month).then(function (leaves) {
+      _leaveCache[key] = expandLeaveToOffEntries(leaves);
+      // 캘린더 다시 그림
+      renderCalendar();
+    });
   }
 
   function renderHeader() {
@@ -242,7 +342,7 @@
     var todayStr = todayIso();
 
     var byDate = {};
-    var scoped = filterOffForMyTeam(getAll());
+    var scoped = filterOffForMyTeam(getAllWithLeaves());
     scoped.forEach(function (o) {
       if (!o.date) return;
       if (!byDate[o.date]) byDate[o.date] = [];
