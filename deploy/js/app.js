@@ -11719,12 +11719,12 @@
         opt.textContent = y + '년';
         yearEl.appendChild(opt);
       }
-      yearEl.value = String(currentYear);
+      yearEl.value = '';
       yearEl.addEventListener('change', onFilterChange);
     }
     var monthEl = document.getElementById('filter-month');
     if (monthEl) {
-      monthEl.value = String(new Date().getMonth() + 1);
+      monthEl.value = '';
       monthEl.addEventListener('change', onFilterChange);
     }
     function onFilterChange() {
