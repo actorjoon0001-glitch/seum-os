@@ -8776,10 +8776,24 @@
         return (a.name || '').localeCompare(b.name || '', 'ko');
       });
     };
+    // 과거 샘플 더미와 이름이 겹치는 경우까지 차단하는 안전망
+    var TW_MEMBER_DUMMY_NAMES = {
+      '김마케팅': 1, '박콘텐츠': 1, '이광고': 1, '한마케팅': 1,
+      '정본사': 1, '강본영': 1, '박본상': 1,
+      '오설계': 1, '장도면': 1, '윤평면': 1,
+      '강시공': 1, '문현장': 1, '배감리': 1,
+      '서정산': 1, '조회계': 1, '안재무': 1,
+      '최영업': 1, '정상담': 1, '한계약': 1,
+      '송방문': 1, '노상담': 1, '황견적': 1,
+      '유전시': 1, '임방문': 1, '남계약': 1,
+      '권강화': 1, '하상담': 1, '신계약': 1,
+      '고안동': 1, '손상담': 1, '전계약': 1
+    };
     var active = getEmployees().filter(function (e) {
-      if (e.status && e.status !== 'active' && e.status !== 'pending') return false;
-      // 과거 샘플 시드로 주입된 더미 직원(id가 'tw-' 로 시작)을 팀원 리스트에서 제외
+      if (!e) return false;
+      if (e.status && e.status !== 'active' && e.status !== 'pending' && e.status !== 'approved') return false;
       if (e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0) return false;
+      if (e.name && TW_MEMBER_DUMMY_NAMES[e.name]) return false;
       return true;
     });
 
@@ -13874,9 +13888,29 @@
     try {
       var emps = getEmployees();
       var dummyIds = {};
+      // 1) id 가 'tw-' 로 시작하는 과거 시드 더미 제거
+      // 2) 이름 기반으로 과거 '샘플 팀 불러오기' 더미와 동일한 이름 제거
+      //    (한마케팅/김마케팅/박콘텐츠/이광고/오설계 등)
+      var DUMMY_NAMES = {
+        '김마케팅': 1, '박콘텐츠': 1, '이광고': 1, '한마케팅': 1,
+        '정본사': 1, '강본영': 1, '박본상': 1,
+        '오설계': 1, '장도면': 1, '윤평면': 1,
+        '강시공': 1, '문현장': 1, '배감리': 1,
+        '서정산': 1, '조회계': 1, '안재무': 1,
+        '최영업': 1, '정상담': 1, '한계약': 1,
+        '송방문': 1, '노상담': 1, '황견적': 1,
+        '유전시': 1, '임방문': 1, '남계약': 1,
+        '권강화': 1, '하상담': 1, '신계약': 1,
+        '고안동': 1, '손상담': 1, '전계약': 1
+      };
       var cleaned = emps.filter(function (e) {
+        if (!e) return false;
         if (e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0) {
           dummyIds[e.id] = true;
+          return false;
+        }
+        if (e.name && DUMMY_NAMES[e.name]) {
+          if (e.id) dummyIds[e.id] = true;
           return false;
         }
         return true;
@@ -13887,7 +13921,9 @@
       if (typeof twGetWorklogs === 'function' && typeof twSaveWorklogs === 'function') {
         var logs = twGetWorklogs();
         var filtered = logs.filter(function (w) {
-          return !(w.kind === 'member' && w.authorId && dummyIds[w.authorId]);
+          if (w.kind === 'member' && w.authorId && dummyIds[w.authorId]) return false;
+          if (w.kind === 'member' && w.authorName && DUMMY_NAMES[w.authorName]) return false;
+          return true;
         });
         if (filtered.length !== logs.length) twSaveWorklogs(filtered);
       }
