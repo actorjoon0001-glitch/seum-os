@@ -9047,30 +9047,23 @@
     var isLeaderUser = twIsLeader(team);
     var isAdmin = twIsAdminLike();
 
-    // 보장: 현재 사용자가 이 팀의 소속(team+showroom 또는 teamWorklogTeamId)이면
-    // 팀원 리스트에 자동으로 포함시켜 본인 행과 저장 버튼이 항상 노출되게 함.
+    // 보장: 로그인만 되어 있으면 팀원 리스트에 본인을 반드시 포함시킨다.
+    // 팀 일치 판정(team+showroom)이 데이터 불일치로 실패해도 본인 업무일지 작성은 항상 가능하도록.
+    // id 는 employee.id / authUserId / name 기반으로 안정화해 저장이 같은 레코드에 모이게 한다.
     if (me) {
       var alreadyListed = members.some(function (m) { return _twIsSameEmp(m); });
       if (!alreadyListed) {
-        var meBelongs =
-          (me.teamWorklogTeamId && me.teamWorklogTeamId === team.id) ||
-          (team.team && me.team === team.team && (
-            // 본사 공통팀(showroom 미지정) → team 일치로 충분
-            !team.showroom ||
-            // 전시장 팀 → showroom 일치 필요
-            (team.showroom && (me.showroom || '') === team.showroom)
-          ));
-        if (meBelongs) {
-          members = members.concat([{
-            id: me.id || me.authUserId || ('self-' + Date.now()),
-            authUserId: me.authUserId || me.id || null,
-            name: me.name || '나',
-            team: me.team || '',
-            showroom: me.showroom || '',
-            role: me.role || 'member',
-            status: me.status || 'active'
-          }]);
-        }
+        var selfId = me.id || me.authUserId || ('self-' + (me.name || 'me'));
+        members = members.concat([{
+          id: selfId,
+          authUserId: me.authUserId || me.id || null,
+          name: me.name || '나',
+          team: me.team || '',
+          showroom: me.showroom || '',
+          role: me.role || 'member',
+          status: me.status || 'active',
+          __self: true
+        }]);
       }
     }
     var done = 0, pending = 0;
