@@ -13647,44 +13647,63 @@
 
   // Supabase employees 테이블에서 승인된 직원을 localStorage 로 동기화.
   // 팀 업무일지/인라인 렌더가 getEmployees() 를 기준으로 동작하므로, 처음 앱 로드 시
-  // 한 번 채워두면 실제 팀원들이 바로 보임. (실패해도 기존 로컬 데이터 유지.)
+  // 한 번 채워두면 실제 팀원들이 바로 보임.
+  // 컬럼 환경이 달라도 깨지지 않도록 select('*') 사용.
   function syncEmployeesFromSupabase() {
+    if (typeof supabase === 'undefined' || !supabase) return;
     try {
-      if (typeof supabase === 'undefined' || !supabase) return;
       supabase.from('employees')
-        .select('id, auth_user_id, name, team, role, showroom, status, position_name, permission')
+        .select('*')
         .eq('status', 'approved')
         .then(function (res) {
-          if (!res || res.error || !Array.isArray(res.data)) return;
+          if (!res || res.error) {
+            if (res && res.error) console.warn('[employees sync] supabase error:', res.error);
+            return;
+          }
+          if (!Array.isArray(res.data)) return;
+          var remote = res.data;
+          // 원격이 소스 오브 트루스 — 받은 직원 목록으로 교체 (더미 'tw-*' 는 제외)
+          //  + Supabase 에 아직 없는 로컬 전용 레코드(샘플 등)는 유지
+          var remoteIds = {};
+          var remoteAuthIds = {};
+          var normalized = remote.map(function (e) {
+            var id = e.id;
+            if (id) remoteIds[id] = true;
+            if (e.auth_user_id) remoteAuthIds[e.auth_user_id] = true;
+            return {
+              id: id,
+              authUserId: e.auth_user_id || null,
+              name: e.name || '',
+              team: e.team || '',
+              role: e.role || '',
+              showroom: e.showroom || '',
+              status: e.status || 'active',
+              position_name: e.position_name || e.position || '',
+              permission: e.permission || ''
+            };
+          }).filter(function (e) {
+            return e && e.id && !(typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
+          });
+          // 로컬 전용 비-Supabase 직원(샘플 등 id 매칭되지 않는 레코드)은 그대로 유지
           var local = getEmployees();
-          var byId = {};
-          local.forEach(function (e) { if (e && e.id) byId[e.id] = e; });
-          // 원격 직원을 local 에 upsert (id 기준). 기존 로컬 필드는 보존.
-          res.data.forEach(function (e) {
-            if (!e || !e.id) return;
-            var existing = byId[e.id] || {};
-            byId[e.id] = Object.assign({}, existing, {
-              id: e.id,
-              authUserId: e.auth_user_id || existing.authUserId || null,
-              name: e.name || existing.name || '',
-              team: e.team || existing.team || '',
-              role: e.role || existing.role || '',
-              showroom: e.showroom || existing.showroom || '',
-              status: e.status || existing.status || 'active',
-              position_name: e.position_name || existing.position_name || '',
-              permission: e.permission || existing.permission || ''
-            });
+          var keepLocal = local.filter(function (e) {
+            if (!e || !e.id) return false;
+            if (typeof e.id === 'string' && e.id.indexOf('tw-') === 0) return false; // 더미 제외
+            if (remoteIds[e.id]) return false; // 원격에 있으면 원격 버전으로 덮어씀
+            if (e.authUserId && remoteAuthIds[e.authUserId]) return false;
+            // Supabase 에 존재하지 않는 로컬 레코드: 상태가 비승인이거나 "한마케팅" 같은 과거 잔존물은 제거
+            // 보수적으로 "approved" 가 아닌 경우만 유지하지 않음
+            return false;
           });
-          // 더미 'tw-*' id 는 제외
-          var merged = Object.values(byId).filter(function (e) {
-            return !(e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
-          });
+          var merged = normalized.concat(keepLocal);
           saveEmployees(merged);
           // 팀 업무일지가 현재 화면이면 즉시 재렌더
           var active = document.querySelector('#section-team-worklog.active');
           if (active && typeof renderTeamWorklog === 'function') renderTeamWorklog();
+        }, function (err) {
+          console.warn('[employees sync] promise rejected:', err);
         });
-    } catch (e) { /* ignore */ }
+    } catch (e) { console.warn('[employees sync] throw:', e); }
   }
 
   // 과거 팀 업무일지 샘플 시드에서 생성된 더미 직원을 영구 제거.
