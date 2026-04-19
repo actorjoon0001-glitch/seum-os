@@ -3332,9 +3332,12 @@
   // =====================================================================
   // 설계팀 우선순위 - 렌더
   // =====================================================================
+  var _priorityScrollTarget = null; // 우선순위 페이지 진입 후 자동 스크롤·하이라이트할 계약 id
   function renderDesignPriority() {
     var wrap = document.getElementById('design-priority-wrap');
     if (!wrap) return;
+    // 스크롤 타겟이 있으면 '작업 완료' 섹션을 자동 펼쳐 놓음 (해당 계약이 완료건일 수도 있으므로)
+    if (_priorityScrollTarget) wrap.dataset.doneOpen = '1';
 
     var allContracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
     var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
@@ -3611,6 +3614,19 @@
         goToDesignDetail(tr.getAttribute('data-contract-id'));
       });
     });
+
+    // 외부(계약 상세 '설계팀 우선순위' 버튼) 에서 설정된 스크롤 타겟 처리
+    if (_priorityScrollTarget) {
+      var target = _priorityScrollTarget;
+      _priorityScrollTarget = null;
+      var row = wrap.querySelector('.design-priority-row[data-contract-id="' +
+        String(target).replace(/["\\]/g, '\\$&') + '"]');
+      if (row && row.scrollIntoView) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.add('design-row-highlight');
+        setTimeout(function () { row.classList.remove('design-row-highlight'); }, 2400);
+      }
+    }
   }
 
   function goToDesignDetail(contractId) {
@@ -4472,7 +4488,7 @@
       '<button type="button" class="btn btn-sm btn-secondary btn-open-contract-chat" data-contract-id="' + escapeAttr(contractId) + '">팀 채팅</button>' +
       '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">저장</button>' +
       '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">계약 상세</button>' +
-      '<button type="button" class="btn btn-sm btn-danger design-priority-goto-btn" style="background:#dc2626;border-color:#dc2626;color:#fff;">설계팀 우선순위</button>' +
+      '<button type="button" class="btn btn-sm btn-danger design-priority-goto-btn" data-contract-id="' + escapeAttr(contractId) + '" style="background:#dc2626;border-color:#dc2626;color:#fff;">설계팀 우선순위</button>' +
       '</div></div>';
     var cardBasic = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">기본 계약 정보 (읽기)</h4>' +
@@ -5192,7 +5208,11 @@
       }
     });
     document.addEventListener('click', function (e) {
-      if (e.target.closest('.design-priority-goto-btn')) {
+      var priBtn = e.target.closest('.design-priority-goto-btn');
+      if (priBtn) {
+        var targetId = priBtn.getAttribute('data-contract-id') || '';
+        // renderDesignPriority 가 이 타겟을 읽어서 자동 펼침·스크롤·하이라이트 처리
+        if (targetId) _priorityScrollTarget = targetId;
         if (typeof showSection === 'function') showSection('design-priority');
         return;
       }
