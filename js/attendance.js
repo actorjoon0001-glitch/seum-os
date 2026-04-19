@@ -991,15 +991,18 @@
   function switchTab(tab) {
     var tabs = document.querySelectorAll('.attendance-tab');
     tabs.forEach(function (btn) { btn.classList.toggle('active', btn.getAttribute('data-attendance-tab') === tab); });
-    var todayPanel = $('attendance-panel-today');
-    var calPanel = $('attendance-panel-calendar');
-    if (todayPanel) todayPanel.classList.toggle('hidden', tab !== 'today');
-    if (calPanel) calPanel.classList.toggle('hidden', tab !== 'calendar');
-    if (tab === 'calendar' && !calState.inited) {
-      calState.inited = true;
+    // 모든 패널을 id 규칙으로 일괄 토글 (attendance-panel-<tab>)
+    document.querySelectorAll('.attendance-tab-panel').forEach(function (panel) {
+      var active = panel.id === 'attendance-panel-' + tab;
+      panel.classList.toggle('hidden', !active);
+    });
+    if (tab === 'calendar') {
+      if (!calState.inited) calState.inited = true;
       loadAndRenderCalendar();
-    } else if (tab === 'calendar') {
-      loadAndRenderCalendar();
+    } else if (tab === 'team-off') {
+      if (window.seumTeamOff && typeof window.seumTeamOff.render === 'function') {
+        try { window.seumTeamOff.render(); } catch (e) {}
+      }
     }
   }
 

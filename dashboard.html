@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-01">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-02">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3380,36 +3380,150 @@
 
     <section id="section-attendance" class="content-section">
       <header class="main-header">
-        <h2>근태관리 · 팀 휴무 캘린더</h2>
-        <p class="section-desc">우리 팀의 휴무 일정을 월간 캘린더로 확인합니다. 날짜를 클릭해 휴무를 등록/수정하세요. 오늘의 출근·퇴근은 대시보드에서 바로 처리할 수 있습니다.</p>
+        <h2>근태관리</h2>
+        <p class="section-desc">팀 휴무 일정과 전 직원 월간 근무 기록을 확인합니다. 출근·퇴근은 대시보드 상단에서 바로 처리할 수 있습니다.</p>
       </header>
 
-      <div class="card team-off-header-card">
-        <div class="team-off-toolbar">
-          <button type="button" class="btn btn-secondary btn-sm" id="team-off-prev">이전</button>
-          <h3 class="team-off-label" id="team-off-label">-</h3>
-          <button type="button" class="btn btn-secondary btn-sm" id="team-off-next">다음</button>
-          <button type="button" class="btn btn-secondary btn-sm" id="team-off-today">오늘</button>
+      <div class="attendance-tabs" role="tablist">
+        <button type="button" class="attendance-tab active" data-attendance-tab="team-off" role="tab">팀 휴무 캘린더</button>
+        <button type="button" class="attendance-tab" data-attendance-tab="calendar" role="tab">월간 근무 캘린더</button>
+      </div>
+
+      <!-- 탭 1: 팀 휴무 캘린더 -->
+      <div class="attendance-tab-panel" id="attendance-panel-team-off">
+        <div class="card team-off-header-card">
+          <div class="team-off-toolbar">
+            <button type="button" class="btn btn-secondary btn-sm" id="team-off-prev">이전</button>
+            <h3 class="team-off-label" id="team-off-label">-</h3>
+            <button type="button" class="btn btn-secondary btn-sm" id="team-off-next">다음</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="team-off-today">오늘</button>
+          </div>
+          <div class="team-off-meta">
+            <span class="team-off-scope">
+              표시 팀 <strong id="team-off-team-label">-</strong>
+              <span class="team-off-scope-hint">같은 팀원의 휴무만 표시됩니다.</span>
+            </span>
+            <div class="team-off-legend">
+              <span class="team-off-legend-item team-off-type-annual">연차</span>
+              <span class="team-off-legend-item team-off-type-monthly">월차</span>
+              <span class="team-off-legend-item team-off-type-half_am">반차(오전)</span>
+              <span class="team-off-legend-item team-off-type-half_pm">반차(오후)</span>
+              <span class="team-off-legend-item team-off-type-holiday">공휴일</span>
+              <span class="team-off-legend-item team-off-type-other">기타</span>
+            </div>
+          </div>
         </div>
-        <div class="team-off-meta">
-          <span class="team-off-scope">
-            표시 팀 <strong id="team-off-team-label">-</strong>
-            <span class="team-off-scope-hint">같은 팀원의 휴무만 표시됩니다.</span>
-          </span>
-          <div class="team-off-legend">
-            <span class="team-off-legend-item team-off-type-annual">연차</span>
-            <span class="team-off-legend-item team-off-type-monthly">월차</span>
-            <span class="team-off-legend-item team-off-type-half_am">반차(오전)</span>
-            <span class="team-off-legend-item team-off-type-half_pm">반차(오후)</span>
-            <span class="team-off-legend-item team-off-type-holiday">공휴일</span>
-            <span class="team-off-legend-item team-off-type-other">기타</span>
+
+        <div class="card team-off-cal-card">
+          <div class="team-off-cal">
+            <div class="team-off-grid" id="team-off-grid" aria-label="팀 휴무 월간 캘린더"></div>
           </div>
         </div>
       </div>
 
-      <div class="card team-off-cal-card">
-        <div class="team-off-cal">
-          <div class="team-off-grid" id="team-off-grid" aria-label="팀 휴무 월간 캘린더"></div>
+      <!-- 탭 2: 월간 근무 캘린더 (직원 × 날짜 가로 그리드) -->
+      <div class="attendance-tab-panel hidden" id="attendance-panel-calendar">
+        <div class="card attendance-cal-filters">
+          <div class="attendance-cal-filters-row">
+            <label>
+              연도
+              <select id="attendance-cal-year"></select>
+            </label>
+            <label>
+              월
+              <select id="attendance-cal-month">
+                <option value="1">1월</option>
+                <option value="2">2월</option>
+                <option value="3">3월</option>
+                <option value="4">4월</option>
+                <option value="5">5월</option>
+                <option value="6">6월</option>
+                <option value="7">7월</option>
+                <option value="8">8월</option>
+                <option value="9">9월</option>
+                <option value="10">10월</option>
+                <option value="11">11월</option>
+                <option value="12">12월</option>
+              </select>
+            </label>
+            <label>
+              전시장
+              <select id="attendance-cal-showroom">
+                <option value="">전체</option>
+                <option value="headquarters">본사 전시장</option>
+                <option value="showroom1">1전시장</option>
+                <option value="showroom3">3전시장</option>
+                <option value="showroom4">4전시장</option>
+                <option value="ganghwa">강화전시장</option>
+              </select>
+            </label>
+            <label>
+              팀
+              <select id="attendance-cal-team">
+                <option value="">전체</option>
+                <option value="영업">영업팀</option>
+                <option value="설계">설계팀</option>
+                <option value="시공">시공팀</option>
+                <option value="마케팅">마케팅팀</option>
+                <option value="정산">정산팀</option>
+                <option value="경영">경영팀</option>
+              </select>
+            </label>
+            <label>
+              상태
+              <select id="attendance-cal-status">
+                <option value="">전체</option>
+                <option value="working">근무중</option>
+                <option value="finished">퇴근완료</option>
+                <option value="late">지각</option>
+                <option value="absent">결근</option>
+                <option value="outside">외근</option>
+                <option value="business_trip">출장</option>
+                <option value="vacation">휴가</option>
+                <option value="sick">병가</option>
+                <option value="empty">미기록</option>
+              </select>
+            </label>
+            <label>
+              보기
+              <select id="attendance-cal-groupmode">
+                <option value="showroom_team">전시장 → 팀</option>
+                <option value="showroom">전시장만</option>
+                <option value="team">팀만</option>
+                <option value="flat">그룹 없이</option>
+              </select>
+            </label>
+            <div class="attendance-cal-filter-actions">
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-collapse-all">모두 접기</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-expand-all">모두 펼치기</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-reset">필터 초기화</button>
+              <button type="button" class="btn btn-secondary btn-sm" id="attendance-cal-refresh">새로고침</button>
+            </div>
+          </div>
+          <div class="attendance-cal-legend">
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-working"></span>근무중</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-finished"></span>퇴근완료</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-late"></span>지각</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-outside"></span>외근</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-business_trip"></span>출장</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-vacation"></span>휴가(연차)</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-half_am"></span>오전 반차</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-half_pm"></span>오후 반차</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-sick"></span>병가</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-absent"></span>결근</span>
+            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-empty"></span>미기록</span>
+          </div>
+        </div>
+
+        <div class="card attendance-cal-wrap">
+          <div class="attendance-cal-title-row">
+            <h3 class="attendance-cal-title" id="attendance-cal-title">-</h3>
+            <p class="attendance-cal-hint" id="attendance-cal-hint"></p>
+          </div>
+          <div class="attendance-cal-groups" id="attendance-cal-groups">
+            <!-- JS: 전시장/팀 그룹별 서브 테이블 렌더 -->
+          </div>
+          <p class="attendance-cal-empty hidden" id="attendance-cal-empty">표시할 직원이 없습니다.</p>
         </div>
       </div>
 
@@ -4895,13 +5009,13 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260416-01"></script>
+  <script src="js/app.js?v=20260419-02"></script>
   <script src="js/chat.js"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/marketing.js"></script>
-  <script src="js/attendance.js"></script>
+  <script src="js/attendance.js?v=20260419-02"></script>
   <script src="js/leave.js"></script>
-  <script src="js/team-off.js"></script>
+  <script src="js/team-off.js?v=20260419-02"></script>
 </body>
 </html>
