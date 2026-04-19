@@ -9054,13 +9054,21 @@
       var alreadyListed = members.some(function (m) { return _twIsSameEmp(m); });
       if (!alreadyListed) {
         var selfId = me.id || me.authUserId || ('self-' + (me.name || 'me'));
+        // 직원 레코드에서 position_name 조회 (currentEmployee 에 없을 수 있음)
+        var fromEmp = getEmployees().find(function (e) {
+          if (me.id && e.id === me.id) return true;
+          if (me.authUserId && e.authUserId === me.authUserId) return true;
+          if (me.name && e.name === me.name) return true;
+          return false;
+        });
         members = members.concat([{
           id: selfId,
           authUserId: me.authUserId || me.id || null,
           name: me.name || '나',
           team: me.team || '',
           showroom: me.showroom || '',
-          role: me.role || 'member',
+          role: me.role || (fromEmp && fromEmp.role) || 'member',
+          position_name: (fromEmp && (fromEmp.position_name || fromEmp.position)) || '',
           status: me.status || 'active',
           __self: true
         }]);
@@ -9068,17 +9076,19 @@
     }
     var done = 0, pending = 0;
 
-    // 본인을 맨 위로, 팀장을 그 다음으로 정렬하여 즉시 입력하기 쉽게 배치
+    // 정렬: 팀장 먼저 → 그 외 이름순, 단 본인은 동일 그룹 내에서 맨 위
+    var isLeaderRoleOf = function (m) {
+      var r = (m.role || '').toString().toLowerCase();
+      return r === 'leader' || r === '팀장' || r === 'team_lead' || r === 'manager';
+    };
     var sorted = members.slice().sort(function (a, b) {
+      var aLead = isLeaderRoleOf(a) ? 0 : 1;
+      var bLead = isLeaderRoleOf(b) ? 0 : 1;
+      if (aLead !== bLead) return aLead - bLead;
       var aIsMe = _twIsSameEmp(a) ? 0 : 1;
       var bIsMe = _twIsSameEmp(b) ? 0 : 1;
       if (aIsMe !== bIsMe) return aIsMe - bIsMe;
-      var ar = (a.role || '').toString().toLowerCase();
-      var br = (b.role || '').toString().toLowerCase();
-      var aLead = (ar === 'leader' || ar === '팀장' || ar === 'team_lead' || ar === 'manager') ? 0 : 1;
-      var bLead = (br === 'leader' || br === '팀장' || br === 'team_lead' || br === 'manager') ? 0 : 1;
-      if (aLead !== bLead) return aLead - bLead;
-      return 0;
+      return (a.name || '').localeCompare(b.name || '', 'ko');
     });
 
     listEl.innerHTML = sorted.map(function (m) {
@@ -9087,21 +9097,26 @@
       var isDone = !!(tasks && tasks.trim());
       if (isDone) done++; else pending++;
 
-      var role = (m.role || '').toString().toLowerCase();
-      var isLeaderRole = role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager';
+      var isLeaderRole = isLeaderRoleOf(m);
       var isMe = _twIsSameEmp(m);
       var canEdit = isMe || isLeaderUser || isAdmin;
+      var positionName = (m.position_name || m.position || '').toString().trim();
 
       var metaMini = entry && entry.updatedAt
         ? '<span class="tw-member-inline-meta">수정 ' +
           escapeHtml((entry.updatedAt).slice(0, 16).replace('T', ' ')) + '</span>'
         : '';
 
-      return '<div class="tw-member-inline-row' + (isDone ? ' is-done' : ' is-pending') + (isMe ? ' is-me' : '') + '"' +
+      var roleChip = isLeaderRole
+        ? '<span class="tw-role-chip tw-role-chip-leader">[팀장]</span>'
+        : '<span class="tw-role-chip tw-role-chip-member">[팀원]</span>';
+
+      return '<div class="tw-member-inline-row' + (isDone ? ' is-done' : ' is-pending') + (isMe ? ' is-me' : '') + (isLeaderRole ? ' is-leader' : '') + '"' +
         ' data-author="' + escapeAttr(m.id) + '" data-name="' + escapeAttr(m.name || '') + '">' +
         '<div class="tw-member-inline-head">' +
+          roleChip +
           '<span class="tw-member-inline-name">' + escapeHtml(m.name || '이름 없음') + '</span>' +
-          (isLeaderRole ? '<span class="tw-role-badge">팀장</span>' : '') +
+          (positionName ? '<span class="tw-member-inline-position">' + escapeHtml(positionName) + '</span>' : '') +
           (isMe ? '<span class="tw-me-badge">나</span>' : '') +
           '<span class="tw-member-inline-status">' + (isDone ? '✅ 작성 완료' : '<span class="tw-empty-tag">(미작성)</span>') + '</span>' +
           metaMini +

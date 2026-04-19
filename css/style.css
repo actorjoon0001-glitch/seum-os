@@ -12770,9 +12770,51 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .tw-member-inline-row.is-done { border-left-color: #22c55e; }
 .tw-member-inline-row.is-pending { border-left-color: #ef4444; }
+.tw-member-inline-row.is-leader {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12), rgba(30, 41, 59, 0.45));
+  border-color: rgba(251, 191, 36, 0.35);
+}
 .tw-member-inline-row.is-me {
   background: rgba(59, 130, 246, 0.12);
   border-color: rgba(96, 165, 250, 0.45);
+}
+.tw-member-inline-row.is-leader.is-me {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.16), rgba(59, 130, 246, 0.14));
+  border-color: rgba(251, 191, 36, 0.55);
+}
+
+/* 팀장/팀원 직책 칩 */
+.tw-role-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.tw-role-chip-leader {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+}
+.tw-role-chip-member {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* 직급(대리, 과장 등) — 이름 옆 보조 표기 */
+.tw-member-inline-position {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.tw-member-inline-position::before {
+  content: '·';
+  margin-right: 6px;
+  color: #475569;
 }
 .tw-member-inline-head {
   display: flex;
