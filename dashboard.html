@@ -326,6 +326,61 @@
         <h2>대시보드</h2>
         <p class="main-current-user" id="main-current-user" aria-live="polite"></p>
       </header>
+
+      <!-- 대시보드 빠른실행: 오늘 근태 (출근/퇴근) -->
+      <div class="card dash-attendance-card" id="dash-attendance-card">
+        <div class="dash-attendance-head">
+          <div class="dash-attendance-datetime">
+            <span class="dash-attendance-date attendance-today-date" id="dash-attendance-date">-</span>
+            <span class="dash-attendance-clock" id="dash-attendance-clock">--:--</span>
+          </div>
+          <span class="attendance-today-status-badge dash-attendance-status attendance-status-before">출근전</span>
+        </div>
+
+        <div class="dash-attendance-body">
+          <div class="dash-attendance-greeting">
+            <span class="dash-attendance-name attendance-today-name">-</span>
+            <span class="dash-attendance-hint attendance-today-hint"></span>
+          </div>
+
+          <div class="dash-attendance-actions">
+            <button type="button"
+                    class="dash-attendance-btn dash-attendance-btn-checkin"
+                    data-attendance-action="checkin"
+                    data-attendance-quick>
+              <span class="dash-attendance-btn-icon">🟢</span>
+              <span class="dash-attendance-btn-label">출근하기</span>
+            </button>
+            <button type="button"
+                    class="dash-attendance-btn dash-attendance-btn-checkout hidden"
+                    data-attendance-action="checkout"
+                    data-attendance-quick>
+              <span class="dash-attendance-btn-icon">🔴</span>
+              <span class="dash-attendance-btn-label">퇴근하기</span>
+            </button>
+            <div class="dash-attendance-finished hidden" data-attendance-finished-note>
+              <span class="dash-attendance-finished-icon">✅</span>
+              <span class="dash-attendance-finished-text">오늘 근무 완료</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-attendance-times">
+          <div class="dash-attendance-time-cell">
+            <span class="dash-attendance-time-label">출근</span>
+            <strong class="attendance-today-checkin">-</strong>
+          </div>
+          <div class="dash-attendance-time-cell">
+            <span class="dash-attendance-time-label">퇴근</span>
+            <strong class="attendance-today-checkout">-</strong>
+          </div>
+          <div class="dash-attendance-time-cell">
+            <span class="dash-attendance-time-label">누적 근무</span>
+            <strong class="attendance-today-duration">-</strong>
+          </div>
+        </div>
+      </div>
+
       <div class="card today-message-card">
         <h3 class="today-message-title">오늘의 메시지</h3>
         <p class="today-message-text" id="today-message-text"></p>
@@ -3360,8 +3415,8 @@
         </div>
 
         <div class="attendance-today-actions">
-          <button type="button" class="btn btn-primary attendance-big-btn" id="btn-attendance-checkin">출근하기</button>
-          <button type="button" class="btn btn-danger attendance-big-btn" id="btn-attendance-checkout">퇴근하기</button>
+          <button type="button" class="btn btn-primary attendance-big-btn" id="btn-attendance-checkin" data-attendance-action="checkin">출근하기</button>
+          <button type="button" class="btn btn-danger attendance-big-btn" id="btn-attendance-checkout" data-attendance-action="checkout">퇴근하기</button>
         </div>
 
         <p class="attendance-today-hint" id="attendance-today-hint"></p>

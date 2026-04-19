@@ -212,6 +212,13 @@
   // ────────── UI ──────────
 
   function $(id) { return document.getElementById(id); }
+  function $all(selector) { return document.querySelectorAll(selector); }
+  function setText(selector, text) {
+    $all(selector).forEach(function (el) { el.textContent = text; });
+  }
+  function setDisabledAll(selector, disabled) {
+    $all(selector).forEach(function (el) { el.disabled = !!disabled; });
+  }
 
   function applyStatusBadge(el, status) {
     if (!el) return;
@@ -231,6 +238,9 @@
     el.classList.add('attendance-status-' + status);
     el.textContent = STATUS_LABEL[status] || '출근전';
   }
+  function applyStatusBadgeAll(selector, status) {
+    $all(selector).forEach(function (el) { applyStatusBadge(el, status); });
+  }
 
   function calcLiveDuration(rec) {
     if (!rec || !rec.check_in) return null;
@@ -241,33 +251,23 @@
 
   function renderCard(rec, leaveToday) {
     var emp = currentEmployee();
-    var dateEl = $('attendance-today-date');
-    var nameEl = $('attendance-today-name');
-    var badgeEl = $('attendance-today-status-badge');
-    var inEl = $('attendance-today-checkin');
-    var outEl = $('attendance-today-checkout');
-    var durEl = $('attendance-today-duration');
-    var btnIn = $('btn-attendance-checkin');
-    var btnOut = $('btn-attendance-checkout');
-    var hintEl = $('attendance-today-hint');
 
-    if (dateEl) dateEl.textContent = formatDateKo(new Date());
-    if (nameEl) nameEl.textContent = (emp && emp.name) ? emp.name + ' 님' : '로그인 정보 없음';
+    setText('.attendance-today-date', formatDateKo(new Date()));
+    setText('.attendance-today-name', (emp && emp.name) ? emp.name + ' 님' : '로그인 정보 없음');
 
     // 오늘이 승인된 월차/병가/외근인 경우: leave 우선 표시
     if (leaveToday) {
       var mapped = leaveTypeToStatus(leaveToday.type) || 'vacation';
-      applyStatusBadge(badgeEl, mapped);
-      if (inEl) inEl.textContent = rec && rec.check_in ? toHHMM(rec.check_in) : '-';
-      if (outEl) outEl.textContent = rec && rec.check_out ? toHHMM(rec.check_out) : '-';
-      if (durEl) durEl.textContent = formatDuration(calcLiveDuration(rec));
+      applyStatusBadgeAll('.attendance-today-status-badge', mapped);
+      setText('.attendance-today-checkin', rec && rec.check_in ? toHHMM(rec.check_in) : '-');
+      setText('.attendance-today-checkout', rec && rec.check_out ? toHHMM(rec.check_out) : '-');
+      setText('.attendance-today-duration', formatDuration(calcLiveDuration(rec)));
       var blocked = leaveBlocksCheckIn(leaveToday.type);
-      if (btnIn) btnIn.disabled = blocked || !!(rec && rec.check_in) || busy;
-      if (btnOut) btnOut.disabled = blocked || !(rec && rec.check_in) || !!(rec && rec.check_out) || busy;
-      if (hintEl) {
-        hintEl.textContent = '오늘은 ' + leaveTypeLabelKo(leaveToday.type) + ' 사용일' +
-          (blocked ? '이라 출근이 필요하지 않습니다.' : '입니다.');
-      }
+      setDisabledAll('[data-attendance-action="checkin"]', blocked || !!(rec && rec.check_in) || busy);
+      setDisabledAll('[data-attendance-action="checkout"]', blocked || !(rec && rec.check_in) || !!(rec && rec.check_out) || busy);
+      setText('.attendance-today-hint', '오늘은 ' + leaveTypeLabelKo(leaveToday.type) + ' 사용일' +
+        (blocked ? '이라 출근이 필요하지 않습니다.' : '입니다.'));
+      updateActionVisibility(false, false, true);
       if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
       return;
     }
@@ -279,30 +279,46 @@
       else if (rec && rec.check_in) status = isLate(rec.check_in) ? STATUS.LATE : STATUS.WORKING;
       else status = STATUS.BEFORE;
     }
-    applyStatusBadge(badgeEl, status);
+    applyStatusBadgeAll('.attendance-today-status-badge', status);
 
-    if (inEl) inEl.textContent = rec && rec.check_in ? toHHMM(rec.check_in) : '-';
-    if (outEl) outEl.textContent = rec && rec.check_out ? toHHMM(rec.check_out) : '-';
-    if (durEl) durEl.textContent = formatDuration(calcLiveDuration(rec));
+    setText('.attendance-today-checkin', rec && rec.check_in ? toHHMM(rec.check_in) : '-');
+    setText('.attendance-today-checkout', rec && rec.check_out ? toHHMM(rec.check_out) : '-');
+    setText('.attendance-today-duration', formatDuration(calcLiveDuration(rec)));
 
     var hasIn = !!(rec && rec.check_in);
     var hasOut = !!(rec && rec.check_out);
-    if (btnIn) btnIn.disabled = hasIn || busy;
-    if (btnOut) btnOut.disabled = !hasIn || hasOut || busy;
+    setDisabledAll('[data-attendance-action="checkin"]', hasIn || busy);
+    setDisabledAll('[data-attendance-action="checkout"]', !hasIn || hasOut || busy);
 
-    if (hintEl) {
-      if (!hasIn) hintEl.textContent = '';
-      else if (hasIn && !hasOut) hintEl.textContent = '근무 중입니다. 퇴근 시 "퇴근하기" 버튼을 눌러주세요.';
-      else hintEl.textContent = '오늘 퇴근 기록이 완료됐습니다.';
-    }
+    // 대시보드 빠른실행 카드의 버튼은 상태에 따라 한 개만 크게 보이도록 표시 제어
+    updateActionVisibility(!hasIn, hasIn && !hasOut, hasOut);
+
+    if (!hasIn) setText('.attendance-today-hint', '');
+    else if (hasIn && !hasOut) setText('.attendance-today-hint', '근무 중입니다. 퇴근 시 "퇴근하기" 버튼을 눌러주세요.');
+    else setText('.attendance-today-hint', '오늘 퇴근 기록이 완료됐습니다. 오늘도 수고하셨습니다!');
 
     if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
     if (hasIn && !hasOut) {
       renderTimer = setInterval(function () {
-        if (!durEl) return;
-        durEl.textContent = formatDuration(calcLiveDuration(rec));
+        setText('.attendance-today-duration', formatDuration(calcLiveDuration(rec)));
       }, 60 * 1000);
     }
+  }
+
+  // 대시보드 빠른실행 카드: 상태별로 주요 버튼만 눈에 띄게 노출
+  //  before=true → 출근하기만 강조, working=true → 퇴근하기만 강조, finished=true → 완료 뱃지
+  function updateActionVisibility(before, working, finished) {
+    $all('[data-attendance-action="checkin"]').forEach(function (btn) {
+      var quick = btn.hasAttribute('data-attendance-quick');
+      if (quick) btn.classList.toggle('hidden', !before);
+    });
+    $all('[data-attendance-action="checkout"]').forEach(function (btn) {
+      var quick = btn.hasAttribute('data-attendance-quick');
+      if (quick) btn.classList.toggle('hidden', !working);
+    });
+    $all('[data-attendance-finished-note]').forEach(function (el) {
+      el.classList.toggle('hidden', !finished);
+    });
   }
 
   async function render() {
@@ -1059,10 +1075,19 @@
   function init() {
     if (inited) return;
     inited = true;
+    // 근태관리 페이지 + 대시보드 빠른실행 카드 버튼 모두 바인딩
+    // data-attendance-action 속성으로 식별 (class/id 와 독립적)
+    $all('[data-attendance-action="checkin"]').forEach(function (btn) {
+      btn.addEventListener('click', handleCheckIn);
+    });
+    $all('[data-attendance-action="checkout"]').forEach(function (btn) {
+      btn.addEventListener('click', handleCheckOut);
+    });
+    // 하위 호환 (속성 미지정된 기존 버튼)
     var btnIn = $('btn-attendance-checkin');
     var btnOut = $('btn-attendance-checkout');
-    if (btnIn) btnIn.addEventListener('click', handleCheckIn);
-    if (btnOut) btnOut.addEventListener('click', handleCheckOut);
+    if (btnIn && !btnIn.hasAttribute('data-attendance-action')) btnIn.addEventListener('click', handleCheckIn);
+    if (btnOut && !btnOut.hasAttribute('data-attendance-action')) btnOut.addEventListener('click', handleCheckOut);
     initCalendarEvents();
   }
 
