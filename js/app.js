@@ -8985,15 +8985,17 @@
     if (!view || !form) return;
 
     var entry = team ? twGetEntry(team.id, _twState.date, 'leader', null) : null;
-    var canEdit = !!team && twIsTeamMember(team);
+    // 로그인만 되어 있으면 작성 폼 진입 허용 — 폼 안의 드롭다운에서 본인 팀을 선택
+    var cur = window.seumAuth && window.seumAuth.currentEmployee;
+    var canEdit = !!cur;
     if (editBtn) {
       editBtn.classList.toggle('hidden', !canEdit);
       editBtn.textContent = entry ? '팀 업무일지 수정' : '팀 업무일지 작성';
     }
     if (sub) {
       sub.textContent = canEdit
-        ? '팀원 누구나 작성·수정할 수 있습니다. 먼저 연 사람이 초안을 만들고, 팀장·팀원이 함께 이어 작성하세요.'
-        : '본 팀 소속 직원만 작성할 수 있습니다. (현재 읽기 전용)';
+        ? '팀원 누구나 작성·수정할 수 있습니다. 작성 시 상단 드롭다운에서 본인 팀을 선택하세요.'
+        : '로그인 후 작성할 수 있습니다.';
     }
     if (meta) {
       meta.innerHTML = entry
@@ -9028,19 +9030,29 @@
   }
 
   // 작성 폼 상단 "소속 확인" 정보 채우기
-  //  - 선택된 작성 팀 이름
+  //  - 작성 팀: 드롭다운으로 제공 (기본값 = 현재 선택된 팀)
   //  - 현재 사용자 이름
   //  - 현재 사용자의 본인 소속(팀 + 전시장)
-  //  - 선택 팀과 내 소속이 다르면 경고 노출 (관리자는 경고 생략)
+  //  - 드롭다운 선택값과 내 소속이 다르면 경고 노출 (관리자는 경고 생략)
   function _twFillAuthorInfo(team) {
-    var teamEl = document.getElementById('tw-author-team');
+    var selEl  = document.getElementById('tw-write-team');
     var nameEl = document.getElementById('tw-author-name');
     var ownEl  = document.getElementById('tw-author-own');
     var warnEl = document.getElementById('tw-author-warn');
-    if (!teamEl || !nameEl || !ownEl) return;
+    if (!selEl || !nameEl || !ownEl) return;
+
+    // 드롭다운 옵션 (등록된 전체 팀). 현재 선택된 팀을 기본값으로.
+    var teams = twGetTeams();
+    var prevValue = selEl.value;
+    selEl.innerHTML = teams.map(function (t) {
+      return '<option value="' + escapeAttr(t.id) + '">' + escapeHtml(t.name) + '</option>';
+    }).join('');
+    var preferredId = (team && team.id) || prevValue;
+    if (preferredId && teams.some(function (t) { return t.id === preferredId; })) {
+      selEl.value = preferredId;
+    }
 
     var cur = window.seumAuth && window.seumAuth.currentEmployee;
-    teamEl.textContent = team ? team.name : '-';
     nameEl.textContent = cur && cur.name ? cur.name : '로그인 정보 없음';
 
     var ownTeam = cur && cur.team ? cur.team + '팀' : '';
@@ -9050,11 +9062,19 @@
     var ownLabel = [ownTeam, ownShowroom].filter(Boolean).join(' · ') || '소속 정보 없음';
     ownEl.textContent = ownLabel;
 
-    if (warnEl) {
-      var isAdmin = twIsAdminLike();
-      var matches = !!team && !!cur && twIsTeamMember(team);
-      warnEl.classList.toggle('hidden', isAdmin || matches);
-    }
+    _twUpdateAuthorWarn();
+  }
+
+  // 작성 팀 드롭다운 값과 내 소속 비교하여 경고 표시 토글
+  function _twUpdateAuthorWarn() {
+    var selEl = document.getElementById('tw-write-team');
+    var warnEl = document.getElementById('tw-author-warn');
+    if (!selEl || !warnEl) return;
+    if (twIsAdminLike()) { warnEl.classList.add('hidden'); return; }
+    var teams = twGetTeams();
+    var chosen = teams.find(function (t) { return t.id === selEl.value; });
+    var matches = !!chosen && twIsTeamMember(chosen);
+    warnEl.classList.toggle('hidden', matches);
   }
 
   function _twRenderMembers(team) {
@@ -9470,33 +9490,46 @@
       renderTeamWorklog();
     });
 
-    // 팀 공동 업무일지 저장 (팀원 누구나 작성/수정 가능)
+    // 팀 공동 업무일지 저장 — 드롭다운에서 선택한 팀에 저장 + 상단 선택기 동기화
     if (leadForm) leadForm.addEventListener('submit', function (e) {
       e.preventDefault();
-      var team = _twCurrentTeam();
-      if (!team) return;
-      if (!twIsTeamMember(team)) {
-        showToast('본 팀 소속 직원만 작성할 수 있습니다.', 'error');
+      var cur = window.seumAuth && window.seumAuth.currentEmployee;
+      if (!cur) {
+        showToast('로그인 후 작성할 수 있습니다.', 'error');
         return;
       }
-      var cur = window.seumAuth && window.seumAuth.currentEmployee;
+      var writeSel = document.getElementById('tw-write-team');
+      var chosenId = writeSel ? writeSel.value : '';
+      var team = twGetTeams().find(function (t) { return t.id === chosenId; }) || _twCurrentTeam();
+      if (!team) {
+        showToast('작성할 팀을 선택해 주세요.', 'error');
+        return;
+      }
       var entry = {
         teamId:    team.id,
         date:      _twState.date,
         kind:      'leader',
-        authorId:  cur ? (cur.id || cur.authUserId || '') : '',
-        authorName:cur ? (cur.name || '팀원') : '팀원',
+        authorId:  cur.id || cur.authUserId || '',
+        authorName:cur.name || '팀원',
         summary:   document.getElementById('tw-leader-summary').value.trim(),
         progress:  document.getElementById('tw-leader-progress').value.trim(),
         issues:    document.getElementById('tw-leader-issues').value.trim(),
         tomorrow:  document.getElementById('tw-leader-tomorrow').value.trim()
       };
       if (!twUpsertEntry(entry)) return;
+      // 상단 팀 선택기도 저장된 팀으로 맞춰 이어 확인할 수 있도록 함
+      _twState.teamId = team.id;
+      var topSel = document.getElementById('tw-team-select');
+      if (topSel) topSel.value = team.id;
       if (leadForm) leadForm.classList.add('hidden');
       if (leadView) leadView.style.display = '';
       renderTeamWorklog();
       showToast('팀 업무일지가 저장됐습니다.');
     });
+
+    // 작성 폼 드롭다운 변경 시 경고 토글 (저장 전이라도 즉시 확인)
+    var writeSelEl = document.getElementById('tw-write-team');
+    if (writeSelEl) writeSelEl.addEventListener('change', _twUpdateAuthorWarn);
 
     // 캘린더 네비게이션
     var btnCalPrev = document.getElementById('tw-cal-prev');
