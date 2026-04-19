@@ -9026,16 +9026,29 @@
       return;
     }
     var me = window.seumAuth && window.seumAuth.currentEmployee;
-    var myId = me ? (me.id || me.authUserId || null) : null;
-    var myName = me ? (me.name || '') : '';
+    // 본인 여부는 id 또는 authUserId 중 하나라도 일치하거나 이름이 같으면 true.
+    // 로그인한 직원 레코드의 id/authUserId 가 서로 다른 컬럼으로 매칭될 수 있어
+    // 과도하게 제한하지 않도록 복수 키 비교.
+    function _twIsSameEmp(m) {
+      if (!m || !me) return false;
+      var mKeys = [m.id, m.authUserId].filter(Boolean);
+      var myKeys = [me.id, me.authUserId].filter(Boolean);
+      for (var i = 0; i < mKeys.length; i++) {
+        for (var j = 0; j < myKeys.length; j++) {
+          if (mKeys[i] === myKeys[j]) return true;
+        }
+      }
+      if (m.name && me.name && m.name === me.name) return true;
+      return false;
+    }
     var isLeaderUser = twIsLeader(team);
     var isAdmin = twIsAdminLike();
     var done = 0, pending = 0;
 
     // 본인을 맨 위로, 팀장을 그 다음으로 정렬하여 즉시 입력하기 쉽게 배치
     var sorted = members.slice().sort(function (a, b) {
-      var aIsMe = (myId && a.id === myId) || (!myId && myName && a.name === myName) ? 0 : 1;
-      var bIsMe = (myId && b.id === myId) || (!myId && myName && b.name === myName) ? 0 : 1;
+      var aIsMe = _twIsSameEmp(a) ? 0 : 1;
+      var bIsMe = _twIsSameEmp(b) ? 0 : 1;
       if (aIsMe !== bIsMe) return aIsMe - bIsMe;
       var ar = (a.role || '').toString().toLowerCase();
       var br = (b.role || '').toString().toLowerCase();
@@ -9053,7 +9066,7 @@
 
       var role = (m.role || '').toString().toLowerCase();
       var isLeaderRole = role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager';
-      var isMe = (myId && m.id === myId) || (!myId && myName && m.name === myName);
+      var isMe = _twIsSameEmp(m);
       var canEdit = isMe || isLeaderUser || isAdmin;
 
       var metaMini = entry && entry.updatedAt
@@ -9495,6 +9508,16 @@
 
     // 팀원 인라인: 저장 / 초기화 이벤트 위임
     var inlineList = document.getElementById('tw-members-inline-list');
+    // 팀원 본인 여부 판정 (id/authUserId/name 어느 하나라도 일치)
+    function _twIsMyRow(member) {
+      var cur = window.seumAuth && window.seumAuth.currentEmployee;
+      if (!cur || !member) return false;
+      var a = [member.id, member.authUserId].filter(Boolean);
+      var b = [cur.id, cur.authUserId].filter(Boolean);
+      for (var i = 0; i < a.length; i++) for (var j = 0; j < b.length; j++) if (a[i] === b[j]) return true;
+      if (member.name && cur.name && member.name === cur.name) return true;
+      return false;
+    }
     if (inlineList) inlineList.addEventListener('click', function (e) {
       var team = _twCurrentTeam();
       if (!team) return;
@@ -9503,9 +9526,7 @@
         var authorId = saveBtn.getAttribute('data-tw-inline-save');
         var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
         if (!member) return;
-        var cur = window.seumAuth && window.seumAuth.currentEmployee;
-        var myId = cur ? (cur.id || cur.authUserId) : null;
-        var isMe = myId && member.id === myId;
+        var isMe = _twIsMyRow(member);
         if (!isMe && !twIsLeader(team) && !twIsAdminLike()) {
           showToast('본인 입력칸만 수정할 수 있습니다.', 'error');
           return;
@@ -9538,9 +9559,7 @@
         var clearAuthorId = clearBtn.getAttribute('data-tw-inline-clear');
         var cm = twGetTeamMembers(team).find(function (m) { return m.id === clearAuthorId; });
         if (!cm) return;
-        var cu = window.seumAuth && window.seumAuth.currentEmployee;
-        var cmyId = cu ? (cu.id || cu.authUserId) : null;
-        if (cm.id !== cmyId && !twIsLeader(team) && !twIsAdminLike()) {
+        if (!_twIsMyRow(cm) && !twIsLeader(team) && !twIsAdminLike()) {
           showToast('본인 입력칸만 초기화할 수 있습니다.', 'error');
           return;
         }
