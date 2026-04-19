@@ -302,21 +302,14 @@ button,
 }
 
 .nav-section-title {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 1.35rem 0.4rem;
+  padding: 0.5rem 1.1rem 0.35rem;
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.42);
 }
-.nav-section-icon {
-  font-size: 0.85rem;
-  line-height: 1;
-  opacity: 0.9;
-}
+.nav-section-icon { display: none; }
 
 .nav-section + .nav-section {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -340,14 +333,19 @@ button,
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* SVG 아이콘 (lucide 스타일) — 텍스트 이모지 대체 */
 .nav-item-icon {
   flex-shrink: 0;
-  width: 1.25rem;
-  text-align: center;
-  font-size: 0.95rem;
-  line-height: 1;
-  opacity: 0.9;
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.75;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.15s ease;
 }
+.nav-item:hover .nav-item-icon { color: rgba(255, 255, 255, 0.9); }
+.nav-item.active .nav-item-icon { color: #ffffff; }
+.nav-item-primary:not(.active) .nav-item-icon { color: #93c5fd; }
+.nav-item-secondary .nav-item-icon { color: rgba(255, 255, 255, 0.4); }
 
 .nav-item-text {
   flex: 1;
@@ -396,7 +394,6 @@ button,
   padding-left: 1.1rem;
   box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35), inset 3px 0 0 rgba(255, 255, 255, 0.6);
 }
-.nav-item.active .nav-item-icon { opacity: 1; }
 
 /* 기본(1순위) 메뉴 — 팀 업무일지 등 */
 .nav-item-primary .nav-item-text { font-weight: 700; }
@@ -430,7 +427,6 @@ button,
 .nav-item-secondary {
   color: rgba(255, 255, 255, 0.62);
 }
-.nav-item-secondary .nav-item-icon { opacity: 0.6; }
 .nav-item-secondary:hover {
   color: rgba(255, 255, 255, 0.88);
 }

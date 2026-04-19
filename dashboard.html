@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-06">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-07">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -109,54 +109,85 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">
-        <div class="nav-section-title"><span class="nav-section-icon">🏠</span>홈</div>
+        <div class="nav-section-title">홈</div>
         <a href="#" class="nav-item active" data-section="dashboard">
-          <span class="nav-item-icon">📊</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="7" height="9" x="3" y="3" rx="1"/>
+            <rect width="7" height="5" x="14" y="3" rx="1"/>
+            <rect width="7" height="9" x="14" y="12" rx="1"/>
+            <rect width="7" height="5" x="3" y="16" rx="1"/>
+          </svg>
           <span class="nav-item-text">대시보드</span>
         </a>
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title"><span class="nav-section-icon">💬</span>소통</div>
+        <div class="nav-section-title">소통</div>
         <a href="#" class="nav-item" data-section="announcements">
-          <span class="nav-item-icon">📣</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m3 11 18-5v12L3 14v-3z"/>
+            <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+          </svg>
           <span class="nav-item-text">공지사항</span>
           <span class="nav-item-badge sidebar-announcement-badge hidden" id="sidebar-announcement-badge" aria-live="polite"></span>
         </a>
         <a href="#" class="nav-item" data-section="org-structure">
-          <span class="nav-item-icon">🏢</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+            <path d="M6 12H4a2 2 0 0 0-2 2v8h4"/>
+            <path d="M18 9h2a2 2 0 0 1 2 2v11h-4"/>
+            <path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+          </svg>
           <span class="nav-item-text">운영 구조</span>
         </a>
       </div>
 
       <div class="nav-section nav-section-work">
-        <div class="nav-section-title"><span class="nav-section-icon">📋</span>업무</div>
+        <div class="nav-section-title">업무</div>
         <a href="#" class="nav-item nav-item-primary" data-section="team-worklog">
-          <span class="nav-item-icon">📋</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect width="8" height="4" x="8" y="2" rx="1" ry="1"/>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            <path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>
+          </svg>
           <span class="nav-item-text">팀 업무일지</span>
           <span class="nav-item-badge nav-item-badge-primary">기본</span>
         </a>
         <a href="#" class="nav-item nav-item-secondary" data-section="worklog">
-          <span class="nav-item-icon">📝</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"/>
+            <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>
+          </svg>
           <span class="nav-item-text">
             개인 업무일지
             <span class="nav-item-sub-desc">팀 업무일지를 쓰기 어려운 예외 사용자용</span>
           </span>
         </a>
         <a href="#" class="nav-item" data-section="team-calendar">
-          <span class="nav-item-icon">📅</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2v4"/><path d="M16 2v4"/>
+            <rect width="18" height="18" x="3" y="4" rx="2"/>
+            <path d="M3 10h18"/>
+          </svg>
           <span class="nav-item-text">운영 캘린더</span>
         </a>
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title"><span class="nav-section-icon">👥</span>인사</div>
+        <div class="nav-section-title">인사</div>
         <a href="#" class="nav-item" data-section="attendance">
-          <span class="nav-item-icon">⏰</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
           <span class="nav-item-text">근태관리</span>
         </a>
         <a href="#" class="nav-item" data-section="leave">
-          <span class="nav-item-icon">🌴</span>
+          <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 12a10.06 10.06 0 0 0-20 0Z"/>
+            <path d="M12 12v8a2 2 0 0 0 4 0"/>
+            <path d="M12 2v1"/>
+          </svg>
           <span class="nav-item-text">월차/연차</span>
         </a>
       </div>
