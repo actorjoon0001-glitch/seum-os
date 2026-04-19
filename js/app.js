@@ -9332,12 +9332,22 @@
     if (statPending) statPending.textContent = String(pending);
   }
 
+  // 팀 업무일지 열람 범위: 마스터/슈퍼어드민만 전체, 그 외는 본인 팀만.
+  // (admin/팀장 은 타 팀 업무일지 열람 불가 — 협업 문서이므로 보수적으로 잠금)
+  function _twCanViewAllTeams() {
+    try {
+      if (typeof isMaster === 'function' && isMaster()) return true;
+      if (typeof isSuperAdmin === 'function' && isSuperAdmin()) return true;
+    } catch (e) {}
+    return false;
+  }
+
   function _twPopulateTeamSelect() {
     var sel = document.getElementById('tw-team-select');
     if (!sel) return;
     var allTeams = twGetTeams();
     var me = window.seumAuth && window.seumAuth.currentEmployee;
-    var isAdmin = twIsAdminLike();
+    var isAdmin = _twCanViewAllTeams();
 
     // 일반 직원: 자기 팀만 드롭다운에 노출 (타 팀 조회 차단)
     // 관리자/마스터/슈퍼어드민: 전체 팀 노출
@@ -9487,7 +9497,7 @@
   function _twRenderHistory() {
     var tbody = document.getElementById('tw-history-tbody');
     if (!tbody) return;
-    var isAdmin = twIsAdminLike();
+    var isAdmin = _twCanViewAllTeams();
     // 일반 직원은 '모든 팀 보기' 체크박스 숨김 + 무조건 본인 팀만 열람
     var allCheckbox = document.getElementById('tw-history-all-teams');
     var allCheckboxWrap = allCheckbox && allCheckbox.closest('label');
@@ -9655,9 +9665,15 @@
   }
 
   function _twInitEvents() {
-    // 팀 선택
+    // 팀 선택 — 마스터/슈퍼어드민이 아니면 본인 팀 외 선택을 리셋
     var sel = document.getElementById('tw-team-select');
     if (sel) sel.addEventListener('change', function () {
+      if (!_twCanViewAllTeams()) {
+        // 일반/팀장/admin 권한 사용자는 팀 전환 불가 — 본인 팀으로 되돌림
+        _twPopulateTeamSelect();
+        renderTeamWorklog();
+        return;
+      }
       _twState.teamId = sel.value;
       renderTeamWorklog();
     });
