@@ -425,11 +425,36 @@ button,
 
 /* 보조(예외) 메뉴 — 개인 업무일지 등 */
 .nav-item-secondary {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.88rem;
 }
 .nav-item-secondary:hover {
   color: rgba(255, 255, 255, 0.88);
 }
+
+/* 중첩 메뉴 — 상위 메뉴(팀 업무일지) 의 하위로 시각적으로 연결 */
+.nav-item-nested {
+  margin-left: 1.5rem;
+  padding-left: 0.75rem;
+  position: relative;
+  /* 상위 메뉴와 이어지는 선을 암시하는 왼쪽 보더 */
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0;
+}
+.nav-item-nested::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 0.5rem;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.nav-item-nested.active {
+  border-left-color: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-sm);
+}
+.nav-item-nested.active::before { background: rgba(255, 255, 255, 0.8); }
 
 /* 팀 그룹 (아코디언) */
 .nav-group {
