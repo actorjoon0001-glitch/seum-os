@@ -13645,6 +13645,48 @@
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
 
+  // Supabase employees 테이블에서 승인된 직원을 localStorage 로 동기화.
+  // 팀 업무일지/인라인 렌더가 getEmployees() 를 기준으로 동작하므로, 처음 앱 로드 시
+  // 한 번 채워두면 실제 팀원들이 바로 보임. (실패해도 기존 로컬 데이터 유지.)
+  function syncEmployeesFromSupabase() {
+    try {
+      if (typeof supabase === 'undefined' || !supabase) return;
+      supabase.from('employees')
+        .select('id, auth_user_id, name, team, role, showroom, status, position_name, permission')
+        .eq('status', 'approved')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) return;
+          var local = getEmployees();
+          var byId = {};
+          local.forEach(function (e) { if (e && e.id) byId[e.id] = e; });
+          // 원격 직원을 local 에 upsert (id 기준). 기존 로컬 필드는 보존.
+          res.data.forEach(function (e) {
+            if (!e || !e.id) return;
+            var existing = byId[e.id] || {};
+            byId[e.id] = Object.assign({}, existing, {
+              id: e.id,
+              authUserId: e.auth_user_id || existing.authUserId || null,
+              name: e.name || existing.name || '',
+              team: e.team || existing.team || '',
+              role: e.role || existing.role || '',
+              showroom: e.showroom || existing.showroom || '',
+              status: e.status || existing.status || 'active',
+              position_name: e.position_name || existing.position_name || '',
+              permission: e.permission || existing.permission || ''
+            });
+          });
+          // 더미 'tw-*' id 는 제외
+          var merged = Object.values(byId).filter(function (e) {
+            return !(e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
+          });
+          saveEmployees(merged);
+          // 팀 업무일지가 현재 화면이면 즉시 재렌더
+          var active = document.querySelector('#section-team-worklog.active');
+          if (active && typeof renderTeamWorklog === 'function') renderTeamWorklog();
+        });
+    } catch (e) { /* ignore */ }
+  }
+
   // 과거 팀 업무일지 샘플 시드에서 생성된 더미 직원을 영구 제거.
   // id 가 'tw-' 로 시작하는 레코드 + 해당 직원이 작성한 팀별 업무일지 엔트리를 모두 정리.
   function cleanupTwSampleEmployees() {
@@ -13675,6 +13717,9 @@
     cleanupTwSampleEmployees();
     ensureSamples();
     ensureEmployeesAndKpi();
+    // Supabase 에서 승인된 직원 목록을 localStorage 로 동기화
+    // (비동기 — 결과 수신 시 팀 업무일지 화면이면 자동 재렌더)
+    syncEmployeesFromSupabase();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
     syncTeamEventsFromSupabase();
