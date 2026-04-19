@@ -13007,6 +13007,140 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* 보관함 히스토리 */
+/* ===== 직원 관리 — 전시장 → 팀 그룹 ===== */
+.admin-emp-filters-card {
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.admin-emp-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.admin-emp-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+.admin-emp-filter-search { flex: 1 1 220px; }
+.admin-emp-filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+}
+.admin-emp-filter-field select,
+.admin-emp-filter-field input {
+  padding: 0.5rem 0.65rem;
+  background: #0f172a;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+.admin-emp-filter-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.admin-emp-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.admin-emp-showroom-group {
+  background: var(--card-bg, rgba(17, 24, 39, 0.75));
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.admin-emp-showroom-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.8rem 1.1rem;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), rgba(15, 23, 42, 0.2));
+  border: none;
+  color: #f1f5f9;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+.admin-emp-showroom-header:hover {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.2), rgba(15, 23, 42, 0.25));
+}
+.admin-emp-showroom-toggle {
+  font-size: 0.7rem;
+  color: #93c5fd;
+  width: 1rem;
+  display: inline-flex;
+  justify-content: center;
+}
+.admin-emp-showroom-name {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  flex: 1;
+}
+.admin-emp-showroom-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #bfdbfe;
+  background: rgba(96, 165, 250, 0.18);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.admin-emp-showroom-group.is-collapsed .admin-emp-team-block { display: none; }
+.admin-emp-team-block {
+  padding: 0.6rem 1rem 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.admin-emp-team-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.4rem 0.2rem 0.5rem;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  font-weight: 700;
+}
+.admin-emp-team-name {
+  padding: 2px 10px;
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+.admin-emp-team-count {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.admin-emp-table th,
+.admin-emp-table td {
+  vertical-align: middle;
+}
+.admin-emp-table select {
+  padding: 4px 6px;
+  background: #111827;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  width: 100%;
+}
+.admin-emp-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+  background: var(--card-bg, rgba(17, 24, 39, 0.6));
+  border-radius: 10px;
+  border: 1px dashed rgba(148, 163, 184, 0.2);
+}
+
 .tw-history-card { margin-top: 1rem; }
 
 /* 업무일지 보관함 상세 모달 */
