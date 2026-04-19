@@ -18,13 +18,13 @@
     LATE: 'late'
   };
 
-  /** 한글 라벨. */
+  /** 한글 라벨. UI 는 before/working/finished 3가지 + 휴무 유형만 노출.
+   *  내부적으로 late 판정은 is_late 컬럼에 저장되지만 화면에는 표시하지 않음. */
   var STATUS_LABEL = {
     before: '출근전',
     working: '근무중',
     finished: '퇴근완료',
-    late: '지각',
-    absent: '결근',
+    // 아래는 휴무/외부 상태 — 내부 호환용 라벨만 유지 (UI 노출 최소화)
     outside: '외근',
     business_trip: '출장',
     vacation: '휴가',
@@ -186,7 +186,8 @@
       return { ok: false, reason: 'already_checked_in', record: existing };
     }
     var now = new Date();
-    var status = isLate(now) ? STATUS.LATE : STATUS.WORKING;
+    // UI 상태는 항상 working 으로 저장. 지각 여부는 upsertMyToday 에서 is_late 컬럼에만 기록.
+    var status = STATUS.WORKING;
     var rec = await upsertMyToday({
       check_in: now.toISOString(),
       status: status,
@@ -200,7 +201,8 @@
     if (!existing || !existing.check_in) return { ok: false, reason: 'no_check_in' };
     if (existing.check_out) return { ok: false, reason: 'already_checked_out', record: existing };
     var now = new Date();
-    var finalStatus = isLate(existing.check_in) ? STATUS.LATE : STATUS.FINISHED;
+    // UI 상태는 finished 로 저장. 지각 여부는 is_late 컬럼에만 보관됨.
+    var finalStatus = STATUS.FINISHED;
     var rec = await upsertMyToday({
       check_in: existing.check_in,
       check_out: now.toISOString(),
@@ -222,6 +224,12 @@
 
   function applyStatusBadge(el, status) {
     if (!el) return;
+    // 내부 상태(late/absent)는 UI 노출하지 않으므로 항상 before/working/finished 중 하나로 정규화
+    //  late  → working/finished 와 동일하게 표시
+    //  absent → before 로 표시 (결근 판단은 관리자 내부 통계용으로만 유지)
+    var displayStatus = status;
+    if (displayStatus === 'late') displayStatus = 'working'; // fallback (세부는 renderCard에서 올바르게 전달됨)
+    if (displayStatus === 'absent') displayStatus = 'before';
     el.classList.remove(
       'attendance-status-before',
       'attendance-status-working',
@@ -235,8 +243,8 @@
       'attendance-status-half_pm',
       'attendance-status-sick'
     );
-    el.classList.add('attendance-status-' + status);
-    el.textContent = STATUS_LABEL[status] || '출근전';
+    el.classList.add('attendance-status-' + displayStatus);
+    el.textContent = STATUS_LABEL[displayStatus] || '출근전';
   }
   function applyStatusBadgeAll(selector, status) {
     $all(selector).forEach(function (el) { applyStatusBadge(el, status); });
@@ -272,11 +280,13 @@
       return;
     }
 
+    // UI 상태는 before/working/finished 3가지로만 표시 (지각/결근 표시 제거).
+    // is_late 는 레코드 저장 시 내부 필드로만 보관되고 화면에는 드러나지 않음.
     var status = (rec && rec.status) || STATUS.BEFORE;
-    var manual = ['vacation', 'sick', 'outside', 'business_trip', 'absent'];
+    var manual = ['vacation', 'sick', 'outside', 'business_trip'];
     if (manual.indexOf(status) < 0) {
-      if (rec && rec.check_in && rec.check_out) status = isLate(rec.check_in) ? STATUS.LATE : STATUS.FINISHED;
-      else if (rec && rec.check_in) status = isLate(rec.check_in) ? STATUS.LATE : STATUS.WORKING;
+      if (rec && rec.check_in && rec.check_out) status = STATUS.FINISHED;
+      else if (rec && rec.check_in) status = STATUS.WORKING;
       else status = STATUS.BEFORE;
     }
     applyStatusBadgeAll('.attendance-today-status-badge', status);
@@ -524,10 +534,11 @@
     // 승인된 월차가 있으면 최우선 적용 (출근 기록보다 우선)
     if (leaveStatus) return leaveStatus;
     if (!rec) return 'empty';
-    var manual = ['vacation', 'sick', 'outside', 'business_trip', 'absent'];
+    // 지각/결근은 UI 상태로 노출하지 않음 — 출근만 있으면 working, 퇴근까지면 finished
+    var manual = ['vacation', 'sick', 'outside', 'business_trip'];
     if (manual.indexOf(rec.status) >= 0) return rec.status;
-    if (rec.check_in && rec.check_out) return isLate(rec.check_in) ? 'late' : 'finished';
-    if (rec.check_in) return isLate(rec.check_in) ? 'late' : 'working';
+    if (rec.check_in && rec.check_out) return 'finished';
+    if (rec.check_in) return 'working';
     return 'empty';
   }
 
@@ -535,14 +546,13 @@
     switch (status) {
       case 'working': return '근';
       case 'finished': return '퇴';
-      case 'late': return '지';
-      case 'absent': return '결';
       case 'outside': return '외';
       case 'business_trip': return '출';
       case 'vacation': return '휴';
       case 'half_am': return '오';  // 오전 반차
       case 'half_pm': return '후';  // 오후 반차
       case 'sick': return '병';
+      // late/absent 는 UI 에 노출하지 않음
       default: return '·';
     }
   }

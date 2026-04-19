@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-03">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-04">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3475,8 +3475,6 @@
                 <option value="">전체</option>
                 <option value="working">근무중</option>
                 <option value="finished">퇴근완료</option>
-                <option value="late">지각</option>
-                <option value="absent">결근</option>
                 <option value="outside">외근</option>
                 <option value="business_trip">출장</option>
                 <option value="vacation">휴가</option>
@@ -3503,14 +3501,12 @@
           <div class="attendance-cal-legend">
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-working"></span>근무중</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-finished"></span>퇴근완료</span>
-            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-late"></span>지각</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-outside"></span>외근</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-business_trip"></span>출장</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-vacation"></span>휴가(연차)</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-half_am"></span>오전 반차</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-half_pm"></span>오후 반차</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-sick"></span>병가</span>
-            <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-absent"></span>결근</span>
             <span class="attendance-cal-legend-item"><span class="attendance-cal-chip attendance-status-empty"></span>미기록</span>
           </div>
         </div>
@@ -3600,8 +3596,6 @@
                   <option value="before">출근전</option>
                   <option value="working">근무중</option>
                   <option value="finished">퇴근완료</option>
-                  <option value="late">지각</option>
-                  <option value="absent">결근</option>
                   <option value="outside">외근</option>
                   <option value="business_trip">출장</option>
                   <option value="vacation">휴가</option>
@@ -5002,7 +4996,7 @@
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/marketing.js"></script>
-  <script src="js/attendance.js?v=20260419-02"></script>
+  <script src="js/attendance.js?v=20260419-04"></script>
   <script src="js/leave.js"></script>
   <script src="js/team-off.js?v=20260419-03"></script>
 </body>
