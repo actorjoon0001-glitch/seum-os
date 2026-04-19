@@ -8653,60 +8653,6 @@
     { id: 'andong-sales',    name: '안동전시장 영업팀',  team: '영업', showroom: 'andong'       }
   ];
 
-  // 샘플 팀 멤버 (샘플 불러오기 버튼 시 주입)
-  var TW_DUMMY_MEMBERS = {
-    'hq-marketing': [
-      { authorId: 'tw-hmk-01', name: '김마케팅', role: 'leader' },
-      { authorId: 'tw-hmk-02', name: '박콘텐츠', role: 'member' },
-      { authorId: 'tw-hmk-03', name: '이광고',   role: 'member' }
-    ],
-    'hq-sales': [
-      { authorId: 'tw-hsl-01', name: '정본사',   role: 'leader' },
-      { authorId: 'tw-hsl-02', name: '강본영',   role: 'member' },
-      { authorId: 'tw-hsl-03', name: '박본상',   role: 'member' }
-    ],
-    'hq-design': [
-      { authorId: 'tw-hds-01', name: '오설계',   role: 'leader' },
-      { authorId: 'tw-hds-02', name: '장도면',   role: 'member' },
-      { authorId: 'tw-hds-03', name: '윤평면',   role: 'member' }
-    ],
-    'hq-construction': [
-      { authorId: 'tw-hcs-01', name: '강시공',   role: 'leader' },
-      { authorId: 'tw-hcs-02', name: '문현장',   role: 'member' },
-      { authorId: 'tw-hcs-03', name: '배감리',   role: 'member' }
-    ],
-    'hq-settlement': [
-      { authorId: 'tw-hst-01', name: '서정산',   role: 'leader' },
-      { authorId: 'tw-hst-02', name: '조회계',   role: 'member' },
-      { authorId: 'tw-hst-03', name: '안재무',   role: 'member' }
-    ],
-    'sr1-sales': [
-      { authorId: 'tw-s1-01', name: '최영업',   role: 'leader' },
-      { authorId: 'tw-s1-02', name: '정상담',   role: 'member' },
-      { authorId: 'tw-s1-03', name: '한계약',   role: 'member' }
-    ],
-    'sr3-sales': [
-      { authorId: 'tw-s3-01', name: '송방문',   role: 'leader' },
-      { authorId: 'tw-s3-02', name: '노상담',   role: 'member' },
-      { authorId: 'tw-s3-03', name: '황견적',   role: 'member' }
-    ],
-    'sr4-sales': [
-      { authorId: 'tw-s4-01', name: '유전시',   role: 'leader' },
-      { authorId: 'tw-s4-02', name: '임방문',   role: 'member' },
-      { authorId: 'tw-s4-03', name: '남계약',   role: 'member' }
-    ],
-    'ganghwa-sales': [
-      { authorId: 'tw-gh-01', name: '권강화',   role: 'leader' },
-      { authorId: 'tw-gh-02', name: '하상담',   role: 'member' },
-      { authorId: 'tw-gh-03', name: '신계약',   role: 'member' }
-    ],
-    'andong-sales': [
-      { authorId: 'tw-ad-01', name: '고안동',   role: 'leader' },
-      { authorId: 'tw-ad-02', name: '손상담',   role: 'member' },
-      { authorId: 'tw-ad-03', name: '전계약',   role: 'member' }
-    ]
-  };
-
   function twGetTeams() {
     try {
       var verRaw = localStorage.getItem(STORAGE_TEAM_WORKLOG_TEAMS + ':v');
@@ -8733,34 +8679,6 @@
   function twSaveWorklogs(list) {
     try { localStorage.setItem(STORAGE_TEAM_WORKLOGS, JSON.stringify(list)); return true; }
     catch (e) { showToast('저장 용량이 초과됐습니다.', 'error'); return false; }
-  }
-
-  function twSeedDummy() {
-    twSaveTeams(TW_DEFAULT_TEAMS.slice());
-    // 이전 시드에서 생성된 더미 직원(id가 'tw-'로 시작) 제거 후 재생성
-    var emps = getEmployees().filter(function (e) {
-      return !(e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
-    });
-    var byId = {};
-    emps.forEach(function (e) { byId[e.id] = true; });
-    var added = [];
-    Object.keys(TW_DUMMY_MEMBERS).forEach(function (teamId) {
-      var teamMeta = TW_DEFAULT_TEAMS.find(function (t) { return t.id === teamId; });
-      TW_DUMMY_MEMBERS[teamId].forEach(function (m) {
-        if (byId[m.authorId]) return;
-        added.push({
-          id: m.authorId,
-          name: m.name,
-          team: teamMeta ? teamMeta.team : '',
-          showroom: teamMeta ? (teamMeta.showroom || '') : '',
-          teamWorklogTeamId: teamId,
-          role: m.role,
-          status: 'active'
-        });
-        byId[m.authorId] = true;
-      });
-    });
-    saveEmployees(emps.concat(added));
   }
 
   function twIsAdminLike() {
@@ -9096,7 +9014,7 @@
     }
     var members = twGetTeamMembers(team);
     if (!members.length) {
-      listEl.innerHTML = '<div class="tw-members-empty">팀원이 없습니다. 상단 "샘플 팀 불러오기"를 눌러 더미 팀을 추가하거나, 직원 관리에서 팀원을 등록하세요.</div>';
+      listEl.innerHTML = '<div class="tw-members-empty">팀원이 없습니다. 직원 관리에서 팀원을 등록하거나, 회원가입 시 올바른 팀/전시장을 선택해 주세요.</div>';
       if (statDone) statDone.textContent = '0';
       if (statPending) statPending.textContent = '0';
       return;
@@ -9465,14 +9383,6 @@
       var form = document.getElementById('tw-leader-form');
       if (form) form.classList.add('hidden');
       renderTeamWorklog();
-    });
-
-    // 샘플 불러오기
-    var btnSeed = document.getElementById('tw-btn-seed');
-    if (btnSeed) btnSeed.addEventListener('click', function () {
-      twSeedDummy();
-      renderTeamWorklog();
-      showToast('샘플 팀 및 팀원이 추가됐습니다.');
     });
 
     // 인쇄
