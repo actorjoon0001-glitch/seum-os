@@ -58,9 +58,11 @@
     return (s && typeof s.from === 'function') ? s : null;
   }
 
-  // 월차/연차 신청(leave_requests) 에서 승인된 항목을 가져와 휴무 엔트리로 변환.
-  // 월간 근무 캘린더에서 보이는 휴무들이 팀 휴무 캘린더에도 노출되도록 합집합 처리.
+  // 월간 근무 캘린더에서 보이는 휴무들이 팀 휴무 캘린더에도 노출되도록 두 소스에서 합집합:
+  //   1) leave_requests (status='approved')        — 신청·승인 워크플로우
+  //   2) attendance (status in 휴무 유형들)          — 관리자가 직접 셋팅한 값
   var _leaveCache = {};   // 'YYYY-MM' → 변환된 엔트리 배열
+
   function fetchMonthLeaves(year, month) {
     var supabase = _supa();
     if (!supabase) return Promise.resolve([]);
@@ -74,8 +76,31 @@
       .lte('start_date', last)
       .gte('end_date', first)
       .then(function (r) {
-        if (r && r.error) { console.warn('[team-off] leave fetch failed:', r.error); return []; }
-        return Array.isArray(r && r.data) ? r.data : [];
+        if (r && r.error) { console.warn('[team-off] leave_requests fetch failed:', r.error); return []; }
+        var rows = Array.isArray(r && r.data) ? r.data : [];
+        console.log('[team-off] leave_requests fetched:', rows.length);
+        return rows;
+      }, function () { return []; });
+  }
+
+  function fetchMonthAttendanceLeaves(year, month) {
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve([]);
+    var key = year + '-' + pad(month + 1);
+    var first = key + '-01';
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var last = key + '-' + pad(lastDay);
+    var leaveLikeStatuses = ['vacation', 'sick', 'outside', 'business_trip', 'half_am', 'half_pm'];
+    return supabase.from('attendance')
+      .select('user_id, user_name, team, showroom, date, status')
+      .gte('date', first)
+      .lte('date', last)
+      .in('status', leaveLikeStatuses)
+      .then(function (r) {
+        if (r && r.error) { console.warn('[team-off] attendance fetch failed:', r.error); return []; }
+        var rows = Array.isArray(r && r.data) ? r.data : [];
+        console.log('[team-off] attendance leaves fetched:', rows.length);
+        return rows;
       }, function () { return []; });
   }
 
@@ -121,6 +146,28 @@
       }
     });
     return entries;
+  }
+
+  function expandAttendanceToOffEntries(attRows) {
+    if (!attRows || !attRows.length) return [];
+    var emps = (typeof window.getEmployees === 'function') ? window.getEmployees() : [];
+    var byAuth = {};
+    emps.forEach(function (e) { if (e && e.authUserId) byAuth[e.authUserId] = e; });
+    return attRows.map(function (a) {
+      var emp = byAuth[a.user_id] || {};
+      var type = mapLeaveTypeToOff(a.status);
+      return {
+        id: 'att-' + (a.user_id || '') + '-' + (a.date || ''),
+        employeeId: emp.id || a.user_id || '',
+        employeeName: a.user_name || emp.name || '',
+        team: a.team || emp.team || '',
+        showroom: a.showroom || emp.showroom || '',
+        date: a.date,
+        type: type,
+        memo: '근태: ' + _leaveTypeKo(a.status),
+        __fromAttendance: true
+      };
+    });
   }
 
   function getAllWithLeaves() {
@@ -317,9 +364,14 @@
     var key = year + '-' + pad(month + 1);
     if (_leaveCache[key] != null) return; // 이미 가져온 적 있으면 패스 (재진입 시 즉시 사용)
     _leaveCache[key] = []; // 동시 다발 fetch 방지용 마커
-    fetchMonthLeaves(year, month).then(function (leaves) {
-      _leaveCache[key] = expandLeaveToOffEntries(leaves);
-      // 캘린더 다시 그림
+    Promise.all([
+      fetchMonthLeaves(year, month),
+      fetchMonthAttendanceLeaves(year, month)
+    ]).then(function (results) {
+      var leaveEntries = expandLeaveToOffEntries(results[0]);
+      var attEntries = expandAttendanceToOffEntries(results[1]);
+      _leaveCache[key] = leaveEntries.concat(attEntries);
+      console.log('[team-off] cached', _leaveCache[key].length, 'entries for', key);
       renderCalendar();
     });
   }
