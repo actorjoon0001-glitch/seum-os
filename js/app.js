@@ -1196,9 +1196,9 @@
     contracts = filterByYearMonth(contracts, 'contractDate');
     var visits = filterByShowroom(_allVisits, 'showroomId');
     visits = filterByYearMonth(visits, 'visitDate');
-    var monthContracts = (getFilterYear() || getFilterMonth())
-      ? contracts
-      : contracts.filter(function (c) { return c.contractDate && c.contractDate.slice(0, 7) === thisMonth(); });
+    // 필터(년도/월) 가 "전체" 이면 전체 계약, 특정 년/월 선택 시 해당 범위 계약으로 집계.
+    // (기존에는 전체/전체일 때 이번 달로 강제 필터링 → '월 계약건수' 가 과소집계되는 버그)
+    var monthContracts = contracts;
     function toManwon(c, field) {
       var v = Number(c[field]) || 0;
       return c.amountUnit === 'manwon' ? v : Math.round(v / 10000);
