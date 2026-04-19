@@ -9043,6 +9043,33 @@
     }
     var isLeaderUser = twIsLeader(team);
     var isAdmin = twIsAdminLike();
+
+    // 보장: 현재 사용자가 이 팀의 소속(team+showroom 또는 teamWorklogTeamId)이면
+    // 팀원 리스트에 자동으로 포함시켜 본인 행과 저장 버튼이 항상 노출되게 함.
+    if (me) {
+      var alreadyListed = members.some(function (m) { return _twIsSameEmp(m); });
+      if (!alreadyListed) {
+        var meBelongs =
+          (me.teamWorklogTeamId && me.teamWorklogTeamId === team.id) ||
+          (team.team && me.team === team.team && (
+            // 본사 공통팀(showroom 미지정) → team 일치로 충분
+            !team.showroom ||
+            // 전시장 팀 → showroom 일치 필요
+            (team.showroom && (me.showroom || '') === team.showroom)
+          ));
+        if (meBelongs) {
+          members = members.concat([{
+            id: me.id || me.authUserId || ('self-' + Date.now()),
+            authUserId: me.authUserId || me.id || null,
+            name: me.name || '나',
+            team: me.team || '',
+            showroom: me.showroom || '',
+            role: me.role || 'member',
+            status: me.status || 'active'
+          }]);
+        }
+      }
+    }
     var done = 0, pending = 0;
 
     // 본인을 맨 위로, 팀장을 그 다음으로 정렬하여 즉시 입력하기 쉽게 배치
@@ -9112,12 +9139,27 @@
     sel.innerHTML = teams.map(function (t) {
       return '<option value="' + escapeAttr(t.id) + '">' + escapeHtml(t.name) + '</option>';
     }).join('');
-    // 우선순위: 기존 선택 → 로그인 사용자 팀 → 첫 번째
+    // 우선순위: 기존 선택 → 로그인 사용자의 (team + showroom) 정확 매칭 → team 만 일치 → 첫 번째
+    // 영업팀처럼 같은 team 을 여러 전시장이 공유하는 경우 showroom 까지 맞춰야 본인 팀을 정확히 선택
     var target = teams.find(function (t) { return t.id === prev; });
     if (!target) {
       var me = window.seumAuth && window.seumAuth.currentEmployee;
       var myTeam = me && me.team;
-      if (myTeam) target = teams.find(function (t) { return t.team === myTeam; });
+      var myShowroom = me && me.showroom;
+      if (myTeam) {
+        // 1차: team + showroom 모두 일치
+        if (myShowroom) {
+          target = teams.find(function (t) { return t.team === myTeam && (t.showroom || '') === myShowroom; });
+        }
+        // 2차: showroom 지정이 없는 팀 중 team 일치 (본사 공통 팀)
+        if (!target) {
+          target = teams.find(function (t) { return t.team === myTeam && !t.showroom; });
+        }
+        // 3차: team 만 일치 (마지막 수단)
+        if (!target) {
+          target = teams.find(function (t) { return t.team === myTeam; });
+        }
+      }
     }
     if (!target) target = teams[0];
     if (target) {
