@@ -162,21 +162,30 @@
   function handleIncomingNotification(row) {
     var myTeam = '';
     var myRole = '';
-    // auth.js 의 현재 직원 팀/역할 정보 가져오기
+    var myName = '';
+    var myPermission = '';
+    // auth.js 의 현재 직원 팀/역할/이름 정보 가져오기
     if (window.seumAuth && window.seumAuth.currentEmployee) {
       var emp = window.seumAuth.currentEmployee;
       myTeam = emp.team || '';
       myRole = emp.role || '';
+      myName = emp.name || '';
+      myPermission = emp.permission || '';
     } else if (window.seumAuth && typeof window.seumAuth.getCurrentEmployee === 'function') {
       var emp = window.seumAuth.getCurrentEmployee();
       myTeam = emp ? (emp.team || '') : '';
       myRole = emp ? (emp.role || '') : '';
+      myName = emp ? (emp.name || '') : '';
+      myPermission = emp ? (emp.permission || '') : '';
     }
 
-    var isMasterOrAdmin = (myRole === 'master' || myRole === 'admin');
+    var isMasterOrAdmin = (myRole === 'master' || myRole === 'admin'
+                           || myPermission === 'master' || myPermission === 'admin' || myPermission === 'superadmin');
     var isRecipientTeam = myTeam && row.recipient_team === myTeam;
+    // 개인 지정 수신자(row.recipient_name) 가 내 이름과 일치하면 알림 수신
+    var isRecipientName = myName && row.recipient_name && row.recipient_name === myName;
 
-    if (!isMasterOrAdmin && !isRecipientTeam) return;
+    if (!isMasterOrAdmin && !isRecipientTeam && !isRecipientName) return;
 
     var title = row.title || '새 알림';
     var body = row.body || '';
@@ -215,16 +224,17 @@
   // 알림 전송 함수 (계약 생성한 쪽에서 호출)
   // --------------------------------------------------
   function sendContractNotification(opts) {
-    // opts: { contractId, customerName, salesPerson, recipientTeam }
+    // opts: { contractId, customerName, salesPerson, recipientTeam, recipientName, title, body }
     var supabase = window.seumSupabase || null;
     if (!supabase) return;
 
     var recipientTeam = opts.recipientTeam || '설계';
-    var title = '📋 새 계약이 접수되었습니다';
-    var body = '고객명: ' + (opts.customerName || '-') + ' · 영업: ' + (opts.salesPerson || '-');
+    var title = opts.title || '📋 새 계약이 접수되었습니다';
+    var body = opts.body || ('고객명: ' + (opts.customerName || '-') + ' · 영업: ' + (opts.salesPerson || '-'));
 
     supabase.from('notifications').insert({
-      recipient_team: recipientTeam,
+      recipient_team: recipientTeam || null,
+      recipient_name: opts.recipientName || null,
       title: title,
       body: body,
       contract_id: opts.contractId || null,
