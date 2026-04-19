@@ -12660,6 +12660,182 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .tw-calendar-legend-text { color: #94a3b8; }
 
+/* ===== 팀장 코멘트 카드 ===== */
+.tw-leader-comment-card {
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(15, 23, 42, 0.3));
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+.tw-leader-comment-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+.tw-leader-comment-title {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  color: #60a5fa;
+}
+.tw-leader-comment-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.tw-leader-comment-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-align: right;
+}
+.tw-leader-comment-textarea {
+  width: 100%;
+  min-height: 78px;
+  padding: 0.65rem 0.8rem;
+  background: #0f172a;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.tw-leader-comment-textarea:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+.tw-leader-comment-textarea:disabled {
+  background: rgba(15, 23, 42, 0.5);
+  color: #cbd5e1;
+  cursor: default;
+}
+.tw-leader-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 0.5rem;
+}
+.tw-leader-comment-saved {
+  font-size: 0.75rem;
+  color: #86efac;
+}
+
+/* ===== 팀원 인라인 업무일지 ===== */
+.tw-members-inline-card {
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+}
+.tw-members-inline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+.tw-members-inline-head h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  color: #e2e8f0;
+}
+.tw-members-inline-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.tw-members-inline-stats {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.tw-members-inline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.tw-member-inline-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem 0.85rem;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-left: 3px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tw-member-inline-row.is-done { border-left-color: #22c55e; }
+.tw-member-inline-row.is-pending { border-left-color: #ef4444; }
+.tw-member-inline-row.is-me {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+.tw-member-inline-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tw-member-inline-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+.tw-member-inline-status {
+  font-size: 0.78rem;
+  color: #86efac;
+}
+.tw-empty-tag {
+  color: #fca5a5;
+  font-weight: 600;
+}
+.tw-member-inline-meta {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+.tw-member-inline-textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  background: #0f172a;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 58px;
+}
+.tw-member-inline-textarea:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+.tw-member-inline-textarea:disabled {
+  background: rgba(15, 23, 42, 0.55);
+  color: #cbd5e1;
+  cursor: default;
+}
+.tw-member-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.tw-member-inline-saved {
+  font-size: 0.72rem;
+  color: #86efac;
+  margin-right: auto;
+}
+.tw-member-inline-readonly {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
 /* 보관함 히스토리 */
 .tw-history-card { margin-top: 1rem; }
 .tw-history-header {

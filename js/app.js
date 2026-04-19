@@ -8922,59 +8922,39 @@
     return teams.find(function (t) { return t.id === _twState.teamId; }) || teams[0] || null;
   }
 
+  // 팀장 코멘트 카드 렌더 — 팀장/관리자만 textarea 활성, 그 외 읽기 전용
+  // 저장 필드는 기존 leader 엔트리의 summary 컬럼을 재사용
   function _twRenderLeader(team) {
-    var card = document.getElementById('tw-leader-card');
-    var view = document.getElementById('tw-leader-view');
-    var form = document.getElementById('tw-leader-form');
-    var footer = card ? card.querySelector('.tw-leader-footer') : null;
-    var sub = document.getElementById('tw-leader-sub');
-    var meta = document.getElementById('tw-leader-meta');
-    var editBtn = document.getElementById('tw-leader-edit');
-    if (!view || !form) return;
+    var card = document.getElementById('tw-leader-comment-card');
+    var taEl = document.getElementById('tw-leader-comment');
+    var subEl = document.getElementById('tw-leader-comment-sub');
+    var metaEl = document.getElementById('tw-leader-comment-meta');
+    var saveBtn = document.getElementById('tw-leader-comment-save');
+    var savedEl = document.getElementById('tw-leader-comment-saved');
+    if (!taEl) return;
 
     var entry = team ? twGetEntry(team.id, _twState.date, 'leader', null) : null;
-    // 로그인만 되어 있으면 작성 폼 진입 허용 — 폼 안의 드롭다운에서 본인 팀을 선택
-    var cur = window.seumAuth && window.seumAuth.currentEmployee;
-    var canEdit = !!cur;
-    if (editBtn) {
-      editBtn.classList.toggle('hidden', !canEdit);
-      editBtn.textContent = entry ? '팀 업무일지 수정' : '팀 업무일지 작성';
-    }
-    if (sub) {
-      sub.textContent = canEdit
-        ? '팀원 누구나 작성·수정할 수 있습니다. 작성 시 상단 드롭다운에서 본인 팀을 선택하세요.'
-        : '로그인 후 작성할 수 있습니다.';
-    }
-    if (meta) {
-      meta.innerHTML = entry
-        ? '작성자 <b>' + escapeHtml(entry.authorName || '-') + '</b><br>' +
-          '최종 수정 ' + escapeHtml((entry.updatedAt || '').slice(0, 16).replace('T', ' '))
-        : '<span style="color:#f87171;">아직 작성되지 않았습니다.</span>';
-    }
+    var canEdit = !!team && twIsLeader(team);
 
-    // 뷰 렌더
-    var block = function (label, text, wide) {
-      var content = (text && text.trim())
-        ? '<div class="tw-block-content">' + escapeHtml(text) + '</div>'
-        : '<div class="tw-block-content tw-empty">미작성</div>';
-      return '<div class="tw-block' + (wide ? ' tw-block-wide' : '') + '">' +
-        '<span class="tw-block-label">' + label + '</span>' + content + '</div>';
-    };
-    view.innerHTML =
-      block('팀 전체 업무 요약', entry ? entry.summary : '', true) +
-      block('진행 상황', entry ? entry.progress : '', false) +
-      block('이슈 사항', entry ? entry.issues : '', false) +
-      block('내일 계획', entry ? entry.tomorrow : '', true);
+    taEl.value = entry ? (entry.summary || '') : '';
+    taEl.disabled = !canEdit;
+    taEl.placeholder = canEdit
+      ? '팀 전체 요약 · 지시사항 · 내일 계획을 입력하세요 (팀장 전용)'
+      : '팀장이 코멘트를 남기면 여기에 표시됩니다.';
 
-    // 소속 확인 정보는 폼 open/closed 와 무관하게 항상 최신 상태로 유지
-    _twFillAuthorInfo(team);
-
-    // 폼 초기값 채우기
-    if (!form.classList.contains('hidden')) return;
-    document.getElementById('tw-leader-summary').value  = entry ? (entry.summary  || '') : '';
-    document.getElementById('tw-leader-progress').value = entry ? (entry.progress || '') : '';
-    document.getElementById('tw-leader-issues').value   = entry ? (entry.issues   || '') : '';
-    document.getElementById('tw-leader-tomorrow').value = entry ? (entry.tomorrow || '') : '';
+    if (subEl) {
+      subEl.textContent = canEdit
+        ? '팀 전체 요약·지시사항·내일 계획을 작성합니다. (팀장 전용)'
+        : '팀장이 작성하는 전체 요약·지시사항입니다. (읽기 전용)';
+    }
+    if (saveBtn) saveBtn.classList.toggle('hidden', !canEdit);
+    if (savedEl) savedEl.textContent = '';
+    if (metaEl) {
+      metaEl.innerHTML = entry
+        ? '작성자 <b>' + escapeHtml(entry.authorName || '-') + '</b> · 최종 수정 ' +
+          escapeHtml((entry.updatedAt || entry.createdAt || '').slice(0, 16).replace('T', ' '))
+        : '<span style="color:#64748b;">아직 작성되지 않았습니다.</span>';
+    }
   }
 
   // 작성 폼 상단 "소속 확인" 정보 채우기
@@ -9025,8 +9005,10 @@
     warnEl.classList.toggle('hidden', matches);
   }
 
+  // 팀원 업무일지 인라인 렌더 — 이름 옆 textarea + 저장 버튼 직접 배치
+  // 권한: 본인 행만 편집 가능 / 팀장·관리자는 전체 편집 가능
   function _twRenderMembers(team) {
-    var listEl = document.getElementById('tw-members-list');
+    var listEl = document.getElementById('tw-members-inline-list');
     var statDone = document.getElementById('tw-stat-done');
     var statPending = document.getElementById('tw-stat-pending');
     if (!listEl) return;
@@ -9046,58 +9028,63 @@
     var me = window.seumAuth && window.seumAuth.currentEmployee;
     var myId = me ? (me.id || me.authUserId || null) : null;
     var myName = me ? (me.name || '') : '';
+    var isLeaderUser = twIsLeader(team);
+    var isAdmin = twIsAdminLike();
     var done = 0, pending = 0;
 
-    listEl.innerHTML = members.map(function (m) {
+    // 본인을 맨 위로, 팀장을 그 다음으로 정렬하여 즉시 입력하기 쉽게 배치
+    var sorted = members.slice().sort(function (a, b) {
+      var aIsMe = (myId && a.id === myId) || (!myId && myName && a.name === myName) ? 0 : 1;
+      var bIsMe = (myId && b.id === myId) || (!myId && myName && b.name === myName) ? 0 : 1;
+      if (aIsMe !== bIsMe) return aIsMe - bIsMe;
+      var ar = (a.role || '').toString().toLowerCase();
+      var br = (b.role || '').toString().toLowerCase();
+      var aLead = (ar === 'leader' || ar === '팀장' || ar === 'team_lead' || ar === 'manager') ? 0 : 1;
+      var bLead = (br === 'leader' || br === '팀장' || br === 'team_lead' || br === 'manager') ? 0 : 1;
+      if (aLead !== bLead) return aLead - bLead;
+      return 0;
+    });
+
+    listEl.innerHTML = sorted.map(function (m) {
       var entry = twGetEntry(team.id, _twState.date, 'member', m.id);
-      var isDone = !!entry && !!(entry.tasks && entry.tasks.trim());
+      var tasks = entry ? (entry.tasks || '') : '';
+      var isDone = !!(tasks && tasks.trim());
       if (isDone) done++; else pending++;
 
       var role = (m.role || '').toString().toLowerCase();
       var isLeaderRole = role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager';
       var isMe = (myId && m.id === myId) || (!myId && myName && m.name === myName);
-      var canEdit = isMe || twIsAdminLike();
+      var canEdit = isMe || isLeaderUser || isAdmin;
 
-      var head =
-        '<div class="tw-member-head">' +
-          '<span class="tw-member-name">' + escapeHtml(m.name || '이름 없음') +
-            (isLeaderRole ? ' <span class="tw-role-badge">팀장</span>' : '') +
-            (isMe ? ' <span class="tw-me-badge">나</span>' : '') +
-          '</span>' +
-          '<span class="tw-member-status ' + (isDone ? 'tw-done' : 'tw-pending') + '">' +
-            (isDone ? '✅ 작성 완료' : '● 미작성') +
-          '</span>' +
-        '</div>';
+      var metaMini = entry && entry.updatedAt
+        ? '<span class="tw-member-inline-meta">수정 ' +
+          escapeHtml((entry.updatedAt).slice(0, 16).replace('T', ' ')) + '</span>'
+        : '';
 
-      var body;
-      if (isDone) {
-        var block = function (label, text) {
-          if (!text || !text.trim()) return '';
-          return '<div class="tw-block">' +
-            '<span class="tw-block-label">' + label + '</span>' +
-            '<div class="tw-block-content">' + escapeHtml(text) + '</div></div>';
-        };
-        body = '<div class="tw-member-body">' +
-          block('오늘 수행 업무', entry.tasks) +
-          block('이슈 / 공유', entry.issues) +
-          block('내일 계획', entry.tomorrow) +
-          '</div>';
-      } else {
-        body = '<div class="tw-member-empty">오늘 업무일지가 아직 작성되지 않았습니다.</div>';
-      }
-
-      var actions = '<div class="tw-member-actions">' +
-        (canEdit
-          ? '<button type="button" class="btn btn-sm btn-primary" data-tw-act="edit" data-author="' + escapeAttr(m.id) + '">' +
-              (isDone ? '수정' : '작성') + '</button>' +
-            (isDone ? '<button type="button" class="btn btn-sm btn-danger" data-tw-act="delete" data-author="' + escapeAttr(m.id) + '">삭제</button>' : '')
-          : '<span style="font-size:0.75rem;color:#6b7280;">' + (isDone ? '읽기 전용' : '대기 중') + '</span>') +
-        '</div>';
-
-      return '<article class="tw-member-card ' + (isDone ? 'tw-done' : 'tw-pending') + (isMe ? ' tw-is-me' : '') + '"' +
+      return '<div class="tw-member-inline-row' + (isDone ? ' is-done' : ' is-pending') + (isMe ? ' is-me' : '') + '"' +
         ' data-author="' + escapeAttr(m.id) + '" data-name="' + escapeAttr(m.name || '') + '">' +
-        head + body + actions +
-        '</article>';
+        '<div class="tw-member-inline-head">' +
+          '<span class="tw-member-inline-name">' + escapeHtml(m.name || '이름 없음') + '</span>' +
+          (isLeaderRole ? '<span class="tw-role-badge">팀장</span>' : '') +
+          (isMe ? '<span class="tw-me-badge">나</span>' : '') +
+          '<span class="tw-member-inline-status">' + (isDone ? '✅ 작성 완료' : '<span class="tw-empty-tag">(미작성)</span>') + '</span>' +
+          metaMini +
+        '</div>' +
+        '<textarea class="tw-member-inline-textarea" data-tw-inline-author="' + escapeAttr(m.id) + '"' +
+          ' data-original="' + escapeAttr(tasks) + '"' +
+          ' rows="2"' +
+          (canEdit ? '' : ' disabled') +
+          ' placeholder="오늘 업무를 입력하세요...">' + escapeHtml(tasks) + '</textarea>' +
+        (canEdit
+          ? '<div class="tw-member-inline-actions">' +
+              '<span class="tw-member-inline-saved" data-tw-inline-saved="' + escapeAttr(m.id) + '"></span>' +
+              '<button type="button" class="btn btn-sm btn-primary tw-member-inline-save"' +
+                ' data-tw-inline-save="' + escapeAttr(m.id) + '">저장</button>' +
+              (isDone ? '<button type="button" class="btn btn-sm btn-secondary tw-member-inline-clear"' +
+                ' data-tw-inline-clear="' + escapeAttr(m.id) + '">초기화</button>' : '') +
+            '</div>'
+          : '<div class="tw-member-inline-actions"><span class="tw-member-inline-readonly">읽기 전용</span></div>') +
+        '</div>';
     }).join('');
 
     if (statDone) statDone.textContent = String(done);
@@ -9395,8 +9382,6 @@
     var sel = document.getElementById('tw-team-select');
     if (sel) sel.addEventListener('change', function () {
       _twState.teamId = sel.value;
-      var form = document.getElementById('tw-leader-form');
-      if (form) form.classList.add('hidden');
       renderTeamWorklog();
     });
 
@@ -9404,8 +9389,6 @@
     var dateInput = document.getElementById('tw-date');
     if (dateInput) dateInput.addEventListener('change', function () {
       _twState.date = dateInput.value || twTodayIso();
-      var form = document.getElementById('tw-leader-form');
-      if (form) form.classList.add('hidden');
       renderTeamWorklog();
     });
 
@@ -9413,63 +9396,35 @@
     var btnPrint = document.getElementById('tw-btn-print');
     if (btnPrint) btnPrint.addEventListener('click', _twPrintAll);
 
-    // 팀장 편집 토글
-    var btnLead = document.getElementById('tw-leader-edit');
-    var leadForm = document.getElementById('tw-leader-form');
-    var leadView = document.getElementById('tw-leader-view');
-    if (btnLead) btnLead.addEventListener('click', function () {
-      if (!leadForm || !leadView) return;
-      leadForm.classList.remove('hidden');
-      leadView.style.display = 'none';
-      btnLead.classList.add('hidden');
-    });
-    var btnLeadCancel = document.getElementById('tw-leader-cancel');
-    if (btnLeadCancel) btnLeadCancel.addEventListener('click', function () {
-      if (leadForm) leadForm.classList.add('hidden');
-      if (leadView) leadView.style.display = '';
-      renderTeamWorklog();
-    });
-
-    // 팀 공동 업무일지 저장 — 드롭다운에서 선택한 팀에 저장 + 상단 선택기 동기화
-    if (leadForm) leadForm.addEventListener('submit', function (e) {
-      e.preventDefault();
+    // 팀장 코멘트 저장 — 팀장/관리자만 가능
+    var leaderCommentSave = document.getElementById('tw-leader-comment-save');
+    if (leaderCommentSave) leaderCommentSave.addEventListener('click', function () {
+      var team = _twCurrentTeam();
+      if (!team) { showToast('팀을 선택해 주세요.', 'error'); return; }
+      if (!twIsLeader(team)) { showToast('팀장만 작성할 수 있습니다.', 'error'); return; }
       var cur = window.seumAuth && window.seumAuth.currentEmployee;
-      if (!cur) {
-        showToast('로그인 후 작성할 수 있습니다.', 'error');
-        return;
-      }
-      var writeSel = document.getElementById('tw-write-team');
-      var chosenId = writeSel ? writeSel.value : '';
-      var team = twGetTeams().find(function (t) { return t.id === chosenId; }) || _twCurrentTeam();
-      if (!team) {
-        showToast('작성할 팀을 선택해 주세요.', 'error');
-        return;
-      }
+      var ta = document.getElementById('tw-leader-comment');
+      var comment = (ta ? ta.value : '').trim();
       var entry = {
-        teamId:    team.id,
-        date:      _twState.date,
-        kind:      'leader',
-        authorId:  cur.id || cur.authUserId || '',
-        authorName:cur.name || '팀원',
-        summary:   document.getElementById('tw-leader-summary').value.trim(),
-        progress:  document.getElementById('tw-leader-progress').value.trim(),
-        issues:    document.getElementById('tw-leader-issues').value.trim(),
-        tomorrow:  document.getElementById('tw-leader-tomorrow').value.trim()
+        teamId: team.id,
+        date: _twState.date,
+        kind: 'leader',
+        authorId: cur ? (cur.id || cur.authUserId || '') : '',
+        authorName: cur ? (cur.name || '팀장') : '팀장',
+        summary: comment,
+        progress: '',
+        issues: '',
+        tomorrow: ''
       };
       if (!twUpsertEntry(entry)) return;
-      // 상단 팀 선택기도 저장된 팀으로 맞춰 이어 확인할 수 있도록 함
-      _twState.teamId = team.id;
-      var topSel = document.getElementById('tw-team-select');
-      if (topSel) topSel.value = team.id;
-      if (leadForm) leadForm.classList.add('hidden');
-      if (leadView) leadView.style.display = '';
+      var savedEl = document.getElementById('tw-leader-comment-saved');
+      if (savedEl) {
+        savedEl.textContent = '저장 완료 · ' + new Date().toLocaleTimeString('ko-KR');
+        setTimeout(function () { savedEl.textContent = ''; }, 3000);
+      }
       renderTeamWorklog();
-      showToast('팀 업무일지가 저장됐습니다.');
+      showToast('팀장 코멘트가 저장됐습니다.');
     });
-
-    // 작성 폼 드롭다운 변경 시 경고 토글 (저장 전이라도 즉시 확인)
-    var writeSelEl = document.getElementById('tw-write-team');
-    if (writeSelEl) writeSelEl.addEventListener('change', _twUpdateAuthorWarn);
 
     // 캘린더 네비게이션
     var btnCalPrev = document.getElementById('tw-cal-prev');
@@ -9508,8 +9463,6 @@
       var parts = date.split('-');
       _twCalState.year = parseInt(parts[0], 10);
       _twCalState.month = parseInt(parts[1], 10) - 1;
-      var form = document.getElementById('tw-leader-form');
-      if (form) form.classList.add('hidden');
       renderTeamWorklog();
     });
 
@@ -9535,82 +9488,80 @@
       if (ts) ts.value = tid;
       var di = document.getElementById('tw-date');
       if (di) di.value = date;
-      var form = document.getElementById('tw-leader-form');
-      if (form) form.classList.add('hidden');
       renderTeamWorklog();
-      var card = document.getElementById('tw-leader-card');
+      var card = document.getElementById('tw-leader-comment-card');
       if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    // 팀원 카드 이벤트 위임
-    var listEl = document.getElementById('tw-members-list');
-    if (listEl) listEl.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-tw-act]');
-      if (!btn) return;
-      var act = btn.getAttribute('data-tw-act');
-      var authorId = btn.getAttribute('data-author');
+    // 팀원 인라인: 저장 / 초기화 이벤트 위임
+    var inlineList = document.getElementById('tw-members-inline-list');
+    if (inlineList) inlineList.addEventListener('click', function (e) {
       var team = _twCurrentTeam();
-      if (!team || !authorId) return;
-      var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
-      if (!member) return;
-
-      if (act === 'edit') {
+      if (!team) return;
+      var saveBtn = e.target.closest('[data-tw-inline-save]');
+      if (saveBtn) {
+        var authorId = saveBtn.getAttribute('data-tw-inline-save');
+        var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
+        if (!member) return;
         var cur = window.seumAuth && window.seumAuth.currentEmployee;
         var myId = cur ? (cur.id || cur.authUserId) : null;
         var isMe = myId && member.id === myId;
-        if (!isMe && !twIsAdminLike()) {
-          showToast('본인 업무일지만 수정할 수 있습니다.', 'error');
+        if (!isMe && !twIsLeader(team) && !twIsAdminLike()) {
+          showToast('본인 입력칸만 수정할 수 있습니다.', 'error');
           return;
         }
-        _twOpenMemberModal(member, team);
-      } else if (act === 'delete') {
-        if (!confirm(member.name + ' 업무일지를 삭제하시겠습니까?')) return;
-        if (!twRemoveEntry(team.id, _twState.date, 'member', member.id)) return;
+        var ta = inlineList.querySelector('textarea[data-tw-inline-author="' + member.id.replace(/["\\]/g, '\\$&') + '"]');
+        var tasks = ta ? ta.value.trim() : '';
+        if (!tasks) { showToast('내용을 입력해 주세요.', 'error'); return; }
+        var entry = {
+          teamId: team.id,
+          date: _twState.date,
+          kind: 'member',
+          authorId: member.id,
+          authorName: member.name || '',
+          tasks: tasks,
+          issues: '',
+          tomorrow: ''
+        };
+        if (!twUpsertEntry(entry)) return;
+        var savedEl = inlineList.querySelector('[data-tw-inline-saved="' + member.id.replace(/["\\]/g, '\\$&') + '"]');
+        if (savedEl) {
+          savedEl.textContent = '저장 완료';
+          setTimeout(function () { savedEl.textContent = ''; }, 2500);
+        }
         renderTeamWorklog();
-        showToast('삭제됐습니다.');
-      }
-    });
-
-    // 팀원 모달 저장
-    var memForm = document.getElementById('tw-member-form');
-    if (memForm) memForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var team = _twCurrentTeam();
-      if (!team) return;
-      var authorId = document.getElementById('tw-member-author-id').value;
-      var member = twGetTeamMembers(team).find(function (m) { return m.id === authorId; });
-      if (!member) return;
-      var cur = window.seumAuth && window.seumAuth.currentEmployee;
-      var myId = cur ? (cur.id || cur.authUserId) : null;
-      if (member.id !== myId && !twIsAdminLike()) {
-        showToast('본인 업무일지만 저장할 수 있습니다.', 'error');
+        showToast(member.name + ' 업무일지가 저장됐습니다.');
         return;
       }
-      var tasks = document.getElementById('tw-member-tasks').value.trim();
-      if (!tasks) { showToast('오늘 수행한 업무는 필수입니다.', 'error'); return; }
-      var entry = {
-        teamId:     team.id,
-        date:       _twState.date,
-        kind:       'member',
-        authorId:   member.id,
-        authorName: member.name,
-        tasks:      tasks,
-        issues:     document.getElementById('tw-member-issues').value.trim(),
-        tomorrow:   document.getElementById('tw-member-tomorrow').value.trim()
-      };
-      if (!twUpsertEntry(entry)) return;
-      _twCloseMemberModal();
-      renderTeamWorklog();
-      showToast('저장됐습니다.');
+      var clearBtn = e.target.closest('[data-tw-inline-clear]');
+      if (clearBtn) {
+        var clearAuthorId = clearBtn.getAttribute('data-tw-inline-clear');
+        var cm = twGetTeamMembers(team).find(function (m) { return m.id === clearAuthorId; });
+        if (!cm) return;
+        var cu = window.seumAuth && window.seumAuth.currentEmployee;
+        var cmyId = cu ? (cu.id || cu.authUserId) : null;
+        if (cm.id !== cmyId && !twIsLeader(team) && !twIsAdminLike()) {
+          showToast('본인 입력칸만 초기화할 수 있습니다.', 'error');
+          return;
+        }
+        if (!confirm(cm.name + ' 업무일지를 초기화할까요?')) return;
+        if (!twRemoveEntry(team.id, _twState.date, 'member', cm.id)) return;
+        renderTeamWorklog();
+        showToast('초기화됐습니다.');
+      }
     });
 
-    var memClose = document.getElementById('tw-member-close');
-    if (memClose) memClose.addEventListener('click', _twCloseMemberModal);
-    var memCancel = document.getElementById('tw-member-cancel');
-    if (memCancel) memCancel.addEventListener('click', _twCloseMemberModal);
-    var memModal = document.getElementById('tw-member-modal');
-    if (memModal) memModal.addEventListener('click', function (e) {
-      if (e.target === memModal) memModal.classList.add('hidden');
+    // 팀원 인라인 textarea: 입력 변경 감지 → 저장 안내 표시
+    if (inlineList) inlineList.addEventListener('input', function (e) {
+      var ta = e.target.closest('textarea[data-tw-inline-author]');
+      if (!ta) return;
+      var authorId = ta.getAttribute('data-tw-inline-author');
+      var savedEl = inlineList.querySelector('[data-tw-inline-saved="' + authorId.replace(/["\\]/g, '\\$&') + '"]');
+      if (savedEl) {
+        var original = ta.getAttribute('data-original') || '';
+        if (ta.value !== original) savedEl.textContent = '저장 필요';
+        else savedEl.textContent = '';
+      }
     });
   }
 
