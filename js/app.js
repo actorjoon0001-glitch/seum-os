@@ -9335,34 +9335,48 @@
   function _twPopulateTeamSelect() {
     var sel = document.getElementById('tw-team-select');
     if (!sel) return;
-    var teams = twGetTeams();
-    var prev = _twState.teamId;
-    sel.innerHTML = teams.map(function (t) {
+    var allTeams = twGetTeams();
+    var me = window.seumAuth && window.seumAuth.currentEmployee;
+    var isAdmin = twIsAdminLike();
+
+    // 일반 직원: 자기 팀만 드롭다운에 노출 (타 팀 조회 차단)
+    // 관리자/마스터/슈퍼어드민: 전체 팀 노출
+    var myTeam = me && me.team;
+    var myShowroom = me && me.showroom;
+
+    var findMyTeam = function () {
+      if (!myTeam) return null;
+      // 1차: team + showroom 정확 일치
+      if (myShowroom) {
+        var t = allTeams.find(function (t) { return t.team === myTeam && (t.showroom || '') === myShowroom; });
+        if (t) return t;
+      }
+      // 2차: showroom 미지정 본사 공통 팀
+      var t2 = allTeams.find(function (t) { return t.team === myTeam && !t.showroom; });
+      if (t2) return t2;
+      // 3차: team 만 일치 (fallback)
+      return allTeams.find(function (t) { return t.team === myTeam; });
+    };
+
+    var visible = isAdmin ? allTeams : (function () {
+      var t = findMyTeam();
+      return t ? [t] : [];
+    })();
+
+    // 팀이 없으면 전체라도 노출 (에러 방지)
+    if (!visible.length) visible = allTeams;
+
+    sel.innerHTML = visible.map(function (t) {
       return '<option value="' + escapeAttr(t.id) + '">' + escapeHtml(t.name) + '</option>';
     }).join('');
-    // 우선순위: 기존 선택 → 로그인 사용자의 (team + showroom) 정확 매칭 → team 만 일치 → 첫 번째
-    // 영업팀처럼 같은 team 을 여러 전시장이 공유하는 경우 showroom 까지 맞춰야 본인 팀을 정확히 선택
-    var target = teams.find(function (t) { return t.id === prev; });
-    if (!target) {
-      var me = window.seumAuth && window.seumAuth.currentEmployee;
-      var myTeam = me && me.team;
-      var myShowroom = me && me.showroom;
-      if (myTeam) {
-        // 1차: team + showroom 모두 일치
-        if (myShowroom) {
-          target = teams.find(function (t) { return t.team === myTeam && (t.showroom || '') === myShowroom; });
-        }
-        // 2차: showroom 지정이 없는 팀 중 team 일치 (본사 공통 팀)
-        if (!target) {
-          target = teams.find(function (t) { return t.team === myTeam && !t.showroom; });
-        }
-        // 3차: team 만 일치 (마지막 수단)
-        if (!target) {
-          target = teams.find(function (t) { return t.team === myTeam; });
-        }
-      }
-    }
-    if (!target) target = teams[0];
+
+    // 관리자는 일반 선택 가능 / 일반 직원은 팀이 1개면 disabled 처리
+    sel.disabled = !isAdmin && visible.length <= 1;
+
+    var prev = _twState.teamId;
+    var target = visible.find(function (t) { return t.id === prev; });
+    if (!target) target = findMyTeam();
+    if (!target) target = visible[0];
     if (target) {
       sel.value = target.id;
       _twState.teamId = target.id;
@@ -9473,7 +9487,14 @@
   function _twRenderHistory() {
     var tbody = document.getElementById('tw-history-tbody');
     if (!tbody) return;
-    var allScope = !!(document.getElementById('tw-history-all-teams') || {}).checked;
+    var isAdmin = twIsAdminLike();
+    // 일반 직원은 '모든 팀 보기' 체크박스 숨김 + 무조건 본인 팀만 열람
+    var allCheckbox = document.getElementById('tw-history-all-teams');
+    var allCheckboxWrap = allCheckbox && allCheckbox.closest('label');
+    if (allCheckboxWrap) allCheckboxWrap.classList.toggle('hidden', !isAdmin);
+    if (!isAdmin && allCheckbox) allCheckbox.checked = false;
+
+    var allScope = isAdmin && !!(allCheckbox || {}).checked;
     var limit = parseInt(((document.getElementById('tw-history-limit') || {}).value) || '50', 10);
     var teams = twGetTeams();
     var teamById = {};
