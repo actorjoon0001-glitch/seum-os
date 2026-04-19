@@ -3338,8 +3338,20 @@
 
     var allContracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
     var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
-    var statusMap = { none: '미착수', '': '미착수', in_progress: '설계 중', done: '완료' };
-    var statusCls = { none: 'status-none', '': 'status-none', in_progress: 'status-in_progress', done: 'status-done' };
+    var statusMap = {
+      none: '미착수', '': '미착수',
+      in_progress: '설계 중',
+      negotiating: '협의 중',
+      negotiated: '협의 완료',
+      done: '완료'
+    };
+    var statusCls = {
+      none: 'status-none', '': 'status-none',
+      in_progress: 'status-in_progress',
+      negotiating: 'status-negotiating',
+      negotiated: 'status-negotiated',
+      done: 'status-done'
+    };
     var TYPE_BADGE_CLS = { '컨테이너/농막': 'badge-container', '체류형쉼터': 'badge-shelter', '전원주택(인허가)': 'badge-house', '기타': 'badge-etc' };
 
     // 설계팀 여부 (작업완료 버튼 활성화 조건)
@@ -4402,7 +4414,11 @@
   function buildDesignDetailContent(contractId) {
     var c = getContracts().find(function (x) { return x.id === contractId; });
     if (!c) return '';
-    var statusMap = { none: '미착수', in_progress: '설계 중', done: '완료' };
+    var statusMap = {
+      none: '미착수', in_progress: '설계 중',
+      negotiating: '협의 중', negotiated: '협의 완료',
+      done: '완료'
+    };
     var statusLabel = statusMap[c.designStatus || 'none'] || '-';
     // 영업팀 contractModel을 항상 기준으로 사용 (기존 projectType 무시)
     var effectiveProjectType = c.contractModel || '';

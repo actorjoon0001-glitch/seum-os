@@ -5548,6 +5548,8 @@ textarea.form-input {
 }
 .design-priority-status.status-none { background: rgba(239,68,68,0.15); color: #fca5a5; }
 .design-priority-status.status-in_progress { background: rgba(59,130,246,0.15); color: #93c5fd; }
+.design-priority-status.status-negotiating { background: rgba(245,158,11,0.18); color: #fcd34d; }
+.design-priority-status.status-negotiated { background: rgba(139,92,246,0.18); color: #c4b5fd; }
 .design-priority-status.status-done { background: rgba(34,197,94,0.15); color: #86efac; }
 
 /* 우선순위 행 강조 (계약 상세 이동 후) */
