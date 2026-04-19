@@ -2068,6 +2068,28 @@ button,
   padding: 0.4rem 0.75rem;
   font-size: 0.82rem;
 }
+.team-off-team-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 0.3rem 0.5rem 0.3rem 0.7rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+.team-off-team-picker select {
+  padding: 0.3rem 0.5rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+.team-off-team-picker-label { font-weight: 700; color: #94a3b8; }
 .team-off-label {
   margin: 0 0.3rem;
   min-width: 130px;
