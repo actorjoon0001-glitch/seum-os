@@ -8828,11 +8828,24 @@
     return sortTeam(combined);
   }
 
-  function twGetEntry(teamId, date, kind, authorId) {
-    return twGetWorklogs().find(function (w) {
-      return w.teamId === teamId && w.date === date && w.kind === kind &&
-        (kind === 'leader' ? true : w.authorId === authorId);
+  function twGetEntry(teamId, date, kind, authorId, authorName) {
+    // 과거 엔트리는 authorId 가 정수(employees.id), 현재 Supabase 동기화 엔트리는
+    // UUID(auth_user_id) 일 수 있음. 호출부에서 member.id(정수) 를 넘기므로,
+    // 양쪽 키를 모두 비교 + 이름 폴백으로 찾아 중복/누락 방지.
+    var key = String(authorId == null ? '' : authorId);
+    var logs = twGetWorklogs().filter(function (w) {
+      return w.teamId === teamId && w.date === date && w.kind === kind;
     });
+    if (kind === 'leader') return logs[0];
+    // 1) authorId 직접 일치 (정수 또는 UUID)
+    var hit = logs.find(function (w) { return String(w.authorId) === key; });
+    if (hit) return hit;
+    // 2) authorName 일치 폴백 (옛/새 엔트리 혼재 대응)
+    if (authorName) {
+      hit = logs.find(function (w) { return (w.authorName || '') === authorName; });
+      if (hit) return hit;
+    }
+    return undefined;
   }
 
   function twUpsertEntry(entry) {
@@ -9069,7 +9082,28 @@
             if (w.kind === 'member' && w.tasks && w.tasks.trim()) return true;
             return false;
           });
-          twSaveWorklogs(remoteRows.concat(localKept));
+          // 최종 dedup: 과거(정수 authorId) vs 현재(UUID authorId) 엔트리가 동일 인물인데
+          // 키가 달라 중복으로 남을 수 있음 → (teamId,date,kind,authorName) 기준 1회 더 정리.
+          // 동일 이름이면 더 최근(updatedAt)인 것만 유지.
+          var combined = remoteRows.concat(localKept);
+          var seenByName = {};
+          var finalRows = [];
+          combined.forEach(function (row) {
+            if (row.kind !== 'member') { finalRows.push(row); return; }
+            var nameKey = (row.teamId || '') + '|' + (row.date || '') + '|' + (row.authorName || '');
+            if (!nameKey.endsWith('|')) {  // authorName 이 있어야 의미있는 dedup
+              var existingIdx = seenByName[nameKey];
+              if (existingIdx != null) {
+                if ((row.updatedAt || '') > (finalRows[existingIdx].updatedAt || '')) {
+                  finalRows[existingIdx] = row;
+                }
+                return;
+              }
+              seenByName[nameKey] = finalRows.length;
+            }
+            finalRows.push(row);
+          });
+          twSaveWorklogs(finalRows);
 
           // 현재 화면이 팀 업무일지면 재렌더
           var active = document.querySelector('#section-team-worklog.active');
@@ -9331,7 +9365,7 @@
     });
 
     listEl.innerHTML = sorted.map(function (m) {
-      var entry = twGetEntry(team.id, _twState.date, 'member', m.id);
+      var entry = twGetEntry(team.id, _twState.date, 'member', m.id, m.name);
       var tasks = entry ? (entry.tasks || '') : '';
       var isDone = !!(tasks && tasks.trim());
       if (isDone) done++; else pending++;
@@ -9620,7 +9654,7 @@
     if (!member || !team) return;
     var modal = document.getElementById('tw-member-modal');
     if (!modal) return;
-    var entry = twGetEntry(team.id, _twState.date, 'member', member.id);
+    var entry = twGetEntry(team.id, _twState.date, 'member', member.id, member.name);
     document.getElementById('tw-member-title').textContent =
       member.name + ' 업무일지 · ' + _twState.date;
     document.getElementById('tw-member-author-id').value = member.id;
@@ -9644,7 +9678,7 @@
     var leader = twGetEntry(team.id, _twState.date, 'leader', null);
     var members = twGetTeamMembers(team);
     var memberRows = members.map(function (m) {
-      var e = twGetEntry(team.id, _twState.date, 'member', m.id);
+      var e = twGetEntry(team.id, _twState.date, 'member', m.id, m.name);
       var cell = function (txt) {
         if (!txt || !txt.trim()) return '<td class="tw-print-empty">미작성</td>';
         return '<td>' + escapeHtml(txt) + '</td>';
@@ -9678,7 +9712,7 @@
 
     var totalCount = members.length;
     var doneCount = members.filter(function (m) {
-      var e = twGetEntry(team.id, _twState.date, 'member', m.id);
+      var e = twGetEntry(team.id, _twState.date, 'member', m.id, m.name);
       return !!(e && e.tasks && e.tasks.trim());
     }).length;
 
@@ -9729,8 +9763,18 @@
 
     var logs = twGetWorklogs().filter(function (w) { return w.teamId === teamId && w.date === date; });
     var leader = logs.find(function (w) { return w.kind === 'leader'; });
-    var members = logs.filter(function (w) { return w.kind === 'member'; })
-      .sort(function (a, b) { return (a.authorName || '').localeCompare(b.authorName || '', 'ko'); });
+    // 같은 사람 중복(정수 authorId vs UUID authorId) 제거 — 이름 기준, 최신 updatedAt 우선
+    var seen = {};
+    var members = [];
+    logs.filter(function (w) { return w.kind === 'member'; })
+      .forEach(function (m) {
+        var key = (m.authorName || '').trim();
+        if (!key) { members.push(m); return; }
+        var idx = seen[key];
+        if (idx == null) { seen[key] = members.length; members.push(m); return; }
+        if ((m.updatedAt || '') > (members[idx].updatedAt || '')) members[idx] = m;
+      });
+    members.sort(function (a, b) { return (a.authorName || '').localeCompare(b.authorName || '', 'ko'); });
 
     var leaderSection = '<div class="tw-hd-section">' +
       '<h4 class="tw-hd-section-title">📣 팀장 코멘트</h4>' +
