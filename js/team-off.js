@@ -210,54 +210,18 @@
   }
 
   // ───────── 모달 ─────────
-  function openModal(dateStr, editId) {
+  function openModal(dateStr) {
     var modal = $('team-off-modal');
     if (!modal) return;
     $('team-off-date').value = dateStr;
     var dateDisp = $('team-off-date-display');
     if (dateDisp) dateDisp.textContent = dateStr;
-
-    // 팀원 셀렉트 채우기
-    var empSel = $('team-off-employee');
-    if (empSel) {
-      var cur = currentEmployee();
-      var canManageTeam = isLeaderOfTeam(cur && cur.team, cur && cur.showroom);
-      var scope = getScopedEmployees();
-      empSel.innerHTML = scope.map(function (e) {
-        return '<option value="' + escapeHtml(e.id || e.authUserId || '') + '">' + escapeHtml(e.name || '-') + '</option>';
-      }).join('');
-      // 일반 직원: 본인만 선택 가능 → disabled + 본인으로 고정
-      if (!canManageTeam) {
-        var myId = cur ? (cur.id || cur.authUserId) : '';
-        if (myId) empSel.value = myId;
-        empSel.disabled = true;
-      } else {
-        empSel.disabled = false;
-      }
-    }
-
-    // 수정 모드 or 등록 모드
-    var delBtn = $('team-off-delete');
+    $('team-off-memo').value = '';
     var title = $('team-off-modal-title');
-    if (editId) {
-      var rec = getAll().find(function (o) { return o.id === editId; });
-      if (rec) {
-        $('team-off-edit-id').value = editId;
-        if (empSel) empSel.value = rec.employeeId;
-        $('team-off-type').value = rec.type || 'annual';
-        $('team-off-memo').value = rec.memo || '';
-        if (delBtn) delBtn.classList.remove('hidden');
-        if (title) title.textContent = '휴무 수정';
-      }
-    } else {
-      $('team-off-edit-id').value = '';
-      $('team-off-type').value = 'annual';
-      $('team-off-memo').value = '';
-      if (delBtn) delBtn.classList.add('hidden');
-      if (title) title.textContent = '휴무 등록';
-    }
+    if (title) title.textContent = dateStr + ' 휴무 체크';
 
-    renderDayList(dateStr);
+    buildCheckList(dateStr);
+
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
   }
@@ -269,125 +233,147 @@
     modal.setAttribute('aria-hidden', 'true');
   }
 
-  function renderDayList(dateStr) {
-    var wrap = $('team-off-day-list');
-    if (!wrap) return;
-    var items = filterOffForMyTeam(getAll()).filter(function (o) { return o.date === dateStr; });
-    if (!items.length) {
-      wrap.innerHTML = '<p class="team-off-day-empty">해당 날짜에 등록된 휴무가 없습니다.</p>';
-      return;
-    }
+  // 직원별 체크 리스트 렌더 — 각 팀원에 대해 checkbox + 유형 select
+  // 체크: 해당 날짜에 선택된 유형으로 저장
+  // 미체크: 기존 기록 삭제
+  // 권한: 본인은 항상 가능 / 팀장·관리자는 같은 팀 전원 / 그 외 직원은 본인 외 체크박스 disabled
+  function buildCheckList(dateStr) {
+    var listEl = $('team-off-check-list');
+    if (!listEl) return;
     var cur = currentEmployee();
     var myId = cur ? (cur.id || cur.authUserId) : '';
     var canManageTeam = isLeaderOfTeam(cur && cur.team, cur && cur.showroom);
-    wrap.innerHTML = '<h4 class="team-off-day-title">같은 날 등록된 휴무</h4>' +
-      '<ul class="team-off-day-ul">' +
-      items.map(function (o) {
-        var own = (o.employeeId === myId);
-        var canEdit = own || canManageTeam;
-        return '<li class="team-off-day-item team-off-type-' + escapeHtml(o.type) + '">' +
-          '<span class="team-off-day-type">' + escapeHtml(TYPE_LABEL[o.type] || '기타') + '</span>' +
-          '<span class="team-off-day-name">' + escapeHtml(o.employeeName || '-') + '</span>' +
-          (o.memo ? '<span class="team-off-day-memo">' + escapeHtml(o.memo) + '</span>' : '') +
-          (canEdit
-            ? '<button type="button" class="btn btn-sm btn-secondary team-off-edit-btn" data-off-id="' + escapeHtml(o.id) + '">수정</button>'
-            : '') +
-          '</li>';
-      }).join('') +
-      '</ul>';
+    var scope = getScopedEmployees();
+    var existing = {};
+    getAll().forEach(function (o) {
+      if (o.date === dateStr) existing[o.employeeId] = o;
+    });
+    if (!scope.length) {
+      listEl.innerHTML = '<li class="team-off-check-empty">팀원 정보가 없습니다.</li>';
+      return;
+    }
+    // 본인을 맨 위로, 그 다음 팀장, 그 외 이름순 (이미 sortTeam 적용된 scope 사용)
+    scope = scope.slice().sort(function (a, b) {
+      var ai = (a.id || a.authUserId) === myId ? 0 : 1;
+      var bi = (b.id || b.authUserId) === myId ? 0 : 1;
+      if (ai !== bi) return ai - bi;
+      return 0;
+    });
+    listEl.innerHTML = scope.map(function (e) {
+      var empId = e.id || e.authUserId || '';
+      var isMe = empId === myId;
+      var enabled = canManageTeam || isMe;
+      var rec = existing[empId];
+      var checked = !!rec;
+      var type = rec ? rec.type : 'annual';
+      var roleLabel = '';
+      var role = (e.role || '').toString().toLowerCase();
+      if (role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager') {
+        roleLabel = '<span class="team-off-check-role">팀장</span>';
+      }
+      return '<li class="team-off-check-item' + (checked ? ' team-off-check-item-on' : '') + '">' +
+        '<label class="team-off-check-label">' +
+          '<input type="checkbox" class="team-off-check-box" data-off-emp="' + escapeHtml(empId) + '"' +
+            (checked ? ' checked' : '') + (enabled ? '' : ' disabled') + '>' +
+          '<span class="team-off-check-name">' + escapeHtml(e.name || '-') + '</span>' +
+          (isMe ? '<span class="team-off-check-me">나</span>' : '') +
+          roleLabel +
+        '</label>' +
+        '<select class="team-off-check-type" data-off-emp-type="' + escapeHtml(empId) + '"' +
+          (enabled && checked ? '' : ' disabled') + '>' +
+          '<option value="annual"' + (type==='annual'?' selected':'') + '>연차</option>' +
+          '<option value="monthly"' + (type==='monthly'?' selected':'') + '>월차</option>' +
+          '<option value="half_am"' + (type==='half_am'?' selected':'') + '>오전 반차</option>' +
+          '<option value="half_pm"' + (type==='half_pm'?' selected':'') + '>오후 반차</option>' +
+          '<option value="holiday"' + (type==='holiday'?' selected':'') + '>공휴일</option>' +
+          '<option value="other"' + (type==='other'?' selected':'') + '>기타</option>' +
+        '</select>' +
+        '</li>';
+    }).join('');
   }
 
-  // ───────── 저장/삭제 ─────────
+  // ───────── 저장 (체크리스트 diff) ─────────
+  // 각 팀원에 대해 checkbox 상태와 기존 레코드를 비교하여
+  //   체크됨 & 기존 없음 → 생성
+  //   체크됨 & 기존 있음 (type 또는 memo 변경) → 업데이트
+  //   체크 해제 & 기존 있음 → 삭제
   function saveEntry(e) {
     e.preventDefault();
-    var editId = $('team-off-edit-id').value || '';
     var date = $('team-off-date').value;
-    var employeeId = $('team-off-employee').value;
-    var type = $('team-off-type').value;
-    var memo = ($('team-off-memo').value || '').trim();
-
     if (!date) { showToast('날짜가 비어있습니다.', 'error'); return; }
-    if (!employeeId) { showToast('대상 직원을 선택해 주세요.', 'error'); return; }
-    if (!type) { showToast('휴무 유형을 선택해 주세요.', 'error'); return; }
+    var memo = ($('team-off-memo').value || '').trim();
 
     var cur = currentEmployee();
     var myId = cur ? (cur.id || cur.authUserId) : '';
     var canManageTeam = isLeaderOfTeam(cur && cur.team, cur && cur.showroom);
-    if (!canManageTeam && employeeId !== myId) {
-      showToast('본인 휴무만 등록할 수 있습니다.', 'error');
-      return;
-    }
-
-    // 대상 직원 정보 스냅샷
     var scope = getScopedEmployees();
-    var target = scope.find(function (x) { return (x.id || x.authUserId) === employeeId; });
-    if (!target) { showToast('대상 직원을 찾을 수 없습니다.', 'error'); return; }
+    var existing = {};
+    getAll().forEach(function (o) { if (o.date === date) existing[o.employeeId] = o; });
 
     var list = getAll();
-    if (editId) {
-      var idx = list.findIndex(function (o) { return o.id === editId; });
-      if (idx < 0) { showToast('수정할 항목을 찾을 수 없습니다.', 'error'); return; }
-      list[idx] = Object.assign({}, list[idx], {
-        employeeId: employeeId,
-        employeeName: target.name || '',
-        team: target.team || '',
-        showroom: target.showroom || '',
-        date: date,
-        type: type,
-        memo: memo,
-        updatedAt: new Date().toISOString(),
-        updatedBy: myId
-      });
-    } else {
-      // 동일 (employee, date) 중복 방지 — 덮어쓰기
-      var dup = list.findIndex(function (o) { return o.employeeId === employeeId && o.date === date; });
-      if (dup >= 0) {
-        list[dup] = Object.assign({}, list[dup], {
-          type: type, memo: memo, updatedAt: new Date().toISOString(), updatedBy: myId
-        });
-      } else {
+    var created = 0, updated = 0, deleted = 0;
+    var now = new Date().toISOString();
+
+    scope.forEach(function (emp) {
+      var empId = emp.id || emp.authUserId || '';
+      var isMe = empId === myId;
+      if (!(canManageTeam || isMe)) return; // 권한 없는 직원 스킵
+      var chk = document.querySelector('.team-off-check-box[data-off-emp="' + cssEscape(empId) + '"]');
+      var sel = document.querySelector('.team-off-check-type[data-off-emp-type="' + cssEscape(empId) + '"]');
+      if (!chk) return;
+      var wantOff = chk.checked;
+      var type = sel ? sel.value : 'annual';
+      var rec = existing[empId];
+      if (wantOff && !rec) {
         list.push({
           id: genId(),
-          employeeId: employeeId,
-          employeeName: target.name || '',
-          team: target.team || '',
-          showroom: target.showroom || '',
+          employeeId: empId,
+          employeeName: emp.name || '',
+          team: emp.team || '',
+          showroom: emp.showroom || '',
           date: date,
           type: type,
           memo: memo,
-          createdAt: new Date().toISOString(),
+          createdAt: now,
           createdBy: myId
         });
+        created++;
+      } else if (wantOff && rec) {
+        if (rec.type !== type || (rec.memo || '') !== memo) {
+          var idx = list.findIndex(function (x) { return x.id === rec.id; });
+          if (idx >= 0) {
+            list[idx] = Object.assign({}, list[idx], {
+              type: type, memo: memo, updatedAt: now, updatedBy: myId
+            });
+            updated++;
+          }
+        }
+      } else if (!wantOff && rec) {
+        list = list.filter(function (x) { return x.id !== rec.id; });
+        deleted++;
       }
-    }
+    });
 
     if (!saveAll(list)) return;
     closeModal();
     render();
     syncDashboardAttendance();
-    showToast(editId ? '휴무가 수정됐습니다.' : '휴무가 등록됐습니다.');
+    var total = created + updated + deleted;
+    if (total === 0) {
+      showToast('변경 사항이 없습니다.');
+    } else {
+      var parts = [];
+      if (created) parts.push('등록 ' + created);
+      if (updated) parts.push('수정 ' + updated);
+      if (deleted) parts.push('삭제 ' + deleted);
+      showToast(parts.join(' · '));
+    }
   }
 
-  function deleteCurrent() {
-    var editId = $('team-off-edit-id').value;
-    if (!editId) return;
-    if (!window.confirm('이 휴무를 삭제할까요?')) return;
-    var list = getAll();
-    var rec = list.find(function (o) { return o.id === editId; });
-    if (!rec) return;
-    var cur = currentEmployee();
-    var myId = cur ? (cur.id || cur.authUserId) : '';
-    var canManageTeam = isLeaderOfTeam(cur && cur.team, cur && cur.showroom);
-    if (!canManageTeam && rec.employeeId !== myId) {
-      showToast('본인 휴무만 삭제할 수 있습니다.', 'error');
-      return;
-    }
-    list = list.filter(function (o) { return o.id !== editId; });
-    if (!saveAll(list)) return;
-    closeModal();
-    render();
-    syncDashboardAttendance();
-    showToast('휴무가 삭제됐습니다.');
+  // CSS.escape 폴백 — 구형 브라우저 호환
+  function cssEscape(s) {
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(s);
+    return String(s).replace(/["\\]/g, '\\$&');
   }
 
   // ───────── 대시보드 빠른실행 연동 ─────────
@@ -473,17 +459,16 @@
       render();
     });
 
-    // 셀 클릭 → 모달
+    // 셀/이벤트 클릭 → 해당 날짜의 직원 체크 모달
     var grid = $('team-off-grid');
     if (grid) grid.addEventListener('click', function (e) {
       var eventEl = e.target.closest('[data-off-id]');
       if (eventEl) {
         var off = getAll().find(function (o) { return o.id === eventEl.getAttribute('data-off-id'); });
-        if (off) openModal(off.date, off.id);
-        return;
+        if (off) { openModal(off.date); return; }
       }
       var cell = e.target.closest('[data-off-date]');
-      if (cell) openModal(cell.getAttribute('data-off-date'), '');
+      if (cell) openModal(cell.getAttribute('data-off-date'));
     });
 
     // 모달
@@ -493,19 +478,20 @@
     if (modalCancel) modalCancel.addEventListener('click', closeModal);
     var form = $('team-off-form');
     if (form) form.addEventListener('submit', saveEntry);
-    var delBtn = $('team-off-delete');
-    if (delBtn) delBtn.addEventListener('click', deleteCurrent);
     var modalEl = $('team-off-modal');
     if (modalEl) modalEl.addEventListener('click', function (e) { if (e.target === modalEl) closeModal(); });
 
-    // 모달 내 수정 버튼 (day list)
-    var dayList = $('team-off-day-list');
-    if (dayList) dayList.addEventListener('click', function (e) {
-      var b = e.target.closest('.team-off-edit-btn');
-      if (!b) return;
-      var id = b.getAttribute('data-off-id');
-      var rec = getAll().find(function (o) { return o.id === id; });
-      if (rec) openModal(rec.date, rec.id);
+    // 체크리스트: checkbox 토글 시 유형 select 활성/비활성 + 행 강조
+    var listEl = $('team-off-check-list');
+    if (listEl) listEl.addEventListener('change', function (e) {
+      var chk = e.target.closest('.team-off-check-box');
+      if (!chk) return;
+      var empId = chk.getAttribute('data-off-emp');
+      var item = chk.closest('.team-off-check-item');
+      if (item) item.classList.toggle('team-off-check-item-on', chk.checked);
+      if (!empId) return;
+      var sel = listEl.querySelector('.team-off-check-type[data-off-emp-type="' + cssEscape(empId) + '"]');
+      if (sel) sel.disabled = !chk.checked;
     });
   }
 

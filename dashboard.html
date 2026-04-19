@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-02">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-03">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3527,11 +3527,11 @@
         </div>
       </div>
 
-      <!-- 휴무 등록/수정 모달 -->
+      <!-- 휴무 등록/수정 모달 (직원별 체크 방식) -->
       <div id="team-off-modal" class="team-off-modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true">
         <div class="team-off-modal">
           <div class="team-off-modal-head">
-            <h3 id="team-off-modal-title">휴무 등록</h3>
+            <h3 id="team-off-modal-title">휴무 체크</h3>
             <button type="button" class="team-off-modal-close" id="team-off-modal-close" aria-label="닫기">×</button>
           </div>
           <form id="team-off-form" class="team-off-form">
@@ -3542,35 +3542,23 @@
                 <span class="team-off-form-label">날짜</span>
                 <div class="team-off-date-display" id="team-off-date-display">-</div>
               </div>
-              <div class="team-off-form-field">
-                <label class="team-off-form-label" for="team-off-employee">대상 직원</label>
-                <select id="team-off-employee" required></select>
+              <div class="team-off-form-field team-off-form-field-wide">
+                <label class="team-off-form-label" for="team-off-memo">공통 메모 (선택)</label>
+                <input type="text" id="team-off-memo" placeholder="선택한 직원 모두에 동일하게 저장">
               </div>
             </div>
-            <div class="team-off-form-row">
-              <div class="team-off-form-field">
-                <label class="team-off-form-label" for="team-off-type">휴무 유형</label>
-                <select id="team-off-type" required>
-                  <option value="annual">연차</option>
-                  <option value="monthly">월차</option>
-                  <option value="half_am">오전 반차</option>
-                  <option value="half_pm">오후 반차</option>
-                  <option value="holiday">공휴일</option>
-                  <option value="other">기타</option>
-                </select>
+            <div class="team-off-check-panel">
+              <div class="team-off-check-head">
+                <span class="team-off-check-title">직원별 휴무 체크</span>
+                <span class="team-off-check-hint">체크한 직원은 선택한 유형으로 저장되고, 체크 해제하면 기존 휴무가 삭제됩니다.</span>
               </div>
-              <div class="team-off-form-field team-off-form-field-wide">
-                <label class="team-off-form-label" for="team-off-memo">메모 (선택)</label>
-                <textarea id="team-off-memo" rows="2" placeholder="사유, 비고 등"></textarea>
-              </div>
+              <ul class="team-off-check-list" id="team-off-check-list"></ul>
             </div>
             <div class="team-off-form-actions">
-              <button type="button" class="btn btn-danger hidden" id="team-off-delete">삭제</button>
               <button type="button" class="btn btn-secondary" id="team-off-cancel">취소</button>
               <button type="submit" class="btn btn-primary">저장</button>
             </div>
           </form>
-          <div class="team-off-day-list" id="team-off-day-list"></div>
         </div>
       </div>
 
@@ -5016,6 +5004,6 @@
   <script src="js/marketing.js"></script>
   <script src="js/attendance.js?v=20260419-02"></script>
   <script src="js/leave.js"></script>
-  <script src="js/team-off.js?v=20260419-02"></script>
+  <script src="js/team-off.js?v=20260419-03"></script>
 </body>
 </html>
