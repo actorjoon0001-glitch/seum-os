@@ -8637,11 +8637,12 @@
   var STORAGE_TEAM_WORKLOGS = 'seum_team_worklogs';
   var STORAGE_TEAM_WORKLOG_TEAMS = 'seum_team_worklog_teams';
   // 기본 팀 목록 스키마 버전. 변경 시 사용자 로컬 저장소 자동 마이그레이션.
-  var TW_DEFAULT_TEAMS_VERSION = 2;
+  var TW_DEFAULT_TEAMS_VERSION = 3;
 
-  // 기본 팀 목록 (본사 4팀 + 전시장 영업팀 5팀)
+  // 기본 팀 목록 (본사 5팀 + 전시장 영업팀 5팀)
   var TW_DEFAULT_TEAMS = [
     { id: 'hq-marketing',    name: '본사 마케팅팀',      team: '마케팅' },
+    { id: 'hq-sales',        name: '본사 영업팀',        team: '영업', showroom: 'headquarters' },
     { id: 'hq-design',       name: '본사 설계팀',        team: '설계'   },
     { id: 'hq-construction', name: '본사 시공팀',        team: '시공'   },
     { id: 'hq-settlement',   name: '본사 정산팀',        team: '정산'   },
@@ -8658,6 +8659,11 @@
       { authorId: 'tw-hmk-01', name: '김마케팅', role: 'leader' },
       { authorId: 'tw-hmk-02', name: '박콘텐츠', role: 'member' },
       { authorId: 'tw-hmk-03', name: '이광고',   role: 'member' }
+    ],
+    'hq-sales': [
+      { authorId: 'tw-hsl-01', name: '정본사',   role: 'leader' },
+      { authorId: 'tw-hsl-02', name: '강본영',   role: 'member' },
+      { authorId: 'tw-hsl-03', name: '박본상',   role: 'member' }
     ],
     'hq-design': [
       { authorId: 'tw-hds-01', name: '오설계',   role: 'leader' },
