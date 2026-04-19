@@ -8834,7 +8834,11 @@
       list.push(Object.assign({}, entry, { id: id(), createdAt: now, updatedAt: now }));
     }
     var ok = twSaveWorklogs(list);
-    if (ok) twSyncCalendarEvent(entry.teamId, entry.date);
+    if (ok) {
+      twSyncCalendarEvent(entry.teamId, entry.date);
+      // 2단계 구조(team_reports + team_report_items) Supabase 반영 (비동기)
+      twRemoteUpsertEntry(entry);
+    }
     return ok ? list : null;
   }
 
@@ -8846,7 +8850,160 @@
     });
     if (!twSaveWorklogs(list)) return false;
     twSyncCalendarEvent(teamId, date);
+    // Supabase 삭제 (비동기)
+    twRemoteDeleteEntry(teamId, date, kind, authorId);
     return true;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 팀 업무일지 Supabase 어댑터 (team_reports + team_report_items)
+  //
+  // 현재 UI 는 기존 localStorage 기반 (twGetWorklogs/twUpsertEntry) 함수를 통해
+  // leader/member 엔트리 배열로 렌더함. 어댑터는 UI 변경 없이 그 밑에
+  // Supabase 를 소스 오브 트루스로 연결:
+  //
+  //   - 앱 진입 시 twRemoteSyncAll() 이 전체 팀 리포트를 로컬 캐시에 주입
+  //   - twUpsertEntry / twRemoveEntry 호출 시 로컬 즉시 반영 + Supabase 비동기 upsert
+  //   - 네트워크 실패/테이블 부재/RLS 거부 시 조용히 fallback (로컬만 동작)
+  //
+  // 컬럼 맵핑
+  //   team_reports.team_id / report_date / leader_comment
+  //   team_report_items.report_id / user_id / author_name / role_type /
+  //                      position / content / status
+  // ─────────────────────────────────────────────────────────────
+  function twRemoteEnsureReport(teamId, reportDate) {
+    // (team_id, report_date) 레포트가 없으면 생성. 이미 있으면 id 반환.
+    if (typeof supabase === 'undefined' || !supabase) return Promise.resolve(null);
+    return supabase.from('team_reports')
+      .select('id')
+      .eq('team_id', teamId)
+      .eq('report_date', reportDate)
+      .maybeSingle()
+      .then(function (res) {
+        if (res && res.data && res.data.id) return res.data.id;
+        return supabase.from('team_reports')
+          .insert({ team_id: teamId, report_date: reportDate })
+          .select('id')
+          .maybeSingle()
+          .then(function (r) { return r && r.data && r.data.id; });
+      });
+  }
+
+  function twRemoteUpsertEntry(entry) {
+    if (typeof supabase === 'undefined' || !supabase) return;
+    if (!entry || !entry.teamId || !entry.date) return;
+    try {
+      twRemoteEnsureReport(entry.teamId, entry.date).then(function (reportId) {
+        if (!reportId) return;
+        if (entry.kind === 'leader') {
+          // 팀장 코멘트 → team_reports.leader_comment
+          supabase.from('team_reports')
+            .update({ leader_comment: entry.summary || '' })
+            .eq('id', reportId)
+            .then(function (r) {
+              if (r && r.error) console.warn('[tw remote] leader update failed:', r.error);
+            });
+        } else {
+          // 팀원 업무 → team_report_items upsert
+          var content = entry.tasks || '';
+          var done = content && content.trim();
+          supabase.from('team_report_items').upsert({
+            report_id: reportId,
+            user_id: entry.authorId || null,
+            author_name: entry.authorName || '',
+            role_type: entry.roleType || '팀원',
+            position: entry.position || '',
+            content: content,
+            status: done ? '작성완료' : '미작성'
+          }, { onConflict: 'report_id,user_id' }).then(function (r) {
+            if (r && r.error) console.warn('[tw remote] item upsert failed:', r.error);
+          });
+        }
+      }, function (err) { console.warn('[tw remote] ensureReport rejected:', err); });
+    } catch (e) { console.warn('[tw remote] throw:', e); }
+  }
+
+  function twRemoteDeleteEntry(teamId, reportDate, kind, authorId) {
+    if (typeof supabase === 'undefined' || !supabase) return;
+    try {
+      supabase.from('team_reports')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('report_date', reportDate)
+        .maybeSingle()
+        .then(function (res) {
+          if (!res || !res.data) return;
+          var reportId = res.data.id;
+          if (kind === 'leader') {
+            supabase.from('team_reports')
+              .update({ leader_comment: null })
+              .eq('id', reportId)
+              .then(function (r) { if (r && r.error) console.warn('[tw remote] leader clear failed:', r.error); });
+          } else {
+            supabase.from('team_report_items')
+              .delete()
+              .eq('report_id', reportId)
+              .eq('user_id', authorId)
+              .then(function (r) { if (r && r.error) console.warn('[tw remote] item delete failed:', r.error); });
+          }
+        });
+    } catch (e) { console.warn('[tw remote] delete throw:', e); }
+  }
+
+  // 앱 초기화 시 Supabase 에서 팀 업무일지 전체를 끌어와 localStorage 캐시로 사용.
+  // 테이블이 없거나 RLS 로 거부되어도 기존 로컬 데이터 그대로 유지.
+  function twRemoteSyncAll() {
+    if (typeof supabase === 'undefined' || !supabase) return;
+    try {
+      supabase.from('team_reports')
+        .select('id, team_id, report_date, leader_comment, updated_at, created_at, team_report_items(id, user_id, author_name, role_type, position, content, status, updated_at, created_at)')
+        .then(function (res) {
+          if (!res || res.error) {
+            if (res && res.error) console.warn('[tw remote] sync failed:', res.error);
+            return;
+          }
+          if (!Array.isArray(res.data)) return;
+          var rows = [];
+          res.data.forEach(function (rep) {
+            if (rep.leader_comment && rep.leader_comment.trim()) {
+              rows.push({
+                id: 'tw-leader-' + rep.id,
+                teamId: rep.team_id,
+                date: rep.report_date,
+                kind: 'leader',
+                authorId: null,
+                authorName: '',
+                summary: rep.leader_comment || '',
+                progress: '', issues: '', tomorrow: '',
+                createdAt: rep.created_at,
+                updatedAt: rep.updated_at
+              });
+            }
+            (rep.team_report_items || []).forEach(function (it) {
+              rows.push({
+                id: 'tw-item-' + (it.id || (rep.id + '-' + (it.user_id || ''))),
+                teamId: rep.team_id,
+                date: rep.report_date,
+                kind: 'member',
+                authorId: it.user_id || '',
+                authorName: it.author_name || '',
+                roleType: it.role_type || '',
+                position: it.position || '',
+                tasks: it.content || '',
+                status: it.status || '',
+                issues: '', tomorrow: '',
+                createdAt: it.created_at,
+                updatedAt: it.updated_at
+              });
+            });
+          });
+          // 로컬 캐시 교체 (원격 = 소스 오브 트루스)
+          twSaveWorklogs(rows);
+          // 현재 화면이 팀 업무일지면 재렌더
+          var active = document.querySelector('#section-team-worklog.active');
+          if (active && typeof renderTeamWorklog === 'function') renderTeamWorklog();
+        }, function (err) { console.warn('[tw remote] sync rejected:', err); });
+    } catch (e) { console.warn('[tw remote] sync throw:', e); }
   }
 
   // (teamId, date) 업무일지 상태를 팀 이벤트(캘린더)에 동기화.
@@ -9591,12 +9748,17 @@
         var ta = inlineList.querySelector('textarea[data-tw-inline-author="' + member.id.replace(/["\\]/g, '\\$&') + '"]');
         var tasks = ta ? ta.value.trim() : '';
         if (!tasks) { showToast('내용을 입력해 주세요.', 'error'); return; }
+        // role_type / position 정보를 Supabase team_report_items 에 함께 기록
+        var memberRole = (member.role || '').toString().toLowerCase();
+        var memberIsLeader = memberRole === 'leader' || memberRole === '팀장' || memberRole === 'team_lead' || memberRole === 'manager';
         var entry = {
           teamId: team.id,
           date: _twState.date,
           kind: 'member',
           authorId: member.id,
           authorName: member.name || '',
+          roleType: memberIsLeader ? '팀장' : '팀원',
+          position: member.position_name || member.position || '',
           tasks: tasks,
           issues: '',
           tomorrow: ''
@@ -13647,44 +13809,63 @@
 
   // Supabase employees 테이블에서 승인된 직원을 localStorage 로 동기화.
   // 팀 업무일지/인라인 렌더가 getEmployees() 를 기준으로 동작하므로, 처음 앱 로드 시
-  // 한 번 채워두면 실제 팀원들이 바로 보임. (실패해도 기존 로컬 데이터 유지.)
+  // 한 번 채워두면 실제 팀원들이 바로 보임.
+  // 컬럼 환경이 달라도 깨지지 않도록 select('*') 사용.
   function syncEmployeesFromSupabase() {
+    if (typeof supabase === 'undefined' || !supabase) return;
     try {
-      if (typeof supabase === 'undefined' || !supabase) return;
       supabase.from('employees')
-        .select('id, auth_user_id, name, team, role, showroom, status, position_name, permission')
+        .select('*')
         .eq('status', 'approved')
         .then(function (res) {
-          if (!res || res.error || !Array.isArray(res.data)) return;
+          if (!res || res.error) {
+            if (res && res.error) console.warn('[employees sync] supabase error:', res.error);
+            return;
+          }
+          if (!Array.isArray(res.data)) return;
+          var remote = res.data;
+          // 원격이 소스 오브 트루스 — 받은 직원 목록으로 교체 (더미 'tw-*' 는 제외)
+          //  + Supabase 에 아직 없는 로컬 전용 레코드(샘플 등)는 유지
+          var remoteIds = {};
+          var remoteAuthIds = {};
+          var normalized = remote.map(function (e) {
+            var id = e.id;
+            if (id) remoteIds[id] = true;
+            if (e.auth_user_id) remoteAuthIds[e.auth_user_id] = true;
+            return {
+              id: id,
+              authUserId: e.auth_user_id || null,
+              name: e.name || '',
+              team: e.team || '',
+              role: e.role || '',
+              showroom: e.showroom || '',
+              status: e.status || 'active',
+              position_name: e.position_name || e.position || '',
+              permission: e.permission || ''
+            };
+          }).filter(function (e) {
+            return e && e.id && !(typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
+          });
+          // 로컬 전용 비-Supabase 직원(샘플 등 id 매칭되지 않는 레코드)은 그대로 유지
           var local = getEmployees();
-          var byId = {};
-          local.forEach(function (e) { if (e && e.id) byId[e.id] = e; });
-          // 원격 직원을 local 에 upsert (id 기준). 기존 로컬 필드는 보존.
-          res.data.forEach(function (e) {
-            if (!e || !e.id) return;
-            var existing = byId[e.id] || {};
-            byId[e.id] = Object.assign({}, existing, {
-              id: e.id,
-              authUserId: e.auth_user_id || existing.authUserId || null,
-              name: e.name || existing.name || '',
-              team: e.team || existing.team || '',
-              role: e.role || existing.role || '',
-              showroom: e.showroom || existing.showroom || '',
-              status: e.status || existing.status || 'active',
-              position_name: e.position_name || existing.position_name || '',
-              permission: e.permission || existing.permission || ''
-            });
+          var keepLocal = local.filter(function (e) {
+            if (!e || !e.id) return false;
+            if (typeof e.id === 'string' && e.id.indexOf('tw-') === 0) return false; // 더미 제외
+            if (remoteIds[e.id]) return false; // 원격에 있으면 원격 버전으로 덮어씀
+            if (e.authUserId && remoteAuthIds[e.authUserId]) return false;
+            // Supabase 에 존재하지 않는 로컬 레코드: 상태가 비승인이거나 "한마케팅" 같은 과거 잔존물은 제거
+            // 보수적으로 "approved" 가 아닌 경우만 유지하지 않음
+            return false;
           });
-          // 더미 'tw-*' id 는 제외
-          var merged = Object.values(byId).filter(function (e) {
-            return !(e.id && typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
-          });
+          var merged = normalized.concat(keepLocal);
           saveEmployees(merged);
           // 팀 업무일지가 현재 화면이면 즉시 재렌더
           var active = document.querySelector('#section-team-worklog.active');
           if (active && typeof renderTeamWorklog === 'function') renderTeamWorklog();
+        }, function (err) {
+          console.warn('[employees sync] promise rejected:', err);
         });
-    } catch (e) { /* ignore */ }
+    } catch (e) { console.warn('[employees sync] throw:', e); }
   }
 
   // 과거 팀 업무일지 샘플 시드에서 생성된 더미 직원을 영구 제거.
@@ -13720,6 +13901,8 @@
     // Supabase 에서 승인된 직원 목록을 localStorage 로 동기화
     // (비동기 — 결과 수신 시 팀 업무일지 화면이면 자동 재렌더)
     syncEmployeesFromSupabase();
+    // 팀 업무일지(team_reports + team_report_items) 도 Supabase 에서 동기화
+    twRemoteSyncAll();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
     syncTeamEventsFromSupabase();
