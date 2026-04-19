@@ -11822,6 +11822,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   align-items: center;
   gap: 6px;
 }
+.tw-author-row-select { flex: 1 1 240px; }
+.tw-author-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  font-size: 13px;
+  min-width: 180px;
+}
 .tw-author-label {
   color: #94a3b8;
   font-size: 12px;
