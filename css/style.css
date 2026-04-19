@@ -11879,6 +11879,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline: 2px solid #60a5fa;
   outline-offset: -2px;
 }
+/* 오늘/선택 셀 배경을 어둡게 유지하여 날짜 숫자가 가려지지 않도록 override */
+.tw-calendar-card .team-calendar-cell.today {
+  background: #242424 !important;
+}
+.tw-calendar-card .team-calendar-cell.today .team-calendar-date {
+  color: #EAEAEA !important;
+}
+.tw-calendar-card .tw-cal-cell-selected .team-calendar-date {
+  color: #EAEAEA !important;
+}
 .tw-cal-badges {
   display: flex;
   flex-wrap: wrap;
