@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260419-10">
+  <link rel="stylesheet" href="./css/style.css?v=20260419-11">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -3420,13 +3420,19 @@
               표시 팀 <strong id="team-off-team-label">-</strong>
               <span class="team-off-scope-hint">같은 팀원의 휴무만 표시됩니다.</span>
             </span>
-            <div class="team-off-legend">
-              <span class="team-off-legend-item team-off-type-annual">연차</span>
-              <span class="team-off-legend-item team-off-type-monthly">월차</span>
-              <span class="team-off-legend-item team-off-type-half_am">반차(오전)</span>
-              <span class="team-off-legend-item team-off-type-half_pm">반차(오후)</span>
-              <span class="team-off-legend-item team-off-type-holiday">공휴일</span>
-              <span class="team-off-legend-item team-off-type-other">기타</span>
+            <div class="team-off-legend-groups">
+              <div class="team-off-legend-group">
+                <span class="team-off-legend-group-label">회사 휴일</span>
+                <span class="team-off-legend-item team-off-type-holiday">공휴일</span>
+              </div>
+              <div class="team-off-legend-group">
+                <span class="team-off-legend-group-label">개인 휴무 (휴가 사용)</span>
+                <span class="team-off-legend-item team-off-type-annual">연차</span>
+                <span class="team-off-legend-item team-off-type-monthly">월차</span>
+                <span class="team-off-legend-item team-off-type-half_am">반차(오전)</span>
+                <span class="team-off-legend-item team-off-type-half_pm">반차(오후)</span>
+                <span class="team-off-legend-item team-off-type-other">기타</span>
+              </div>
             </div>
           </div>
         </div>
@@ -5015,6 +5021,6 @@
   <script src="js/marketing.js"></script>
   <script src="js/attendance.js?v=20260419-04"></script>
   <script src="js/leave.js"></script>
-  <script src="js/team-off.js?v=20260419-06"></script>
+  <script src="js/team-off.js?v=20260419-07"></script>
 </body>
 </html>
