@@ -1175,10 +1175,13 @@
   }
 
   function renderDashboard() {
-    // 대시보드 진입 시 근태 카드 렌더 + 시계 시작
+    // 대시보드 진입 시 근태 카드 렌더 + 시계 시작 + 팀 휴무 상태 반영
     startDashboardClock();
     if (window.seumAttendance && typeof window.seumAttendance.render === 'function') {
       try { window.seumAttendance.render(); } catch (e) { /* ignore */ }
+    }
+    if (window.seumTeamOff && typeof window.seumTeamOff.syncDashboard === 'function') {
+      try { window.seumTeamOff.syncDashboard(); } catch (e) { /* ignore */ }
     }
 
     var _dashIsPrivileged = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
@@ -9852,7 +9855,8 @@
     if (sectionId === 'worklog') renderWorklog();
     if (sectionId === 'team-worklog') renderTeamWorklog();
     if (sectionId === 'dashboard' && window.seumAttendance && typeof window.seumAttendance.render === 'function') window.seumAttendance.render();
-    if (sectionId === 'attendance' && window.seumAttendance && typeof window.seumAttendance.render === 'function') window.seumAttendance.render();
+    if (sectionId === 'dashboard' && window.seumTeamOff && typeof window.seumTeamOff.syncDashboard === 'function') window.seumTeamOff.syncDashboard();
+    if (sectionId === 'attendance' && window.seumTeamOff && typeof window.seumTeamOff.render === 'function') window.seumTeamOff.render();
     if (sectionId === 'leave' && window.seumLeave && typeof window.seumLeave.render === 'function') window.seumLeave.render();
     if (sectionId === 'construction-worklog') renderConstructionWorklog();
     if (sectionId === 'ceo-dashboard') renderCeoDashboard();
