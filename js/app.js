@@ -9005,12 +9005,45 @@
       block('이슈 사항', entry ? entry.issues : '', false) +
       block('내일 계획', entry ? entry.tomorrow : '', true);
 
+    // 소속 확인 정보는 폼 open/closed 와 무관하게 항상 최신 상태로 유지
+    _twFillAuthorInfo(team);
+
     // 폼 초기값 채우기
     if (!form.classList.contains('hidden')) return;
     document.getElementById('tw-leader-summary').value  = entry ? (entry.summary  || '') : '';
     document.getElementById('tw-leader-progress').value = entry ? (entry.progress || '') : '';
     document.getElementById('tw-leader-issues').value   = entry ? (entry.issues   || '') : '';
     document.getElementById('tw-leader-tomorrow').value = entry ? (entry.tomorrow || '') : '';
+  }
+
+  // 작성 폼 상단 "소속 확인" 정보 채우기
+  //  - 선택된 작성 팀 이름
+  //  - 현재 사용자 이름
+  //  - 현재 사용자의 본인 소속(팀 + 전시장)
+  //  - 선택 팀과 내 소속이 다르면 경고 노출 (관리자는 경고 생략)
+  function _twFillAuthorInfo(team) {
+    var teamEl = document.getElementById('tw-author-team');
+    var nameEl = document.getElementById('tw-author-name');
+    var ownEl  = document.getElementById('tw-author-own');
+    var warnEl = document.getElementById('tw-author-warn');
+    if (!teamEl || !nameEl || !ownEl) return;
+
+    var cur = window.seumAuth && window.seumAuth.currentEmployee;
+    teamEl.textContent = team ? team.name : '-';
+    nameEl.textContent = cur && cur.name ? cur.name : '로그인 정보 없음';
+
+    var ownTeam = cur && cur.team ? cur.team + '팀' : '';
+    var ownShowroom = cur && cur.showroom
+      ? (typeof getShowroomName === 'function' ? getShowroomName(cur.showroom) : cur.showroom)
+      : '';
+    var ownLabel = [ownTeam, ownShowroom].filter(Boolean).join(' · ') || '소속 정보 없음';
+    ownEl.textContent = ownLabel;
+
+    if (warnEl) {
+      var isAdmin = twIsAdminLike();
+      var matches = !!team && !!cur && twIsTeamMember(team);
+      warnEl.classList.toggle('hidden', isAdmin || matches);
+    }
   }
 
   function _twRenderMembers(team) {
