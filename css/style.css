@@ -2196,11 +2196,7 @@ button,
   outline: 2px solid #60a5fa;
   outline-offset: -2px;
 }
-/* 주말 컬럼에 살짝 다른 톤 */
-.team-off-grid > .team-off-cell:nth-child(7n+1):not(.team-off-cell-empty) { background: rgba(127, 29, 29, 0.14); }
-.team-off-grid > .team-off-cell:nth-child(7n):not(.team-off-cell-empty) { background: rgba(29, 78, 216, 0.10); }
-.team-off-grid > .team-off-cell:nth-child(7n+1):hover { background: rgba(127, 29, 29, 0.22); }
-.team-off-grid > .team-off-cell:nth-child(7n):hover { background: rgba(29, 78, 216, 0.18); }
+/* 주말 자동 색상 제거 — 영업팀 등 주말 근무 팀 고려, 휴무는 명시 등록만 색 표시 */
 
 .team-off-cell-empty {
   background: rgba(15, 23, 42, 0.4) !important;
@@ -2216,6 +2212,51 @@ button,
   z-index: 1;
 }
 .team-off-cell.today:hover { background: rgba(37, 99, 235, 0.3) !important; }
+
+/* 공휴일 셀 — 회사 전체 쉼, 셀 배경 전체에 붉은 톤 */
+.team-off-cell.team-off-cell-holiday {
+  background: rgba(239, 68, 68, 0.18) !important;
+}
+.team-off-cell.team-off-cell-holiday:hover { background: rgba(239, 68, 68, 0.26) !important; }
+.team-off-cell.team-off-cell-holiday.today {
+  background: rgba(239, 68, 68, 0.28) !important;
+  box-shadow: inset 0 0 0 2px rgba(252, 165, 165, 0.7);
+}
+.team-off-cell-holiday-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  margin-top: 2px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  align-self: flex-start;
+}
+
+/* 범례 그룹 분리 — 회사 휴일 vs 개인 휴무 */
+.team-off-legend-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.team-off-legend-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.team-off-legend-group-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
+  padding-right: 4px;
+  border-right: 1px solid rgba(148, 163, 184, 0.2);
+  margin-right: 2px;
+}
 
 .team-off-cell-head {
   display: flex;
@@ -2233,8 +2274,7 @@ button,
   color: #dbeafe;
   font-size: 0.95rem;
 }
-.team-off-grid > .team-off-cell:nth-child(7n+1) .team-off-date-num { color: #fca5a5; }
-.team-off-grid > .team-off-cell:nth-child(7n) .team-off-date-num { color: #93c5fd; }
+/* 날짜 숫자도 주말 자동 색 제거 — 모든 셀 동일 톤 */
 .team-off-cell-count {
   font-size: 0.65rem;
   font-weight: 700;

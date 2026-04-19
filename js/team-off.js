@@ -415,23 +415,37 @@
     for (var day = 1; day <= daysInMonth; day++) {
       var dateStr = y + '-' + pad(m + 1) + '-' + pad(day);
       var items = byDate[dateStr] || [];
+      // 공휴일(holiday) 은 회사 전체 휴일 — 셀 자체를 붉은 톤으로, 배지는 1개만 노출
+      var hasHoliday = items.some(function (o) { return o.type === 'holiday'; });
+      var personal = items.filter(function (o) { return o.type !== 'holiday'; });
       var cls = 'team-off-cell';
       if (dateStr === todayStr) cls += ' today';
-      var eventsHtml = items.slice(0, 6).map(function (o) {
+      if (hasHoliday) cls += ' team-off-cell-holiday';
+
+      var holidayHtml = hasHoliday
+        ? '<div class="team-off-cell-holiday-banner">🎌 회사 휴일</div>'
+        : '';
+
+      var eventsHtml = personal.slice(0, 5).map(function (o) {
         return '<div class="team-off-event team-off-type-' + escapeHtml(o.type) + '" data-off-id="' + escapeHtml(o.id) + '">' +
           '<span class="team-off-event-type">' + escapeHtml(TYPE_LABEL[o.type] || '기타') + '</span>' +
           '<span class="team-off-event-name">' + escapeHtml(o.employeeName || '-') + '</span>' +
           '</div>';
       }).join('');
-      if (items.length > 6) {
-        eventsHtml += '<div class="team-off-event-more">+' + (items.length - 6) + '명</div>';
+      if (personal.length > 5) {
+        eventsHtml += '<div class="team-off-event-more">+' + (personal.length - 5) + '명</div>';
       }
+      var countLabel = personal.length
+        ? '<span class="team-off-cell-count">' + personal.length + '</span>'
+        : '';
+
       html.push(
         '<div class="' + cls + '" data-off-date="' + dateStr + '" role="button" tabindex="0">' +
         '<div class="team-off-cell-head">' +
           '<span class="team-off-date-num">' + day + '</span>' +
-          (items.length ? '<span class="team-off-cell-count">' + items.length + '</span>' : '') +
+          countLabel +
         '</div>' +
+        holidayHtml +
         '<div class="team-off-events">' + eventsHtml + '</div>' +
         '</div>'
       );
