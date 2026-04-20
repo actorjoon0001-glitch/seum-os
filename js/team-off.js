@@ -786,19 +786,39 @@
         created++;
       } else if (wantOff && rec) {
         if (rec.type !== type || (rec.memo || '') !== memo) {
-          var idx = list.findIndex(function (x) { return x.id === rec.id; });
-          if (idx >= 0) {
-            var merged = Object.assign({}, list[idx], {
-              type: type, memo: memo, updatedAt: now, updatedBy: myId,
-              authUserId: list[idx].authUserId || emp.authUserId || null
-            });
-            list[idx] = merged;
-            remoteTasks.push(upsertTeamOffDayRemote(merged));
-            updated++;
-          }
+          // id 로 매칭 안 되는 경우(원격=Supabase UUID, 로컬=클라이언트 genId)를 위해
+          // (employeeId, date) 로도 찾고, 로컬에 없으면 rec 기반으로 새로 넣는다.
+          var idx = list.findIndex(function (x) {
+            if (rec.id && x.id === rec.id) return true;
+            return String(x.employeeId) === String(empId) && x.date === date;
+          });
+          var base = idx >= 0 ? list[idx] : Object.assign({}, rec, {
+            id: (rec && rec.id) || genId()
+          });
+          var merged = Object.assign({}, base, {
+            employeeId: empId,
+            employeeName: emp.name || base.employeeName || '',
+            team: emp.team || base.team || '',
+            showroom: emp.showroom || base.showroom || '',
+            date: date,
+            type: type,
+            memo: memo,
+            updatedAt: now,
+            updatedBy: myId,
+            authUserId: base.authUserId || emp.authUserId || null
+          });
+          if (idx >= 0) list[idx] = merged;
+          else list.push(merged);
+          remoteTasks.push(upsertTeamOffDayRemote(merged));
+          updated++;
         }
       } else if (!wantOff && rec) {
-        list = list.filter(function (x) { return x.id !== rec.id; });
+        // id 매칭 + (employeeId, date) 매칭 모두로 로컬 고아 제거
+        list = list.filter(function (x) {
+          if (rec.id && x.id === rec.id) return false;
+          if (String(x.employeeId) === String(empId) && x.date === date) return false;
+          return true;
+        });
         remoteTasks.push(deleteTeamOffDayRemote(empId, date));
         deleted++;
       }
