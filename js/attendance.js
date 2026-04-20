@@ -18,20 +18,122 @@
     LATE: 'late'
   };
 
-  /** 한글 라벨. UI 는 before/working/finished 3가지 + 휴무 유형만 노출.
-   *  내부적으로 late 판정은 is_late 컬럼에 저장되지만 화면에는 표시하지 않음. */
+  /** 한글 라벨 — 시드 fallback. 실제 운영 라벨은 attendance_statuses 테이블에서 로드. */
   var STATUS_LABEL = {
     before: '출근전',
     working: '근무중',
     finished: '퇴근완료',
-    // 아래는 휴무/외부 상태 — 내부 호환용 라벨만 유지 (UI 노출 최소화)
     outside: '외근',
     business_trip: '출장',
+    remote: '재택근무',
+    training: '교육',
+    late: '지각',
+    early_leave: '조퇴',
     vacation: '휴가',
     half_am: '오전 반차',
     half_pm: '오후 반차',
-    sick: '병가'
+    sick: '병가',
+    absent: '무단결근'
   };
+
+  /**
+   * attendance_statuses 참조 테이블 캐시.
+   *   key: code (e.g. 'working'), value: { code, label, category, requires_time_range,
+   *     requires_memo, admin_only, billable_ratio, sort_order, active, description }
+   * 첫 호출 시 loadStatuses() 가 Supabase 에서 로드하고 캐시. 실패 시 하드코딩 fallback.
+   */
+  var _statusesCache = null;
+  var _statusesLoadPromise = null;
+
+  function _fallbackStatuses() {
+    // 마이그레이션 실행 전/네트워크 실패 시 기본값. DB 시드와 동일 구조 유지.
+    return [
+      { code: 'before',        label: '출근전',      category: 'internal',     requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 10 },
+      { code: 'working',       label: '근무중',      category: 'work',         requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 20 },
+      { code: 'remote',        label: '재택근무',    category: 'work_variant', requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 30 },
+      { code: 'outside',       label: '외근',        category: 'work_variant', requires_time_range: true,  requires_memo: true,  admin_only: false, sort_order: 40 },
+      { code: 'business_trip', label: '출장',        category: 'work_variant', requires_time_range: false, requires_memo: true,  admin_only: false, sort_order: 50 },
+      { code: 'training',      label: '교육',        category: 'work_variant', requires_time_range: false, requires_memo: true,  admin_only: false, sort_order: 60 },
+      { code: 'late',          label: '지각',        category: 'partial',      requires_time_range: true,  requires_memo: false, admin_only: false, sort_order: 70 },
+      { code: 'early_leave',   label: '조퇴',        category: 'partial',      requires_time_range: true,  requires_memo: true,  admin_only: false, sort_order: 80 },
+      { code: 'half_am',       label: '오전 반차',   category: 'partial',      requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 90 },
+      { code: 'half_pm',       label: '오후 반차',   category: 'partial',      requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 100 },
+      { code: 'finished',      label: '퇴근완료',    category: 'internal',     requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 110 },
+      { code: 'vacation',      label: '휴가',        category: 'off',          requires_time_range: false, requires_memo: false, admin_only: false, sort_order: 200 },
+      { code: 'sick',          label: '병가',        category: 'off',          requires_time_range: false, requires_memo: true,  admin_only: false, sort_order: 210 },
+      { code: 'absent',        label: '무단결근',    category: 'admin',        requires_time_range: false, requires_memo: true,  admin_only: true,  sort_order: 900 }
+    ];
+  }
+
+  function _cacheStatuses(rows) {
+    _statusesCache = {};
+    (rows || []).forEach(function (r) {
+      if (!r || !r.code) return;
+      _statusesCache[r.code] = r;
+      // STATUS_LABEL 도 DB 값으로 오버라이드 (다른 모듈이 참조할 수 있음)
+      if (r.label) STATUS_LABEL[r.code] = r.label;
+    });
+  }
+
+  function loadStatuses() {
+    if (_statusesCache) return Promise.resolve(_statusesCache);
+    if (_statusesLoadPromise) return _statusesLoadPromise;
+    var client = supa();
+    if (!client) {
+      _cacheStatuses(_fallbackStatuses());
+      return Promise.resolve(_statusesCache);
+    }
+    _statusesLoadPromise = client.from('attendance_statuses')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .then(function (r) {
+        if (r && r.error) {
+          console.warn('[attendance] statuses load failed, using fallback:', r.error);
+          _cacheStatuses(_fallbackStatuses());
+        } else {
+          var rows = Array.isArray(r && r.data) ? r.data : [];
+          _cacheStatuses(rows.length ? rows : _fallbackStatuses());
+        }
+        _statusesLoadPromise = null;
+        return _statusesCache;
+      }, function (err) {
+        console.warn('[attendance] statuses load rejected, using fallback:', err);
+        _cacheStatuses(_fallbackStatuses());
+        _statusesLoadPromise = null;
+        return _statusesCache;
+      });
+    return _statusesLoadPromise;
+  }
+
+  function getStatusMeta(code) {
+    if (_statusesCache && _statusesCache[code]) return _statusesCache[code];
+    var fb = _fallbackStatuses().find(function (s) { return s.code === code; });
+    return fb || null;
+  }
+
+  /** sort_order 로 정렬된 옵션 리스트 (admin_only 필터 옵션) */
+  function getSortedStatuses(opts) {
+    var includeAdmin = opts && opts.includeAdmin;
+    var pool = _statusesCache ? Object.keys(_statusesCache).map(function (k) { return _statusesCache[k]; }) : _fallbackStatuses();
+    return pool
+      .filter(function (s) { return includeAdmin || !s.admin_only; })
+      .sort(function (a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+  }
+
+  /** <select> 요소에 옵션 채움. 기존 값이 있으면 유지. */
+  function populateStatusSelect(sel, opts) {
+    if (!sel) return;
+    var previousValue = sel.value;
+    var list = getSortedStatuses(opts || {});
+    sel.innerHTML = list.map(function (s) {
+      return '<option value="' + s.code + '">' + s.label + '</option>';
+    }).join('');
+    if (previousValue) {
+      var has = Array.prototype.some.call(sel.options, function (o) { return o.value === previousValue; });
+      if (has) sel.value = previousValue;
+    }
+  }
 
   /** 기준 출근시간 (분). 09:00. 이후 환경설정으로 교체 가능. */
   var LATE_THRESHOLD_MINUTES = 9 * 60;
@@ -224,27 +326,16 @@
 
   function applyStatusBadge(el, status) {
     if (!el) return;
-    // 내부 상태(late/absent)는 UI 노출하지 않으므로 항상 before/working/finished 중 하나로 정규화
-    //  late  → working/finished 와 동일하게 표시
-    //  absent → before 로 표시 (결근 판단은 관리자 내부 통계용으로만 유지)
-    var displayStatus = status;
-    if (displayStatus === 'late') displayStatus = 'working'; // fallback (세부는 renderCard에서 올바르게 전달됨)
-    if (displayStatus === 'absent') displayStatus = 'before';
-    el.classList.remove(
-      'attendance-status-before',
-      'attendance-status-working',
-      'attendance-status-finished',
-      'attendance-status-late',
-      'attendance-status-absent',
-      'attendance-status-outside',
-      'attendance-status-business_trip',
-      'attendance-status-vacation',
-      'attendance-status-half_am',
-      'attendance-status-half_pm',
-      'attendance-status-sick'
-    );
+    var displayStatus = status || 'before';
+    // 이전 status 클래스 제거 (attendance-status-* 로 시작하는 것)
+    Array.prototype.slice.call(el.classList).forEach(function (c) {
+      if (c.indexOf('attendance-status-') === 0) el.classList.remove(c);
+    });
     el.classList.add('attendance-status-' + displayStatus);
-    el.textContent = STATUS_LABEL[displayStatus] || '출근전';
+    // 카테고리 클래스도 함께 부여 (CSS 에서 동일 카테고리 공통 스타일 활용 가능)
+    var meta = getStatusMeta(displayStatus);
+    if (meta && meta.category) el.classList.add('attendance-category-' + meta.category);
+    el.textContent = (meta && meta.label) || STATUS_LABEL[displayStatus] || '출근전';
   }
   function applyStatusBadgeAll(selector, status) {
     $all(selector).forEach(function (el) { applyStatusBadge(el, status); });
@@ -280,11 +371,14 @@
       return;
     }
 
-    // UI 상태는 before/working/finished 3가지로만 표시 (지각/결근 표시 제거).
-    // is_late 는 레코드 저장 시 내부 필드로만 보관되고 화면에는 드러나지 않음.
+    // "오늘 최종 상태" 계산 우선순위:
+    //   1) 명시적 근무 상태 (remote/outside/business_trip/training/late/early_leave/vacation/sick/half_am/half_pm/absent)
+    //      → attendance_statuses.category 가 'internal' 이 아닌 값이 있으면 그대로 표시
+    //   2) 그 외는 check_in / check_out 기반으로 before/working/finished 자동 판정
     var status = (rec && rec.status) || STATUS.BEFORE;
-    var manual = ['vacation', 'sick', 'outside', 'business_trip'];
-    if (manual.indexOf(status) < 0) {
+    var statusMeta = getStatusMeta(status);
+    var isInternal = !statusMeta || statusMeta.category === 'internal';
+    if (isInternal) {
       if (rec && rec.check_in && rec.check_out) status = STATUS.FINISHED;
       else if (rec && rec.check_in) status = STATUS.WORKING;
       else status = STATUS.BEFORE;
@@ -534,9 +628,10 @@
     // 승인된 월차가 있으면 최우선 적용 (출근 기록보다 우선)
     if (leaveStatus) return leaveStatus;
     if (!rec) return 'empty';
-    // 지각/결근은 UI 상태로 노출하지 않음 — 출근만 있으면 working, 퇴근까지면 finished
-    var manual = ['vacation', 'sick', 'outside', 'business_trip'];
-    if (manual.indexOf(rec.status) >= 0) return rec.status;
+    // attendance_statuses.category 가 internal 이 아닌 값은 그대로 유지
+    // (remote/outside/business_trip/training/late/early_leave/half_am/half_pm/vacation/sick/absent 등)
+    var meta = getStatusMeta(rec.status);
+    if (meta && meta.category !== 'internal' && rec.status) return rec.status;
     if (rec.check_in && rec.check_out) return 'finished';
     if (rec.check_in) return 'working';
     return 'empty';
@@ -896,11 +991,26 @@
     $('attendance-detail-date-view').value = cellInfo.date;
     $('attendance-detail-checkin').value = rec && rec.check_in ? toHHMM(rec.check_in) : '';
     $('attendance-detail-checkout').value = rec && rec.check_out ? toHHMM(rec.check_out) : '';
-    $('attendance-detail-status').value = (rec && rec.status) || inferCellStatus(rec);
-    $('attendance-detail-note').value = (rec && rec.note) || '';
+
+    // 상태 select 동적 채우기 (캐시가 없으면 loadStatuses 후 재채움)
+    var statusSel = $('attendance-detail-status');
+    populateStatusSelect(statusSel, { includeAdmin: true });
+    statusSel.value = (rec && rec.status) || inferCellStatus(rec);
+    loadStatuses().then(function () {
+      populateStatusSelect(statusSel, { includeAdmin: true });
+      statusSel.value = (rec && rec.status) || inferCellStatus(rec);
+      _toggleDetailStatusFields(statusSel.value);
+    });
+
+    // start_time / end_time / memo 값 복원. 기존 note 컬럼이 있으면 memo 폴백으로 사용.
+    $('attendance-detail-start-time').value = rec && rec.start_time ? String(rec.start_time).slice(0, 5) : '';
+    $('attendance-detail-end-time').value = rec && rec.end_time ? String(rec.end_time).slice(0, 5) : '';
+    $('attendance-detail-memo').value = (rec && (rec.memo || rec.note)) || '';
+    _toggleDetailStatusFields(statusSel.value);
 
     var canEdit = isAdminUser();
-    ['attendance-detail-checkin', 'attendance-detail-checkout', 'attendance-detail-status', 'attendance-detail-note']
+    ['attendance-detail-checkin', 'attendance-detail-checkout', 'attendance-detail-status',
+     'attendance-detail-start-time', 'attendance-detail-end-time', 'attendance-detail-memo']
       .forEach(function (id) { var el = $(id); if (el) el.disabled = !canEdit; });
     var saveBtn = $('btn-attendance-detail-save');
     if (saveBtn) saveBtn.style.display = canEdit ? '' : 'none';
@@ -909,6 +1019,18 @@
 
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
+  }
+
+  // 선택된 status 의 requires_time_range / requires_memo 에 따라 admin modal 확장 필드 표시 제어
+  function _toggleDetailStatusFields(code) {
+    var meta = getStatusMeta(code);
+    var extra = $('attendance-detail-status-extra');
+    if (extra) extra.classList.toggle('attendance-field-hidden', !meta || !meta.requires_time_range);
+    document.querySelectorAll('[data-attendance-req="start-time"], [data-attendance-req="end-time"]').forEach(function (el) {
+      el.textContent = meta && meta.requires_time_range ? '*' : '';
+    });
+    var memoReq = document.querySelector('[data-attendance-req="memo"]');
+    if (memoReq) memoReq.textContent = meta && meta.requires_memo ? '*' : '';
   }
 
   function closeDetailModal() {
@@ -940,7 +1062,20 @@
     var checkInVal = $('attendance-detail-checkin').value;
     var checkOutVal = $('attendance-detail-checkout').value;
     var status = $('attendance-detail-status').value;
-    var note = $('attendance-detail-note').value;
+    var startTimeVal = $('attendance-detail-start-time').value || null;
+    var endTimeVal = $('attendance-detail-end-time').value || null;
+    var memo = $('attendance-detail-memo').value;
+
+    // 필수 필드 검증 (attendance_statuses 의 requires_* 플래그 기반)
+    var meta = getStatusMeta(status);
+    if (meta && meta.requires_time_range && !startTimeVal) {
+      showToast('이 상태는 시작시각이 필요합니다.', 'error');
+      return;
+    }
+    if (meta && meta.requires_memo && !(memo || '').trim()) {
+      showToast('이 상태는 메모(사유)가 필요합니다.', 'error');
+      return;
+    }
 
     var payload = {
       local_id: 'att_' + cell.userId + '_' + cell.date,
@@ -953,7 +1088,11 @@
       check_in: combineDateTime(cell.date, checkInVal),
       check_out: combineDateTime(cell.date, checkOutVal),
       status: status,
-      note: note,
+      start_time: startTimeVal,
+      end_time: endTimeVal,
+      memo: memo || null,
+      // 기존 note 컬럼도 함께 채워 하위 호환 유지 (기존 화면이 note 를 읽을 수 있음)
+      note: memo || null,
       updated_by: me ? me.authUserId : null
     };
     if (payload.check_in) payload.is_late = isLate(payload.check_in);
@@ -993,6 +1132,91 @@
       showToast('근태 기록이 삭제됐습니다.');
     } catch (err) {
       showToast('삭제 실패: ' + (err && err.message ? err.message : '오류'), 'error');
+    }
+  }
+
+  // ────────── 본인 상태 변경 모달 (대시보드 카드 '상태 변경') ──────────
+
+  function openStatusModal() {
+    var modal = $('attendance-status-modal');
+    if (!modal) return;
+    var sel = $('attendance-status-select');
+    populateStatusSelect(sel, { includeAdmin: false });
+    loadStatuses().then(function () {
+      populateStatusSelect(sel, { includeAdmin: false });
+      // 오늘 레코드가 있으면 현재 상태로 프리필
+      getMyTodayRecord().then(function (rec) {
+        if (rec && rec.status) {
+          var has = Array.prototype.some.call(sel.options, function (o) { return o.value === rec.status; });
+          if (has) sel.value = rec.status;
+        }
+        if (rec) {
+          $('attendance-status-start').value = rec.start_time ? String(rec.start_time).slice(0, 5) : '';
+          $('attendance-status-end').value = rec.end_time ? String(rec.end_time).slice(0, 5) : '';
+          $('attendance-status-memo-input').value = rec.memo || rec.note || '';
+        } else {
+          $('attendance-status-start').value = '';
+          $('attendance-status-end').value = '';
+          $('attendance-status-memo-input').value = '';
+        }
+        _updateStatusModalFields(sel.value);
+      });
+    });
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeStatusModal() {
+    var modal = $('attendance-status-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function _updateStatusModalFields(code) {
+    var meta = getStatusMeta(code);
+    var timeRow = $('attendance-status-time-row');
+    if (timeRow) timeRow.classList.toggle('hidden', !meta || !meta.requires_time_range);
+    var memoReq = $('attendance-status-memo-required');
+    if (memoReq) memoReq.classList.toggle('hidden', !meta || !meta.requires_memo);
+    var desc = $('attendance-status-desc');
+    if (desc) desc.textContent = meta && meta.description ? meta.description : '';
+  }
+
+  async function saveStatusChange(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    var sel = $('attendance-status-select');
+    if (!sel || !sel.value) return;
+    var code = sel.value;
+    var meta = getStatusMeta(code);
+    if (meta && meta.admin_only) {
+      showToast('관리자만 설정할 수 있는 상태입니다.', 'error');
+      return;
+    }
+    var startVal = $('attendance-status-start').value || null;
+    var endVal = $('attendance-status-end').value || null;
+    var memo = $('attendance-status-memo-input').value || '';
+    if (meta && meta.requires_time_range && !startVal) {
+      showToast('이 상태는 시작시각이 필요합니다.', 'error');
+      return;
+    }
+    if (meta && meta.requires_memo && !memo.trim()) {
+      showToast('이 상태는 메모(사유)가 필요합니다.', 'error');
+      return;
+    }
+    try {
+      await upsertMyToday({
+        status: code,
+        start_time: startVal,
+        end_time: endVal,
+        memo: memo || null,
+        note: memo || null
+      });
+      closeStatusModal();
+      showToast('상태가 저장됐습니다.');
+      render();
+    } catch (err) {
+      showToast('저장 실패: ' + (err && err.message ? err.message : '오류'), 'error');
     }
   }
 
@@ -1083,6 +1307,12 @@
     if (form) form.addEventListener('submit', saveDetail);
     var delBtn = $('btn-attendance-detail-delete');
     if (delBtn) delBtn.addEventListener('click', deleteDetail);
+
+    // admin detail modal: status 변경 시 확장 필드(시간대/메모 *) 토글
+    var detailStatusSel = $('attendance-detail-status');
+    if (detailStatusSel) detailStatusSel.addEventListener('change', function () {
+      _toggleDetailStatusFields(detailStatusSel.value);
+    });
   }
 
   function init() {
@@ -1101,6 +1331,36 @@
     var btnOut = $('btn-attendance-checkout');
     if (btnIn && !btnIn.hasAttribute('data-attendance-action')) btnIn.addEventListener('click', handleCheckIn);
     if (btnOut && !btnOut.hasAttribute('data-attendance-action')) btnOut.addEventListener('click', handleCheckOut);
+
+    // 본인 상태 변경 모달 이벤트 바인딩
+    var btnStatusChange = $('btn-attendance-status-change');
+    if (btnStatusChange) btnStatusChange.addEventListener('click', openStatusModal);
+    var statusClose = $('attendance-status-close');
+    if (statusClose) statusClose.addEventListener('click', closeStatusModal);
+    var statusCancel = $('btn-attendance-status-cancel');
+    if (statusCancel) statusCancel.addEventListener('click', closeStatusModal);
+    var statusModal = $('attendance-status-modal');
+    if (statusModal) statusModal.addEventListener('click', function (e) { if (e.target === statusModal) closeStatusModal(); });
+    var statusForm = $('form-attendance-status');
+    if (statusForm) statusForm.addEventListener('submit', saveStatusChange);
+    var statusSel = $('attendance-status-select');
+    if (statusSel) statusSel.addEventListener('change', function () { _updateStatusModalFields(statusSel.value); });
+
+    // 상태 캐시를 미리 로드 (admin modal/self 모달이 열릴 때 즉시 반영)
+    loadStatuses().then(function () {
+      // 관리자 캘린더 상태 필터 드롭다운도 동적으로 채움 (전체/미기록 옵션은 유지)
+      var filterSel = document.querySelector('#attendance-cal-status[data-dynamic-status-filter]');
+      if (filterSel) {
+        var prev = filterSel.value;
+        var fixedOpts = '<option value="">전체</option><option value="empty">미기록</option>';
+        var dynamicOpts = getSortedStatuses({ includeAdmin: true }).map(function (s) {
+          return '<option value="' + s.code + '">' + s.label + '</option>';
+        }).join('');
+        filterSel.innerHTML = fixedOpts + dynamicOpts;
+        if (prev) filterSel.value = prev;
+      }
+    });
+
     initCalendarEvents();
   }
 
