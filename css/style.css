@@ -423,6 +423,54 @@ button,
   color: #fff;
 }
 
+/* 매일 체크 권장 메뉴 — 팀 업무일지 (emerald), 근태관리 (amber) */
+/* 비활성 상태에서만 강조 색을 입히고, active 시엔 기본 파란 gradient 우선. */
+.nav-item[data-section="team-worklog"]:not(.active) {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.14), transparent 75%);
+  box-shadow: inset 3px 0 0 rgba(52, 211, 153, 0.7);
+}
+.nav-item[data-section="team-worklog"]:not(.active):hover {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.24), transparent 75%);
+}
+.nav-item[data-section="team-worklog"]:not(.active) .nav-item-icon {
+  color: #34d399;
+}
+
+.nav-item[data-section="attendance"]:not(.active) {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.14), transparent 75%);
+  box-shadow: inset 3px 0 0 rgba(251, 191, 36, 0.7);
+}
+.nav-item[data-section="attendance"]:not(.active):hover {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.24), transparent 75%);
+}
+.nav-item[data-section="attendance"]:not(.active) .nav-item-icon {
+  color: #fbbf24;
+}
+
+/* 주목을 끄는 작은 펄스 도트 — active 가 아닐 때만 노출 */
+.nav-item[data-section="team-worklog"]:not(.active)::after,
+.nav-item[data-section="attendance"]:not(.active)::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: auto;
+  flex-shrink: 0;
+  animation: nav-daily-pulse 2s ease-in-out infinite;
+}
+.nav-item[data-section="team-worklog"]:not(.active)::after {
+  background: #34d399;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.7);
+}
+.nav-item[data-section="attendance"]:not(.active)::after {
+  background: #fbbf24;
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.7);
+}
+@keyframes nav-daily-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.25); }
+}
+
 /* 보조(예외) 메뉴 — 개인 업무일지 등 */
 .nav-item-secondary {
   color: rgba(255, 255, 255, 0.6);
