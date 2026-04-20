@@ -14404,6 +14404,8 @@
   window.isAdmin = isAdmin;
   window.isMaster = isMaster;
   window.isManager = isManager;
+  window.isSuperAdmin = isSuperAdmin;
+  window.getEmployees = getEmployees;
   window.formatDate = formatDate;
   window.resolveShowroomId = resolveShowroomId;
   window.sanitizeNoticeFileName = sanitizeNoticeFileName;
