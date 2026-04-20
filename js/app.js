@@ -9251,6 +9251,16 @@
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
 
+  // YYYY-MM-DD 문자열에 days 일을 가감한 ISO 날짜 반환. 월/년 경계 자동 보정.
+  function _twShiftIsoDate(iso, days) {
+    var base = (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) ? iso : twTodayIso();
+    var parts = base.split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    d.setDate(d.getDate() + (days | 0));
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
   // 상태 추적
   var _twState = { teamId: null, date: null, initialized: false };
   // 캘린더 뷰 상태 (표시 중인 년/월)
@@ -9475,6 +9485,9 @@
         (canEdit
           ? '<div class="tw-member-inline-actions">' +
               '<span class="tw-member-inline-saved" data-tw-inline-saved="' + escapeAttr(m.id) + '"></span>' +
+              '<button type="button" class="btn btn-sm btn-secondary tw-member-inline-load-prev"' +
+                ' data-tw-inline-load-prev="' + escapeAttr(m.id) + '"' +
+                ' title="선택한 날짜의 전일 업무일지 내용을 입력창에 불러옵니다">어제 내용 불러오기</button>' +
               '<button type="button" class="btn btn-sm btn-primary tw-member-inline-save"' +
                 ' data-tw-inline-save="' + escapeAttr(m.id) + '">저장</button>' +
               (isDone ? '<button type="button" class="btn btn-sm btn-secondary tw-member-inline-clear"' +
@@ -10113,6 +10126,43 @@
         if (!twRemoveEntry(team.id, _twState.date, 'member', cm.id)) return;
         renderTeamWorklog();
         showToast('초기화됐습니다.');
+        return;
+      }
+      var loadPrevBtn = e.target.closest('[data-tw-inline-load-prev]');
+      if (loadPrevBtn) {
+        var prevAuthorId = loadPrevBtn.getAttribute('data-tw-inline-load-prev');
+        var pm = _twFindMemberById(team, prevAuthorId);
+        if (!pm) { console.warn('[tw] member not found for load-prev:', prevAuthorId); return; }
+        if (!_twIsMyRow(pm) && !twIsLeader(team) && !twIsAdminLike()) {
+          showToast('본인 입력칸만 수정할 수 있습니다.', 'error');
+          return;
+        }
+        // 현재 선택된 날짜 기준 하루 전의 본인 엔트리에서 tasks 를 가져온다
+        var yesterday = _twShiftIsoDate(_twState.date, -1);
+        var prev = twGetEntry(team.id, yesterday, 'member', pm.id, pm.name);
+        var prevTasks = (prev && prev.tasks) ? String(prev.tasks) : '';
+        if (!prevTasks.trim()) {
+          showToast('어제(' + yesterday + ') 작성된 내용이 없습니다.', 'info');
+          return;
+        }
+        var taPrev = inlineList.querySelector('textarea[data-tw-inline-author="' + String(pm.id).replace(/["\\]/g, '\\$&') + '"]');
+        if (!taPrev) return;
+        var existing = (taPrev.value || '').trim();
+        if (existing && existing !== prevTasks.trim()) {
+          if (!confirm('이미 입력된 내용이 있습니다. 어제(' + yesterday + ') 내용으로 덮어쓸까요?')) return;
+        }
+        taPrev.value = prevTasks;
+        // input 이벤트를 발생시켜 '저장 필요' 안내가 갱신되도록 함
+        try {
+          var evt = new Event('input', { bubbles: true });
+          taPrev.dispatchEvent(evt);
+        } catch (err) { /* 구형 브라우저 fallback: 수동 갱신 */
+          var sv = inlineList.querySelector('[data-tw-inline-saved="' + String(pm.id).replace(/["\\]/g, '\\$&') + '"]');
+          if (sv) sv.textContent = '저장 필요';
+        }
+        taPrev.focus();
+        showToast('어제(' + yesterday + ') 내용을 불러왔습니다. 저장 버튼을 눌러 반영하세요.', 'success');
+        return;
       }
     });
 
