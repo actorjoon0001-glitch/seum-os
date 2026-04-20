@@ -7214,6 +7214,29 @@
 
   function autoFillCeoForm(type) {
     var data = computeCeoAutoData(type);
+
+    // 제목 자동 채움 — 기존 값이 없을 때만(사용자가 직접 수정한 값은 보존).
+    // daily: 'YYYY년 M월 D일 일일 보고' / weekly: '… 주간 보고' / monthly: 'YYYY년 M월 월간 보고'
+    var titleEl = document.getElementById('ceo-' + type + '-title');
+    var dateInputAuto = document.getElementById('ceo-' + type + '-date');
+    if (titleEl && dateInputAuto && !(titleEl.value || '').trim()) {
+      var dv = (dateInputAuto.value || '').trim();
+      var autoTitle = '';
+      if (dv) {
+        if (type === 'monthly') {
+          var mm = dv.split('-');
+          if (mm.length >= 2) autoTitle = Number(mm[0]) + '년 ' + Number(mm[1]) + '월 월간 보고';
+        } else {
+          var dd = dv.split('-');
+          if (dd.length === 3) {
+            var labelKo = type === 'weekly' ? '주간' : '일일';
+            autoTitle = Number(dd[0]) + '년 ' + Number(dd[1]) + '월 ' + Number(dd[2]) + '일 ' + labelKo + ' 보고';
+          }
+        }
+      }
+      if (autoTitle) titleEl.value = autoTitle;
+    }
+
     setCeoField(type, 'period-contract', data.periodContract);
     setCeoField(type, 'month-contract', data.monthContract);
     setCeoField(type, 'month-sales', data.monthSales);
