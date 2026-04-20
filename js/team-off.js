@@ -61,7 +61,9 @@
   // 월간 근무 캘린더에서 보이는 휴무들이 팀 휴무 캘린더에도 노출되도록 두 소스에서 합집합:
   //   1) leave_requests (status='approved')        — 신청·승인 워크플로우
   //   2) attendance (status in 휴무 유형들)          — 관리자가 직접 셋팅한 값
+  //   3) team_off_days                              — 팀 휴무 캘린더에서 직접 체크한 값 (본 파일에서 관리)
   var _leaveCache = {};   // 'YYYY-MM' → 변환된 엔트리 배열
+  var _teamOffRemoteCache = {}; // 'YYYY-MM' → team_off_days 테이블에서 가져온 엔트리 배열
 
   function fetchMonthLeaves(year, month) {
     var supabase = _supa();
@@ -102,6 +104,105 @@
         console.log('[team-off] attendance leaves fetched:', rows.length);
         return rows;
       }, function () { return []; });
+  }
+
+  // ───────── team_off_days (직접 입력 휴무) Supabase 동기화 ─────────
+  function _rowToEntry(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      employeeId: row.employee_id,
+      employeeName: row.employee_name || '',
+      team: row.team || '',
+      showroom: row.showroom || '',
+      date: row.date,
+      type: row.type || 'annual',
+      memo: row.memo || '',
+      createdAt: row.created_at,
+      createdBy: row.created_by,
+      updatedAt: row.updated_at,
+      updatedBy: row.updated_by,
+      __fromTeamOff: true
+    };
+  }
+
+  function fetchMonthTeamOffDays(year, month) {
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve([]);
+    var key = year + '-' + pad(month + 1);
+    var first = key + '-01';
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var last = key + '-' + pad(lastDay);
+    return supabase.from('team_off_days')
+      .select('id, client_id, employee_id, auth_user_id, employee_name, team, showroom, date, type, memo, created_at, created_by, updated_at, updated_by')
+      .gte('date', first)
+      .lte('date', last)
+      .then(function (r) {
+        if (r && r.error) {
+          console.warn('[team-off] team_off_days fetch failed:', r.error);
+          return [];
+        }
+        var rows = Array.isArray(r && r.data) ? r.data : [];
+        console.log('[team-off] team_off_days fetched:', rows.length);
+        return rows.map(_rowToEntry).filter(Boolean);
+      }, function (err) {
+        console.warn('[team-off] team_off_days fetch rejected:', err);
+        return [];
+      });
+  }
+
+  // upsert: (employee_id, date) 유니크 제약으로 덮어쓰기. 현재 사용자의 auth_user_id 를 함께 기록.
+  function upsertTeamOffDayRemote(entry) {
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve({ ok: false, reason: 'no-supabase' });
+    var cur = currentEmployee();
+    var payload = {
+      client_id: entry.id || null,
+      employee_id: String(entry.employeeId),
+      auth_user_id: entry.authUserId || (cur && cur.authUserId) || null,
+      employee_name: entry.employeeName || '',
+      team: entry.team || '',
+      showroom: entry.showroom || '',
+      date: entry.date,
+      type: entry.type || 'annual',
+      memo: entry.memo || '',
+      updated_by: (cur && cur.authUserId) || null
+    };
+    // 신규 엔트리면 created_by 도 세팅 (upsert 시 기존 레코드의 created_by 는 유지됨)
+    if (!entry.updatedAt) payload.created_by = (cur && cur.authUserId) || null;
+    return supabase.from('team_off_days')
+      .upsert(payload, { onConflict: 'employee_id,date' })
+      .select()
+      .then(function (r) {
+        if (r && r.error) {
+          console.warn('[team-off] team_off_days upsert failed:', r.error);
+          return { ok: false, reason: r.error.message || 'upsert-error' };
+        }
+        var row = Array.isArray(r && r.data) && r.data[0] ? r.data[0] : null;
+        return { ok: true, entry: row ? _rowToEntry(row) : null };
+      }, function (err) {
+        console.warn('[team-off] team_off_days upsert rejected:', err);
+        return { ok: false, reason: 'network-error' };
+      });
+  }
+
+  function deleteTeamOffDayRemote(employeeId, date) {
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve({ ok: false, reason: 'no-supabase' });
+    return supabase.from('team_off_days')
+      .delete()
+      .eq('employee_id', String(employeeId))
+      .eq('date', date)
+      .then(function (r) {
+        if (r && r.error) {
+          console.warn('[team-off] team_off_days delete failed:', r.error);
+          return { ok: false, reason: r.error.message || 'delete-error' };
+        }
+        return { ok: true };
+      }, function (err) {
+        console.warn('[team-off] team_off_days delete rejected:', err);
+        return { ok: false, reason: 'network-error' };
+      });
   }
 
   function mapLeaveTypeToOff(t) {
@@ -171,16 +272,19 @@
   }
 
   function getAllWithLeaves() {
-    // 로컬 휴무 + 캐시된 월차/연차(승인됨) 합집합. (employeeId, date) 기준 dedup.
+    // Supabase team_off_days (remote) + 로컬 휴무(오프라인 캐시) + leave_requests·attendance 합집합.
+    // (employeeId, date) 기준 dedup — 우선순위: remote team_off_days > 로컬 > 기타
+    var remote = [];
+    Object.keys(_teamOffRemoteCache).forEach(function (k) { remote = remote.concat(_teamOffRemoteCache[k] || []); });
     var local = getAll();
     var leaves = [];
-    Object.keys(_leaveCache).forEach(function (k) { leaves = leaves.concat(_leaveCache[k]); });
+    Object.keys(_leaveCache).forEach(function (k) { leaves = leaves.concat(_leaveCache[k] || []); });
     var seen = {};
     var out = [];
-    local.concat(leaves).forEach(function (o) {
-      if (!o || !o.date || !o.employeeId) return;
+    remote.concat(local).concat(leaves).forEach(function (o) {
+      if (!o || !o.date || o.employeeId == null || o.employeeId === '') return;
       var key = String(o.employeeId) + '|' + o.date;
-      if (seen[key]) return;  // 로컬이 우선 (먼저 들어옴)
+      if (seen[key]) return;
       seen[key] = true;
       out.push(o);
     });
@@ -362,18 +466,38 @@
 
   function ensureLeavesForMonth(year, month) {
     var key = year + '-' + pad(month + 1);
-    if (_leaveCache[key] != null) return; // 이미 가져온 적 있으면 패스 (재진입 시 즉시 사용)
-    _leaveCache[key] = []; // 동시 다발 fetch 방지용 마커
-    Promise.all([
-      fetchMonthLeaves(year, month),
-      fetchMonthAttendanceLeaves(year, month)
-    ]).then(function (results) {
-      var leaveEntries = expandLeaveToOffEntries(results[0]);
-      var attEntries = expandAttendanceToOffEntries(results[1]);
-      _leaveCache[key] = leaveEntries.concat(attEntries);
-      console.log('[team-off] cached', _leaveCache[key].length, 'entries for', key);
-      renderCalendar();
-    });
+    var needLeave = _leaveCache[key] == null;
+    var needTeamOff = _teamOffRemoteCache[key] == null;
+    if (!needLeave && !needTeamOff) return;
+    if (needLeave) _leaveCache[key] = [];
+    if (needTeamOff) _teamOffRemoteCache[key] = [];
+
+    var tasks = [];
+    if (needLeave) {
+      tasks.push(Promise.all([
+        fetchMonthLeaves(year, month),
+        fetchMonthAttendanceLeaves(year, month)
+      ]).then(function (results) {
+        var leaveEntries = expandLeaveToOffEntries(results[0]);
+        var attEntries = expandAttendanceToOffEntries(results[1]);
+        _leaveCache[key] = leaveEntries.concat(attEntries);
+        console.log('[team-off] leave cache', _leaveCache[key].length, 'for', key);
+      }));
+    }
+    if (needTeamOff) {
+      tasks.push(fetchMonthTeamOffDays(year, month).then(function (rows) {
+        _teamOffRemoteCache[key] = rows;
+        console.log('[team-off] team_off_days cache', rows.length, 'for', key);
+      }));
+    }
+    Promise.all(tasks).then(function () { renderCalendar(); });
+  }
+
+  // 원격 캐시를 비워 다음 render 시 재조회 유도 (저장·삭제 직후 호출)
+  function _invalidateTeamOffMonth(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return;
+    var key = dateStr.slice(0, 7); // 'YYYY-MM'
+    if (key) _teamOffRemoteCache[key] = null;
   }
 
   function renderHeader() {
@@ -488,9 +612,14 @@
     var myId = cur ? (cur.id || cur.authUserId) : '';
     var canManageTeam = isLeaderOfTeam(cur && cur.team, cur && cur.showroom);
     var scope = getScopedEmployees();
+    // 로컬 + Supabase team_off_days 합집합으로 체크 상태 판정 (다른 기기에서 입력한 것도 반영)
     var existing = {};
-    getAll().forEach(function (o) {
-      if (o.date === dateStr) existing[o.employeeId] = o;
+    getAllWithLeaves().forEach(function (o) {
+      if (!o || o.date !== dateStr) return;
+      // leave_requests·attendance 소스는 참고 표시용이므로 체크리스트 기본 선택으로 쓰지 않음.
+      // (이 테이블들은 별도 페이지에서 관리되며, 캘린더에선 읽기 전용 노출)
+      if (o.__fromLeave || o.__fromAttendance) return;
+      existing[String(o.employeeId)] = o;
     });
     if (!scope.length) {
       listEl.innerHTML = '<li class="team-off-check-empty">팀원 정보가 없습니다.</li>';
@@ -507,7 +636,7 @@
       var empId = e.id || e.authUserId || '';
       var isMe = empId === myId;
       var enabled = canManageTeam || isMe;
-      var rec = existing[empId];
+      var rec = existing[String(empId)];
       var checked = !!rec;
       var type = rec ? rec.type : 'annual';
       var roleLabel = '';
@@ -551,12 +680,19 @@
     var myId = cur ? (cur.id || cur.authUserId) : '';
     var canManageTeam = isLeaderOfTeam(cur && cur.team, cur && cur.showroom);
     var scope = getScopedEmployees();
+    // buildCheckList 와 동일하게 원격 포함된 병합 데이터에서 기존 엔트리 조회
     var existing = {};
-    getAll().forEach(function (o) { if (o.date === date) existing[o.employeeId] = o; });
+    getAllWithLeaves().forEach(function (o) {
+      if (!o || o.date !== date) return;
+      if (o.__fromLeave || o.__fromAttendance) return;
+      existing[String(o.employeeId)] = o;
+    });
 
     var list = getAll();
     var created = 0, updated = 0, deleted = 0;
     var now = new Date().toISOString();
+
+    var remoteTasks = []; // Supabase 비동기 작업 모음 (로컬 저장과 병행)
 
     scope.forEach(function (emp) {
       var empId = emp.id || emp.authUserId || '';
@@ -567,11 +703,12 @@
       if (!chk) return;
       var wantOff = chk.checked;
       var type = sel ? sel.value : 'annual';
-      var rec = existing[empId];
+      var rec = existing[String(empId)];
       if (wantOff && !rec) {
-        list.push({
+        var newEntry = {
           id: genId(),
           employeeId: empId,
+          authUserId: emp.authUserId || null,
           employeeName: emp.name || '',
           team: emp.team || '',
           showroom: emp.showroom || '',
@@ -580,38 +717,61 @@
           memo: memo,
           createdAt: now,
           createdBy: myId
-        });
+        };
+        list.push(newEntry);
+        remoteTasks.push(upsertTeamOffDayRemote(newEntry));
         created++;
       } else if (wantOff && rec) {
         if (rec.type !== type || (rec.memo || '') !== memo) {
           var idx = list.findIndex(function (x) { return x.id === rec.id; });
           if (idx >= 0) {
-            list[idx] = Object.assign({}, list[idx], {
-              type: type, memo: memo, updatedAt: now, updatedBy: myId
+            var merged = Object.assign({}, list[idx], {
+              type: type, memo: memo, updatedAt: now, updatedBy: myId,
+              authUserId: list[idx].authUserId || emp.authUserId || null
             });
+            list[idx] = merged;
+            remoteTasks.push(upsertTeamOffDayRemote(merged));
             updated++;
           }
         }
       } else if (!wantOff && rec) {
         list = list.filter(function (x) { return x.id !== rec.id; });
+        remoteTasks.push(deleteTeamOffDayRemote(empId, date));
         deleted++;
       }
     });
 
     if (!saveAll(list)) return;
     closeModal();
-    render();
-    syncDashboardAttendance();
+
     var total = created + updated + deleted;
     if (total === 0) {
+      render();
+      syncDashboardAttendance();
       showToast('변경 사항이 없습니다.');
-    } else {
+      return;
+    }
+
+    // 낙관적 UI: 로컬 캐시로 즉시 재렌더. Supabase 응답을 기다려 원격 캐시 갱신 후 재렌더.
+    render();
+    syncDashboardAttendance();
+
+    Promise.all(remoteTasks).then(function (results) {
+      var failed = (results || []).filter(function (r) { return r && !r.ok; }).length;
+      _invalidateTeamOffMonth(date);
+      // 즉시 재조회로 다른 팀원 변경도 함께 가져옴
+      ensureLeavesForMonth(_state.year, _state.month);
       var parts = [];
       if (created) parts.push('등록 ' + created);
       if (updated) parts.push('수정 ' + updated);
       if (deleted) parts.push('삭제 ' + deleted);
-      showToast(parts.join(' · '));
-    }
+      var msg = parts.join(' · ');
+      if (failed > 0) {
+        showToast(msg + ' (서버 동기화 일부 실패 — 로컬에만 반영됐습니다)', 'error');
+      } else {
+        showToast(msg);
+      }
+    });
   }
 
   // CSS.escape 폴백 — 구형 브라우저 호환
