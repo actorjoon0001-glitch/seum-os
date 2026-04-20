@@ -60,13 +60,35 @@
       var fallback = setTimeout(revealBody, 5000);
       supa.auth.getSession()
         .then(function (res) {
-          clearTimeout(fallback);
           var session = res && res.data && res.data.session;
-          if (session && session.user) {
-            window.location.replace('dashboard.html');
-          } else {
+          if (!session || !session.user) {
+            clearTimeout(fallback);
             revealBody();
+            return;
           }
+          // 세션은 살아 있어도 승인 상태가 취소되었을 수 있음 → RPC로 재검증
+          // (미승인 상태에서 대시보드로 보내면 auth.js가 다시 login.html로 돌려보내 무한 깜빡임이 발생)
+          return supa.rpc('get_employee_by_auth_id', { p_auth_user_id: session.user.id })
+            .then(function (rpcRes) {
+              var rows = rpcRes && rpcRes.data;
+              var employee = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+              if (employee && (employee.status || '') === 'approved') {
+                clearTimeout(fallback);
+                window.location.replace('dashboard.html');
+                return;
+              }
+              // 미승인/직원정보 없음: 세션을 정리해서 리다이렉트 루프 차단
+              return supa.auth.signOut().catch(function () {}).then(function () {
+                clearTimeout(fallback);
+                var errEl = document.getElementById('login-error');
+                if (errEl) {
+                  errEl.textContent = employee
+                    ? '승인이 해제된 계정입니다. 관리자에게 문의하세요.'
+                    : '직원 정보가 등록되지 않았습니다. 관리자에게 문의하세요.';
+                }
+                revealBody();
+              });
+            });
         })
         .catch(function () {
           clearTimeout(fallback);

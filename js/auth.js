@@ -273,10 +273,14 @@
       employee = await fetchEmployeeByAuthIdFallback(authUserId);
     }
     if (!employee) {
+      // 세션은 유효하지만 직원 레코드가 사라진 경우: 세션을 정리해서 login.html 재진입 시 루프 방지
+      try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
       window.location.replace('login.html?error=no_employee');
       return Promise.reject(new Error('no_employee'));
     }
     if ((employee.status || '') !== 'approved') {
+      // 승인이 해제된 계정: 세션을 정리해야 login.html의 세션 검사에서 다시 대시보드로 튕기지 않음 (무한 깜빡임 방지)
+      try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
       window.location.replace('login.html?error=not_approved');
       return Promise.reject(new Error('not_approved'));
     }
