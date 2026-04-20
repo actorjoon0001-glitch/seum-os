@@ -20,6 +20,8 @@
     half_am: '오전 반차',
     half_pm: '오후 반차',
     half: '반차',
+    leave: '휴무',
+    sick: '병가',
     holiday: '공휴일',
     other: '기타'
   };
@@ -717,6 +719,8 @@
           '<option value="monthly"' + (type==='monthly'?' selected':'') + '>월차</option>' +
           '<option value="half_am"' + (type==='half_am'?' selected':'') + '>오전 반차</option>' +
           '<option value="half_pm"' + (type==='half_pm'?' selected':'') + '>오후 반차</option>' +
+          '<option value="leave"' + (type==='leave'?' selected':'') + '>휴무</option>' +
+          '<option value="sick"' + (type==='sick'?' selected':'') + '>병가</option>' +
           '<option value="holiday"' + (type==='holiday'?' selected':'') + '>공휴일</option>' +
           '<option value="other"' + (type==='other'?' selected':'') + '>기타</option>' +
         '</select>' +

@@ -2400,11 +2400,37 @@ button,
   color: #e2e8f0;
 }
 
+/* 휴무 (leave) — 일반 쉬는 날, 연차·월차와 구분되는 중립 회색 톤 */
+.team-off-type-leave {
+  background: rgba(100, 116, 139, 0.28);
+  border: 1px solid rgba(100, 116, 139, 0.55);
+  color: #cbd5e1;
+}
+.team-off-event.team-off-type-leave {
+  background: rgba(100, 116, 139, 0.22);
+  border-left: 3px solid #64748b;
+  color: #e2e8f0;
+}
+
+/* 병가 (sick) — 오렌지 톤 (attendance 쪽과 일관) */
+.team-off-type-sick {
+  background: rgba(234, 88, 12, 0.28);
+  border: 1px solid rgba(234, 88, 12, 0.55);
+  color: #fdba74;
+}
+.team-off-event.team-off-type-sick {
+  background: rgba(234, 88, 12, 0.22);
+  border-left: 3px solid #ea580c;
+  color: #fed7aa;
+}
+
 .team-off-day-item.team-off-type-annual  { border-left: 3px solid #22c55e; }
 .team-off-day-item.team-off-type-monthly { border-left: 3px solid #06b6d4; }
 .team-off-day-item.team-off-type-half_am,
 .team-off-day-item.team-off-type-half_pm,
 .team-off-day-item.team-off-type-half    { border-left: 3px solid #eab308; }
+.team-off-day-item.team-off-type-leave   { border-left: 3px solid #64748b; }
+.team-off-day-item.team-off-type-sick    { border-left: 3px solid #ea580c; }
 .team-off-day-item.team-off-type-holiday { border-left: 3px solid #ef4444; }
 .team-off-day-item.team-off-type-other   { border-left: 3px solid #94a3b8; }
 
