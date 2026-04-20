@@ -7,7 +7,7 @@ rm -rf "$out"
 mkdir -p "$out"
 
 # 단일 파일
-for f in index.html login.html signup.html dashboard.html manifest.json netlify.toml sw.js; do
+for f in index.html login.html signup.html forgot-password.html reset-password.html dashboard.html manifest.json netlify.toml sw.js; do
   [ -f "$root/$f" ] && cp "$root/$f" "$out/"
 done
 

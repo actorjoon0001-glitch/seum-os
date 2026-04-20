@@ -10,6 +10,8 @@
     window.seumAuth.signup = function () { return Promise.resolve({ success: false, error: 'Supabase가 설정되지 않았습니다.' }); };
     window.seumAuth.logout = function () { window.location.href = 'login.html'; };
     window.seumAuth.requireAuth = function () { window.location.replace('login.html'); return Promise.reject(); };
+    window.seumAuth.requestPasswordReset = function () { return Promise.resolve({ success: false, error: 'Supabase가 설정되지 않았습니다.' }); };
+    window.seumAuth.updatePassword = function () { return Promise.resolve({ success: false, error: 'Supabase가 설정되지 않았습니다.' }); };
     return;
   }
 
@@ -336,11 +338,64 @@
     return path.indexOf('dashboard') !== -1;
   }
 
+  /**
+   * 비밀번호 재설정 메일 발송 (원본 비밀번호는 해시 저장되어 조회 불가 → 재설정만 가능)
+   * Supabase가 해당 이메일 주소로 일회성 복구 링크(토큰 포함)를 전송한다.
+   * 존재하지 않는 이메일에 대해서도 성공 메시지를 동일하게 반환해 계정 존재 여부 노출을 방지한다.
+   * @param {string} email
+   * @returns {Promise<{ success: boolean, error?: string }>}
+   */
+  async function requestPasswordReset(email) {
+    var emailTrim = (email || '').trim();
+    if (!emailTrim) {
+      return { success: false, error: '이메일을 입력해 주세요.' };
+    }
+    var redirectTo = window.location.origin + '/reset-password.html';
+    try {
+      var result = await supabase.auth.resetPasswordForEmail(emailTrim, { redirectTo: redirectTo });
+      if (result && result.error) {
+        return { success: false, error: result.error.message || '재설정 메일 발송에 실패했습니다.' };
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: '재설정 메일 발송 중 오류가 발생했습니다.' };
+    }
+  }
+
+  /**
+   * 새 비밀번호로 교체 (reset-password.html에서 복구 세션이 수립된 후 호출)
+   * @param {string} newPassword 6자 이상
+   * @returns {Promise<{ success: boolean, error?: string }>}
+   */
+  async function updatePassword(newPassword) {
+    var pwd = newPassword || '';
+    if (!pwd || pwd.length < 6) {
+      return { success: false, error: '비밀번호는 6자 이상 입력해 주세요.' };
+    }
+    try {
+      var sessionResult = await supabase.auth.getSession();
+      var session = sessionResult && sessionResult.data && sessionResult.data.session;
+      if (!session || !session.user) {
+        return { success: false, error: '재설정 세션이 만료되었습니다. 메일 링크를 다시 요청해 주세요.' };
+      }
+      var result = await supabase.auth.updateUser({ password: pwd });
+      if (result && result.error) {
+        return { success: false, error: result.error.message || '비밀번호 변경에 실패했습니다.' };
+      }
+      try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: '비밀번호 변경 중 오류가 발생했습니다.' };
+    }
+  }
+
   window.seumAuth.login = login;
   window.seumAuth.signup = signup;
   window.seumAuth.logout = logout;
   window.seumAuth.requireAuth = requireAuth;
   window.seumAuth.fetchEmployeeByAuthId = fetchEmployeeByAuthId;
+  window.seumAuth.requestPasswordReset = requestPasswordReset;
+  window.seumAuth.updatePassword = updatePassword;
 
   if (isDashboardPage()) {
     window.seumAuth.authReady = requireAuth();
