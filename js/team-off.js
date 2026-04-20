@@ -66,6 +66,7 @@
   //   3) team_off_days                              — 팀 휴무 캘린더에서 직접 체크한 값 (본 파일에서 관리)
   var _leaveCache = {};   // 'YYYY-MM' → 변환된 엔트리 배열
   var _teamOffRemoteCache = {}; // 'YYYY-MM' → team_off_days 테이블에서 가져온 엔트리 배열
+  var _attendanceCache = {}; // 'YYYY-MM' → attendance 행들 (출근/퇴근 집계용)
   var _employeesFetchPromise = null; // Supabase employees 폴백 페치 중복 방지
 
   function fetchMonthLeaves(year, month) {
@@ -105,6 +106,30 @@
         if (r && r.error) { console.warn('[team-off] attendance fetch failed:', r.error); return []; }
         var rows = Array.isArray(r && r.data) ? r.data : [];
         console.log('[team-off] attendance leaves fetched:', rows.length);
+        return rows;
+      }, function () { return []; });
+  }
+
+  // 해당 월의 출근/퇴근 집계용 attendance 행 조회 (status 에 상관없이 check_in/out 있는지 여부로 집계).
+  // 같은 team/showroom 으로 필터는 렌더 시점에 filterOffForMyTeam 으로 일괄 적용.
+  function fetchMonthAttendanceForSummary(year, month) {
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve([]);
+    var key = year + '-' + pad(month + 1);
+    var first = key + '-01';
+    var lastDay = new Date(year, month + 1, 0).getDate();
+    var last = key + '-' + pad(lastDay);
+    return supabase.from('attendance')
+      .select('user_id, user_name, team, showroom, date, check_in, check_out')
+      .gte('date', first)
+      .lte('date', last)
+      .then(function (r) {
+        if (r && r.error) {
+          console.warn('[team-off] attendance summary fetch failed:', r.error);
+          return [];
+        }
+        var rows = Array.isArray(r && r.data) ? r.data : [];
+        console.log('[team-off] attendance summary fetched:', rows.length);
         return rows;
       }, function () { return []; });
   }
@@ -520,9 +545,11 @@
     var key = year + '-' + pad(month + 1);
     var needLeave = _leaveCache[key] == null;
     var needTeamOff = _teamOffRemoteCache[key] == null;
-    if (!needLeave && !needTeamOff) return;
+    var needAttendance = _attendanceCache[key] == null;
+    if (!needLeave && !needTeamOff && !needAttendance) return;
     if (needLeave) _leaveCache[key] = [];
     if (needTeamOff) _teamOffRemoteCache[key] = [];
+    if (needAttendance) _attendanceCache[key] = [];
 
     var tasks = [];
     if (needLeave) {
@@ -540,6 +567,11 @@
       tasks.push(fetchMonthTeamOffDays(year, month).then(function (rows) {
         _teamOffRemoteCache[key] = rows;
         console.log('[team-off] team_off_days cache', rows.length, 'for', key);
+      }));
+    }
+    if (needAttendance) {
+      tasks.push(fetchMonthAttendanceForSummary(year, month).then(function (rows) {
+        _attendanceCache[key] = rows;
       }));
     }
     Promise.all(tasks).then(function () { renderCalendar(); });
@@ -575,6 +607,18 @@
       if (!o.date) return;
       if (!byDate[o.date]) byDate[o.date] = [];
       byDate[o.date].push(o);
+    });
+
+    // 출근/퇴근 집계 — 같은 팀/전시장 스코프로 필터 후 날짜별 체크인/체크아웃 수 집계.
+    // filterOffForMyTeam 은 team/showroom 필드만 보므로 attendance 행에 그대로 적용 가능.
+    var attByDate = {};
+    var attKey = y + '-' + pad(m + 1);
+    var attAll = filterOffForMyTeam(_attendanceCache[attKey] || []);
+    attAll.forEach(function (a) {
+      if (!a || !a.date) return;
+      var bucket = attByDate[a.date] || (attByDate[a.date] = { in: 0, out: 0 });
+      if (a.check_in) bucket.in++;
+      if (a.check_out) bucket.out++;
     });
 
     var weekdayNames = ['일','월','화','수','목','금','토'];
@@ -623,6 +667,18 @@
         ? '<span class="team-off-cell-count">' + personal.length + '</span>'
         : '';
 
+      // 출근/퇴근 집계 배지 — 본인 팀(또는 관리자 스코프) 기준.
+      // 미래 날짜·기록 0 은 비표시. 오늘 이전은 체크인/체크아웃 숫자 둘 다 노출.
+      var att = attByDate[dateStr];
+      var attSummaryHtml = '';
+      if (att && (att.in > 0 || att.out > 0)) {
+        attSummaryHtml =
+          '<div class="team-off-cell-att" title="오늘 출근 ' + att.in + '명 · 퇴근 완료 ' + att.out + '명">' +
+            '<span class="team-off-att-in">🟢 ' + att.in + '</span>' +
+            '<span class="team-off-att-out">🔴 ' + att.out + '</span>' +
+          '</div>';
+      }
+
       html.push(
         '<div class="' + cls + '" data-off-date="' + dateStr + '" role="button" tabindex="0">' +
         '<div class="team-off-cell-head">' +
@@ -631,6 +687,7 @@
         '</div>' +
         holidayHtml +
         '<div class="team-off-events">' + eventsHtml + '</div>' +
+        attSummaryHtml +
         '</div>'
       );
     }

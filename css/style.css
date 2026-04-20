@@ -2313,6 +2313,19 @@ button,
   flex-direction: column;
   gap: 3px;
 }
+
+/* 일자별 출근/퇴근 집계 배지 — 본인 팀 기준, 셀 하단에 작게 표시 */
+.team-off-cell-att {
+  margin-top: auto;
+  padding-top: 4px;
+  display: flex;
+  gap: 6px;
+  font-size: 0.66rem;
+  color: #94a3b8;
+  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+}
+.team-off-cell-att .team-off-att-in  { color: #86efac; }
+.team-off-cell-att .team-off-att-out { color: #f87171; }
 .team-off-event {
   display: flex;
   align-items: center;
