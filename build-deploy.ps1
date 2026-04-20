@@ -6,7 +6,7 @@ if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Path $out | Out-Null
 
 # 단일 파일
-@("index.html", "login.html", "signup.html", "dashboard.html", "manifest.json", "netlify.toml", "sw.js") | ForEach-Object {
+@("index.html", "login.html", "signup.html", "forgot-password.html", "reset-password.html", "dashboard.html", "manifest.json", "netlify.toml", "sw.js") | ForEach-Object {
   $f = Join-Path $root $_
   if (Test-Path $f) { Copy-Item $f $out -Force }
 }
