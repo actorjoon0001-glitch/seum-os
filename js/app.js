@@ -14873,19 +14873,19 @@
         var dateStr = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
         var clone = cloneSectionForPrint(section);
         var statusHtml = buildWorklogStatusReport(dateStr);
-        var worklogHtml = buildWorklogPrintSection(dateStr);
         var teamWorklogHtml = buildTeamWorklogPrintSection(dateStr);
         var w = window.open('', '_blank', 'width=820,height=1100');
         if (!w) {
           if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 허용 후 다시 시도하세요.', 'error');
           return;
         }
-        // 순서: CEO 보고서 → 작성 현황 요약 → 팀별 업무일지 상세 → 개인 업무일지 상세
+        // 순서: CEO 보고서 → 작성 현황 요약 → 팀별 업무일지 상세
+        // (개인 업무일지 상세는 제거 — 팀 업무일지로 통합 운영)
         w.document.write(
-          '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>일일 보고 + 업무일지 + 팀별 업무일지</title><style>' +
+          '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>일일 보고 + 팀 업무일지</title><style>' +
           getCeoDailyPrintStyles() +
           '</style></head><body>' +
-          clone.innerHTML + statusHtml + teamWorklogHtml + worklogHtml +
+          clone.innerHTML + statusHtml + teamWorklogHtml +
           '</body></html>'
         );
         w.document.close();
