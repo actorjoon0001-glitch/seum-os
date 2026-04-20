@@ -13646,12 +13646,55 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .attendance-status-before   { background: #2a2a2a; color: #9CA3AF; border-color: #333; }
 .attendance-status-working  { background: rgba(79,140,255,0.15); color: #82aaff; border-color: rgba(79,140,255,0.35); }
 .attendance-status-finished { background: rgba(34,197,94,0.15); color: #4ade80; border-color: rgba(34,197,94,0.35); }
-.attendance-status-late     { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.35); }
-.attendance-status-absent   { background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.35); }
+.attendance-status-late,
+.attendance-status-early_leave    { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.35); }
+.attendance-status-absent         { background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.35); }
 .attendance-status-outside,
-.attendance-status-business_trip { background: rgba(139,92,246,0.15); color: #a78bfa; border-color: rgba(139,92,246,0.35); }
-.attendance-status-vacation { background: rgba(236,72,153,0.15); color: #f472b6; border-color: rgba(236,72,153,0.35); }
-.attendance-status-sick     { background: rgba(234,88,12,0.15); color: #fb923c; border-color: rgba(234,88,12,0.35); }
+.attendance-status-business_trip  { background: rgba(139,92,246,0.15); color: #a78bfa; border-color: rgba(139,92,246,0.35); }
+.attendance-status-remote         { background: rgba(14,165,233,0.15); color: #7dd3fc; border-color: rgba(14,165,233,0.35); }
+.attendance-status-training       { background: rgba(16,185,129,0.15); color: #6ee7b7; border-color: rgba(16,185,129,0.35); }
+.attendance-status-vacation,
+.attendance-status-half_am,
+.attendance-status-half_pm        { background: rgba(236,72,153,0.15); color: #f472b6; border-color: rgba(236,72,153,0.35); }
+.attendance-status-sick           { background: rgba(234,88,12,0.15); color: #fb923c; border-color: rgba(234,88,12,0.35); }
+
+/* 상태 변경 버튼 (대시보드 카드) */
+.dash-attendance-status-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  background: transparent;
+  border: 1px solid #3b3b3b;
+  border-radius: 999px;
+  color: #9ca3af;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.dash-attendance-status-change:hover {
+  background: rgba(79,140,255,0.08);
+  color: #bfd7ff;
+  border-color: rgba(79,140,255,0.35);
+}
+.dash-attendance-status-change-icon { font-size: 0.95rem; }
+
+/* attendance status modal (셀프 서비스) */
+.attendance-status-modal { max-width: 460px; }
+.attendance-status-modal .attendance-status-desc {
+  margin: -0.25rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  min-height: 1em;
+}
+.attendance-status-modal .attendance-status-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.attendance-field-required { color: #f87171; margin-left: 0.25rem; }
+.attendance-detail-status-extra.attendance-field-hidden { display: none; }
 
 .attendance-today-grid {
   display: grid;
@@ -13936,22 +13979,32 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .attendance-cal-cell.attendance-status-empty    { background: transparent; color: #4b5563; }
 .attendance-cal-cell.attendance-status-working  { background: rgba(79,140,255,0.22);  color: #bcd4ff; }
 .attendance-cal-cell.attendance-status-finished { background: rgba(34,197,94,0.22);   color: #bbf7d0; }
-.attendance-cal-cell.attendance-status-late     { background: rgba(245,158,11,0.25);  color: #fde68a; }
-.attendance-cal-cell.attendance-status-absent   { background: rgba(239,68,68,0.25);   color: #fecaca; }
+.attendance-cal-cell.attendance-status-late,
+.attendance-cal-cell.attendance-status-early_leave    { background: rgba(245,158,11,0.25);  color: #fde68a; }
+.attendance-cal-cell.attendance-status-absent         { background: rgba(239,68,68,0.25);   color: #fecaca; }
 .attendance-cal-cell.attendance-status-outside,
-.attendance-cal-cell.attendance-status-business_trip { background: rgba(139,92,246,0.22); color: #ddd6fe; }
-.attendance-cal-cell.attendance-status-vacation { background: rgba(236,72,153,0.22);  color: #fbcfe8; }
-.attendance-cal-cell.attendance-status-sick     { background: rgba(234,88,12,0.22);   color: #fed7aa; }
+.attendance-cal-cell.attendance-status-business_trip  { background: rgba(139,92,246,0.22);  color: #ddd6fe; }
+.attendance-cal-cell.attendance-status-remote         { background: rgba(14,165,233,0.22);  color: #bae6fd; }
+.attendance-cal-cell.attendance-status-training       { background: rgba(16,185,129,0.22);  color: #a7f3d0; }
+.attendance-cal-cell.attendance-status-vacation,
+.attendance-cal-cell.attendance-status-half_am,
+.attendance-cal-cell.attendance-status-half_pm        { background: rgba(236,72,153,0.22);  color: #fbcfe8; }
+.attendance-cal-cell.attendance-status-sick           { background: rgba(234,88,12,0.22);   color: #fed7aa; }
 
 .attendance-cal-chip.attendance-status-empty    { background: #2a2a2a; border-color: #3a3a3a; }
 .attendance-cal-chip.attendance-status-working  { background: rgba(79,140,255,0.35); }
 .attendance-cal-chip.attendance-status-finished { background: rgba(34,197,94,0.35); }
-.attendance-cal-chip.attendance-status-late     { background: rgba(245,158,11,0.4); }
-.attendance-cal-chip.attendance-status-absent   { background: rgba(239,68,68,0.4); }
+.attendance-cal-chip.attendance-status-late,
+.attendance-cal-chip.attendance-status-early_leave   { background: rgba(245,158,11,0.4); }
+.attendance-cal-chip.attendance-status-absent        { background: rgba(239,68,68,0.4); }
 .attendance-cal-chip.attendance-status-outside,
 .attendance-cal-chip.attendance-status-business_trip { background: rgba(139,92,246,0.4); }
-.attendance-cal-chip.attendance-status-vacation { background: rgba(236,72,153,0.4); }
-.attendance-cal-chip.attendance-status-sick     { background: rgba(234,88,12,0.4); }
+.attendance-cal-chip.attendance-status-remote        { background: rgba(14,165,233,0.4); }
+.attendance-cal-chip.attendance-status-training      { background: rgba(16,185,129,0.4); }
+.attendance-cal-chip.attendance-status-vacation,
+.attendance-cal-chip.attendance-status-half_am,
+.attendance-cal-chip.attendance-status-half_pm       { background: rgba(236,72,153,0.4); }
+.attendance-cal-chip.attendance-status-sick          { background: rgba(234,88,12,0.4); }
 
 .attendance-cal-loading {
   padding: 2rem;

@@ -393,6 +393,15 @@
               <span class="dash-attendance-finished-text">오늘 근무 완료</span>
             </div>
           </div>
+          <!-- 상태 변경: 외근/출장/재택/교육/지각/조퇴 등 근무 상태 직접 선택 (본인) -->
+          <button type="button"
+                  class="dash-attendance-status-change"
+                  id="btn-attendance-status-change"
+                  aria-haspopup="dialog"
+                  aria-controls="attendance-status-modal">
+            <span class="dash-attendance-status-change-icon">🗂</span>
+            <span class="dash-attendance-status-change-label">상태 변경</span>
+          </button>
         </div>
 
         <div class="dash-attendance-times">
@@ -3505,14 +3514,9 @@
             </label>
             <label>
               상태
-              <select id="attendance-cal-status">
+              <!-- 전체/미기록 을 제외한 상태 옵션은 attendance_statuses 에서 JS 가 동적 생성 -->
+              <select id="attendance-cal-status" data-dynamic-status-filter>
                 <option value="">전체</option>
-                <option value="working">근무중</option>
-                <option value="finished">퇴근완료</option>
-                <option value="outside">외근</option>
-                <option value="business_trip">출장</option>
-                <option value="vacation">휴가</option>
-                <option value="sick">병가</option>
                 <option value="empty">미기록</option>
               </select>
             </label>
@@ -3626,20 +3630,23 @@
               </label>
               <label>
                 근무 상태
-                <select id="attendance-detail-status">
-                  <option value="before">출근전</option>
-                  <option value="working">근무중</option>
-                  <option value="finished">퇴근완료</option>
-                  <option value="outside">외근</option>
-                  <option value="business_trip">출장</option>
-                  <option value="vacation">휴가</option>
-                  <option value="sick">병가</option>
-                </select>
+                <!-- options 는 attendance_statuses 테이블에서 JS 가 동적 생성 (실패 시 하드코딩 fallback) -->
+                <select id="attendance-detail-status"></select>
+              </label>
+            </div>
+            <div class="worklog-form-row attendance-detail-status-extra" id="attendance-detail-status-extra">
+              <label>
+                상태 시작시각 <span class="attendance-field-required" data-attendance-req="start-time"></span>
+                <input type="time" id="attendance-detail-start-time" step="60">
+              </label>
+              <label>
+                상태 종료시각 <span class="attendance-field-required" data-attendance-req="end-time"></span>
+                <input type="time" id="attendance-detail-end-time" step="60">
               </label>
             </div>
             <label>
-              비고 / 메모
-              <textarea id="attendance-detail-note" rows="2" placeholder="사유, 특이사항 등"></textarea>
+              비고 / 메모 <span class="attendance-field-required" data-attendance-req="memo"></span>
+              <textarea id="attendance-detail-memo" rows="2" placeholder="사유, 특이사항 등"></textarea>
             </label>
             <div class="worklog-form-actions">
               <button type="button" class="btn btn-danger" id="btn-attendance-detail-delete" style="display:none;">삭제</button>
@@ -3649,7 +3656,46 @@
           </form>
         </div>
       </div>
+
+      <!-- 본인 근무 상태 변경 모달 (대시보드 카드 '상태 변경' 버튼에서 호출) -->
+      <!-- dash-attendance-card 와 같은 section 에 두면 admin modal 과 동일 스타일 재사용 가능 -->
     </section>
+
+    <!-- 본인 근무 상태 변경 모달 (일반 직원 셀프 서비스) -->
+    <div id="attendance-status-modal" class="worklog-modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="attendance-status-modal-title">
+      <div class="worklog-modal attendance-status-modal">
+        <div class="worklog-modal-header">
+          <h3 id="attendance-status-modal-title">오늘 근무 상태 변경</h3>
+          <button type="button" class="worklog-modal-close" id="attendance-status-close" aria-label="닫기">×</button>
+        </div>
+        <form id="form-attendance-status" class="worklog-modal-form">
+          <label>
+            상태
+            <!-- options 는 attendance_statuses 에서 동적 생성. admin_only 는 제외. -->
+            <select id="attendance-status-select"></select>
+          </label>
+          <p class="attendance-status-desc" id="attendance-status-desc"></p>
+          <div class="worklog-form-row attendance-status-time-row hidden" id="attendance-status-time-row">
+            <label>
+              시작시각 <span class="attendance-field-required">*</span>
+              <input type="time" id="attendance-status-start" step="60">
+            </label>
+            <label>
+              종료시각
+              <input type="time" id="attendance-status-end" step="60">
+            </label>
+          </div>
+          <label>
+            메모 <span class="attendance-field-required hidden" id="attendance-status-memo-required">*</span>
+            <textarea id="attendance-status-memo-input" rows="2" placeholder="사유 / 특이사항 (외근·출장·조퇴 등)"></textarea>
+          </label>
+          <div class="worklog-form-actions">
+            <button type="button" class="btn btn-secondary" id="btn-attendance-status-cancel">취소</button>
+            <button type="submit" class="btn btn-primary" id="btn-attendance-status-save">저장</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <section id="section-leave" class="content-section">
       <header class="main-header main-header-with-action">
