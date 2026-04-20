@@ -14731,6 +14731,74 @@
       return '<div class="wl-combined-pagebreak"></div>' + headerHtml + sectionsHtml;
     }
 
+    // 대표님 일일보고 앞에 붙는 "업무일지 작성 현황" 요약 테이블.
+    // 팀 업무일지(team_reports 기반) 의 member kind 엔트리에 tasks 가 있으면 "작성" 으로 간주.
+    // 팀 정의에 등록된 멤버 전체 대비 작성·미작성 명단을 팀별로 표로 보여준다.
+    function buildWorklogStatusReport(dateStr) {
+      if (!dateStr) return '';
+      if (typeof twGetTeams !== 'function' || typeof twGetWorklogs !== 'function') return '';
+      var esc = escapeHtml;
+      var logs = twGetWorklogs().filter(function (w) { return (w.date || '') === dateStr && w.kind === 'member'; });
+
+      // 작성자 키: authorId / authorAuthUserId / authorName 중 하나라도 매칭되면 작성 처리
+      function hasWritten(team, member) {
+        var memberKeys = [];
+        if (member.id != null) memberKeys.push(String(member.id));
+        if (member.authUserId) memberKeys.push(String(member.authUserId));
+        if (member.name) memberKeys.push(String(member.name));
+        return logs.some(function (w) {
+          if (w.teamId !== team.id) return false;
+          if (!w.tasks || !String(w.tasks).trim()) return false;
+          if (memberKeys.indexOf(String(w.authorId || '')) >= 0) return true;
+          if (w.authorAuthUserId && memberKeys.indexOf(String(w.authorAuthUserId)) >= 0) return true;
+          if (w.authorName && memberKeys.indexOf(String(w.authorName)) >= 0) return true;
+          return false;
+        });
+      }
+
+      var sections = twGetTeams().map(function (team) {
+        var members = (typeof twGetTeamMembers === 'function') ? twGetTeamMembers(team) : [];
+        if (!members.length) return null;
+        var written = [];
+        var missing = [];
+        members.forEach(function (m) {
+          if (hasWritten(team, m)) written.push(m.name || '-');
+          else missing.push(m.name || '-');
+        });
+        return { team: team.name, total: members.length, written: written, missing: missing };
+      }).filter(Boolean);
+
+      if (!sections.length) return '';
+
+      var totalWritten = sections.reduce(function (a, s) { return a + s.written.length; }, 0);
+      var totalAll = sections.reduce(function (a, s) { return a + s.total; }, 0);
+
+      var rowsHtml = sections.map(function (s) {
+        var rate = s.total ? Math.round((s.written.length / s.total) * 100) : 0;
+        return '<tr>' +
+          '<td class="wl-status-team">' + esc(s.team) + '</td>' +
+          '<td class="wl-status-count">' + s.written.length + '/' + s.total + ' (' + rate + '%)</td>' +
+          '<td class="wl-status-written">' + (s.written.length ? s.written.map(esc).join(', ') : '—') + '</td>' +
+          '<td class="wl-status-missing">' + (s.missing.length ? s.missing.map(esc).join(', ') : '—') + '</td>' +
+        '</tr>';
+      }).join('');
+
+      return '<div class="wl-combined-pagebreak"></div>' +
+        '<div class="wl-combined-header">' +
+          '<h2>' + esc(dateStr) + ' 업무일지 작성 현황</h2>' +
+          '<div class="wl-combined-sub">전체 ' + totalWritten + ' / ' + totalAll + '명 작성 (팀별 내역)</div>' +
+        '</div>' +
+        '<table class="wl-status-table">' +
+          '<thead><tr>' +
+            '<th style="width:18%">팀</th>' +
+            '<th style="width:14%">작성률</th>' +
+            '<th style="width:34%">작성자</th>' +
+            '<th style="width:34%">미작성</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rowsHtml + '</tbody>' +
+        '</table>';
+    }
+
     function getCeoDailyPrintStyles() {
       return '@page{size:A4 portrait;margin:12mm}' +
         'body{font-family:"Noto Sans KR",sans-serif;color:#111;background:#fff;margin:0;padding:0;font-size:12px;line-height:1.4}' +
@@ -14785,7 +14853,15 @@
         '.wl-member-entry h5{margin:0 0 1mm;font-size:0.9rem;color:#000;border-bottom:1px dashed #bbb;padding-bottom:0.8mm}' +
         '.wl-member-sec{margin-top:1mm}' +
         '.wl-member-sec h6{margin:0 0 0.5mm;font-size:0.75rem;color:#444;font-weight:700}' +
-        '.wl-member-sec p{margin:0;font-size:0.8rem;color:#222;white-space:pre-wrap;line-height:1.35}';
+        '.wl-member-sec p{margin:0;font-size:0.8rem;color:#222;white-space:pre-wrap;line-height:1.35}' +
+        // 업무일지 작성 현황 요약 테이블
+        '.wl-status-table{width:100%;border-collapse:collapse;font-size:0.82rem;margin-top:3mm}' +
+        '.wl-status-table th{background:#222;color:#fff;padding:2mm 3mm;text-align:left;font-weight:700}' +
+        '.wl-status-table td{border:1px solid #bbb;padding:2mm 3mm;vertical-align:top;line-height:1.45}' +
+        '.wl-status-team{font-weight:700;color:#000}' +
+        '.wl-status-count{font-weight:700;color:#000;white-space:nowrap}' +
+        '.wl-status-written{color:#065f46}' +
+        '.wl-status-missing{color:#991b1b;font-weight:600}';
     }
 
     var ceoDailyCombinedPrintBtn = document.getElementById('btn-ceo-daily-print-with-worklog');
@@ -14796,6 +14872,7 @@
         var dateInput = document.getElementById('ceo-daily-date');
         var dateStr = (dateInput && dateInput.value) || new Date().toISOString().slice(0, 10);
         var clone = cloneSectionForPrint(section);
+        var statusHtml = buildWorklogStatusReport(dateStr);
         var worklogHtml = buildWorklogPrintSection(dateStr);
         var teamWorklogHtml = buildTeamWorklogPrintSection(dateStr);
         var w = window.open('', '_blank', 'width=820,height=1100');
@@ -14803,11 +14880,12 @@
           if (typeof showToast === 'function') showToast('팝업이 차단되었습니다. 허용 후 다시 시도하세요.', 'error');
           return;
         }
+        // 순서: CEO 보고서 → 작성 현황 요약 → 팀별 업무일지 상세 → 개인 업무일지 상세
         w.document.write(
           '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>일일 보고 + 업무일지 + 팀별 업무일지</title><style>' +
           getCeoDailyPrintStyles() +
           '</style></head><body>' +
-          clone.innerHTML + worklogHtml + teamWorklogHtml +
+          clone.innerHTML + statusHtml + teamWorklogHtml + worklogHtml +
           '</body></html>'
         );
         w.document.close();
