@@ -700,18 +700,14 @@
       var rec = existing[String(empId)];
       var checked = !!rec;
       var type = rec ? rec.type : 'annual';
-      var roleLabel = '';
-      var role = (e.role || '').toString().toLowerCase();
-      if (role === 'leader' || role === '팀장' || role === 'team_lead' || role === 'manager') {
-        roleLabel = '<span class="team-off-check-role">팀장</span>';
-      }
+      // 체크리스트에서는 팀장 배지를 노출하지 않는다 — 시각적 노이즈 감소.
+      // 팀장/팀원 구분은 팀 업무일지 등 다른 화면에서 충분히 드러남.
       return '<li class="team-off-check-item' + (checked ? ' team-off-check-item-on' : '') + '">' +
         '<label class="team-off-check-label">' +
           '<input type="checkbox" class="team-off-check-box" data-off-emp="' + escapeHtml(empId) + '"' +
             (checked ? ' checked' : '') + (enabled ? '' : ' disabled') + '>' +
           '<span class="team-off-check-name">' + escapeHtml(e.name || '-') + '</span>' +
           (isMe ? '<span class="team-off-check-me">나</span>' : '') +
-          roleLabel +
         '</label>' +
         '<select class="team-off-check-type" data-off-emp-type="' + escapeHtml(empId) + '"' +
           (enabled && checked ? '' : ' disabled') + '>' +
