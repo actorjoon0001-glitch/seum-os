@@ -603,9 +603,17 @@
         : '';
 
       var eventsHtml = personal.slice(0, 5).map(function (o) {
-        return '<div class="team-off-event team-off-type-' + escapeHtml(o.type) + '" data-off-id="' + escapeHtml(o.id) + '">' +
+        // title 툴팁에 메모 + 이름 + 유형 노출 (캘린더 셀에서 메모 확인 가능)
+        var tipParts = [];
+        if (o.employeeName) tipParts.push(o.employeeName);
+        if (o.type) tipParts.push(TYPE_LABEL[o.type] || o.type);
+        if (o.memo) tipParts.push('메모: ' + o.memo);
+        var tip = tipParts.join(' · ');
+        var memoIcon = o.memo ? '<span class="team-off-event-memo" aria-hidden="true">📝</span>' : '';
+        return '<div class="team-off-event team-off-type-' + escapeHtml(o.type) + '" data-off-id="' + escapeHtml(o.id) + '" title="' + escapeHtml(tip) + '">' +
           '<span class="team-off-event-type">' + escapeHtml(TYPE_LABEL[o.type] || '기타') + '</span>' +
           '<span class="team-off-event-name">' + escapeHtml(o.employeeName || '-') + '</span>' +
+          memoIcon +
           '</div>';
       }).join('');
       if (personal.length > 5) {
@@ -636,7 +644,25 @@
     $('team-off-date').value = dateStr;
     var dateDisp = $('team-off-date-display');
     if (dateDisp) dateDisp.textContent = dateStr;
-    $('team-off-memo').value = '';
+
+    // 메모 프리필: 본인 엔트리가 있으면 본인 메모, 아니면 해당 날짜 첫 엔트리의 메모.
+    // 이렇게 하면 저장 후 재오픈 시 "빈 칸이 돼서 저장 안 된 줄 알았는데" 오해 방지.
+    var cur = currentEmployee();
+    var myId = cur ? String(cur.id || cur.authUserId || '') : '';
+    var prefillMemo = '';
+    var sameDay = getAllWithLeaves().filter(function (o) {
+      return o && o.date === dateStr && !o.__fromLeave && !o.__fromAttendance;
+    });
+    if (myId) {
+      var mine = sameDay.find(function (o) { return String(o.employeeId) === myId; });
+      if (mine && mine.memo) prefillMemo = mine.memo;
+    }
+    if (!prefillMemo && sameDay.length) {
+      var first = sameDay.find(function (o) { return o && o.memo; });
+      if (first) prefillMemo = first.memo;
+    }
+    $('team-off-memo').value = prefillMemo || '';
+
     var title = $('team-off-modal-title');
     if (title) title.textContent = dateStr + ' 휴무 체크';
 

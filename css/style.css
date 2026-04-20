@@ -2334,6 +2334,12 @@ button,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.team-off-event-memo {
+  font-size: 0.7rem;
+  opacity: 0.85;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 .team-off-event-more {
   font-size: 0.7rem;
   color: #94a3b8;
