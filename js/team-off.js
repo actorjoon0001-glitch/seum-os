@@ -64,6 +64,7 @@
   //   3) team_off_days                              — 팀 휴무 캘린더에서 직접 체크한 값 (본 파일에서 관리)
   var _leaveCache = {};   // 'YYYY-MM' → 변환된 엔트리 배열
   var _teamOffRemoteCache = {}; // 'YYYY-MM' → team_off_days 테이블에서 가져온 엔트리 배열
+  var _employeesFetchPromise = null; // Supabase employees 폴백 페치 중복 방지
 
   function fetchMonthLeaves(year, month) {
     var supabase = _supa();
@@ -203,6 +204,50 @@
         console.warn('[team-off] team_off_days delete rejected:', err);
         return { ok: false, reason: 'network-error' };
       });
+  }
+
+  // app.js 의 syncEmployeesFromSupabase 가 아직 완료되지 않아 localStorage 가 비었을 때
+  // team-off.js 가 독립적으로 Supabase 에서 직원 목록을 가져와 캐시. shape 는 app.js 와 동일하게 맞춤.
+  function _ensureEmployees() {
+    var existing = (typeof window.getEmployees === 'function') ? window.getEmployees() : [];
+    if (existing && existing.length) return Promise.resolve(existing);
+    if (_employeesFetchPromise) return _employeesFetchPromise;
+    var supabase = _supa();
+    if (!supabase) return Promise.resolve([]);
+    _employeesFetchPromise = supabase.from('employees')
+      .select('*')
+      .eq('status', 'approved')
+      .then(function (r) {
+        if (r && r.error) {
+          console.warn('[team-off] employees fallback fetch failed:', r.error);
+          _employeesFetchPromise = null;
+          return [];
+        }
+        var rows = Array.isArray(r && r.data) ? r.data : [];
+        var normalized = rows.map(function (e) {
+          return {
+            id: e.id,
+            authUserId: e.auth_user_id || null,
+            name: e.name || '',
+            team: e.team || '',
+            role: e.role || '',
+            showroom: e.showroom || '',
+            status: e.status || 'active',
+            position_name: e.position_name || e.position || '',
+            permission: e.permission || ''
+          };
+        }).filter(function (e) {
+          return e && e.id && !(typeof e.id === 'string' && e.id.indexOf('tw-') === 0);
+        });
+        try { localStorage.setItem('seum_employees', JSON.stringify(normalized)); } catch (err) { /* quota */ }
+        console.log('[team-off] employees fallback cached:', normalized.length);
+        return normalized;
+      }, function (err) {
+        console.warn('[team-off] employees fallback rejected:', err);
+        _employeesFetchPromise = null;
+        return [];
+      });
+    return _employeesFetchPromise;
   }
 
   function mapLeaveTypeToOff(t) {
@@ -462,6 +507,11 @@
     renderCalendar();
     // 현재 월의 승인된 휴가 신청을 비동기로 가져와 캐시 후 재렌더 — 캘린더에 합쳐 표시
     ensureLeavesForMonth(_state.year, _state.month);
+    // localStorage 직원 목록이 비었으면 (app.js sync 미완료 타이밍) 폴백 페치 후 재렌더
+    var existingEmps = (typeof window.getEmployees === 'function') ? window.getEmployees() : [];
+    if (!existingEmps.length) {
+      _ensureEmployees().then(function () { renderCalendar(); });
+    }
   }
 
   function ensureLeavesForMonth(year, month) {
@@ -622,7 +672,16 @@
       existing[String(o.employeeId)] = o;
     });
     if (!scope.length) {
-      listEl.innerHTML = '<li class="team-off-check-empty">팀원 정보가 없습니다.</li>';
+      // localStorage 'seum_employees' 가 비어 있으면 Supabase 에서 직접 폴백 페치 후 재시도.
+      // app.js 의 syncEmployeesFromSupabase 가 아직 완료 전이면 이 경로로 자연스럽게 로드됨.
+      listEl.innerHTML = '<li class="team-off-check-empty">팀원 정보 불러오는 중…</li>';
+      _ensureEmployees().then(function () {
+        var modal = $('team-off-modal');
+        if (!modal || modal.classList.contains('hidden')) return;
+        var dateEl = $('team-off-date');
+        if (!dateEl || dateEl.value !== dateStr) return; // 사용자가 다른 날짜로 이동한 경우 무시
+        buildCheckList(dateStr); // 재시도
+      });
       return;
     }
     // 본인을 맨 위로, 그 다음 팀장, 그 외 이름순 (이미 sortTeam 적용된 scope 사용)
