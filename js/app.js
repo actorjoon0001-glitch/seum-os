@@ -637,6 +637,11 @@
           priority_done: !!c.priorityDone,
           is_urgent: !!c.isUrgent,
           design_status: c.designStatus || 'none',
+          sales_confirmed: !!c.salesConfirmed,
+          design_confirmed: !!c.designConfirmed,
+          construction_confirmed: !!c.constructionConfirmed,
+          final_approved: !!c.finalApproved,
+          construction_start_ok: !!c.constructionStartOk,
           payload: c
         };
       });
@@ -1007,6 +1012,30 @@
       .catch(function (err) { console.error('design_status save failed:', err); });
   }
 
+  /**
+   * 검토자 체크 / 최종 승인 / 시공 착공가능 플래그 전용 타깃 UPDATE.
+   * bulk upsert 경로 (saveContracts) 의 stale payload 덮어쓰기로부터 보호.
+   * 호출 전 c 에서 최신 JS 필드값을 계산한 뒤 넘겨주기.
+   */
+  function saveConfirmedFields(contractId, fields) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !contractId || !fields) return;
+    var payload = {};
+    if (Object.prototype.hasOwnProperty.call(fields, 'salesConfirmed')) payload.sales_confirmed = !!fields.salesConfirmed;
+    if (Object.prototype.hasOwnProperty.call(fields, 'designConfirmed')) payload.design_confirmed = !!fields.designConfirmed;
+    if (Object.prototype.hasOwnProperty.call(fields, 'constructionConfirmed')) payload.construction_confirmed = !!fields.constructionConfirmed;
+    if (Object.prototype.hasOwnProperty.call(fields, 'finalApproved')) payload.final_approved = !!fields.finalApproved;
+    if (Object.prototype.hasOwnProperty.call(fields, 'constructionStartOk')) payload.construction_start_ok = !!fields.constructionStartOk;
+    if (!Object.keys(payload).length) return;
+    supa.from('contracts')
+      .update(payload)
+      .eq('local_id', contractId)
+      .then(function (res) {
+        if (res && res.error) console.error('confirmed fields save error:', res.error);
+      })
+      .catch(function (err) { console.error('confirmed fields save failed:', err); });
+  }
+
   /** ?? ???? (?? + Supabase contracts) */
   function deleteContractById(contractId) {
     if (!contractId) return;
@@ -1045,7 +1074,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload,priority_done,is_urgent,design_status')
+        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -1067,6 +1096,11 @@
                 if (row.priority_done != null) c.priorityDone = !!row.priority_done;
                 if (row.is_urgent != null) c.isUrgent = !!row.is_urgent;
                 if (row.design_status != null) c.designStatus = row.design_status;
+                if (row.sales_confirmed != null) c.salesConfirmed = !!row.sales_confirmed;
+                if (row.design_confirmed != null) c.designConfirmed = !!row.design_confirmed;
+                if (row.construction_confirmed != null) c.constructionConfirmed = !!row.construction_confirmed;
+                if (row.final_approved != null) c.finalApproved = !!row.final_approved;
+                if (row.construction_start_ok != null) c.constructionStartOk = !!row.construction_start_ok;
               }
               return c;
             })
@@ -5292,6 +5326,7 @@
       if (tempBuildingEl) c.hasTemporaryBuildingCert = tempBuildingEl.checked;
       c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
       saveContracts(contracts);
+      saveConfirmedFields(c.id, { constructionStartOk: c.constructionStartOk });
       renderDesign();
       renderConstruction();
       window.alert('설계팀 메모가 저장되었습니다.');
@@ -5361,6 +5396,7 @@
     c.designStatusMemoSales = (sel('.design-status-memo-sales') || {}).value ? sel('.design-status-memo-sales').value.trim() : '';
     c.designStatusMemoConstruction = (sel('.design-status-memo-construction') || {}).value ? sel('.design-status-memo-construction').value.trim() : '';
     saveContracts(contracts);
+    saveConfirmedFields(c.id, { constructionStartOk: c.constructionStartOk });
     if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
       window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
     }
@@ -8389,6 +8425,7 @@
         c.hasCompletionCert = document.getElementById('design-has-completion-cert').checked;
         c.constructionStartOk = document.getElementById('design-construction-start-ok').checked;
         saveContracts(contracts);
+        saveConfirmedFields(c.id, { constructionStartOk: c.constructionStartOk });
         modal.classList.add('hidden');
         renderDesign();
         window.alert('허가 현황이 저장되었습니다.');
@@ -12638,6 +12675,11 @@
             ac.finalApproved = !ac.finalApproved;
             ac.constructionStartOk = !!(ac.salesConfirmed && ac.designConfirmed && ac.constructionConfirmed && ac.finalApproved);
             saveContracts(contracts);
+            // 타깃 UPDATE — bulk upsert stale 덮어쓰기로부터 보호
+            saveConfirmedFields(ac.id, {
+              finalApproved: ac.finalApproved,
+              constructionStartOk: ac.constructionStartOk
+            });
             renderDesign();
             renderConstruction();
           }
@@ -12778,6 +12820,14 @@
           if (!allChecked) { c.finalApproved = false; }
           c.constructionStartOk = !!(allChecked && c.finalApproved);
           saveContracts(contracts);
+          // 타깃 UPDATE — 다른 사용자의 bulk upsert stale 덮어쓰기로부터 보호
+          saveConfirmedFields(c.id, {
+            salesConfirmed: c.salesConfirmed,
+            designConfirmed: c.designConfirmed,
+            constructionConfirmed: c.constructionConfirmed,
+            finalApproved: c.finalApproved,
+            constructionStartOk: c.constructionStartOk
+          });
           renderDesign();
           renderConstruction();
         }
