@@ -667,6 +667,86 @@
 
   function saveLgAppliances(data) {
     localStorage.setItem(STORAGE_LG_APPLIANCES, JSON.stringify(data));
+    // Supabase lg_appliance_orders 테이블 동기화 (contracts 패턴 동일)
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa || !Array.isArray(data)) return;
+      var rows = data.map(function (o) {
+        return {
+          local_id: o.id || null,
+          showroom_id: o.showroomId || null,
+          contract_local_id: o.contractId || null,
+          customer_name: o.customerName || null,
+          sales_person: o.salesPerson || null,
+          product: o.product || null,
+          model_name: o.modelName || null,
+          quantity: o.quantity != null && o.quantity !== '' ? Number(o.quantity) : null,
+          amount: o.amount != null && o.amount !== '' ? Number(o.amount) : null,
+          order_date: o.orderDate || null,
+          delivery_date: o.deliveryDate || null,
+          status: o.status || '대기',
+          delivery_address: o.deliveryAddress || null,
+          phone: o.phone || null,
+          memo: o.memo || null,
+          payload: o
+        };
+      });
+      supa.from('lg_appliance_orders').upsert(rows, { onConflict: 'local_id' })
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('Supabase lg_appliance_orders sync error:', res.error);
+          }
+        })
+        .catch(function (err) {
+          console.error('Supabase lg_appliance_orders sync failed:', err);
+        });
+    } catch (e) {
+      console.error('Supabase lg_appliance_orders sync exception:', e);
+    }
+  }
+
+  function deleteLgApplianceRemote(localId) {
+    if (!localId) return;
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa.from('lg_appliance_orders').delete().eq('local_id', localId)
+        .then(function (res) {
+          if (res && res.error) console.error('Supabase lg_appliance_orders delete error:', res.error);
+        })
+        .catch(function (err) { console.error('Supabase lg_appliance_orders delete failed:', err); });
+    } catch (e) {
+      console.error('deleteLgApplianceRemote exception:', e);
+    }
+  }
+
+  function syncLgAppliancesFromSupabase() {
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa
+        .from('lg_appliance_orders')
+        .select('local_id,payload')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('Supabase lg_appliance_orders load error:', res.error);
+            return;
+          }
+          var remote = res.data
+            .map(function (row) {
+              var o = row.payload || null;
+              if (!o && row.local_id) o = { id: row.local_id };
+              if (o && !o.id && row.local_id) o.id = row.local_id;
+              return o;
+            })
+            .filter(function (o) { return o && o.id; });
+          localStorage.setItem(STORAGE_LG_APPLIANCES, JSON.stringify(remote));
+          try { renderLgAppliances(); } catch (e) { /* 섹션 미진입 상태면 무시 */ }
+        })
+        .catch(function (err) { console.error('Supabase lg_appliance_orders load failed:', err); });
+    } catch (e) {
+      console.error('syncLgAppliancesFromSupabase exception:', e);
+    }
   }
 
   function renderLgAppliances() {
@@ -891,6 +971,7 @@
           if (!window.confirm('이 LG가전 발주를 삭제하시겠습니까?')) return;
           var next = getLgAppliances().filter(function (o) { return o.id !== did; });
           saveLgAppliances(next);
+          deleteLgApplianceRemote(did);
           if (typeof logActivity === 'function') {
             logActivity({ actionType: 'delete', targetType: 'lg_appliance', targetId: did, description: 'LG가전 사은품 발주 삭제' });
           }
@@ -10649,7 +10730,7 @@
     if (sectionId === 'marketing-schedule' && typeof window.renderMarketingSchedule === 'function') window.renderMarketingSchedule();
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
-    if (sectionId === 'sales-lg-appliance') renderLgAppliances();
+    if (sectionId === 'sales-lg-appliance') { syncLgAppliancesFromSupabase(); renderLgAppliances(); }
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
     if (sectionId === 'settlement-dashboard') renderSettlementDashboard();
@@ -14782,6 +14863,7 @@
     twRemoteSyncAll();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
+    syncLgAppliancesFromSupabase();
     syncTeamEventsFromSupabase();
     syncWorklogFromSupabase();
     syncAnnouncementsFromSupabase();
