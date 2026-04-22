@@ -267,9 +267,13 @@
     if (sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
         sectionId === 'marketing-files' || sectionId === 'marketing-nas') return isMarketing;
 
-    // 방문예약 고객 / 고객관리 / LG가전 발주: 영업팀 + master/admin만
-    if (sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-lg-appliance') {
+    // 방문예약 고객 / 고객관리: 영업팀 + master/admin만
+    if (sectionId === 'sales-leads' || sectionId === 'sales-customers') {
       return isSales;
+    }
+    // LG가전 발주: 전 팀 접근 가능 (영업/설계/시공/정산/마케팅)
+    if (sectionId === 'sales-lg-appliance') {
+      return isSales || isDesign || isConstruction || isSettlement || isMarketing;
     }
     // 계약 목록: 영업/설계/시공/정산 등 전 팀
     if (sectionId === 'sales-contracts') {
@@ -332,7 +336,7 @@
   }
 
   function updateSalesRestrictedNavVisibility() {
-    ['sales-leads', 'sales-customers', 'sales-lg-appliance'].forEach(function (sec) {
+    ['sales-leads', 'sales-customers'].forEach(function (sec) {
       var el = document.querySelector('[data-section="' + sec + '"]');
       if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
     });
@@ -676,9 +680,12 @@
       var curEmp = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
       var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
       if (curEmp && !isAdminRole) {
-        var myShowroomId = typeof resolveShowroomId === 'function' ? resolveShowroomId(curEmp) : curEmp.showroom;
-        if (myShowroomId) {
-          contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+        var empTeam = (curEmp.team || '').trim();
+        if (empTeam === '영업') {
+          var myShowroomId = typeof resolveShowroomId === 'function' ? resolveShowroomId(curEmp) : curEmp.showroom;
+          if (myShowroomId) {
+            contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+          }
         }
       }
       // 계약일 최신순
@@ -695,14 +702,18 @@
       if (currentVal) contractSel.value = currentVal;
     }
 
-    // 목록 필터: master/admin이 아니면 소속 전시장만
+    // 목록 필터: 영업팀 일반 사용자는 소속 전시장만, 그 외 팀(설계/시공/정산/마케팅/admin)은 전체 조회
     var list = getLgAppliances();
     var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
     var isAdminRole2 = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
     if (curUser && !isAdminRole2) {
-      var myShowroom2 = typeof resolveShowroomId === 'function' ? resolveShowroomId(curUser) : curUser.showroom;
-      if (myShowroom2) {
-        list = list.filter(function (o) { return (o.showroomId || '') === myShowroom2; });
+      var curTeam = (curUser.team || '').trim();
+      var isSalesUser = (curTeam === '영업');
+      if (isSalesUser) {
+        var myShowroom2 = typeof resolveShowroomId === 'function' ? resolveShowroomId(curUser) : curUser.showroom;
+        if (myShowroom2) {
+          list = list.filter(function (o) { return (o.showroomId || '') === myShowroom2; });
+        }
       }
     }
     list.sort(function (a, b) {
