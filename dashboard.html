@@ -205,6 +205,7 @@
           </button>
           <div class="nav-submenu sidebar-sub collapsed" id="nav-sales-sub">
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-contracts">계약 목록</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-lg-appliance">LG가전 발주</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-leads">방문예약 고객</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="sales-customers">고객 관리</a>
           </div>
@@ -1415,6 +1416,103 @@
               </div>
             </div>
           </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- LG가전 사은품 발주 섹션 (계약 목록 바로 밑) -->
+    <section id="section-sales-lg-appliance" class="content-section">
+      <header class="main-header">
+        <h2>LG가전 발주</h2>
+        <p class="section-desc">주택 계약 시 제공되는 LG가전 사은품 발주 및 배송 관리</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>LG가전 발주 목록</h3>
+          <button type="button" class="btn btn-primary" id="btn-open-lg-appliance-form">+ 발주 작성</button>
+        </div>
+        <div id="lg-appliance-form-wrap" class="hidden">
+          <form id="form-lg-appliance" class="form-block">
+            <input type="hidden" id="lg-appliance-id">
+            <div class="form-grid form-grid-2">
+              <label>전시장
+                <select id="lg-appliance-showroom" required>
+                  <option value="">선택</option>
+                  <option value="headquarters">본사 전시장</option>
+                  <option value="showroom1">1전시장</option>
+                  <option value="showroom3">3전시장</option>
+                  <option value="showroom4">4전시장</option>
+                  <option value="ganghwa">강화전시장</option>
+                </select>
+              </label>
+              <label>연결 계약 (선택)
+                <select id="lg-appliance-contract"><option value="">직접 입력</option></select>
+              </label>
+              <label>계약자명 <input type="text" id="lg-appliance-customer" required placeholder="건축주 성함"></label>
+              <label>담당 영업사원 <input type="text" id="lg-appliance-sales-person" placeholder="성명"></label>
+              <label>품목
+                <select id="lg-appliance-product" required>
+                  <option value="">선택</option>
+                  <option value="냉장고">냉장고</option>
+                  <option value="세탁기">세탁기</option>
+                  <option value="건조기">건조기</option>
+                  <option value="TV">TV</option>
+                  <option value="에어컨">에어컨</option>
+                  <option value="김치냉장고">김치냉장고</option>
+                  <option value="식기세척기">식기세척기</option>
+                  <option value="인덕션">인덕션</option>
+                  <option value="전자레인지">전자레인지</option>
+                  <option value="공기청정기">공기청정기</option>
+                  <option value="스타일러">스타일러</option>
+                  <option value="기타">기타</option>
+                </select>
+              </label>
+              <label>모델명 <input type="text" id="lg-appliance-model" placeholder="예: F21VDU"></label>
+              <label>수량 <input type="number" id="lg-appliance-qty" min="1" step="1" value="1" required></label>
+              <label>금액(만원) <input type="number" id="lg-appliance-amount" min="0" step="1" placeholder="발주 금액"></label>
+              <label>발주일 <input type="date" id="lg-appliance-order-date" required></label>
+              <label>예상 배송일 <input type="date" id="lg-appliance-delivery-date"></label>
+              <label>진행상태
+                <select id="lg-appliance-status">
+                  <option value="대기">대기</option>
+                  <option value="발주완료">발주완료</option>
+                  <option value="배송중">배송중</option>
+                  <option value="배송완료">배송완료</option>
+                  <option value="취소">취소</option>
+                </select>
+              </label>
+              <label>배송지 <input type="text" id="lg-appliance-delivery-address" placeholder="현장 주소 또는 건축주 주소"></label>
+              <label>연락처 <input type="tel" id="lg-appliance-phone" placeholder="010-0000-0000"></label>
+            </div>
+            <label>비고 <textarea id="lg-appliance-memo" rows="2" placeholder="특이사항 또는 요청사항"></textarea></label>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">발주 저장</button>
+              <button type="button" class="btn btn-secondary" id="btn-cancel-lg-appliance">취소</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>번호</th>
+                <th>전시장</th>
+                <th>발주일</th>
+                <th>계약자</th>
+                <th>영업담당</th>
+                <th>품목</th>
+                <th>모델명</th>
+                <th>수량</th>
+                <th>금액(만원)</th>
+                <th>예상배송일</th>
+                <th>상태</th>
+                <th>배송지</th>
+                <th>비고</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-lg-appliances"></tbody>
+          </table>
         </div>
       </div>
     </section>

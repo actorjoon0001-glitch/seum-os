@@ -38,6 +38,7 @@
   }
   var STORAGE_VISITS = 'seum_visits';
   var STORAGE_CONTRACTS = 'seum_contracts';
+  var STORAGE_LG_APPLIANCES = 'seum_lg_appliances';
   var STORAGE_EMPLOYEES = 'seum_employees';
   var STORAGE_LEAVES = 'seum_leaves';
   var STORAGE_TEAM_EVENTS = 'seum_team_events';
@@ -266,8 +267,8 @@
     if (sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
         sectionId === 'marketing-files' || sectionId === 'marketing-nas') return isMarketing;
 
-    // 방문예약 고객 / 고객관리: 영업팀 + master/admin만
-    if (sectionId === 'sales-leads' || sectionId === 'sales-customers') {
+    // 방문예약 고객 / 고객관리 / LG가전 발주: 영업팀 + master/admin만
+    if (sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-lg-appliance') {
       return isSales;
     }
     // 계약 목록: 영업/설계/시공/정산 등 전 팀
@@ -331,7 +332,7 @@
   }
 
   function updateSalesRestrictedNavVisibility() {
-    ['sales-leads', 'sales-customers'].forEach(function (sec) {
+    ['sales-leads', 'sales-customers', 'sales-lg-appliance'].forEach(function (sec) {
       var el = document.querySelector('[data-section="' + sec + '"]');
       if (el) el.classList.toggle('hidden', !canAccessTeamSection(sec));
     });
@@ -647,6 +648,244 @@
         });
     } catch (e) {
       console.error('Supabase contracts sync exception:', e);
+    }
+  }
+
+  /** LG가전 사은품 발주 — localStorage 기반 저장 */
+  function getLgAppliances() {
+    try {
+      var raw = localStorage.getItem(STORAGE_LG_APPLIANCES);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveLgAppliances(data) {
+    localStorage.setItem(STORAGE_LG_APPLIANCES, JSON.stringify(data));
+  }
+
+  function renderLgAppliances() {
+    var tbody = document.getElementById('tbody-lg-appliances');
+    if (!tbody) return;
+
+    // 연결 계약 드롭다운 갱신 (발주 작성 시 계약자 선택용)
+    var contractSel = document.getElementById('lg-appliance-contract');
+    if (contractSel) {
+      var contractsAll = typeof getContracts === 'function' ? getContracts() : [];
+      var curEmp = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+      var isAdminRole = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+      if (curEmp && !isAdminRole) {
+        var myShowroomId = typeof resolveShowroomId === 'function' ? resolveShowroomId(curEmp) : curEmp.showroom;
+        if (myShowroomId) {
+          contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+        }
+      }
+      // 계약일 최신순
+      contractsAll.sort(function (a, b) {
+        var dA = a.contractDate || '';
+        var dB = b.contractDate || '';
+        return dA < dB ? 1 : dA > dB ? -1 : 0;
+      });
+      var currentVal = contractSel.value;
+      contractSel.innerHTML = '<option value="">직접 입력</option>' + contractsAll.map(function (c) {
+        var label = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-') + ' / ' + (c.contractDate || '-');
+        return '<option value="' + c.id + '">' + escapeHtml(label) + '</option>';
+      }).join('');
+      if (currentVal) contractSel.value = currentVal;
+    }
+
+    // 목록 필터: master/admin이 아니면 소속 전시장만
+    var list = getLgAppliances();
+    var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+    var isAdminRole2 = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    if (curUser && !isAdminRole2) {
+      var myShowroom2 = typeof resolveShowroomId === 'function' ? resolveShowroomId(curUser) : curUser.showroom;
+      if (myShowroom2) {
+        list = list.filter(function (o) { return (o.showroomId || '') === myShowroom2; });
+      }
+    }
+    list.sort(function (a, b) {
+      var dA = a.orderDate || '';
+      var dB = b.orderDate || '';
+      return dA < dB ? 1 : dA > dB ? -1 : 0;
+    });
+
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#888;">발주 내역이 없습니다.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(function (o, i) {
+      var showroomName = typeof getShowroomName === 'function' ? getShowroomName(o.showroomId) : (o.showroomId || '-');
+      var statusClass = 'lg-status-' + (o.status || '대기');
+      return '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(showroomName) + '</td>' +
+        '<td>' + escapeHtml(o.orderDate || '-') + '</td>' +
+        '<td>' + escapeHtml(o.customerName || '-') + '</td>' +
+        '<td>' + escapeHtml(o.salesPerson || '-') + '</td>' +
+        '<td>' + escapeHtml(o.product || '-') + '</td>' +
+        '<td>' + escapeHtml(o.modelName || '-') + '</td>' +
+        '<td>' + escapeHtml(String(o.quantity || 1)) + '</td>' +
+        '<td>' + escapeHtml(o.amount != null && o.amount !== '' ? String(o.amount) : '-') + '</td>' +
+        '<td>' + escapeHtml(o.deliveryDate || '-') + '</td>' +
+        '<td><span class="' + statusClass + '">' + escapeHtml(o.status || '대기') + '</span></td>' +
+        '<td>' + escapeHtml(o.deliveryAddress || '-') + '</td>' +
+        '<td>' + escapeHtml(o.memo || '-') + '</td>' +
+        '<td>' +
+          '<button type="button" class="btn btn-sm btn-secondary" data-lg-edit="' + o.id + '">수정</button> ' +
+          '<button type="button" class="btn btn-sm btn-danger" data-lg-del="' + o.id + '">삭제</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function openLgApplianceForm(order) {
+    var wrap = document.getElementById('lg-appliance-form-wrap');
+    var form = document.getElementById('form-lg-appliance');
+    if (!wrap || !form) return;
+    form.reset();
+    document.getElementById('lg-appliance-id').value = order ? order.id : '';
+    if (order) {
+      document.getElementById('lg-appliance-showroom').value = order.showroomId || '';
+      document.getElementById('lg-appliance-contract').value = order.contractId || '';
+      document.getElementById('lg-appliance-customer').value = order.customerName || '';
+      document.getElementById('lg-appliance-sales-person').value = order.salesPerson || '';
+      document.getElementById('lg-appliance-product').value = order.product || '';
+      document.getElementById('lg-appliance-model').value = order.modelName || '';
+      document.getElementById('lg-appliance-qty').value = order.quantity || 1;
+      document.getElementById('lg-appliance-amount').value = order.amount != null ? order.amount : '';
+      document.getElementById('lg-appliance-order-date').value = order.orderDate || '';
+      document.getElementById('lg-appliance-delivery-date').value = order.deliveryDate || '';
+      document.getElementById('lg-appliance-status').value = order.status || '대기';
+      document.getElementById('lg-appliance-delivery-address').value = order.deliveryAddress || '';
+      document.getElementById('lg-appliance-phone').value = order.phone || '';
+      document.getElementById('lg-appliance-memo').value = order.memo || '';
+    } else {
+      // 신규 작성: 본인 전시장/담당자 기본값
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+      if (cur) {
+        var myShowroomId = typeof resolveShowroomId === 'function' ? resolveShowroomId(cur) : cur.showroom;
+        if (myShowroomId) document.getElementById('lg-appliance-showroom').value = myShowroomId;
+        if (cur.name) document.getElementById('lg-appliance-sales-person').value = cur.name;
+      }
+      var today = new Date().toISOString().slice(0, 10);
+      document.getElementById('lg-appliance-order-date').value = today;
+      document.getElementById('lg-appliance-status').value = '대기';
+      document.getElementById('lg-appliance-qty').value = 1;
+    }
+    wrap.classList.remove('hidden');
+  }
+
+  function initLgApplianceForm() {
+    var form = document.getElementById('form-lg-appliance');
+    var wrap = document.getElementById('lg-appliance-form-wrap');
+    var btnOpen = document.getElementById('btn-open-lg-appliance-form');
+    var btnCancel = document.getElementById('btn-cancel-lg-appliance');
+    var contractSel = document.getElementById('lg-appliance-contract');
+    var tbody = document.getElementById('tbody-lg-appliances');
+
+    if (btnOpen) {
+      btnOpen.addEventListener('click', function () { openLgApplianceForm(null); });
+    }
+    if (btnCancel) {
+      btnCancel.addEventListener('click', function () {
+        if (wrap) wrap.classList.add('hidden');
+      });
+    }
+
+    // 계약 선택 시 계약자명/담당자/연락처 자동 채움
+    if (contractSel) {
+      contractSel.addEventListener('change', function () {
+        var cid = contractSel.value;
+        if (!cid) return;
+        var contracts = typeof getContracts === 'function' ? getContracts() : [];
+        var c = contracts.find(function (x) { return x.id === cid; });
+        if (!c) return;
+        document.getElementById('lg-appliance-customer').value = c.customerName || '';
+        document.getElementById('lg-appliance-sales-person').value = c.salesPerson || document.getElementById('lg-appliance-sales-person').value || '';
+        document.getElementById('lg-appliance-phone').value = c.phone || '';
+        if (c.showroomId) document.getElementById('lg-appliance-showroom').value = c.showroomId;
+        if (c.siteAddress) document.getElementById('lg-appliance-delivery-address').value = c.siteAddress;
+      });
+    }
+
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var orderId = document.getElementById('lg-appliance-id').value || '';
+        var payload = {
+          showroomId: document.getElementById('lg-appliance-showroom').value,
+          contractId: document.getElementById('lg-appliance-contract').value || '',
+          customerName: document.getElementById('lg-appliance-customer').value.trim(),
+          salesPerson: document.getElementById('lg-appliance-sales-person').value.trim(),
+          product: document.getElementById('lg-appliance-product').value,
+          modelName: document.getElementById('lg-appliance-model').value.trim(),
+          quantity: Number(document.getElementById('lg-appliance-qty').value || 1),
+          amount: document.getElementById('lg-appliance-amount').value || '',
+          orderDate: document.getElementById('lg-appliance-order-date').value,
+          deliveryDate: document.getElementById('lg-appliance-delivery-date').value || '',
+          status: document.getElementById('lg-appliance-status').value || '대기',
+          deliveryAddress: document.getElementById('lg-appliance-delivery-address').value.trim(),
+          phone: document.getElementById('lg-appliance-phone').value.trim(),
+          memo: document.getElementById('lg-appliance-memo').value.trim()
+        };
+        if (!payload.showroomId || !payload.customerName || !payload.product || !payload.orderDate) return;
+
+        var list = getLgAppliances();
+        if (orderId) {
+          var idx = list.findIndex(function (o) { return o.id === orderId; });
+          if (idx >= 0) {
+            payload.id = orderId;
+            payload.createdAt = list[idx].createdAt || new Date().toISOString();
+            payload.updatedAt = new Date().toISOString();
+            list[idx] = payload;
+          }
+        } else {
+          payload.id = typeof id === 'function' ? id() : ('lg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8));
+          payload.createdAt = new Date().toISOString();
+          list.push(payload);
+        }
+        saveLgAppliances(list);
+
+        if (typeof logActivity === 'function') {
+          logActivity({
+            actionType: orderId ? 'update' : 'create',
+            targetType: 'lg_appliance',
+            targetId: payload.id,
+            targetName: payload.customerName + ' / ' + payload.product,
+            description: 'LG가전 사은품 발주'
+          });
+        }
+
+        if (wrap) wrap.classList.add('hidden');
+        form.reset();
+        renderLgAppliances();
+      });
+    }
+
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        var editBtn = e.target.closest('[data-lg-edit]');
+        var delBtn = e.target.closest('[data-lg-del]');
+        if (editBtn) {
+          var eid = editBtn.getAttribute('data-lg-edit');
+          var order = getLgAppliances().find(function (o) { return o.id === eid; });
+          if (order) openLgApplianceForm(order);
+          return;
+        }
+        if (delBtn) {
+          var did = delBtn.getAttribute('data-lg-del');
+          if (!window.confirm('이 LG가전 발주를 삭제하시겠습니까?')) return;
+          var next = getLgAppliances().filter(function (o) { return o.id !== did; });
+          saveLgAppliances(next);
+          if (typeof logActivity === 'function') {
+            logActivity({ actionType: 'delete', targetType: 'lg_appliance', targetId: did, description: 'LG가전 사은품 발주 삭제' });
+          }
+          renderLgAppliances();
+        }
+      });
     }
   }
 
@@ -10381,7 +10620,7 @@
     if ((sectionId === 'marketing' || sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
       sectionId === 'marketing-files' || sectionId === 'marketing-nas' ||
       sectionId === 'design' || sectionId === 'construction' ||
-      sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' ||
+      sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' || sectionId === 'sales-lg-appliance' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard' ||
       sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-drawings' || sectionId === 'design-schedule' ||
       sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
@@ -10399,6 +10638,7 @@
     if (sectionId === 'marketing-schedule' && typeof window.renderMarketingSchedule === 'function') window.renderMarketingSchedule();
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
+    if (sectionId === 'sales-lg-appliance') renderLgAppliances();
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
     if (sectionId === 'settlement-dashboard') renderSettlementDashboard();
@@ -10498,7 +10738,7 @@
         if (mktBtn) mktBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'sales-leads' || sectionId === 'sales-contracts' || sectionId === 'sales-customers') {
+    if (sectionId === 'sales-leads' || sectionId === 'sales-contracts' || sectionId === 'sales-customers' || sectionId === 'sales-lg-appliance') {
       var salesSub = document.getElementById('nav-sales-sub');
       var salesGroup = document.getElementById('sidebar-group-sales');
       if (salesSub && salesGroup) {
@@ -14549,6 +14789,7 @@
     initVisitForm();
     initCustomerForm();
     initContractForm();
+    initLgApplianceForm();
     initContractDetailModal();
     initPaymentModal();
     initContractFieldModal();
