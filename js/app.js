@@ -1025,6 +1025,7 @@
     if (Object.prototype.hasOwnProperty.call(fields, 'salesConfirmedBy')) payload.sales_confirmed_by = fields.salesConfirmedBy || null;
     if (Object.prototype.hasOwnProperty.call(fields, 'designConfirmedBy')) payload.design_confirmed_by = fields.designConfirmedBy || null;
     if (Object.prototype.hasOwnProperty.call(fields, 'constructionConfirmedBy')) payload.construction_confirmed_by = fields.constructionConfirmedBy || null;
+    if (Object.prototype.hasOwnProperty.call(fields, 'finalApprovedBy')) payload.final_approved_by = fields.finalApprovedBy || null;
     if (!Object.keys(payload).length) return;
     supa.from('contracts')
       .update(payload)
@@ -1033,6 +1034,70 @@
         if (res && res.error) console.error('confirmed fields save error:', res.error);
       })
       .catch(function (err) { console.error('confirmed fields save failed:', err); });
+  }
+
+  /**
+   * 일회성 백필: 설계팀 확인 / 시공팀 확인이 이미 체크된 기존 계약들에 대해
+   * design_confirmed_by 는 설계담당(designPermitDesigner || designContactName),
+   * construction_confirmed_by 는 시공담당(constructionManager) 이름으로 채운다.
+   * 이미 값이 있는 행은 건드리지 않는다.
+   */
+  function backfillDesignConstructionConfirmedByOnce() {
+    try {
+      if (localStorage.getItem('seum_design_construction_confirmed_by_backfill_v1') === '1') return;
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      var cs = getContracts();
+      var jobs = [];
+      cs.forEach(function (c) {
+        if (!c) return;
+        var patch = {};
+        var designName = (c.designPermitDesigner || c.designContactName || '').trim();
+        var constructionName = (c.constructionManager || '').trim();
+        if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim()) && designName) {
+          patch.design_confirmed_by = designName;
+        }
+        if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim()) && constructionName) {
+          patch.construction_confirmed_by = constructionName;
+        }
+        if (Object.keys(patch).length) {
+          jobs.push(supa.from('contracts').update(patch).eq('local_id', c.id));
+        }
+      });
+      if (!jobs.length) {
+        localStorage.setItem('seum_design_construction_confirmed_by_backfill_v1', '1');
+        return;
+      }
+      Promise.all(jobs)
+        .then(function (results) {
+          var anyError = results.some(function (r) { return r && r.error; });
+          if (anyError) {
+            console.error('design/construction confirmed_by backfill: some updates failed', results);
+            return;
+          }
+          localStorage.setItem('seum_design_construction_confirmed_by_backfill_v1', '1');
+          try {
+            var cs2 = getContracts();
+            var changed = false;
+            cs2.forEach(function (c) {
+              if (!c) return;
+              var dn = (c.designPermitDesigner || c.designContactName || '').trim();
+              var cn = (c.constructionManager || '').trim();
+              if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim()) && dn) {
+                c.designConfirmedBy = dn; changed = true;
+              }
+              if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim()) && cn) {
+                c.constructionConfirmedBy = cn; changed = true;
+              }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs2));
+              if (typeof renderDesign === 'function') renderDesign();
+            }
+          } catch (e) { console.error('local design/construction confirmed_by apply failed:', e); }
+        })
+        .catch(function (err) { console.error('design/construction confirmed_by backfill failed:', err); });
+    } catch (e) { console.error('design/construction confirmed_by backfill exception:', e); }
   }
 
   /**
@@ -1162,7 +1227,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok,sales_confirmed_by,design_confirmed_by,construction_confirmed_by')
+        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok,sales_confirmed_by,design_confirmed_by,construction_confirmed_by,final_approved_by')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -1192,6 +1257,7 @@
                 if (row.sales_confirmed_by !== undefined) c.salesConfirmedBy = row.sales_confirmed_by || '';
                 if (row.design_confirmed_by !== undefined) c.designConfirmedBy = row.design_confirmed_by || '';
                 if (row.construction_confirmed_by !== undefined) c.constructionConfirmedBy = row.construction_confirmed_by || '';
+                if (row.final_approved_by !== undefined) c.finalApprovedBy = row.final_approved_by || '';
               }
               return c;
             })
@@ -4796,7 +4862,8 @@
       var canApprove = allConfirmed && !salesReadonly;
       var approvalBtnDisabled = !canApprove;
       var approvalBtnText = approved ? '승인 취소' : '최종 승인';
-      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '최종 승인됨' : '미승인') + '</span><button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
+      var approvalByTag = (approved && c.finalApprovedBy) ? '<span class="review-check-by">' + escapeHtml(c.finalApprovedBy) + '</span>' : '';
+      var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '최종 승인됨' : '미승인') + '</span>' + approvalByTag + '<button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
       var rowClass = 'design-row' + (allConfirmed ? ' review-complete' : '');
       var designerName = c.designPermitDesigner || c.designContactName || '-';
       var houseType = (c.contractModel || '-');
@@ -12785,12 +12852,16 @@
           var contracts = getContracts();
           var ac = contracts.find(function (x) { return x.id === approvalContractId; });
           if (ac) {
+            var curEmpAc = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+            var curNameAc = (curEmpAc && (curEmpAc.name || '').trim()) || '';
             ac.finalApproved = !ac.finalApproved;
+            ac.finalApprovedBy = ac.finalApproved ? curNameAc : '';
             ac.constructionStartOk = !!(ac.salesConfirmed && ac.designConfirmed && ac.constructionConfirmed && ac.finalApproved);
             saveContracts(contracts);
             // 타깃 UPDATE — bulk upsert stale 덮어쓰기로부터 보호
             saveConfirmedFields(ac.id, {
               finalApproved: ac.finalApproved,
+              finalApprovedBy: ac.finalApprovedBy,
               constructionStartOk: ac.constructionStartOk
             });
             renderDesign();
@@ -15043,6 +15114,8 @@
     // 영업팀 확인 체크자 이름(sales_confirmed_by) 을 담당 영업사원으로 백필 (브라우저당 1회)
     // sync 가 끝나 로컬 캐시에 sales_confirmed_by 가 반영된 뒤 실행되도록 약간 지연
     setTimeout(backfillSalesConfirmedByOnce, 1500);
+    // 설계팀/시공팀 확인 체크자 이름 백필 (브라우저당 1회)
+    setTimeout(backfillDesignConstructionConfirmedByOnce, 2500);
     syncLgAppliancesFromSupabase();
     syncTeamEventsFromSupabase();
     syncWorklogFromSupabase();
