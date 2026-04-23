@@ -1038,34 +1038,40 @@
 
   /**
    * 일회성 백필: 설계팀 확인 / 시공팀 확인이 이미 체크된 기존 계약들에 대해
-   * design_confirmed_by 는 설계담당(designPermitDesigner || designContactName),
-   * construction_confirmed_by 는 시공담당(constructionManager) 이름으로 채운다.
+   * design_confirmed_by 는 설계담당(designPermitDesigner || designContactName)
+   * → 없으면 영업담당(salesPerson) → 그래도 없으면 '확인' 으로 채운다.
+   * construction_confirmed_by 는 시공담당(constructionManager) → 영업담당 → '확인'.
    * 이미 값이 있는 행은 건드리지 않는다.
+   * (v2: 계약에 담당자 정보가 비어있는 건들도 반드시 이름을 채우도록 폴백 강화)
    */
   function backfillDesignConstructionConfirmedByOnce() {
     try {
-      if (localStorage.getItem('seum_design_construction_confirmed_by_backfill_v1') === '1') return;
+      if (localStorage.getItem('seum_design_construction_confirmed_by_backfill_v2') === '1') return;
       var supa = typeof window !== 'undefined' && window.seumSupabase;
       if (!supa) return;
       var cs = getContracts();
       var jobs = [];
+      function pickDesignName(c) {
+        return ((c.designPermitDesigner || c.designContactName || c.salesPerson || '').trim()) || '확인';
+      }
+      function pickConstructionName(c) {
+        return ((c.constructionManager || c.salesPerson || '').trim()) || '확인';
+      }
       cs.forEach(function (c) {
         if (!c) return;
         var patch = {};
-        var designName = (c.designPermitDesigner || c.designContactName || '').trim();
-        var constructionName = (c.constructionManager || '').trim();
-        if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim()) && designName) {
-          patch.design_confirmed_by = designName;
+        if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim())) {
+          patch.design_confirmed_by = pickDesignName(c);
         }
-        if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim()) && constructionName) {
-          patch.construction_confirmed_by = constructionName;
+        if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim())) {
+          patch.construction_confirmed_by = pickConstructionName(c);
         }
         if (Object.keys(patch).length) {
           jobs.push(supa.from('contracts').update(patch).eq('local_id', c.id));
         }
       });
       if (!jobs.length) {
-        localStorage.setItem('seum_design_construction_confirmed_by_backfill_v1', '1');
+        localStorage.setItem('seum_design_construction_confirmed_by_backfill_v2', '1');
         return;
       }
       Promise.all(jobs)
@@ -1075,19 +1081,17 @@
             console.error('design/construction confirmed_by backfill: some updates failed', results);
             return;
           }
-          localStorage.setItem('seum_design_construction_confirmed_by_backfill_v1', '1');
+          localStorage.setItem('seum_design_construction_confirmed_by_backfill_v2', '1');
           try {
             var cs2 = getContracts();
             var changed = false;
             cs2.forEach(function (c) {
               if (!c) return;
-              var dn = (c.designPermitDesigner || c.designContactName || '').trim();
-              var cn = (c.constructionManager || '').trim();
-              if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim()) && dn) {
-                c.designConfirmedBy = dn; changed = true;
+              if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim())) {
+                c.designConfirmedBy = pickDesignName(c); changed = true;
               }
-              if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim()) && cn) {
-                c.constructionConfirmedBy = cn; changed = true;
+              if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim())) {
+                c.constructionConfirmedBy = pickConstructionName(c); changed = true;
               }
             });
             if (changed) {
@@ -4849,9 +4853,13 @@
       var constructionC = !!c.constructionConfirmed;
       var allConfirmed = salesC && designC && constructionC;
       var salesCheckDisabledForRow = salesCheckDisabled || (salesOnlyReview && (c.salesPerson || '').trim() !== myName);
-      var salesByTag = (salesC && c.salesConfirmedBy) ? '<span class="review-check-by">' + escapeHtml(c.salesConfirmedBy) + '</span>' : '';
-      var designByTag = (designC && c.designConfirmedBy) ? '<span class="review-check-by">' + escapeHtml(c.designConfirmedBy) + '</span>' : '';
-      var constructionByTag = (constructionC && c.constructionConfirmedBy) ? '<span class="review-check-by">' + escapeHtml(c.constructionConfirmedBy) + '</span>' : '';
+      // 체크됐는데 confirmedBy 가 비어있는 경우 폴백 이름 (백필 전 / 누락 데이터 방어)
+      var salesByName = (c.salesConfirmedBy || '').trim() || ((c.salesPerson || '').trim()) || '확인';
+      var designByName = (c.designConfirmedBy || '').trim() || ((c.designPermitDesigner || c.designContactName || c.salesPerson || '').trim()) || '확인';
+      var constructionByName = (c.constructionConfirmedBy || '').trim() || ((c.constructionManager || c.salesPerson || '').trim()) || '확인';
+      var salesByTag = salesC ? '<span class="review-check-by">' + escapeHtml(salesByName) + '</span>' : '';
+      var designByTag = designC ? '<span class="review-check-by">' + escapeHtml(designByName) + '</span>' : '';
+      var constructionByTag = constructionC ? '<span class="review-check-by">' + escapeHtml(constructionByName) + '</span>' : '';
       var reviewCell = '<div class="review-checklist"><span class="review-checklist-title">검토 확인</span>' +
         '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabledForRow ? ' disabled' : '') + '><span>영업팀 확인</span>' + salesByTag + '<small class="review-desc review-help">계약 내용 및 고객 요구 사항 확인</small></label>' +
         '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>설계팀 확인</span>' + designByTag + '<small class="review-desc review-help">설계 가능 여부 및 특이사항 검토</small></label>' +
@@ -4862,7 +4870,8 @@
       var canApprove = allConfirmed && !salesReadonly;
       var approvalBtnDisabled = !canApprove;
       var approvalBtnText = approved ? '승인 취소' : '최종 승인';
-      var approvalByTag = (approved && c.finalApprovedBy) ? '<span class="review-check-by">' + escapeHtml(c.finalApprovedBy) + '</span>' : '';
+      var approvalByName = (c.finalApprovedBy || '').trim() || ((c.salesPerson || '').trim()) || '확인';
+      var approvalByTag = approved ? '<span class="review-check-by">' + escapeHtml(approvalByName) + '</span>' : '';
       var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '최종 승인됨' : '미승인') + '</span>' + approvalByTag + '<button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
       var rowClass = 'design-row' + (allConfirmed ? ' review-complete' : '');
       var designerName = c.designPermitDesigner || c.designContactName || '-';
