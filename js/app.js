@@ -625,6 +625,10 @@
     try {
       var supa = typeof window !== 'undefined' && window.seumSupabase;
       if (!supa || !Array.isArray(data)) return;
+      // 전용 컬럼(priority_done, is_urgent, design_status, *_confirmed, final_approved,
+      // construction_start_ok)은 savePriorityField/saveDesignStatusField/saveConfirmedFields
+      // 로만 갱신한다. bulk upsert 에 포함하면 stale 한 로컬 값으로 다른 사용자의 최신
+      // 상태를 덮어써 작업완료·긴급·확정 체크가 초기화되는 사고가 발생한다.
       var rows = data.map(function (c) {
         return {
           local_id: c.id || null,
@@ -634,14 +638,6 @@
           sales_person: c.salesPerson || null,
           customer_name: c.customerName || null,
           model_name: c.contractModelName || null,
-          priority_done: !!c.priorityDone,
-          is_urgent: !!c.isUrgent,
-          design_status: c.designStatus || 'none',
-          sales_confirmed: !!c.salesConfirmed,
-          design_confirmed: !!c.designConfirmed,
-          construction_confirmed: !!c.constructionConfirmed,
-          final_approved: !!c.finalApproved,
-          construction_start_ok: !!c.constructionStartOk,
           payload: c
         };
       });
