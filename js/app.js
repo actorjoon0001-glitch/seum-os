@@ -3780,6 +3780,7 @@
         '<div class="design-priority-header">' +
         '<span class="design-priority-urgent-title">🚨 긴급진행건</span>' +
         '<span class="design-priority-count urgent-count">총 ' + list.length + '건</span>' +
+        '<button type="button" class="btn btn-sm priority-jump-done-btn" style="margin-left:auto;white-space:nowrap;">✅ 작업완료 바로가기 ↓</button>' +
         '</div>';
       if (list.length === 0) {
         html += '<p class="design-priority-empty">긴급진행건이 없습니다.</p>';
@@ -3905,6 +3906,23 @@
       doneToggle.addEventListener('click', function () {
         wrap.dataset.doneOpen = wrap.dataset.doneOpen === '1' ? '0' : '1';
         renderDesignPriority();
+      });
+    }
+
+    // 긴급진행건 → 작업완료 바로가기
+    var jumpDoneBtn = wrap.querySelector('.priority-jump-done-btn');
+    if (jumpDoneBtn) {
+      jumpDoneBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var wasOpen = wrap.dataset.doneOpen === '1';
+        if (!wasOpen) {
+          wrap.dataset.doneOpen = '1';
+          renderDesignPriority();
+        }
+        var doneSection = document.querySelector('#design-priority-wrap .design-priority-done-section');
+        if (doneSection && doneSection.scrollIntoView) {
+          doneSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       });
     }
 
