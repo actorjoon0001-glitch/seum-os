@@ -1036,6 +1036,57 @@
   }
 
   /**
+   * 일회성 백필: 영업팀 확인이 체크된 기존 계약들에 대해 sales_confirmed_by 를
+   * 해당 계약의 담당 영업사원(salesPerson) 이름으로 채워 넣는다.
+   * 마이그레이션 024 와 동일한 효과 — SQL 을 못 돌리는 환경을 대비한 JS 폴백.
+   * 이미 sales_confirmed_by 가 채워진 계약은 건드리지 않는다.
+   */
+  function backfillSalesConfirmedByOnce() {
+    try {
+      if (localStorage.getItem('seum_sales_confirmed_by_backfill_v1') === '1') return;
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      var cs = getContracts();
+      var pending = cs.filter(function (c) {
+        return c && c.salesConfirmed && !(c.salesConfirmedBy && c.salesConfirmedBy.trim()) && (c.salesPerson || '').trim();
+      });
+      if (!pending.length) {
+        localStorage.setItem('seum_sales_confirmed_by_backfill_v1', '1');
+        return;
+      }
+      var jobs = pending.map(function (c) {
+        return supa.from('contracts')
+          .update({ sales_confirmed_by: (c.salesPerson || '').trim() })
+          .eq('local_id', c.id);
+      });
+      Promise.all(jobs)
+        .then(function (results) {
+          var anyError = results.some(function (r) { return r && r.error; });
+          if (anyError) {
+            console.error('sales_confirmed_by backfill: some updates failed', results);
+            return; // 플래그 설정 안 함 → 다음 세션 재시도
+          }
+          localStorage.setItem('seum_sales_confirmed_by_backfill_v1', '1');
+          try {
+            var cs2 = getContracts();
+            var changed = false;
+            cs2.forEach(function (c) {
+              if (c && c.salesConfirmed && !(c.salesConfirmedBy && c.salesConfirmedBy.trim()) && (c.salesPerson || '').trim()) {
+                c.salesConfirmedBy = (c.salesPerson || '').trim();
+                changed = true;
+              }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs2));
+              if (typeof renderDesign === 'function') renderDesign();
+            }
+          } catch (e) { console.error('local sales_confirmed_by apply failed:', e); }
+        })
+        .catch(function (err) { console.error('sales_confirmed_by backfill failed:', err); });
+    } catch (e) { console.error('sales_confirmed_by backfill exception:', e); }
+  }
+
+  /**
    * 일회성 백필: 모든 기존 계약의 sales_confirmed 를 true 로 맞춤.
    * 영업팀이 계약 등록 시점에 이미 확인을 거친 것으로 간주하여, 설계팀 검토자
    * 확인란의 '영업팀 확인' 항목이 모든 계약에서 체크된 상태로 시작되도록 한다.
@@ -12193,6 +12244,7 @@
           progress3Confirmed: false,
           balanceConfirmed: false,
           salesConfirmed: true,
+          salesConfirmedBy: salesPerson || '',
           designConfirmed: false,
           constructionConfirmed: false,
           finalApproved: false
@@ -14988,6 +15040,9 @@
     syncContractsFromSupabase();
     // 기존 계약들의 영업팀 확인(sales_confirmed) 일괄 체크 (브라우저당 1회)
     backfillSalesConfirmedOnce();
+    // 영업팀 확인 체크자 이름(sales_confirmed_by) 을 담당 영업사원으로 백필 (브라우저당 1회)
+    // sync 가 끝나 로컬 캐시에 sales_confirmed_by 가 반영된 뒤 실행되도록 약간 지연
+    setTimeout(backfillSalesConfirmedByOnce, 1500);
     syncLgAppliancesFromSupabase();
     syncTeamEventsFromSupabase();
     syncWorklogFromSupabase();
