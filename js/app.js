@@ -1038,40 +1038,36 @@
 
   /**
    * 일회성 백필: 설계팀 확인 / 시공팀 확인이 이미 체크된 기존 계약들에 대해
-   * design_confirmed_by 는 설계담당(designPermitDesigner || designContactName)
-   * → 없으면 영업담당(salesPerson) → 그래도 없으면 '확인' 으로 채운다.
-   * construction_confirmed_by 는 시공담당(constructionManager) → 영업담당 → '확인'.
-   * 이미 값이 있는 행은 건드리지 않는다.
-   * (v2: 계약에 담당자 정보가 비어있는 건들도 반드시 이름을 채우도록 폴백 강화)
+   * design_confirmed_by 는 설계담당(designPermitDesigner || designContactName),
+   * construction_confirmed_by 는 시공담당(constructionManager) 으로만 채운다.
+   * 해당 필드가 비어있으면 이름을 채우지 않는다 (영업담당은 폴백으로 쓰지 않음 —
+   * 권한상 영업팀이 설계/시공 체크를 못 하므로 잘못된 이름 노출 방지).
+   * (v3: v2 에서 잘못 넣은 salesPerson 폴백을 제거)
    */
   function backfillDesignConstructionConfirmedByOnce() {
     try {
-      if (localStorage.getItem('seum_design_construction_confirmed_by_backfill_v2') === '1') return;
+      if (localStorage.getItem('seum_design_construction_confirmed_by_backfill_v3') === '1') return;
       var supa = typeof window !== 'undefined' && window.seumSupabase;
       if (!supa) return;
       var cs = getContracts();
       var jobs = [];
-      function pickDesignName(c) {
-        return ((c.designPermitDesigner || c.designContactName || c.salesPerson || '').trim()) || '확인';
-      }
-      function pickConstructionName(c) {
-        return ((c.constructionManager || c.salesPerson || '').trim()) || '확인';
-      }
       cs.forEach(function (c) {
         if (!c) return;
         var patch = {};
-        if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim())) {
-          patch.design_confirmed_by = pickDesignName(c);
+        var designName = (c.designPermitDesigner || c.designContactName || '').trim();
+        var constructionName = (c.constructionManager || '').trim();
+        if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim()) && designName) {
+          patch.design_confirmed_by = designName;
         }
-        if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim())) {
-          patch.construction_confirmed_by = pickConstructionName(c);
+        if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim()) && constructionName) {
+          patch.construction_confirmed_by = constructionName;
         }
         if (Object.keys(patch).length) {
           jobs.push(supa.from('contracts').update(patch).eq('local_id', c.id));
         }
       });
       if (!jobs.length) {
-        localStorage.setItem('seum_design_construction_confirmed_by_backfill_v2', '1');
+        localStorage.setItem('seum_design_construction_confirmed_by_backfill_v3', '1');
         return;
       }
       Promise.all(jobs)
@@ -1081,17 +1077,19 @@
             console.error('design/construction confirmed_by backfill: some updates failed', results);
             return;
           }
-          localStorage.setItem('seum_design_construction_confirmed_by_backfill_v2', '1');
+          localStorage.setItem('seum_design_construction_confirmed_by_backfill_v3', '1');
           try {
             var cs2 = getContracts();
             var changed = false;
             cs2.forEach(function (c) {
               if (!c) return;
-              if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim())) {
-                c.designConfirmedBy = pickDesignName(c); changed = true;
+              var dn = (c.designPermitDesigner || c.designContactName || '').trim();
+              var cn = (c.constructionManager || '').trim();
+              if (c.designConfirmed && !(c.designConfirmedBy && c.designConfirmedBy.trim()) && dn) {
+                c.designConfirmedBy = dn; changed = true;
               }
-              if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim())) {
-                c.constructionConfirmedBy = pickConstructionName(c); changed = true;
+              if (c.constructionConfirmed && !(c.constructionConfirmedBy && c.constructionConfirmedBy.trim()) && cn) {
+                c.constructionConfirmedBy = cn; changed = true;
               }
             });
             if (changed) {
@@ -1102,6 +1100,77 @@
         })
         .catch(function (err) { console.error('design/construction confirmed_by backfill failed:', err); });
     } catch (e) { console.error('design/construction confirmed_by backfill exception:', e); }
+  }
+
+  /**
+   * 일회성 cleanup: 직전 v2 백필이 설계/시공 confirmed_by 에 salesPerson 을 잘못 넣은
+   * 케이스를 되돌린다. 휴리스틱 — design_confirmed_by == salesPerson 이고 설계담당
+   * 필드(designPermitDesigner/designContactName) 중 어느 것과도 일치하지 않으면
+   * 오염된 값으로 판정하여 NULL 로 리셋. 시공도 동일.
+   * 실수로 지나치게 삭제하지 않도록 조건을 엄격히 둠.
+   */
+  function cleanupBadDesignConstructionConfirmedByOnce() {
+    try {
+      if (localStorage.getItem('seum_cleanup_bad_dc_confirmed_by_v1') === '1') return;
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      var cs = getContracts();
+      var jobs = [];
+      var polluted = [];
+      cs.forEach(function (c) {
+        if (!c) return;
+        var patch = {};
+        var sp = (c.salesPerson || '').trim();
+        var dBy = (c.designConfirmedBy || '').trim();
+        var designerA = (c.designPermitDesigner || '').trim();
+        var designerB = (c.designContactName || '').trim();
+        var cBy = (c.constructionConfirmedBy || '').trim();
+        var mgr = (c.constructionManager || '').trim();
+        if (dBy && sp && dBy === sp && dBy !== designerA && dBy !== designerB) {
+          patch.design_confirmed_by = null;
+        }
+        if (cBy && sp && cBy === sp && cBy !== mgr) {
+          patch.construction_confirmed_by = null;
+        }
+        if (Object.keys(patch).length) {
+          polluted.push({ id: c.id, patch: patch });
+          jobs.push(supa.from('contracts').update(patch).eq('local_id', c.id));
+        }
+      });
+      if (!jobs.length) {
+        localStorage.setItem('seum_cleanup_bad_dc_confirmed_by_v1', '1');
+        return;
+      }
+      Promise.all(jobs)
+        .then(function (results) {
+          var anyError = results.some(function (r) { return r && r.error; });
+          if (anyError) {
+            console.error('cleanup bad dc_confirmed_by: some updates failed', results);
+            return;
+          }
+          localStorage.setItem('seum_cleanup_bad_dc_confirmed_by_v1', '1');
+          try {
+            var cs2 = getContracts();
+            var changed = false;
+            cs2.forEach(function (c) {
+              if (!c) return;
+              var match = polluted.find(function (p) { return p.id === c.id; });
+              if (!match) return;
+              if (Object.prototype.hasOwnProperty.call(match.patch, 'design_confirmed_by')) {
+                c.designConfirmedBy = ''; changed = true;
+              }
+              if (Object.prototype.hasOwnProperty.call(match.patch, 'construction_confirmed_by')) {
+                c.constructionConfirmedBy = ''; changed = true;
+              }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs2));
+              if (typeof renderDesign === 'function') renderDesign();
+            }
+          } catch (e) { console.error('local cleanup apply failed:', e); }
+        })
+        .catch(function (err) { console.error('cleanup bad dc_confirmed_by failed:', err); });
+    } catch (e) { console.error('cleanup bad dc_confirmed_by exception:', e); }
   }
 
   /**
@@ -4853,10 +4922,12 @@
       var constructionC = !!c.constructionConfirmed;
       var allConfirmed = salesC && designC && constructionC;
       var salesCheckDisabledForRow = salesCheckDisabled || (salesOnlyReview && (c.salesPerson || '').trim() !== myName);
-      // 체크됐는데 confirmedBy 가 비어있는 경우 폴백 이름 (백필 전 / 누락 데이터 방어)
+      // 체크됐는데 confirmedBy 가 비어있는 경우 폴백 이름 (백필 전 / 누락 데이터 방어).
+      // 주의: 설계/시공 은 salesPerson 을 폴백에 쓰지 않는다 — 권한상 영업팀은
+      // 설계팀/시공팀 확인 체크를 누를 수 없으므로 영업담당 이름이 거기 표시되면 오해 유발.
       var salesByName = (c.salesConfirmedBy || '').trim() || ((c.salesPerson || '').trim()) || '확인';
-      var designByName = (c.designConfirmedBy || '').trim() || ((c.designPermitDesigner || c.designContactName || c.salesPerson || '').trim()) || '확인';
-      var constructionByName = (c.constructionConfirmedBy || '').trim() || ((c.constructionManager || c.salesPerson || '').trim()) || '확인';
+      var designByName = (c.designConfirmedBy || '').trim() || ((c.designPermitDesigner || c.designContactName || '').trim()) || '확인';
+      var constructionByName = (c.constructionConfirmedBy || '').trim() || ((c.constructionManager || '').trim()) || '확인';
       var salesByTag = salesC ? '<span class="review-check-by">' + escapeHtml(salesByName) + '</span>' : '';
       var designByTag = designC ? '<span class="review-check-by">' + escapeHtml(designByName) + '</span>' : '';
       var constructionByTag = constructionC ? '<span class="review-check-by">' + escapeHtml(constructionByName) + '</span>' : '';
@@ -4870,7 +4941,8 @@
       var canApprove = allConfirmed && !salesReadonly;
       var approvalBtnDisabled = !canApprove;
       var approvalBtnText = approved ? '승인 취소' : '최종 승인';
-      var approvalByName = (c.finalApprovedBy || '').trim() || ((c.salesPerson || '').trim()) || '확인';
+      // 최종 승인자: salesPerson 폴백 사용 안 함 — 누가 승인했는지 모르면 '확인'.
+      var approvalByName = (c.finalApprovedBy || '').trim() || '확인';
       var approvalByTag = approved ? '<span class="review-check-by">' + escapeHtml(approvalByName) + '</span>' : '';
       var approvalCell = '<div class="final-approval-cell"><span class="approval-badge ' + (approved ? 'approved' : 'pending') + '">' + (approved ? '최종 승인됨' : '미승인') + '</span>' + approvalByTag + '<button type="button" class="btn btn-sm approve-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (approvalBtnDisabled ? ' disabled' : '') + '>' + escapeAttr(approvalBtnText) + '</button></div>';
       var rowClass = 'design-row' + (allConfirmed ? ' review-complete' : '');
@@ -15123,8 +15195,10 @@
     // 영업팀 확인 체크자 이름(sales_confirmed_by) 을 담당 영업사원으로 백필 (브라우저당 1회)
     // sync 가 끝나 로컬 캐시에 sales_confirmed_by 가 반영된 뒤 실행되도록 약간 지연
     setTimeout(backfillSalesConfirmedByOnce, 1500);
+    // 직전 v2 백필이 잘못 넣은 salesPerson 값을 먼저 정리한 뒤 올바른 백필 재시도
+    setTimeout(cleanupBadDesignConstructionConfirmedByOnce, 2200);
     // 설계팀/시공팀 확인 체크자 이름 백필 (브라우저당 1회)
-    setTimeout(backfillDesignConstructionConfirmedByOnce, 2500);
+    setTimeout(backfillDesignConstructionConfirmedByOnce, 3500);
     syncLgAppliancesFromSupabase();
     syncTeamEventsFromSupabase();
     syncWorklogFromSupabase();
