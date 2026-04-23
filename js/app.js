@@ -1032,6 +1032,44 @@
       .catch(function (err) { console.error('confirmed fields save failed:', err); });
   }
 
+  /**
+   * 일회성 백필: 모든 기존 계약의 sales_confirmed 를 true 로 맞춤.
+   * 영업팀이 계약 등록 시점에 이미 확인을 거친 것으로 간주하여, 설계팀 검토자
+   * 확인란의 '영업팀 확인' 항목이 모든 계약에서 체크된 상태로 시작되도록 한다.
+   * localStorage 플래그로 한 브라우저당 1회만 실행 (이후 개별 언체크를 재덮어쓰지 않도록).
+   */
+  function backfillSalesConfirmedOnce() {
+    try {
+      if (localStorage.getItem('seum_sales_confirmed_backfill_v1') === '1') return;
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa.from('contracts')
+        .update({ sales_confirmed: true })
+        .eq('sales_confirmed', false)
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('sales_confirmed backfill error:', res.error);
+            return;
+          }
+          localStorage.setItem('seum_sales_confirmed_backfill_v1', '1');
+          try {
+            var cs = getContracts();
+            var changed = false;
+            cs.forEach(function (c) {
+              if (c && c.salesConfirmed !== true) { c.salesConfirmed = true; changed = true; }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs));
+              if (typeof renderDesign === 'function') renderDesign();
+              if (typeof renderSales === 'function') renderSales();
+              if (typeof renderSettlement === 'function') renderSettlement();
+            }
+          } catch (e) { console.error('local backfill apply failed:', e); }
+        })
+        .catch(function (err) { console.error('sales_confirmed backfill failed:', err); });
+    } catch (e) { console.error('backfill exception:', e); }
+  }
+
   /** ?? ???? (?? + Supabase contracts) */
   function deleteContractById(contractId) {
     if (!contractId) return;
@@ -14927,6 +14965,8 @@
     twRemoteSyncAll();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
+    // 기존 계약들의 영업팀 확인(sales_confirmed) 일괄 체크 (브라우저당 1회)
+    backfillSalesConfirmedOnce();
     syncLgAppliancesFromSupabase();
     syncTeamEventsFromSupabase();
     syncWorklogFromSupabase();
