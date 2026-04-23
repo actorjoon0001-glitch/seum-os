@@ -142,6 +142,11 @@
   var inited = false;
   var busy = false;
 
+  // 오늘 근태 상태 캐시 (다른 모듈에서 sync 로 읽을 수 있도록)
+  var _lastRecord = null;
+  var _lastLeave = null;
+  var _statusFetched = false;
+
   // ────────── util ──────────
 
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
@@ -433,7 +438,19 @@
     }
     var rec = await getMyTodayRecord();
     var leaveToday = await getMyApprovedLeaveForToday();
+    _lastRecord = rec || null;
+    _lastLeave = leaveToday || null;
+    _statusFetched = true;
     renderCard(rec, leaveToday);
+  }
+
+  /** 오늘 출근했는지 여부 (sync 조회).
+   *  휴가/병가 등 오늘 근무가 불필요한 leave 상태도 true 로 판정.
+   *  최초 fetch 전엔 true 반환 — 로딩 레이스에서 잘못 차단하지 않도록. */
+  function hasCheckedInToday() {
+    if (!_statusFetched) return true;
+    if (_lastLeave) return true;
+    return !!(_lastRecord && _lastRecord.check_in);
   }
 
   async function handleCheckIn() {
@@ -1367,7 +1384,8 @@
   window.seumAttendance = {
     init: init,
     render: function () { init(); render(); },
-    renderCalendar: function () { init(); switchTab('calendar'); }
+    renderCalendar: function () { init(); switchTab('calendar'); },
+    hasCheckedInToday: hasCheckedInToday
   };
 
   if (document.readyState === 'loading') {

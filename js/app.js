@@ -11014,6 +11014,15 @@
   }
 
   function showSection(sectionId) {
+    // 출근 전이면 대시보드 외 섹션 접근 차단 — 대시보드에서 출근하기 버튼부터 누르도록 유도
+    if (sectionId !== 'dashboard' &&
+        typeof window !== 'undefined' &&
+        window.seumAttendance &&
+        typeof window.seumAttendance.hasCheckedInToday === 'function' &&
+        !window.seumAttendance.hasCheckedInToday()) {
+      window.alert('먼저 대시보드의 [출근하기] 버튼을 눌러 주세요.');
+      sectionId = 'dashboard';
+    }
     // ??? ??? ???: admin/master/??????????? ???
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
       return;
