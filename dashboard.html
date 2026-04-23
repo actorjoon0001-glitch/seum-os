@@ -1524,6 +1524,22 @@
         <p class="section-desc">건축허가 완료 후 설계 진행 우선순위 목록입니다.</p>
       </header>
       <div class="card">
+        <h3>우선순위 진행 현황 (계약금 수령 건)</h3>
+        <div id="priority-type-tabs" class="design-type-tabs"></div>
+        <div class="contract-filter-bar" id="priority-filter-bar">
+          <div class="filter-item filter-item-search">
+            <label for="priority-search-input">검색</label>
+            <div class="contract-search-wrap">
+              <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+                <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="text" id="priority-search-input" class="contract-search-input" placeholder="건축주명, 지역, 주소, 모델 검색" autocomplete="off">
+              <button type="button" class="contract-search-clear hidden" id="priority-search-clear" title="검색어 초기화" aria-label="검색어 초기화">✕</button>
+            </div>
+          </div>
+          <div class="contract-filter-result" id="priority-filter-result"></div>
+        </div>
         <div id="design-priority-wrap">
           <p style="color:#9ca3af;">데이터를 불러오는 중...</p>
         </div>
