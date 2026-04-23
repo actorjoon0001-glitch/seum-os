@@ -9588,6 +9588,43 @@
     return ok ? list : null;
   }
 
+  /** 로그인한 사용자가 오늘 자신의 팀 업무일지를 작성했는지 판정.
+   *  - 관리자(admin/master/superadmin) 는 항상 true (작성 의무 면제)
+   *  - 팀장 권한: leader 엔트리의 summary/progress/issues/tomorrow 중 하나라도 있으면 true
+   *  - 팀원: 본인 member 엔트리의 tasks 가 있으면 true
+   *  - 팀을 찾지 못하거나 예외 발생 시 true (차단하지 않음)
+   */
+  function hasFilledTeamWorklogToday() {
+    try {
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
+      if (!cur) return true;
+      if (twIsAdminLike()) return true;
+      var today = twTodayIso();
+      var teams = twGetTeams();
+      if (!teams || !teams.length) return true;
+      var myTeam = null;
+      for (var i = 0; i < teams.length; i++) {
+        if (twIsTeamMember(teams[i])) { myTeam = teams[i]; break; }
+      }
+      if (!myTeam) return true;
+      var asLeader = twIsLeader(myTeam);
+      if (asLeader) {
+        var leader = twGetEntry(myTeam.id, today, 'leader', null);
+        if (!leader) return false;
+        var joined = ((leader.summary || '') + (leader.progress || '') + (leader.issues || '') + (leader.tomorrow || '')).toString().trim();
+        return !!joined;
+      }
+      var myId = cur.id || cur.authUserId || '';
+      var myName = cur.name || '';
+      var entry = twGetEntry(myTeam.id, today, 'member', myId, myName);
+      if (!entry) return false;
+      return !!((entry.tasks || '').toString().trim());
+    } catch (e) {
+      console.warn('[worklog-gate] check failed:', e);
+      return true;
+    }
+  }
+
   function twRemoveEntry(teamId, date, kind, authorId) {
     var list = twGetWorklogs().filter(function (w) {
       if (w.teamId !== teamId || w.date !== date || w.kind !== kind) return true;
@@ -15085,6 +15122,7 @@
   }
 
   window.showSection = showSection;
+  window.seumHasFilledTeamWorklogToday = hasFilledTeamWorklogToday;
   window.showDesignDetailPanel = showDesignDetailPanel;
   window.renderDesign = renderDesign;
   window.isAdmin = isAdmin;

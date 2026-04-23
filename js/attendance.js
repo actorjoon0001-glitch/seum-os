@@ -475,6 +475,16 @@
 
   async function handleCheckOut() {
     if (busy) return;
+    // 팀 업무일지 작성 여부 체크 — 미작성이면 퇴근 불가, 팀 업무일지로 이동 유도
+    if (typeof window !== 'undefined' &&
+        typeof window.seumHasFilledTeamWorklogToday === 'function' &&
+        !window.seumHasFilledTeamWorklogToday()) {
+      var go = window.confirm('오늘 팀 업무일지가 아직 작성되지 않았습니다.\n작성해야 퇴근할 수 있습니다. 팀 업무일지 페이지로 이동하시겠습니까?');
+      if (go && typeof window.showSection === 'function') {
+        window.showSection('team-worklog');
+      }
+      return;
+    }
     busy = true;
     try {
       var r = await checkOut();
