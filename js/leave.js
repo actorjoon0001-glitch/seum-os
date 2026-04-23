@@ -62,11 +62,16 @@
     var p = (emp.permission || '').toLowerCase();
     var r = (emp.role || '').toLowerCase();
     if (p === 'admin' || p === 'master' || r === 'admin' || r === 'master') return true;
+    if ((emp.team || '').trim() === '정산') return true;
     if (typeof window.seumIsSuperAdmin === 'function' && window.seumIsSuperAdmin()) return true;
     try {
       var list = JSON.parse(localStorage.getItem('seum_employees') || '[]');
       var me = list.find(function (x) { return (x.name || '') === (emp.name || ''); });
-      if (me && ((me.permission || '').toLowerCase() === 'admin' || (me.permission || '').toLowerCase() === 'master')) return true;
+      if (me) {
+        var mp = (me.permission || '').toLowerCase();
+        if (mp === 'admin' || mp === 'master') return true;
+        if ((me.team || '').trim() === '정산') return true;
+      }
     } catch (e) {}
     return false;
   }
