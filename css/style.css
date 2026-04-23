@@ -5488,6 +5488,17 @@ textarea.form-input {
   font-size: 0.75rem;
 }
 .design-type-tab.active .tab-count { background: rgba(255,255,255,0.25); }
+/* 🚨 긴급진행 탭 — 비활성 상태에서도 빨간 톤 */
+.design-type-tab-urgent { color: #f87171; border-color: rgba(239, 68, 68, 0.45); }
+.design-type-tab-urgent:hover { background: rgba(239, 68, 68, 0.1); color: #fca5a5; }
+.design-type-tab-urgent.active { background: #b91c1c; border-color: #ef4444; color: #fff; }
+/* ✅ 작업완료 탭 — 비활성 상태에서도 초록 톤 */
+.design-type-tab-done { color: #34d399; border-color: rgba(16, 185, 129, 0.45); }
+.design-type-tab-done:hover { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; }
+.design-type-tab-done.active { background: #047857; border-color: #10b981; color: #fff; }
+/* 긴급진행 행 하이라이트 (단일 통합 테이블에서 긴급건 시각 구분) */
+.design-priority-row-urgent td { background: rgba(239, 68, 68, 0.06) !important; }
+.design-priority-row-urgent td:first-child { box-shadow: inset 3px 0 0 #ef4444; }
 
 /* 유형 뱃지 */
 .design-type-badge {
