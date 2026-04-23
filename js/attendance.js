@@ -408,10 +408,51 @@
 
     if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
     if (hasIn && !hasOut) {
+      // 근무 중일 때만 tick: duration 업데이트 + 퇴근 미처리 리마인더 체크
       renderTimer = setInterval(function () {
         setText('.attendance-today-duration', formatDuration(calcLiveDuration(rec)));
+        maybeShowCheckoutReminder();
       }, 60 * 1000);
+      // 페이지 진입 시 18시가 이미 지났으면 즉시 1회 체크
+      maybeShowCheckoutReminder();
     }
+  }
+
+  // ────────── 퇴근 미처리 리마인더 (클라이언트 타이머 방식) ──────────
+  //
+  // 18:00 이 지났고 출근 기록만 있고 퇴근 기록이 없는 상태면 본인에게
+  // 인앱 토스트 + 브라우저 알림을 띄운다. 브라우저가 꺼져 있으면 알림이
+  // 오지 않으므로, 서버 스케줄러(pg_cron)로 확장하려면 추후 보강 필요.
+  function todayLocalIso() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function maybeShowCheckoutReminder() {
+    try {
+      var now = new Date();
+      if (now.getHours() < 18) return;
+      // 오늘 이미 한 번 띄웠으면 skip
+      var today = todayLocalIso();
+      var shownKey = 'seum_checkout_reminder_shown_on';
+      if (localStorage.getItem(shownKey) === today) return;
+      // 상태 체크
+      if (_lastLeave) return; // 휴가/병가
+      if (!_lastRecord || !_lastRecord.check_in) return; // 출근 기록 없음
+      if (_lastRecord.check_out) return; // 이미 퇴근 처리
+      localStorage.setItem(shownKey, today);
+      showToast('⏰ 퇴근 체크를 잊지 마세요! 대시보드의 [퇴근하기] 버튼을 눌러 주세요.');
+      if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted') {
+        try {
+          new window.Notification('⏰ 퇴근 체크를 잊으셨나요?', {
+            body: '오늘 퇴근하기 버튼을 아직 안 누르셨습니다. 대시보드에서 확인해 주세요.',
+            icon: '/icons/icon-192.png',
+            tag: 'seum-checkout-reminder'
+          });
+        } catch (e) { /* ignore */ }
+      }
+    } catch (e) { console.warn('[checkout-reminder] failed:', e); }
   }
 
   // 대시보드 빠른실행 카드: 상태별로 주요 버튼만 눈에 띄게 노출
