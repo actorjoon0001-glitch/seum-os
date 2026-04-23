@@ -1022,6 +1022,9 @@
     if (Object.prototype.hasOwnProperty.call(fields, 'constructionConfirmed')) payload.construction_confirmed = !!fields.constructionConfirmed;
     if (Object.prototype.hasOwnProperty.call(fields, 'finalApproved')) payload.final_approved = !!fields.finalApproved;
     if (Object.prototype.hasOwnProperty.call(fields, 'constructionStartOk')) payload.construction_start_ok = !!fields.constructionStartOk;
+    if (Object.prototype.hasOwnProperty.call(fields, 'salesConfirmedBy')) payload.sales_confirmed_by = fields.salesConfirmedBy || null;
+    if (Object.prototype.hasOwnProperty.call(fields, 'designConfirmedBy')) payload.design_confirmed_by = fields.designConfirmedBy || null;
+    if (Object.prototype.hasOwnProperty.call(fields, 'constructionConfirmedBy')) payload.construction_confirmed_by = fields.constructionConfirmedBy || null;
     if (!Object.keys(payload).length) return;
     supa.from('contracts')
       .update(payload)
@@ -1108,7 +1111,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok')
+        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok,sales_confirmed_by,design_confirmed_by,construction_confirmed_by')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -1135,6 +1138,9 @@
                 if (row.construction_confirmed != null) c.constructionConfirmed = !!row.construction_confirmed;
                 if (row.final_approved != null) c.finalApproved = !!row.final_approved;
                 if (row.construction_start_ok != null) c.constructionStartOk = !!row.construction_start_ok;
+                if (row.sales_confirmed_by !== undefined) c.salesConfirmedBy = row.sales_confirmed_by || '';
+                if (row.design_confirmed_by !== undefined) c.designConfirmedBy = row.design_confirmed_by || '';
+                if (row.construction_confirmed_by !== undefined) c.constructionConfirmedBy = row.construction_confirmed_by || '';
               }
               return c;
             })
@@ -4726,10 +4732,13 @@
       var constructionC = !!c.constructionConfirmed;
       var allConfirmed = salesC && designC && constructionC;
       var salesCheckDisabledForRow = salesCheckDisabled || (salesOnlyReview && (c.salesPerson || '').trim() !== myName);
+      var salesByTag = (salesC && c.salesConfirmedBy) ? '<span class="review-check-by">' + escapeHtml(c.salesConfirmedBy) + '</span>' : '';
+      var designByTag = (designC && c.designConfirmedBy) ? '<span class="review-check-by">' + escapeHtml(c.designConfirmedBy) + '</span>' : '';
+      var constructionByTag = (constructionC && c.constructionConfirmedBy) ? '<span class="review-check-by">' + escapeHtml(c.constructionConfirmedBy) + '</span>' : '';
       var reviewCell = '<div class="review-checklist"><span class="review-checklist-title">검토 확인</span>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabledForRow ? ' disabled' : '') + '><span>영업팀 확인</span><small class="review-desc review-help">계약 내용 및 고객 요구 사항 확인</small></label>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>설계팀 확인</span><small class="review-desc review-help">설계 가능 여부 및 특이사항 검토</small></label>' +
-        '<label class="review-check-item"><input type="checkbox" class="review-check construction-check" data-contract-id="' + escapeAttr(c.id) + '"' + (constructionC ? ' checked' : '') + (constructionCheckDisabled ? ' disabled' : '') + '><span>시공팀 확인</span><small class="review-desc review-help">현장 시공 가능 여부 및 일정 확인</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check sales-check" data-contract-id="' + escapeAttr(c.id) + '"' + (salesC ? ' checked' : '') + (salesCheckDisabledForRow ? ' disabled' : '') + '><span>영업팀 확인</span>' + salesByTag + '<small class="review-desc review-help">계약 내용 및 고객 요구 사항 확인</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check design-check" data-contract-id="' + escapeAttr(c.id) + '"' + (designC ? ' checked' : '') + (designCheckDisabled ? ' disabled' : '') + '><span>설계팀 확인</span>' + designByTag + '<small class="review-desc review-help">설계 가능 여부 및 특이사항 검토</small></label>' +
+        '<label class="review-check-item"><input type="checkbox" class="review-check construction-check" data-contract-id="' + escapeAttr(c.id) + '"' + (constructionC ? ' checked' : '') + (constructionCheckDisabled ? ' disabled' : '') + '><span>시공팀 확인</span>' + constructionByTag + '<small class="review-desc review-help">현장 시공 가능 여부 및 일정 확인</small></label>' +
         '</div>';
       var reviewTdClass = 'review-check-cell' + (allConfirmed ? ' review-all-done' : '');
       var approved = !!c.finalApproved;
@@ -12865,9 +12874,18 @@
         var contracts = getContracts();
         var c = contracts.find(function (x) { return x.id === contractId; });
         if (c) {
-          if (e.target.classList.contains('sales-check')) c.salesConfirmed = e.target.checked;
-          else if (e.target.classList.contains('design-check')) c.designConfirmed = e.target.checked;
-          else if (e.target.classList.contains('construction-check')) c.constructionConfirmed = e.target.checked;
+          var curEmp = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+          var curName = (curEmp && (curEmp.name || '').trim()) || '';
+          if (e.target.classList.contains('sales-check')) {
+            c.salesConfirmed = e.target.checked;
+            c.salesConfirmedBy = e.target.checked ? curName : '';
+          } else if (e.target.classList.contains('design-check')) {
+            c.designConfirmed = e.target.checked;
+            c.designConfirmedBy = e.target.checked ? curName : '';
+          } else if (e.target.classList.contains('construction-check')) {
+            c.constructionConfirmed = e.target.checked;
+            c.constructionConfirmedBy = e.target.checked ? curName : '';
+          }
           var allChecked = !!c.salesConfirmed && !!c.designConfirmed && !!c.constructionConfirmed;
           if (!allChecked) { c.finalApproved = false; }
           c.constructionStartOk = !!(allChecked && c.finalApproved);
@@ -12878,7 +12896,10 @@
             designConfirmed: c.designConfirmed,
             constructionConfirmed: c.constructionConfirmed,
             finalApproved: c.finalApproved,
-            constructionStartOk: c.constructionStartOk
+            constructionStartOk: c.constructionStartOk,
+            salesConfirmedBy: c.salesConfirmedBy,
+            designConfirmedBy: c.designConfirmedBy,
+            constructionConfirmedBy: c.constructionConfirmedBy
           });
           renderDesign();
           renderConstruction();
