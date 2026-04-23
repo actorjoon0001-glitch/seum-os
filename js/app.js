@@ -12145,7 +12145,7 @@
           progress2Confirmed: false,
           progress3Confirmed: false,
           balanceConfirmed: false,
-          salesConfirmed: false,
+          salesConfirmed: true,
           designConfirmed: false,
           constructionConfirmed: false,
           finalApproved: false
