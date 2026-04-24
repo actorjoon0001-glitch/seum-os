@@ -4320,6 +4320,11 @@
           ? '<td class="design-priority-permit-date">' + escapeHtml(c.permitCertDate || '-') + '</td>'
           : '';
         var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
+        // 검토자 최종승인 배지
+        var approved = !!c.finalApproved;
+        var approverName = (c.finalApprovedBy || '').trim();
+        var approvalTitle = approved && approverName ? ' title="승인자: ' + escapeAttr(approverName) + '"' : '';
+        var approvalBadgeHtml = '<span class="approval-badge ' + (approved ? 'approved' : 'pending') + '"' + approvalTitle + '>' + (approved ? '승인됨' : '미승인') + '</span>';
         var rowCls = 'design-priority-row';
         if (isDoneView) rowCls += ' design-priority-done-row';
         else if (c.isUrgent) rowCls += ' design-priority-row-urgent';
@@ -4349,13 +4354,14 @@
           '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
           '<td>' + escapeHtml(designerName || '-') + '</td>' +
           '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
+          '<td class="design-priority-approval">' + approvalBadgeHtml + '</td>' +
           '<td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
           '<td style="white-space:nowrap;display:flex;gap:4px;">' + actionBtns + '</td>' +
           '</tr>';
       }).join('');
       wrap.innerHTML = '<div class="design-priority-section"><div style="overflow-x:auto"><table class="design-priority-table">' +
         '<thead><tr>' +
-        '<th>#</th><th>계약일</th>' + (showPermitCol ? '<th>건축허가 완료일</th>' : '') + '<th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
+        '<th>#</th><th>계약일</th>' + (showPermitCol ? '<th>건축허가 완료일</th>' : '') + '<th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>검토자 승인</th><th>비고</th><th>액션</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div></div>';
     }
 
