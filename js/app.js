@@ -4253,21 +4253,15 @@
       });
     }
 
-    // 정렬: 전원주택(인허가) 는 허가완료일 빠른 순 (허가일 없으면 맨 뒤 → 계약일 보조 정렬),
-    //       그 외 유형은 계약일 오름차순.
+    // 정렬 규칙 (유형 무관):
+    //   1) 건축허가 완료일(permitCertDate) 이 있는 건이 최상단 — 허가일 빠른 순
+    //   2) 허가일 없는 건은 그 뒤 — 계약일 오름차순
     list.sort(function (a, b) {
-      var tA = getTypeKey(a), tB = getTypeKey(b);
-      function sortKey(c, t) {
-        if (t === '전원주택(인허가)') {
-          // 허가일 있으면 그 값, 없으면 '￿' 로 항상 뒤로 밀림
-          return c.permitCertDate || '￿';
-        }
-        return c.contractDate || '';
-      }
-      var dA = sortKey(a, tA);
-      var dB = sortKey(b, tB);
-      if (dA !== dB) return dA < dB ? -1 : 1;
-      // 1차 키가 같으면 계약일 보조 정렬 (전원주택 허가일 미입력건 묶음 내 안정적 순서)
+      var pA = (a.permitCertDate || '').trim();
+      var pB = (b.permitCertDate || '').trim();
+      if (pA && !pB) return -1;
+      if (!pA && pB) return 1;
+      if (pA && pB && pA !== pB) return pA < pB ? -1 : 1;
       var cA = a.contractDate || '';
       var cB = b.contractDate || '';
       if (cA !== cB) return cA < cB ? -1 : 1;
@@ -4288,8 +4282,8 @@
         var shortAddr = (c.siteAddress || '').trim().split(/\s+/).slice(0, 2).join(' ') || '-';
         var st = (c.designStatus || 'none').toLowerCase();
         var typeLabel = getTypeKey(c);
-        var dateVal = (typeLabel === '전원주택(인허가)' && c.permitCertDate) ? c.permitCertDate : (c.contractDate || '-');
-        var permitDateVal = (typeLabel === '전원주택(인허가)') ? (c.permitCertDate || '-') : '-';
+        var dateVal = c.contractDate || '-';
+        var permitDateVal = c.permitCertDate || '-';
         var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
         var rowCls = 'design-priority-row';
         if (isDoneView) rowCls += ' design-priority-done-row';
@@ -4326,7 +4320,7 @@
       }).join('');
       wrap.innerHTML = '<div class="design-priority-section"><div style="overflow-x:auto"><table class="design-priority-table">' +
         '<thead><tr>' +
-        '<th>#</th><th>' + (isDoneView ? '계약일' : '기준일') + '</th><th>건축허가 완료일</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
+        '<th>#</th><th>계약일</th><th>건축허가 완료일</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div></div>';
     }
 
