@@ -4289,6 +4289,7 @@
         var st = (c.designStatus || 'none').toLowerCase();
         var typeLabel = getTypeKey(c);
         var dateVal = (typeLabel === '전원주택(인허가)' && c.permitCertDate) ? c.permitCertDate : (c.contractDate || '-');
+        var permitDateVal = (typeLabel === '전원주택(인허가)') ? (c.permitCertDate || '-') : '-';
         var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
         var rowCls = 'design-priority-row';
         if (isDoneView) rowCls += ' design-priority-done-row';
@@ -4310,6 +4311,7 @@
         return '<tr class="' + rowCls + '" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
           '<td class="design-priority-rank">' + (i + 1) + '</td>' +
           '<td class="design-priority-date">' + escapeHtml(dateVal) + '</td>' +
+          '<td class="design-priority-permit-date">' + escapeHtml(permitDateVal) + '</td>' +
           '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span></td>' +
           '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
           '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
@@ -4324,7 +4326,7 @@
       }).join('');
       wrap.innerHTML = '<div class="design-priority-section"><div style="overflow-x:auto"><table class="design-priority-table">' +
         '<thead><tr>' +
-        '<th>#</th><th>' + (isDoneView ? '계약일' : '기준일') + '</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
+        '<th>#</th><th>' + (isDoneView ? '계약일' : '기준일') + '</th><th>건축허가 완료일</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div></div>';
     }
 
