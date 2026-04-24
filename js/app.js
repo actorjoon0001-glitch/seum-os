@@ -4253,15 +4253,22 @@
       });
     }
 
-    // 정렬 규칙 (유형 무관):
-    //   1) 건축허가 완료일(permitCertDate) 이 있는 건이 최상단 — 허가일 빠른 순
-    //   2) 허가일 없는 건은 그 뒤 — 계약일 오름차순
+    var isDoneView = _priorityTypeFilter === 'done';
+    // 건축허가 완료일 컬럼·정렬은 '전원주택(인허가)' 탭에서만 적용
+    var showPermitCol = _priorityTypeFilter === '전원주택(인허가)';
+
+    // 정렬 규칙:
+    //   · 전원주택(인허가) 탭: 건축허가 완료일 있는 건이 최상단(허가일 빠른 순),
+    //                        허가일 없는 건은 그 뒤 — 계약일 오름차순
+    //   · 그 외 탭(전체·컨테이너/농막·체류형쉼터·기타·작업완료): 계약일 오름차순
     list.sort(function (a, b) {
-      var pA = (a.permitCertDate || '').trim();
-      var pB = (b.permitCertDate || '').trim();
-      if (pA && !pB) return -1;
-      if (!pA && pB) return 1;
-      if (pA && pB && pA !== pB) return pA < pB ? -1 : 1;
+      if (showPermitCol) {
+        var pA = (a.permitCertDate || '').trim();
+        var pB = (b.permitCertDate || '').trim();
+        if (pA && !pB) return -1;
+        if (!pA && pB) return 1;
+        if (pA && pB && pA !== pB) return pA < pB ? -1 : 1;
+      }
       var cA = a.contractDate || '';
       var cB = b.contractDate || '';
       if (cA !== cB) return cA < cB ? -1 : 1;
@@ -4272,8 +4279,6 @@
     var resultEl = document.getElementById('priority-filter-result');
     if (resultEl) resultEl.textContent = '총 ' + list.length + '건';
 
-    var isDoneView = _priorityTypeFilter === 'done';
-
     // 테이블 렌더
     if (list.length === 0) {
       wrap.innerHTML = '<p class="design-priority-empty">해당 계약이 없습니다.</p>';
@@ -4283,7 +4288,9 @@
         var st = (c.designStatus || 'none').toLowerCase();
         var typeLabel = getTypeKey(c);
         var dateVal = c.contractDate || '-';
-        var permitDateVal = c.permitCertDate || '-';
+        var permitCell = showPermitCol
+          ? '<td class="design-priority-permit-date">' + escapeHtml(c.permitCertDate || '-') + '</td>'
+          : '';
         var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
         var rowCls = 'design-priority-row';
         if (isDoneView) rowCls += ' design-priority-done-row';
@@ -4305,7 +4312,7 @@
         return '<tr class="' + rowCls + '" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
           '<td class="design-priority-rank">' + (i + 1) + '</td>' +
           '<td class="design-priority-date">' + escapeHtml(dateVal) + '</td>' +
-          '<td class="design-priority-permit-date">' + escapeHtml(permitDateVal) + '</td>' +
+          permitCell +
           '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span></td>' +
           '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
           '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
@@ -4320,7 +4327,7 @@
       }).join('');
       wrap.innerHTML = '<div class="design-priority-section"><div style="overflow-x:auto"><table class="design-priority-table">' +
         '<thead><tr>' +
-        '<th>#</th><th>계약일</th><th>건축허가 완료일</th><th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
+        '<th>#</th><th>계약일</th>' + (showPermitCol ? '<th>건축허가 완료일</th>' : '') + '<th>유형</th><th>고객명</th><th>모델명</th><th>전시장</th><th>지역</th><th>담당 영업사원</th><th>설계담당</th><th>설계진행 상태</th><th>비고</th><th>액션</th>' +
         '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div></div>';
     }
 
