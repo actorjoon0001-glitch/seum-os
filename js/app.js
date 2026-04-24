@@ -4253,12 +4253,24 @@
       });
     }
 
-    // 정렬: 전원주택(인허가) 는 허가완료일 우선, 기타는 계약일
+    // 정렬: 전원주택(인허가) 는 허가완료일 빠른 순 (허가일 없으면 맨 뒤 → 계약일 보조 정렬),
+    //       그 외 유형은 계약일 오름차순.
     list.sort(function (a, b) {
       var tA = getTypeKey(a), tB = getTypeKey(b);
-      var dA = (tA === '전원주택(인허가)' && a.permitCertDate) ? a.permitCertDate : (a.contractDate || '');
-      var dB = (tB === '전원주택(인허가)' && b.permitCertDate) ? b.permitCertDate : (b.contractDate || '');
+      function sortKey(c, t) {
+        if (t === '전원주택(인허가)') {
+          // 허가일 있으면 그 값, 없으면 '￿' 로 항상 뒤로 밀림
+          return c.permitCertDate || '￿';
+        }
+        return c.contractDate || '';
+      }
+      var dA = sortKey(a, tA);
+      var dB = sortKey(b, tB);
       if (dA !== dB) return dA < dB ? -1 : 1;
+      // 1차 키가 같으면 계약일 보조 정렬 (전원주택 허가일 미입력건 묶음 내 안정적 순서)
+      var cA = a.contractDate || '';
+      var cB = b.contractDate || '';
+      if (cA !== cB) return cA < cB ? -1 : 1;
       return 0;
     });
 
