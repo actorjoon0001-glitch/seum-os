@@ -5318,6 +5318,25 @@
     var effectiveProjectType = c.contractModel || '';
     var projectType = effectiveProjectType || '-';
     var houseWrapHidden = effectiveProjectType !== '전원주택' ? ' hidden' : '';
+    // 우선순위 작업완료 토글 버튼 — 설계팀/관리자만 노출, 설계담당 지정된 경우만 활성
+    var _priCur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    var _priTeam = (_priCur && (_priCur.team || '').trim()) || '';
+    var _priCanMark = (_priTeam === '설계') || isAdmin() || isMaster() || isSuperAdmin();
+    var _priDesigner = (c.designPermitDesigner || c.designContactName || '').trim();
+    var _priIsDone = !!c.priorityDone;
+    var priorityToggleBtnHtml = '';
+    if (_priCanMark) {
+      if (_priIsDone) {
+        priorityToggleBtnHtml = '<button type="button" class="btn btn-sm priority-detail-toggle-btn" data-contract-id="' + escapeAttr(contractId) + '" data-action="undo" style="background:#374151;color:#d1d5db;border:none;">작업완료 취소</button>';
+      } else {
+        var _priDisabled = !_priDesigner;
+        var _priStyle = _priDisabled
+          ? 'background:#4b5563;color:#9ca3af;border:none;cursor:not-allowed;opacity:0.65;'
+          : 'background:#059669;color:#fff;border:none;';
+        var _priTitle = _priDisabled ? ' title="설계담당자를 먼저 지정해주세요"' : '';
+        priorityToggleBtnHtml = '<button type="button" class="btn btn-sm priority-detail-toggle-btn" data-contract-id="' + escapeAttr(contractId) + '" data-action="done"' + (_priDisabled ? ' disabled' : '') + ' style="' + _priStyle + '"' + _priTitle + '>우선순위 작업완료</button>';
+      }
+    }
     var summaryBar = '<div class="design-detail-summary-bar">' +
       '<span class="design-detail-summary-item"><strong>고객명</strong> ' + escapeAttr(c.customerName || '-') + '</span>' +
       '<span class="design-detail-summary-item"><strong>유형</strong> ' + escapeAttr(projectType) + '</span>' +
@@ -5330,6 +5349,7 @@
       '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">저장</button>' +
       '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">계약 상세</button>' +
       '<button type="button" class="btn btn-sm btn-danger design-priority-goto-btn" data-contract-id="' + escapeAttr(contractId) + '" style="background:#dc2626;border-color:#dc2626;color:#fff;">설계팀 우선순위</button>' +
+      priorityToggleBtnHtml +
       '</div></div>';
     var cardBasic = '<div class="design-detail-card">' +
       '<h4 class="design-detail-card-title">기본 계약 정보 (읽기)</h4>' +
@@ -6064,6 +6084,82 @@
         // renderDesignPriority 가 이 타겟을 읽어서 자동 펼침·스크롤·하이라이트 처리
         if (targetId) _priorityScrollTarget = targetId;
         if (typeof showSection === 'function') showSection('design-priority');
+        return;
+      }
+      // 계약 상세 summary bar 의 '우선순위 작업완료 / 취소' 토글 버튼
+      var priToggleBtn = e.target.closest('.priority-detail-toggle-btn');
+      if (priToggleBtn) {
+        e.stopPropagation();
+        if (priToggleBtn.disabled) return;
+        var _ptCid = priToggleBtn.getAttribute('data-contract-id') || '';
+        var _ptAction = priToggleBtn.getAttribute('data-action') || '';
+        if (!_ptCid) return;
+        var _ptCs = getContracts();
+        var _ptC = _ptCs.find(function (x) { return x.id === _ptCid; });
+        if (!_ptC) return;
+        if (_ptAction === 'done') {
+          // 설계담당 없으면 차단 (UI disabled 이지만 방어)
+          var _ptDesigner = (_ptC.designPermitDesigner || _ptC.designContactName || '').trim();
+          if (!_ptDesigner) {
+            if (typeof showToast === 'function') showToast('설계담당자를 먼저 지정해주세요.');
+            return;
+          }
+          _ptC.priorityDone = true;
+          saveContracts(_ptCs);
+          savePriorityField(_ptCid, true, !!_ptC.isUrgent);
+          // 알림 (우선순위 페이지의 작업완료 버튼과 동일)
+          try {
+            var _ptNotif = window.seumNotifications && window.seumNotifications.send;
+            if (typeof _ptNotif === 'function') {
+              var _ptTitle = '✅ 설계 작업 완료';
+              var _ptBody = '고객 ' + (_ptC.customerName || '-')
+                + ' · 모델 ' + (_ptC.contractModelName || _ptC.contractModel || '-')
+                + (_ptC.salesPerson ? ' · 담당 ' + _ptC.salesPerson : '');
+              _ptNotif({
+                contractId: _ptC.id,
+                customerName: _ptC.customerName || '',
+                salesPerson: _ptC.salesPerson || '',
+                recipientTeam: '시공',
+                title: _ptTitle,
+                body: _ptBody
+              });
+              if (_ptC.salesPerson) {
+                _ptNotif({
+                  contractId: _ptC.id,
+                  customerName: _ptC.customerName || '',
+                  salesPerson: _ptC.salesPerson || '',
+                  recipientTeam: null,
+                  recipientName: _ptC.salesPerson,
+                  title: _ptTitle,
+                  body: _ptBody
+                });
+              }
+            }
+          } catch (err) { console.warn('[priority-detail-toggle] notify failed:', err); }
+        } else {
+          _ptC.priorityDone = false;
+          saveContracts(_ptCs);
+          savePriorityField(_ptCid, false, !!_ptC.isUrgent);
+        }
+        // 버튼 UI 를 현 상태에 맞게 갱신 (전체 리렌더보다 저렴)
+        if (_ptC.priorityDone) {
+          priToggleBtn.setAttribute('data-action', 'undo');
+          priToggleBtn.textContent = '작업완료 취소';
+          priToggleBtn.disabled = false;
+          priToggleBtn.removeAttribute('title');
+          priToggleBtn.setAttribute('style', 'background:#374151;color:#d1d5db;border:none;');
+        } else {
+          priToggleBtn.setAttribute('data-action', 'done');
+          priToggleBtn.textContent = '우선순위 작업완료';
+          priToggleBtn.disabled = false;
+          priToggleBtn.removeAttribute('title');
+          priToggleBtn.setAttribute('style', 'background:#059669;color:#fff;border:none;');
+        }
+        if (typeof showToast === 'function') {
+          showToast(_ptC.priorityDone ? '작업완료로 표시되었습니다.' : '작업완료가 해제되었습니다.');
+        }
+        // 우선순위 페이지가 열려있으면 갱신
+        if (typeof renderDesignPriority === 'function') renderDesignPriority();
         return;
       }
       var modalBtn = e.target.closest('.design-detail-modal-btn');
