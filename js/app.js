@@ -4277,6 +4277,7 @@
         var st = (c.designStatus || 'none').toLowerCase();
         var typeLabel = getTypeKey(c);
         var dateVal = (typeLabel === '전원주택(인허가)' && c.permitCertDate) ? c.permitCertDate : (c.contractDate || '-');
+        var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
         var rowCls = 'design-priority-row';
         if (isDoneView) rowCls += ' design-priority-done-row';
         else if (c.isUrgent) rowCls += ' design-priority-row-urgent';
@@ -4284,7 +4285,14 @@
         if (isDoneView) {
           if (canMarkDone) actionBtns += '<button type="button" class="btn btn-sm priority-undone-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#374151;color:#d1d5db;border:none;">복원</button>';
         } else {
-          if (canMarkDone) actionBtns += '<button type="button" class="btn btn-sm priority-done-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#059669;color:#fff;border:none;">작업완료</button>';
+          if (canMarkDone) {
+            var doneDisabled = !designerName;
+            var doneStyle = doneDisabled
+              ? 'white-space:nowrap;background:#4b5563;color:#9ca3af;border:none;cursor:not-allowed;opacity:0.65;'
+              : 'white-space:nowrap;background:#059669;color:#fff;border:none;';
+            var doneTitle = doneDisabled ? ' title="설계담당자를 먼저 지정해주세요"' : '';
+            actionBtns += '<button type="button" class="btn btn-sm priority-done-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (doneDisabled ? ' disabled' : '') + ' style="' + doneStyle + '"' + doneTitle + '>작업완료</button>';
+          }
         }
         actionBtns += '<button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button>';
         return '<tr class="' + rowCls + '" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
@@ -4296,7 +4304,7 @@
           '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
           '<td>' + escapeHtml(shortAddr) + '</td>' +
           '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
-          '<td>' + escapeHtml((c.designPermitDesigner || c.designContactName || '').trim() || '-') + '</td>' +
+          '<td>' + escapeHtml(designerName || '-') + '</td>' +
           '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
           '<td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
           '<td style="white-space:nowrap;display:flex;gap:4px;">' + actionBtns + '</td>' +
@@ -4316,6 +4324,12 @@
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
         if (!c) return;
+        // 설계담당자 없으면 작업완료 불가 (UI 상 버튼이 disabled 지만 방어 차원)
+        var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
+        if (!designerName) {
+          if (typeof showToast === 'function') showToast('설계담당자를 먼저 지정해주세요.');
+          return;
+        }
         c.priorityDone = true;
         saveContracts(cs);
         savePriorityField(cid, true, !!c.isUrgent);
