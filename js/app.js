@@ -1173,6 +1173,141 @@
   }
 
   /**
+   * 일회성 복구: bulk-upsert 덮어쓰기 사고(commit 8202a56)로 DB 에서 리셋된
+   * priority_done 값을, 이 브라우저의 localStorage 스냅샷을 이용해 복원.
+   * - 이 브라우저에 priorityDone=true 로 남아있는 건만 DB 에 true 로 되돌림
+   * - 절대 false 로 리셋하지 않음 (단방향 복구, 안전 보장)
+   * - 브라우저당 1회만 실행 (seum_restore_priority_done_v1)
+   * - 스냅샷은 syncContractsFromSupabase() 가 localStorage 를 덮어쓰기 전에 캐싱해야 함
+   */
+  var _priorityDoneSnapshot = null;
+  function snapshotPriorityDoneBeforeSync() {
+    try {
+      if (localStorage.getItem('seum_restore_priority_done_v1') === '1') return;
+      var cs = getContracts();
+      _priorityDoneSnapshot = cs
+        .filter(function (c) { return c && c.priorityDone && c.id; })
+        .map(function (c) { return { id: c.id, isUrgent: !!c.isUrgent }; });
+    } catch (e) { console.error('snapshot priorityDone failed:', e); }
+  }
+
+  function restoreLocalPriorityDoneOnce() {
+    try {
+      if (localStorage.getItem('seum_restore_priority_done_v1') === '1') return;
+      var snap = _priorityDoneSnapshot;
+      if (!Array.isArray(snap) || !snap.length) {
+        localStorage.setItem('seum_restore_priority_done_v1', '1');
+        return;
+      }
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      var cs = getContracts();
+      var byId = {};
+      cs.forEach(function (c) { if (c && c.id) byId[c.id] = c; });
+      // 스냅샷엔 true 였는데 sync 후 false 로 바뀐(= DB 에서 리셋된) 건만 복원
+      var toRestore = snap.filter(function (s) {
+        var c = byId[s.id];
+        return c && c.priorityDone === false;
+      });
+      if (!toRestore.length) {
+        localStorage.setItem('seum_restore_priority_done_v1', '1');
+        return;
+      }
+      var jobs = toRestore.map(function (t) {
+        return supa.from('contracts').update({ priority_done: true, is_urgent: t.isUrgent }).eq('local_id', t.id);
+      });
+      Promise.all(jobs)
+        .then(function (results) {
+          var anyError = results.some(function (r) { return r && r.error; });
+          if (anyError) {
+            console.error('restore priorityDone: some updates failed', results);
+            return;
+          }
+          console.log('restore priorityDone: restored ' + toRestore.length + ' contract(s) from local snapshot');
+          localStorage.setItem('seum_restore_priority_done_v1', '1');
+          try {
+            var cs2 = getContracts();
+            var changed = false;
+            cs2.forEach(function (c) {
+              if (!c) return;
+              var match = toRestore.find(function (t) { return t.id === c.id; });
+              if (match && !c.priorityDone) { c.priorityDone = true; changed = true; }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs2));
+              if (typeof renderDesignPriority === 'function') renderDesignPriority();
+            }
+          } catch (e) { console.error('restore priorityDone local apply failed:', e); }
+        })
+        .catch(function (err) { console.error('restore priorityDone failed:', err); });
+    } catch (e) { console.error('restore priorityDone exception:', e); }
+  }
+
+  /**
+   * 일회성 복구 (2): DB 의 payload JSON 에는 priorityDone=true 가 남아있지만
+   * 전용 컬럼 priority_done 이 false 인 고아 레코드를 true 로 동기화.
+   * - 로컬 스냅샷이 비어있는 사용자에게서도 동작
+   * - 단방향 (true → true 만), false 리셋 안 함
+   * - 브라우저당 1회 (seum_restore_orphan_priority_done_v1)
+   */
+  function restoreOrphanedPriorityDoneOnce() {
+    try {
+      if (localStorage.getItem('seum_restore_orphan_priority_done_v1') === '1') return;
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa.from('contracts')
+        .select('local_id,payload')
+        .eq('priority_done', false)
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('orphan priorityDone scan error:', res.error);
+            return;
+          }
+          var candidates = res.data
+            .filter(function (row) {
+              var p = row.payload;
+              return p && p.priorityDone === true && p.depositReceivedAt;
+            })
+            .map(function (row) {
+              return { id: row.local_id, isUrgent: !!(row.payload && row.payload.isUrgent) };
+            });
+          if (!candidates.length) {
+            localStorage.setItem('seum_restore_orphan_priority_done_v1', '1');
+            return;
+          }
+          var jobs = candidates.map(function (t) {
+            return supa.from('contracts').update({ priority_done: true, is_urgent: t.isUrgent }).eq('local_id', t.id);
+          });
+          Promise.all(jobs)
+            .then(function (results) {
+              var anyError = results.some(function (r) { return r && r.error; });
+              if (anyError) {
+                console.error('orphan priorityDone restore: some updates failed', results);
+                return;
+              }
+              console.log('orphan priorityDone restore: restored ' + candidates.length + ' contract(s) from payload');
+              localStorage.setItem('seum_restore_orphan_priority_done_v1', '1');
+              try {
+                var cs = getContracts();
+                var changed = false;
+                cs.forEach(function (c) {
+                  if (!c) return;
+                  var match = candidates.find(function (t) { return t.id === c.id; });
+                  if (match && !c.priorityDone) { c.priorityDone = true; changed = true; }
+                });
+                if (changed) {
+                  localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs));
+                  if (typeof renderDesignPriority === 'function') renderDesignPriority();
+                }
+              } catch (e) { console.error('orphan priorityDone local apply failed:', e); }
+            })
+            .catch(function (err) { console.error('orphan priorityDone restore failed:', err); });
+        })
+        .catch(function (err) { console.error('orphan priorityDone scan failed:', err); });
+    } catch (e) { console.error('orphan priorityDone exception:', e); }
+  }
+
+  /**
    * 일회성 cleanup: 직전 v2 백필이 설계/시공 confirmed_by 에 salesPerson 을 잘못 넣은
    * 케이스를 되돌린다. 휴리스틱 — design_confirmed_by == salesPerson 이고 설계담당
    * 필드(designPermitDesigner/designContactName) 중 어느 것과도 일치하지 않으면
@@ -4142,6 +4277,7 @@
         var st = (c.designStatus || 'none').toLowerCase();
         var typeLabel = getTypeKey(c);
         var dateVal = (typeLabel === '전원주택(인허가)' && c.permitCertDate) ? c.permitCertDate : (c.contractDate || '-');
+        var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
         var rowCls = 'design-priority-row';
         if (isDoneView) rowCls += ' design-priority-done-row';
         else if (c.isUrgent) rowCls += ' design-priority-row-urgent';
@@ -4149,7 +4285,14 @@
         if (isDoneView) {
           if (canMarkDone) actionBtns += '<button type="button" class="btn btn-sm priority-undone-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#374151;color:#d1d5db;border:none;">복원</button>';
         } else {
-          if (canMarkDone) actionBtns += '<button type="button" class="btn btn-sm priority-done-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#059669;color:#fff;border:none;">작업완료</button>';
+          if (canMarkDone) {
+            var doneDisabled = !designerName;
+            var doneStyle = doneDisabled
+              ? 'white-space:nowrap;background:#4b5563;color:#9ca3af;border:none;cursor:not-allowed;opacity:0.65;'
+              : 'white-space:nowrap;background:#059669;color:#fff;border:none;';
+            var doneTitle = doneDisabled ? ' title="설계담당자를 먼저 지정해주세요"' : '';
+            actionBtns += '<button type="button" class="btn btn-sm priority-done-btn" data-contract-id="' + escapeAttr(c.id) + '"' + (doneDisabled ? ' disabled' : '') + ' style="' + doneStyle + '"' + doneTitle + '>작업완료</button>';
+          }
         }
         actionBtns += '<button type="button" class="btn btn-sm btn-secondary priority-goto-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;">계약 상세</button>';
         return '<tr class="' + rowCls + '" data-contract-id="' + escapeAttr(c.id) + '" style="cursor:pointer;">' +
@@ -4161,7 +4304,7 @@
           '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
           '<td>' + escapeHtml(shortAddr) + '</td>' +
           '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
-          '<td>' + escapeHtml((c.designPermitDesigner || c.designContactName || '').trim() || '-') + '</td>' +
+          '<td>' + escapeHtml(designerName || '-') + '</td>' +
           '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
           '<td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
           '<td style="white-space:nowrap;display:flex;gap:4px;">' + actionBtns + '</td>' +
@@ -4181,6 +4324,12 @@
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
         if (!c) return;
+        // 설계담당자 없으면 작업완료 불가 (UI 상 버튼이 disabled 지만 방어 차원)
+        var designerName = (c.designPermitDesigner || c.designContactName || '').trim();
+        if (!designerName) {
+          if (typeof showToast === 'function') showToast('설계담당자를 먼저 지정해주세요.');
+          return;
+        }
         c.priorityDone = true;
         saveContracts(cs);
         savePriorityField(cid, true, !!c.isUrgent);
@@ -15253,6 +15402,8 @@
     syncEmployeesFromSupabase();
     // 팀 업무일지(team_reports + team_report_items) 도 Supabase 에서 동기화
     twRemoteSyncAll();
+    // sync 가 localStorage 를 덮어쓰기 전에 priorityDone=true 스냅샷 확보 (bulk upsert 사고 복구용)
+    snapshotPriorityDoneBeforeSync();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
     // 기존 계약들의 영업팀 확인(sales_confirmed) 일괄 체크 (브라우저당 1회)
@@ -15264,6 +15415,10 @@
     setTimeout(cleanupBadDesignConstructionConfirmedByOnce, 2200);
     // 설계팀/시공팀 확인 체크자 이름 백필 (브라우저당 1회)
     setTimeout(backfillDesignConstructionConfirmedByOnce, 3500);
+    // bulk upsert 사고로 DB 에서 리셋된 priorityDone 을 로컬 스냅샷으로 복원 (브라우저당 1회)
+    setTimeout(restoreLocalPriorityDoneOnce, 4500);
+    // payload 에만 priorityDone=true 가 남은 고아 레코드를 전용 컬럼으로 동기화 (브라우저당 1회)
+    setTimeout(restoreOrphanedPriorityDoneOnce, 5500);
     // 이름을 추적할 수 없는 설계/시공 체크는 해제 (담당자 누가 다시 체크하도록)
     setTimeout(cleanupUntrackedDesignConstructionConfirmedOnce, 5000);
     syncLgAppliancesFromSupabase();
