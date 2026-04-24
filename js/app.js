@@ -1037,6 +1037,32 @@
   }
 
   /**
+   * 설계담당 전용 컬럼 단건 UPDATE.
+   * designPermitDesigner / designContactName 을 전용 컬럼으로 저장해
+   * bulk upsert (saveContracts) 의 stale payload 덮어쓰기로부터 보호한다.
+   * 빈 문자열도 그대로 기록 (사용자가 의도적으로 지운 경우 반영).
+   */
+  function saveDesignerField(contractId, fields) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !contractId || !fields) return;
+    var payload = {};
+    if (Object.prototype.hasOwnProperty.call(fields, 'designPermitDesigner')) {
+      payload.design_permit_designer = (fields.designPermitDesigner || '').trim() || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(fields, 'designContactName')) {
+      payload.design_contact_name = (fields.designContactName || '').trim() || null;
+    }
+    if (!Object.keys(payload).length) return;
+    supa.from('contracts')
+      .update(payload)
+      .eq('local_id', contractId)
+      .then(function (res) {
+        if (res && res.error) console.error('designer field save error:', res.error);
+      })
+      .catch(function (err) { console.error('designer field save failed:', err); });
+  }
+
+  /**
    * 일회성 백필: 설계팀 확인 / 시공팀 확인이 이미 체크된 기존 계약들에 대해
    * design_confirmed_by 는 설계담당(designPermitDesigner || designContactName),
    * construction_confirmed_by 는 시공담당(constructionManager) 으로만 채운다.
@@ -1505,7 +1531,7 @@
       if (!supa) return;
       supa
         .from('contracts')
-        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok,sales_confirmed_by,design_confirmed_by,construction_confirmed_by,final_approved_by')
+        .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok,sales_confirmed_by,design_confirmed_by,construction_confirmed_by,final_approved_by,design_permit_designer,design_contact_name')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -1536,6 +1562,8 @@
                 if (row.design_confirmed_by !== undefined) c.designConfirmedBy = row.design_confirmed_by || '';
                 if (row.construction_confirmed_by !== undefined) c.constructionConfirmedBy = row.construction_confirmed_by || '';
                 if (row.final_approved_by !== undefined) c.finalApprovedBy = row.final_approved_by || '';
+                if (row.design_permit_designer !== undefined) c.designPermitDesigner = row.design_permit_designer || '';
+                if (row.design_contact_name !== undefined) c.designContactName = row.design_contact_name || '';
               }
               return c;
             })
@@ -5769,6 +5797,8 @@
       c.constructionStartOk = !!(c.salesConfirmed && c.designConfirmed && c.constructionConfirmed && c.finalApproved);
       saveContracts(contracts);
       saveConfirmedFields(c.id, { constructionStartOk: c.constructionStartOk });
+      // 설계담당 전용 컬럼 동기화 (designPermitDesigner 만 이 경로에서 수정됨)
+      saveDesignerField(c.id, { designPermitDesigner: c.designPermitDesigner });
       renderDesign();
       renderConstruction();
       window.alert('설계팀 메모가 저장되었습니다.');
@@ -5839,6 +5869,11 @@
     c.designStatusMemoConstruction = (sel('.design-status-memo-construction') || {}).value ? sel('.design-status-memo-construction').value.trim() : '';
     saveContracts(contracts);
     saveConfirmedFields(c.id, { constructionStartOk: c.constructionStartOk });
+    // 설계담당 전용 컬럼 단건 UPDATE — bulk upsert 덮어쓰기로부터 보호
+    saveDesignerField(c.id, {
+      designPermitDesigner: c.designPermitDesigner,
+      designContactName: c.designContactName
+    });
     if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
       window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
     }
@@ -8868,6 +8903,8 @@
         c.constructionStartOk = document.getElementById('design-construction-start-ok').checked;
         saveContracts(contracts);
         saveConfirmedFields(c.id, { constructionStartOk: c.constructionStartOk });
+        // 설계담당 전용 컬럼 동기화 (designContactName 만 이 form 에서 수정됨)
+        saveDesignerField(c.id, { designContactName: c.designContactName });
         modal.classList.add('hidden');
         renderDesign();
         window.alert('허가 현황이 저장되었습니다.');
@@ -13216,6 +13253,8 @@
         if (c) {
           c.designPermitDesigner = (e.target.value || '').trim();
           saveContracts(contracts);
+          // 설계담당 전용 컬럼 단건 UPDATE — bulk upsert 덮어쓰기로부터 보호
+          saveDesignerField(c.id, { designPermitDesigner: c.designPermitDesigner });
           if (c.designPermitDesigner && typeof window.addContractInviteMessage === 'function') {
             window.addContractInviteMessage(c.id, 'design', c.designPermitDesigner);
           }
