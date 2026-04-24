@@ -1173,6 +1173,77 @@
   }
 
   /**
+   * 일회성 복구: bulk-upsert 덮어쓰기 사고(commit 8202a56)로 DB 에서 리셋된
+   * priority_done 값을, 이 브라우저의 localStorage 스냅샷을 이용해 복원.
+   * - 이 브라우저에 priorityDone=true 로 남아있는 건만 DB 에 true 로 되돌림
+   * - 절대 false 로 리셋하지 않음 (단방향 복구, 안전 보장)
+   * - 브라우저당 1회만 실행 (seum_restore_priority_done_v1)
+   * - 스냅샷은 syncContractsFromSupabase() 가 localStorage 를 덮어쓰기 전에 캐싱해야 함
+   */
+  var _priorityDoneSnapshot = null;
+  function snapshotPriorityDoneBeforeSync() {
+    try {
+      if (localStorage.getItem('seum_restore_priority_done_v1') === '1') return;
+      var cs = getContracts();
+      _priorityDoneSnapshot = cs
+        .filter(function (c) { return c && c.priorityDone && c.id; })
+        .map(function (c) { return { id: c.id, isUrgent: !!c.isUrgent }; });
+    } catch (e) { console.error('snapshot priorityDone failed:', e); }
+  }
+
+  function restoreLocalPriorityDoneOnce() {
+    try {
+      if (localStorage.getItem('seum_restore_priority_done_v1') === '1') return;
+      var snap = _priorityDoneSnapshot;
+      if (!Array.isArray(snap) || !snap.length) {
+        localStorage.setItem('seum_restore_priority_done_v1', '1');
+        return;
+      }
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      var cs = getContracts();
+      var byId = {};
+      cs.forEach(function (c) { if (c && c.id) byId[c.id] = c; });
+      // 스냅샷엔 true 였는데 sync 후 false 로 바뀐(= DB 에서 리셋된) 건만 복원
+      var toRestore = snap.filter(function (s) {
+        var c = byId[s.id];
+        return c && c.priorityDone === false;
+      });
+      if (!toRestore.length) {
+        localStorage.setItem('seum_restore_priority_done_v1', '1');
+        return;
+      }
+      var jobs = toRestore.map(function (t) {
+        return supa.from('contracts').update({ priority_done: true, is_urgent: t.isUrgent }).eq('local_id', t.id);
+      });
+      Promise.all(jobs)
+        .then(function (results) {
+          var anyError = results.some(function (r) { return r && r.error; });
+          if (anyError) {
+            console.error('restore priorityDone: some updates failed', results);
+            return;
+          }
+          console.log('restore priorityDone: restored ' + toRestore.length + ' contract(s) from local snapshot');
+          localStorage.setItem('seum_restore_priority_done_v1', '1');
+          try {
+            var cs2 = getContracts();
+            var changed = false;
+            cs2.forEach(function (c) {
+              if (!c) return;
+              var match = toRestore.find(function (t) { return t.id === c.id; });
+              if (match && !c.priorityDone) { c.priorityDone = true; changed = true; }
+            });
+            if (changed) {
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs2));
+              if (typeof renderDesignPriority === 'function') renderDesignPriority();
+            }
+          } catch (e) { console.error('restore priorityDone local apply failed:', e); }
+        })
+        .catch(function (err) { console.error('restore priorityDone failed:', err); });
+    } catch (e) { console.error('restore priorityDone exception:', e); }
+  }
+
+  /**
    * 일회성 cleanup: 직전 v2 백필이 설계/시공 confirmed_by 에 salesPerson 을 잘못 넣은
    * 케이스를 되돌린다. 휴리스틱 — design_confirmed_by == salesPerson 이고 설계담당
    * 필드(designPermitDesigner/designContactName) 중 어느 것과도 일치하지 않으면
@@ -15253,6 +15324,8 @@
     syncEmployeesFromSupabase();
     // 팀 업무일지(team_reports + team_report_items) 도 Supabase 에서 동기화
     twRemoteSyncAll();
+    // sync 가 localStorage 를 덮어쓰기 전에 priorityDone=true 스냅샷 확보 (bulk upsert 사고 복구용)
+    snapshotPriorityDoneBeforeSync();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
     // 기존 계약들의 영업팀 확인(sales_confirmed) 일괄 체크 (브라우저당 1회)
@@ -15264,6 +15337,8 @@
     setTimeout(cleanupBadDesignConstructionConfirmedByOnce, 2200);
     // 설계팀/시공팀 확인 체크자 이름 백필 (브라우저당 1회)
     setTimeout(backfillDesignConstructionConfirmedByOnce, 3500);
+    // bulk upsert 사고로 DB 에서 리셋된 priorityDone 을 로컬 스냅샷으로 복원 (브라우저당 1회)
+    setTimeout(restoreLocalPriorityDoneOnce, 4500);
     // 이름을 추적할 수 없는 설계/시공 체크는 해제 (담당자 누가 다시 체크하도록)
     setTimeout(cleanupUntrackedDesignConstructionConfirmedOnce, 5000);
     syncLgAppliancesFromSupabase();
