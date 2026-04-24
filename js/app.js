@@ -1244,6 +1244,70 @@
   }
 
   /**
+   * 일회성 복구 (2): DB 의 payload JSON 에는 priorityDone=true 가 남아있지만
+   * 전용 컬럼 priority_done 이 false 인 고아 레코드를 true 로 동기화.
+   * - 로컬 스냅샷이 비어있는 사용자에게서도 동작
+   * - 단방향 (true → true 만), false 리셋 안 함
+   * - 브라우저당 1회 (seum_restore_orphan_priority_done_v1)
+   */
+  function restoreOrphanedPriorityDoneOnce() {
+    try {
+      if (localStorage.getItem('seum_restore_orphan_priority_done_v1') === '1') return;
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa.from('contracts')
+        .select('local_id,payload')
+        .eq('priority_done', false)
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('orphan priorityDone scan error:', res.error);
+            return;
+          }
+          var candidates = res.data
+            .filter(function (row) {
+              var p = row.payload;
+              return p && p.priorityDone === true && p.depositReceivedAt;
+            })
+            .map(function (row) {
+              return { id: row.local_id, isUrgent: !!(row.payload && row.payload.isUrgent) };
+            });
+          if (!candidates.length) {
+            localStorage.setItem('seum_restore_orphan_priority_done_v1', '1');
+            return;
+          }
+          var jobs = candidates.map(function (t) {
+            return supa.from('contracts').update({ priority_done: true, is_urgent: t.isUrgent }).eq('local_id', t.id);
+          });
+          Promise.all(jobs)
+            .then(function (results) {
+              var anyError = results.some(function (r) { return r && r.error; });
+              if (anyError) {
+                console.error('orphan priorityDone restore: some updates failed', results);
+                return;
+              }
+              console.log('orphan priorityDone restore: restored ' + candidates.length + ' contract(s) from payload');
+              localStorage.setItem('seum_restore_orphan_priority_done_v1', '1');
+              try {
+                var cs = getContracts();
+                var changed = false;
+                cs.forEach(function (c) {
+                  if (!c) return;
+                  var match = candidates.find(function (t) { return t.id === c.id; });
+                  if (match && !c.priorityDone) { c.priorityDone = true; changed = true; }
+                });
+                if (changed) {
+                  localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(cs));
+                  if (typeof renderDesignPriority === 'function') renderDesignPriority();
+                }
+              } catch (e) { console.error('orphan priorityDone local apply failed:', e); }
+            })
+            .catch(function (err) { console.error('orphan priorityDone restore failed:', err); });
+        })
+        .catch(function (err) { console.error('orphan priorityDone scan failed:', err); });
+    } catch (e) { console.error('orphan priorityDone exception:', e); }
+  }
+
+  /**
    * 일회성 cleanup: 직전 v2 백필이 설계/시공 confirmed_by 에 salesPerson 을 잘못 넣은
    * 케이스를 되돌린다. 휴리스틱 — design_confirmed_by == salesPerson 이고 설계담당
    * 필드(designPermitDesigner/designContactName) 중 어느 것과도 일치하지 않으면
@@ -15339,6 +15403,8 @@
     setTimeout(backfillDesignConstructionConfirmedByOnce, 3500);
     // bulk upsert 사고로 DB 에서 리셋된 priorityDone 을 로컬 스냅샷으로 복원 (브라우저당 1회)
     setTimeout(restoreLocalPriorityDoneOnce, 4500);
+    // payload 에만 priorityDone=true 가 남은 고아 레코드를 전용 컬럼으로 동기화 (브라우저당 1회)
+    setTimeout(restoreOrphanedPriorityDoneOnce, 5500);
     // 이름을 추적할 수 없는 설계/시공 체크는 해제 (담당자 누가 다시 체크하도록)
     setTimeout(cleanupUntrackedDesignConstructionConfirmedOnce, 5000);
     syncLgAppliancesFromSupabase();
