@@ -629,6 +629,9 @@
       // construction_start_ok)은 savePriorityField/saveDesignStatusField/saveConfirmedFields
       // 로만 갱신한다. bulk upsert 에 포함하면 stale 한 로컬 값으로 다른 사용자의 최신
       // 상태를 덮어써 작업완료·긴급·확정 체크가 초기화되는 사고가 발생한다.
+      //
+      // is_deleted / deleted_at / deleted_by 도 동일한 이유로 절대 페이로드에 포함하지 말 것.
+      // 다른 사용자의 stale localStorage 로 인해 삭제된 계약이 부활하는 사고를 막는 핵심 방어막.
       var rows = data.map(function (c) {
         return {
           local_id: c.id || null,
@@ -1493,25 +1496,39 @@
     } catch (e) { console.error('backfill exception:', e); }
   }
 
-  /** ?? ???? (?? + Supabase contracts) */
+  /** 계약 삭제 (로컬 + Supabase contracts 소프트삭제)
+   *  - 하드 DELETE 를 쓰면 다른 사용자의 stale localStorage 가 saveContracts()
+   *    bulk upsert 로 INSERT 부활시키는 사고가 발생하므로 is_deleted=true 로
+   *    UPDATE 한다. saveContracts upsert 페이로드에는 is_deleted 가 없어
+   *    onConflict UPDATE 가 일어나도 삭제 플래그는 보존된다.
+   */
   function deleteContractById(contractId) {
     if (!contractId) return;
     var contracts = getContracts();
     var beforeLen = contracts.length;
     contracts = contracts.filter(function (c) { return c.id !== contractId; });
     if (contracts.length === beforeLen) return;
-    saveContracts(contracts);
+    // 로컬만 즉시 갱신 (saveContracts 는 전체 bulk upsert 로 stale 사고 위험이 커
+    // 삭제 경로에서는 호출하지 않는다)
+    localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts));
     try {
       var supa = typeof window !== 'undefined' && window.seumSupabase;
       if (supa) {
-        supa.from('contracts').delete().eq('local_id', contractId)
+        var deletedBy = '';
+        try {
+          var cu = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+          if (cu) deletedBy = cu.name || cu.employeeId || cu.email || '';
+        } catch (_) {}
+        supa.from('contracts')
+          .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: deletedBy })
+          .eq('local_id', contractId)
           .then(function (res) {
             if (res && res.error) {
-              console.error('Supabase contracts delete error:', res.error);
+              console.error('Supabase contracts soft-delete error:', res.error);
             }
           })
           .catch(function (err) {
-            console.error('Supabase contracts delete failed:', err);
+            console.error('Supabase contracts soft-delete failed:', err);
           });
       }
     } catch (e) {
@@ -1532,6 +1549,7 @@
       supa
         .from('contracts')
         .select('local_id,payload,priority_done,is_urgent,design_status,sales_confirmed,design_confirmed,construction_confirmed,final_approved,construction_start_ok,sales_confirmed_by,design_confirmed_by,construction_confirmed_by,final_approved_by,design_permit_designer,design_contact_name')
+        .eq('is_deleted', false)
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {
@@ -14363,6 +14381,7 @@
       return;
     }
     supabase.from('contracts').select('id, customer_id, sales_person, contract_amount, deposit, middle_payment, balance, status, created_at')
+      .eq('is_deleted', false)
       .order('id', { ascending: false })
       .then(function (res) {
         var list = res.data || [];
