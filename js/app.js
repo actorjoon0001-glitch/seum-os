@@ -646,6 +646,11 @@
       // is_deleted / deleted_at / deleted_by 도 동일한 이유로 절대 페이로드에 포함하지 말 것.
       // 다른 사용자의 stale localStorage 로 인해 삭제된 계약이 부활하는 사고를 막는 핵심 방어막.
       var rows = data.map(function (c) {
+        // 시공도면 URL(constructionDrawingAttachment) 은 별도 contract_drawings 테이블에서 관리한다.
+        // bulk upsert payload 에 포함하면 다른 사용자의 stale localStorage 가 다시 들어왔을 때
+        // 진짜 도면 URL 이 옛날 값으로 덮어씌워져 사라지는 사고가 발생한다.
+        var safePayload = Object.assign({}, c);
+        delete safePayload.constructionDrawingAttachment;
         return {
           local_id: c.id || null,
           showroom_id: c.showroomId || null,
@@ -654,7 +659,7 @@
           sales_person: c.salesPerson || null,
           customer_name: c.customerName || null,
           model_name: c.contractModelName || null,
-          payload: c
+          payload: safePayload
         };
       });
       supa.from('contracts').upsert(rows, { onConflict: 'local_id' })
@@ -670,6 +675,108 @@
     } catch (e) {
       console.error('Supabase contracts sync exception:', e);
     }
+  }
+
+  // ===== contract_drawings (시공/허가/토목/협의/설계 도면 메타데이터) =====
+  // saveContracts() 의 bulk upsert payload 가 stale 데이터로 덮어쓰여 도면이 사라지는
+  // 사고를 막기 위해 별도 테이블로 분리. 이번 단계에선 시공도면(kind='construction') 만
+  // 이전했고 나머지 종류는 후속 PR 에서 점진적으로 옮긴다.
+
+  /** 특정 계약의 도면 URL 배열을 contract_drawings 테이블에서 조회 */
+  function loadContractDrawings(contractId, kind) {
+    return new Promise(function (resolve) {
+      try {
+        var supa = typeof window !== 'undefined' && window.seumSupabase;
+        if (!supa || !contractId) { resolve([]); return; }
+        supa.from('contract_drawings')
+          .select('id,url,path,file_name,sort_order,uploaded_at')
+          .eq('contract_local_id', contractId)
+          .eq('kind', kind)
+          .order('sort_order', { ascending: true })
+          .order('uploaded_at', { ascending: true })
+          .then(function (res) {
+            if (res && res.error) {
+              console.error('contract_drawings load error:', res.error);
+              resolve([]);
+              return;
+            }
+            resolve((res && Array.isArray(res.data)) ? res.data : []);
+          })
+          .catch(function (err) {
+            console.error('contract_drawings load failed:', err);
+            resolve([]);
+          });
+      } catch (e) {
+        console.error('loadContractDrawings exception:', e);
+        resolve([]);
+      }
+    });
+  }
+
+  /** 도면 1건 INSERT (업로드 직후 호출) */
+  function insertContractDrawing(contractId, kind, info) {
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa || !contractId || !info || !info.url) return Promise.resolve(null);
+      var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+      var payload = {
+        contract_local_id: contractId,
+        kind: kind,
+        url: info.url,
+        path: info.path || null,
+        file_name: info.name || null,
+        uploaded_by: cur && cur.name ? cur.name : null,
+        sort_order: info.sortOrder != null ? Number(info.sortOrder) : 0
+      };
+      return supa.from('contract_drawings').insert(payload).select('id').single()
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('contract_drawings insert error:', res.error);
+            return null;
+          }
+          return res && res.data ? res.data : null;
+        })
+        .catch(function (err) {
+          console.error('contract_drawings insert failed:', err);
+          return null;
+        });
+    } catch (e) {
+      console.error('insertContractDrawing exception:', e);
+      return Promise.resolve(null);
+    }
+  }
+
+  /** 도면 1건 DELETE (URL 매칭) */
+  function deleteContractDrawingByUrl(contractId, kind, url) {
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa || !contractId || !url) return Promise.resolve(null);
+      return supa.from('contract_drawings')
+        .delete()
+        .eq('contract_local_id', contractId)
+        .eq('kind', kind)
+        .eq('url', url)
+        .then(function (res) {
+          if (res && res.error) {
+            console.error('contract_drawings delete error:', res.error);
+          }
+          return res;
+        })
+        .catch(function (err) {
+          console.error('contract_drawings delete failed:', err);
+          return null;
+        });
+    } catch (e) {
+      console.error('deleteContractDrawingByUrl exception:', e);
+      return Promise.resolve(null);
+    }
+  }
+
+  /** 특정 계약의 시공도면 URL 들을 '|' 구분 문자열로 조회 */
+  function fetchConstructionDrawingsAsString(contractId) {
+    return loadContractDrawings(contractId, 'construction').then(function (rows) {
+      return rows.map(function (r) { return r.url; }).filter(function (u) { return !!u; }).join('|');
+    });
   }
 
   /** LG가전 사은품 발주 — localStorage 기반 저장 */
@@ -1595,6 +1702,8 @@
                 if (row.final_approved_by !== undefined) c.finalApprovedBy = row.final_approved_by || '';
                 if (row.design_permit_designer !== undefined) c.designPermitDesigner = row.design_permit_designer || '';
                 if (row.design_contact_name !== undefined) c.designContactName = row.design_contact_name || '';
+                // 시공도면은 contract_drawings 테이블이 진실의 출처(아래에서 보강)
+                c.constructionDrawingAttachment = '';
               }
               return c;
             })
@@ -1610,6 +1719,43 @@
           } catch (e) {
             console.error('Render after contracts sync failed:', e);
           }
+
+          // 시공도면 메타데이터를 contract_drawings 테이블에서 추가 fetch 하여 보강.
+          // contracts payload 와 분리되어 있어 stale 덮어쓰기로부터 안전.
+          supa.from('contract_drawings')
+            .select('contract_local_id,url,sort_order,uploaded_at')
+            .eq('kind', 'construction')
+            .order('sort_order', { ascending: true })
+            .order('uploaded_at', { ascending: true })
+            .then(function (dRes) {
+              if (!dRes || dRes.error || !Array.isArray(dRes.data)) {
+                if (dRes && dRes.error) console.error('contract_drawings load error:', dRes.error);
+                return;
+              }
+              var byContract = {};
+              dRes.data.forEach(function (d) {
+                if (!d.contract_local_id || !d.url) return;
+                if (!byContract[d.contract_local_id]) byContract[d.contract_local_id] = [];
+                byContract[d.contract_local_id].push(d.url);
+              });
+              var contractsList = JSON.parse(localStorage.getItem(STORAGE_CONTRACTS) || '[]');
+              var changed = false;
+              contractsList.forEach(function (c) {
+                var urls = byContract[c.id];
+                if (urls && urls.length) {
+                  c.constructionDrawingAttachment = urls.join('|');
+                  changed = true;
+                }
+              });
+              if (changed) {
+                localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contractsList));
+                try {
+                  renderSales();
+                  renderDesign();
+                } catch (e) { /* 섹션 미진입 상태면 무시 */ }
+              }
+            })
+            .catch(function (err) { console.error('contract_drawings fetch failed:', err); });
         })
         .catch(function (err) {
           console.error('Supabase contracts load failed:', err);
@@ -6029,11 +6175,19 @@
           Promise.all(files.map(function (file) {
             return uploadConstructionDrawingAttachment(contractId, file);
           })).then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) {
               window.alert('업로드에 실패했습니다.');
               return;
             }
+            // contract_drawings 테이블에 메타데이터 INSERT (진실의 출처)
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, 'construction', {
+                url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx
+              });
+            });
             var liveForm2 = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
             var liveInp2 = liveForm2 && liveForm2.querySelector('.design-inline-construction-drawing');
             var contracts = getContracts();
@@ -6044,7 +6198,9 @@
             var newVal = serializeDrawingUrls(existingUrls);
             if (c) {
               c.constructionDrawingAttachment = newVal;
-              saveContracts(contracts);
+              // 시공도면은 contract_drawings 가 진실의 출처라 saveContracts 의 payload 에선 제외되지만,
+              // 다른 화면 갱신을 위해 localStorage 는 함께 갱신한다.
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts));
             }
             if (liveInp2) {
               liveInp2.value = newVal;
@@ -6304,6 +6460,7 @@
         if (!inputEl) return;
         var urls = parseDrawingUrls(inputEl.value || '');
         if (idx < 0 || idx >= urls.length) return;
+        var deletedUrl = urls[idx];
         urls.splice(idx, 1);
         inputEl.value = serializeDrawingUrls(urls);
         refreshDrawingFileListForInput(inputEl, list);
@@ -6324,7 +6481,10 @@
               } else if (inputEl.classList.contains('design-inline-drawing-3')) {
                 c.designDrawing3Attachment = urls.length ? urls[0] : '';
               } else if (inputEl.classList.contains('design-inline-construction-drawing')) {
-                c.constructionDrawingAttachment = urls.length ? urls[0] : '';
+                // 시공도면은 다중 파일이라 전체 직렬화 값을 유지해야 한다(이전 코드는 첫 URL 만 남기는 버그였음)
+                c.constructionDrawingAttachment = serializeDrawingUrls(urls);
+                // contract_drawings 테이블에서도 해당 URL 1건 제거
+                if (deletedUrl) deleteContractDrawingByUrl(contractId, 'construction', deletedUrl);
               }
               saveContracts(contracts);
             }
