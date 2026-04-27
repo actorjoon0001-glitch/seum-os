@@ -7718,35 +7718,35 @@
     if (tbodyEmp) {
       var supa = typeof window !== 'undefined' && window.seumSupabase;
       if (supa) {
-        tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">불러오는 중...</td></tr>';
+        tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">불러오는 중...</td></tr>';
         supa.from('employees')
-          .select('id, name, team, showroom, phone, hire_date, position_name')
+          .select('id, name, team, showroom, phone, hire_date')
           .order('team', { ascending: true })
           .order('name', { ascending: true })
           .then(function (res) {
             if (res && res.error) {
-              tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
+              tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
               console.error('renderHR employees load error:', res.error);
               return;
             }
             var rows = (res && Array.isArray(res.data)) ? res.data : [];
             tbodyEmp.innerHTML = rows.map(function (e) {
+              var hireVal = e.hire_date ? String(e.hire_date).slice(0, 10) : '';
               return '<tr>' +
                 '<td>' + escapeHtml(e.name || '-') + '</td>' +
                 '<td>' + escapeHtml(e.team || '-') + '</td>' +
                 '<td>' + escapeHtml(getShowroomName(e.showroom)) + '</td>' +
                 '<td>' + escapeHtml(e.phone || '-') + '</td>' +
-                '<td>' + escapeHtml(formatDate(e.hire_date)) + '</td>' +
-                '<td>' + escapeHtml(e.position_name || '-') + '</td>' +
+                '<td><input type="date" class="hr-hire-date" data-emp-id="' + escapeAttr(String(e.id)) + '" value="' + escapeAttr(hireVal) + '"></td>' +
               '</tr>';
-            }).join('') || '<tr><td colspan="6" style="text-align:center;color:#888;">등록된 직원이 없습니다.</td></tr>';
+            }).join('') || '<tr><td colspan="5" style="text-align:center;color:#888;">등록된 직원이 없습니다.</td></tr>';
           })
           .catch(function (err) {
-            tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
+            tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
             console.error('renderHR employees load failed:', err);
           });
       } else {
-        tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">Supabase 연결이 필요합니다.</td></tr>';
+        tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">Supabase 연결이 필요합니다.</td></tr>';
       }
     }
     if (leaveSelect) {
@@ -14543,6 +14543,36 @@
       });
     }
     if (btnCancel && form) btnCancel.addEventListener('click', function () { form.classList.add('hidden'); });
+
+    var hrTbody = document.getElementById('tbody-employees');
+    if (hrTbody && !hrTbody._hireDateBound) {
+      hrTbody._hireDateBound = true;
+      hrTbody.addEventListener('change', function (e) {
+        var input = e.target && e.target.classList && e.target.classList.contains('hr-hire-date') ? e.target : null;
+        if (!input) return;
+        var empId = input.getAttribute('data-emp-id');
+        if (!empId) return;
+        var supa = window.seumSupabase;
+        if (!supa) return;
+        var newVal = input.value || null;
+        input.disabled = true;
+        supa.from('employees').update({ hire_date: newVal }).eq('id', empId)
+          .then(function (res) {
+            input.disabled = false;
+            if (res && res.error) {
+              console.error('hire_date update error:', res.error);
+              showToast && showToast('입사일 저장에 실패했습니다.', 'error');
+              return;
+            }
+            showToast && showToast('입사일이 저장되었습니다.');
+          })
+          .catch(function (err) {
+            input.disabled = false;
+            console.error('hire_date update failed:', err);
+            showToast && showToast('입사일 저장에 실패했습니다.', 'error');
+          });
+      });
+    }
 
     var btnAddLeave = document.getElementById('btn-add-leave');
     var formLeave = document.getElementById('form-leave');
