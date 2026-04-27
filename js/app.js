@@ -646,11 +646,16 @@
       // is_deleted / deleted_at / deleted_by 도 동일한 이유로 절대 페이로드에 포함하지 말 것.
       // 다른 사용자의 stale localStorage 로 인해 삭제된 계약이 부활하는 사고를 막는 핵심 방어막.
       var rows = data.map(function (c) {
-        // 시공도면 URL(constructionDrawingAttachment) 은 별도 contract_drawings 테이블에서 관리한다.
+        // 도면 URL 들은 별도 contract_drawings 테이블에서 관리한다.
         // bulk upsert payload 에 포함하면 다른 사용자의 stale localStorage 가 다시 들어왔을 때
         // 진짜 도면 URL 이 옛날 값으로 덮어씌워져 사라지는 사고가 발생한다.
         var safePayload = Object.assign({}, c);
         delete safePayload.constructionDrawingAttachment;
+        delete safePayload.permitDrawingAttachment;
+        delete safePayload.civilDrawingAttachment;
+        delete safePayload.designDrawingAttachment;
+        delete safePayload.designDrawing2Attachment;
+        delete safePayload.designDrawing3Attachment;
         return {
           local_id: c.id || null,
           showroom_id: c.showroomId || null,
@@ -1702,8 +1707,13 @@
                 if (row.final_approved_by !== undefined) c.finalApprovedBy = row.final_approved_by || '';
                 if (row.design_permit_designer !== undefined) c.designPermitDesigner = row.design_permit_designer || '';
                 if (row.design_contact_name !== undefined) c.designContactName = row.design_contact_name || '';
-                // 시공도면은 contract_drawings 테이블이 진실의 출처(아래에서 보강)
+                // 도면들은 contract_drawings 테이블이 진실의 출처(아래에서 보강)
                 c.constructionDrawingAttachment = '';
+                c.permitDrawingAttachment = '';
+                c.civilDrawingAttachment = '';
+                c.designDrawingAttachment = '';
+                c.designDrawing2Attachment = '';
+                c.designDrawing3Attachment = '';
               }
               return c;
             })
@@ -1720,11 +1730,18 @@
             console.error('Render after contracts sync failed:', e);
           }
 
-          // 시공도면 메타데이터를 contract_drawings 테이블에서 추가 fetch 하여 보강.
+          // 도면 메타데이터를 contract_drawings 테이블에서 추가 fetch 하여 보강.
           // contracts payload 와 분리되어 있어 stale 덮어쓰기로부터 안전.
+          var KIND_TO_FIELD = {
+            construction: 'constructionDrawingAttachment',
+            permit:       'permitDrawingAttachment',
+            civil:        'civilDrawingAttachment',
+            design1:      'designDrawingAttachment',
+            design2:      'designDrawing2Attachment',
+            design3:      'designDrawing3Attachment'
+          };
           supa.from('contract_drawings')
-            .select('contract_local_id,url,sort_order,uploaded_at')
-            .eq('kind', 'construction')
+            .select('contract_local_id,kind,url,sort_order,uploaded_at')
             .order('sort_order', { ascending: true })
             .order('uploaded_at', { ascending: true })
             .then(function (dRes) {
@@ -1732,20 +1749,26 @@
                 if (dRes && dRes.error) console.error('contract_drawings load error:', dRes.error);
                 return;
               }
+              // byContract[id][kind] = [url1, url2, ...]
               var byContract = {};
               dRes.data.forEach(function (d) {
-                if (!d.contract_local_id || !d.url) return;
-                if (!byContract[d.contract_local_id]) byContract[d.contract_local_id] = [];
-                byContract[d.contract_local_id].push(d.url);
+                if (!d.contract_local_id || !d.url || !d.kind) return;
+                if (!KIND_TO_FIELD[d.kind]) return;
+                if (!byContract[d.contract_local_id]) byContract[d.contract_local_id] = {};
+                if (!byContract[d.contract_local_id][d.kind]) byContract[d.contract_local_id][d.kind] = [];
+                byContract[d.contract_local_id][d.kind].push(d.url);
               });
               var contractsList = JSON.parse(localStorage.getItem(STORAGE_CONTRACTS) || '[]');
               var changed = false;
               contractsList.forEach(function (c) {
-                var urls = byContract[c.id];
-                if (urls && urls.length) {
-                  c.constructionDrawingAttachment = urls.join('|');
+                var perKind = byContract[c.id];
+                if (!perKind) return;
+                Object.keys(perKind).forEach(function (kind) {
+                  var field = KIND_TO_FIELD[kind];
+                  if (!field) return;
+                  c[field] = perKind[kind].join('|');
                   changed = true;
-                }
+                });
               });
               if (changed) {
                 localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contractsList));
@@ -6121,14 +6144,25 @@
           var fieldKey = selector === '.design-inline-drawing' ? 'designDrawingAttachment'
             : selector === '.design-inline-drawing-2' ? 'designDrawing2Attachment'
               : 'designDrawing3Attachment';
+          var drawingKind = selector === '.design-inline-drawing' ? 'design1'
+            : selector === '.design-inline-drawing-2' ? 'design2'
+              : 'design3';
           Promise.all(files.map(function (file) {
             return uploadDesignDrawingAttachment(contractId, file);
           })).then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) {
               window.alert('업로드에 실패했습니다.');
               return;
             }
+            // contract_drawings 테이블에 INSERT (진실의 출처)
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, drawingKind, {
+                url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx
+              });
+            });
             // 현재 DOM이 살아있으면 라이브 input 값 사용, 아니면 localStorage 사용
             var liveForm = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
             var liveInp = liveForm && liveForm.querySelector(selector);
@@ -6140,7 +6174,7 @@
             var newVal = serializeDrawingUrls(existingUrls);
             if (c) {
               c[fieldKey] = newVal;
-              saveContracts(contracts);
+              localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts));
             }
             if (liveInp) {
               liveInp.value = newVal;
@@ -6232,8 +6266,16 @@
           Promise.all(files.map(function (file) {
             return uploadStageDrawingAttachment(kind, contractId, file);
           })).then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
+            // contract_drawings 테이블에 INSERT (진실의 출처)
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, kind, {
+                url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx
+              });
+            });
             var liveForm = document.querySelector('.design-detail-row[data-detail-for="' + contractId + '"] form');
             var liveInp = liveForm && liveForm.querySelector(inputSel);
             var contracts = getContracts();
@@ -6242,7 +6284,7 @@
             var existingUrls = parseDrawingUrls(baseVal);
             existingUrls = existingUrls.concat(urls);
             var newVal = serializeDrawingUrls(existingUrls);
-            if (c) { c[field] = newVal; saveContracts(contracts); }
+            if (c) { c[field] = newVal; localStorage.setItem(STORAGE_CONTRACTS, JSON.stringify(contracts)); }
             if (liveInp) {
               liveInp.value = newVal;
               var listEl = liveForm.querySelector('.drawing-file-list[data-input-selector="' + inputSel + '"]');
@@ -6464,11 +6506,17 @@
         urls.splice(idx, 1);
         inputEl.value = serializeDrawingUrls(urls);
         refreshDrawingFileListForInput(inputEl, list);
-        // 모달 폼 시공도면(design-construction-drawing-list) 삭제 시 contract_drawings 동기화
-        if (list.id === 'design-construction-drawing-list' && deletedUrl) {
+        // 모달 폼 도면 리스트 삭제 시 contract_drawings 동기화 (list.id 별 kind 매핑)
+        var modalListToKind = {
+          'design-drawing-list-1': 'design1',
+          'design-drawing-list-2': 'design2',
+          'design-drawing-list-3': 'design3',
+          'design-construction-drawing-list': 'construction'
+        };
+        if (modalListToKind[list.id] && deletedUrl) {
           var modalContractId = (document.getElementById('design-contract-id') || {}).value || '';
           if (modalContractId) {
-            deleteContractDrawingByUrl(modalContractId, 'construction', deletedUrl);
+            deleteContractDrawingByUrl(modalContractId, modalListToKind[list.id], deletedUrl);
           }
         }
         // ???????? ?????? ????????, ?? ?? ??????????
@@ -6480,18 +6528,19 @@
             var contracts = getContracts();
             var c = contracts.find(function (x) { return x.id === contractId; });
             if (c) {
-              // ??? ?????????? selector/id????? ??
-              if (inputEl.classList.contains('design-inline-drawing')) {
-                c.designDrawingAttachment = urls.length ? urls[0] : '';
-              } else if (inputEl.classList.contains('design-inline-drawing-2')) {
-                c.designDrawing2Attachment = urls.length ? urls[0] : '';
-              } else if (inputEl.classList.contains('design-inline-drawing-3')) {
-                c.designDrawing3Attachment = urls.length ? urls[0] : '';
-              } else if (inputEl.classList.contains('design-inline-construction-drawing')) {
-                // 시공도면은 다중 파일이라 전체 직렬화 값을 유지해야 한다(이전 코드는 첫 URL 만 남기는 버그였음)
-                c.constructionDrawingAttachment = serializeDrawingUrls(urls);
-                // contract_drawings 테이블에서도 해당 URL 1건 제거
-                if (deletedUrl) deleteContractDrawingByUrl(contractId, 'construction', deletedUrl);
+              // 인라인 폼: 모든 도면을 다중 파일로 다루고, 전체 직렬화 값 유지 + contract_drawings 동기화
+              var inlineKindMap = [
+                { cls: 'design-inline-drawing',              field: 'designDrawingAttachment',     kind: 'design1' },
+                { cls: 'design-inline-drawing-2',            field: 'designDrawing2Attachment',    kind: 'design2' },
+                { cls: 'design-inline-drawing-3',            field: 'designDrawing3Attachment',    kind: 'design3' },
+                { cls: 'design-inline-permit-drawing',       field: 'permitDrawingAttachment',     kind: 'permit' },
+                { cls: 'design-inline-civil-drawing',        field: 'civilDrawingAttachment',      kind: 'civil' },
+                { cls: 'design-inline-construction-drawing', field: 'constructionDrawingAttachment', kind: 'construction' }
+              ];
+              var matched = inlineKindMap.find(function (m) { return inputEl.classList.contains(m.cls); });
+              if (matched) {
+                c[matched.field] = serializeDrawingUrls(urls);
+                if (deletedUrl) deleteContractDrawingByUrl(contractId, matched.kind, deletedUrl);
               }
               saveContracts(contracts);
             }
@@ -9323,8 +9372,13 @@
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
           .then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, 'design1', { url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx });
+            });
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
@@ -9356,8 +9410,13 @@
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
           .then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, 'design2', { url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx });
+            });
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
@@ -9389,8 +9448,13 @@
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadDesignDrawingAttachment(contractId, file); }))
           .then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, 'design3', { url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx });
+            });
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
