@@ -7717,8 +7717,7 @@
     var leaveSelect = document.getElementById('leave-employee-id');
     if (tbodyEmp) {
       tbodyEmp.innerHTML = employees.map(function (e) {
-        var permLabel = e.permission === 'manager' ? '매니저' : (e.permission === 'admin' ? '관리자' : '-');
-        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + permLabel + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
+        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
       }).join('') || '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
     }
     if (leaveSelect) {
