@@ -85,6 +85,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.0/dist/umd/supabase.js"></script>
+  <!-- 카카오맵 SDK (현장 파악 화면에서 사용). autoload=false 로 두고 kakao.maps.load() 로 명시 초기화 -->
+  <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5abeb2a7d5df5fa6736fd56b73a17690&libraries=services&autoload=false"></script>
   <script>
     // 이전에 등록됐던 stale Service Worker 가 오래된 자원을 서빙하는 문제가
     // 반복적으로 발생해, 등록된 SW 를 모두 해제하고 관련 캐시를 비운다.
@@ -2007,6 +2009,21 @@
           <div class="stat-card-value" id="csstat-done">0</div>
           <div class="stat-card-sub">시공 완료</div>
         </div>
+      </div>
+
+      <!-- 현장 위치 지도 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>현장 위치 지도</h3>
+          <div class="cs-map-legend">
+            <span><i class="cs-dot cs-dot-normal"></i>정상 진행</span>
+            <span><i class="cs-dot cs-dot-warn"></i>지연 우려</span>
+            <span><i class="cs-dot cs-dot-pending"></i>착공 예정</span>
+            <span><i class="cs-dot cs-dot-done"></i>완료</span>
+          </div>
+        </div>
+        <div id="construction-sites-map" class="construction-sites-map"></div>
+        <div id="construction-sites-map-status" class="cs-map-status"></div>
       </div>
 
       <!-- 현장 카드 목록 -->
@@ -5211,7 +5228,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260427-12"></script>
+  <script src="js/app.js?v=20260427-13"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
