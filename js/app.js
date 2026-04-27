@@ -313,6 +313,11 @@
       return isConstruction || isDesign || isMarketing || isSettlement || isSales;
     }
 
+    // 현장 파악: 시공팀 + 영업팀 + master/admin (다른 팀도 조회 가능)
+    if (sectionId === 'construction-sites') {
+      return isConstruction || isDesign || isSales || isSettlement || isMarketing;
+    }
+
     // 시공 업무일지: 시공팀 + 관리자만 접근
     if (sectionId === 'construction-worklog') {
       return isConstruction;
@@ -7043,6 +7048,159 @@
   }
 
   // =====================================================================
+  // 현장 파악 (Construction Sites Overview) — 1단계: 통계 + 카드 목록
+  // 후속 단계: 지도, 일일 보고/사진, 인력 배치
+  // =====================================================================
+  var _csTypeFilter = '';   // '' | 컨테이너/농막 | 체류형쉼터 | 전원주택 | 기타
+  var _csSearch = '';
+  var _csTabsWired = false;
+  var _csSearchWired = false;
+
+  function getSiteStatusInfo(c) {
+    var progress = (c.constructionProgress || '착공전').trim();
+    if (progress === '완료') return { key: 'done', label: '완료', cls: 'cs-badge-done' };
+    if (progress === '착공전') return { key: 'pending', label: '착공 예정', cls: 'cs-badge-pending' };
+    // 진행중·착공: 지연 우려 룰 — 착공일이 60일 이상 지났는데 아직 진행중인 경우
+    var startStr = c.constructionStartDate || '';
+    if (startStr && progress !== '완료') {
+      var start = new Date(startStr);
+      if (!isNaN(start.getTime())) {
+        var days = Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (days >= 60) return { key: 'warn', label: '지연 우려', cls: 'cs-badge-warn' };
+      }
+    }
+    return { key: 'normal', label: '정상 진행', cls: 'cs-badge-normal' };
+  }
+
+  function getCsTypeKey(c) {
+    var t = (c.contractModel || '').trim();
+    if (t === '컨테이너/농막') return '컨테이너/농막';
+    if (t === '체류형쉼터')   return '체류형쉼터';
+    if (t === '전원주택')     return '전원주택';
+    return '기타';
+  }
+
+  function matchCsKeyword(c, kw) {
+    if (!kw) return true;
+    var k = kw.toLowerCase();
+    return [c.customerName, c.siteAddress, c.constructionManager, c.salesPerson, c.contractModelName]
+      .filter(Boolean)
+      .some(function (v) { return String(v).toLowerCase().indexOf(k) !== -1; });
+  }
+
+  function renderConstructionSitesOverview() {
+    var all = getContracts().filter(function (c) { return !!c.constructionStartOk; });
+
+    // 통계 위젯 (전시장/연월 필터 적용 후)
+    var scoped = filterByYearMonth(filterByShowroom(all, 'showroomId'), 'contractDate');
+    var stats = { active: 0, pending: 0, progress: 0, delayed: 0, done: 0 };
+    scoped.forEach(function (c) {
+      var p = (c.constructionProgress || '착공전').trim();
+      if (p === '착공전') stats.pending++;
+      else if (p === '진행중') stats.progress++;
+      else if (p === '완료') stats.done++;
+      if (p === '착공' || p === '진행중') stats.active++;
+      if (getSiteStatusInfo(c).key === 'warn') stats.delayed++;
+    });
+    var setStat = function (id, val) { var el = document.getElementById(id); if (el) el.textContent = String(val); };
+    setStat('csstat-active',   stats.active);
+    setStat('csstat-pending',  stats.pending);
+    setStat('csstat-progress', stats.progress);
+    setStat('csstat-delayed',  stats.delayed);
+    setStat('csstat-done',     stats.done);
+
+    // 검색 적용 (탭 카운트는 검색 적용 후·유형 미적용 기준)
+    var afterSearch = scoped.filter(function (c) { return matchCsKeyword(c, _csSearch); });
+    renderCsTypeTabs(afterSearch);
+
+    // 유형 적용 후 최종 목록
+    var list = afterSearch;
+    if (_csTypeFilter) {
+      list = list.filter(function (c) { return getCsTypeKey(c) === _csTypeFilter; });
+    }
+
+    var countEl = document.getElementById('construction-sites-count');
+    if (countEl) countEl.textContent = '총 ' + list.length + '건';
+
+    var grid = document.getElementById('construction-sites-grid');
+    if (!grid) return;
+    if (!list.length) {
+      grid.innerHTML = '<div class="cs-site-empty">' + (_csSearch ? '검색 결과가 없습니다.' : '현장 데이터가 없습니다. 시공현황에서 착공 가능 체크된 계약이 여기에 표시됩니다.') + '</div>';
+      return;
+    }
+    grid.innerHTML = list.map(function (c) {
+      var st = getSiteStatusInfo(c);
+      var siteName = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+      var addr = c.siteAddress || '-';
+      var stage = (c.constructionProgress || '착공전');
+      return '<div class="cs-site-card">' +
+        '<div class="cs-site-card-header">' +
+          '<div class="cs-site-name">' + escapeHtml(siteName) + '</div>' +
+          '<span class="cs-site-badge ' + st.cls + '">' + escapeHtml(st.label) + '</span>' +
+        '</div>' +
+        '<div class="cs-site-row"><span class="cs-label">주소</span><span class="cs-value">' + escapeHtml(addr) + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">전시장</span><span class="cs-value">' + escapeHtml(getShowroomName(c.showroomId)) + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">영업 담당</span><span class="cs-value">' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">현장소장</span><span class="cs-value">' + escapeHtml(c.constructionManager || '-') + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">착공일</span><span class="cs-value">' + escapeHtml(c.constructionStartDate || '-') + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">예상 준공</span><span class="cs-value">' + escapeHtml(c.expectedCompletionDate || '-') + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">진행 단계</span><span class="cs-value">' + escapeHtml(stage) + '</span></div>' +
+      '</div>';
+    }).join('');
+
+    wireCsSearchOnce();
+  }
+
+  function renderCsTypeTabs(contractsForCount) {
+    var el = document.getElementById('construction-sites-tabs');
+    if (!el) return;
+    var counts = { '컨테이너/농막': 0, '체류형쉼터': 0, '전원주택': 0, '기타': 0 };
+    (contractsForCount || []).forEach(function (c) { counts[getCsTypeKey(c)]++; });
+    var total = (contractsForCount || []).length;
+    var tabs = [
+      { key: '',              label: '전체',          count: total },
+      { key: '컨테이너/농막',   label: '컨테이너/농막',  count: counts['컨테이너/농막'] },
+      { key: '체류형쉼터',     label: '체류형쉼터',    count: counts['체류형쉼터'] },
+      { key: '전원주택',       label: '전원주택',      count: counts['전원주택'] },
+      { key: '기타',          label: '기타',          count: counts['기타'] }
+    ];
+    el.innerHTML = tabs.map(function (t) {
+      var cls = 'design-type-tab' + (_csTypeFilter === t.key ? ' active' : '');
+      return '<button type="button" class="' + cls + '" data-cs-type="' + escapeAttr(t.key) + '">' + escapeHtml(t.label) + ' <span class="tab-count">' + t.count + '</span></button>';
+    }).join('');
+    if (!_csTabsWired) {
+      _csTabsWired = true;
+      el.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-cs-type]');
+        if (!btn) return;
+        _csTypeFilter = btn.getAttribute('data-cs-type') || '';
+        renderConstructionSitesOverview();
+      });
+    }
+  }
+
+  function wireCsSearchOnce() {
+    if (_csSearchWired) return;
+    var input = document.getElementById('construction-sites-search');
+    var clearBtn = document.getElementById('construction-sites-search-clear');
+    if (!input) return;
+    _csSearchWired = true;
+    input.addEventListener('input', function () {
+      _csSearch = input.value || '';
+      if (clearBtn) clearBtn.classList.toggle('hidden', !_csSearch);
+      renderConstructionSitesOverview();
+    });
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        _csSearch = '';
+        input.value = '';
+        clearBtn.classList.add('hidden');
+        renderConstructionSitesOverview();
+      });
+    }
+  }
+
+  // =====================================================================
   // 발주팀 - 업체 템플릿 & 상수
   // =====================================================================
   var PROCUREMENT_VENDORS = [
@@ -11815,6 +11973,7 @@
     if (sectionId === 'design-drawings') renderDesignDrawings();
     if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'design-priority') renderDesignPriority();
+    if (sectionId === 'construction-sites') renderConstructionSitesOverview();
     if (sectionId === 'announcements') renderAnnouncementsPage();
     if (sectionId === 'admin-approval') renderAdminApproval();
     if (sectionId === 'admin-employees') renderAdminEmployees();

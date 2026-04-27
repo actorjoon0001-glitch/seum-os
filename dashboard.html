@@ -230,6 +230,7 @@
           </button>
           <div class="nav-submenu sidebar-sub collapsed" id="nav-construction-sub">
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction">시공현황</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="construction-sites">현장 파악</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="procurement">발주팀</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem nav-subitem-nested" data-section="procurement-list">└ 발주 리스트</a>
           </div>
@@ -1970,6 +1971,67 @@
             <tbody id="tbody-cw"></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <section id="section-construction-sites" class="content-section">
+      <header class="main-header">
+        <h2>현장 파악</h2>
+        <p class="section-desc">본사에서 진행 중인 모든 현장의 위치·진행상황·인력 배치를 한눈에 확인합니다. 현장소장은 모바일에서 일일 보고를 올립니다.</p>
+      </header>
+
+      <!-- 시공팀 대시보드: 통계 위젯 -->
+      <div class="construction-sites-stats" id="construction-sites-stats">
+        <div class="stat-card stat-card-active">
+          <div class="stat-card-label">현재 시공 중</div>
+          <div class="stat-card-value" id="csstat-active">0</div>
+          <div class="stat-card-sub">착공·진행중 합계</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">착공 예정</div>
+          <div class="stat-card-value" id="csstat-pending">0</div>
+          <div class="stat-card-sub">착공 가능 / 착공전</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">진행중</div>
+          <div class="stat-card-value" id="csstat-progress">0</div>
+          <div class="stat-card-sub">진행중 단계</div>
+        </div>
+        <div class="stat-card stat-card-warn">
+          <div class="stat-card-label">지연 우려</div>
+          <div class="stat-card-value" id="csstat-delayed">0</div>
+          <div class="stat-card-sub">착공 60일↑·진행중</div>
+        </div>
+        <div class="stat-card stat-card-muted">
+          <div class="stat-card-label">완료</div>
+          <div class="stat-card-value" id="csstat-done">0</div>
+          <div class="stat-card-sub">시공 완료</div>
+        </div>
+      </div>
+
+      <!-- 현장 카드 목록 -->
+      <div class="card">
+        <div class="card-header">
+          <h3>현장 목록</h3>
+          <div class="card-header-extra">
+            <span id="construction-sites-count" class="section-desc" style="margin:0;"></span>
+          </div>
+        </div>
+        <div id="construction-sites-tabs" class="design-type-tabs"></div>
+        <div class="contract-filter-bar">
+          <div class="filter-item filter-item-search">
+            <label for="construction-sites-search">검색</label>
+            <div class="contract-search-wrap">
+              <svg class="contract-search-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="#9CA3AF" stroke-width="1.6"/>
+                <line x1="12.5" y1="12.5" x2="17" y2="17" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <input type="text" id="construction-sites-search" class="contract-search-input" placeholder="건축주명, 주소, 현장소장, 영업담당 검색" autocomplete="off">
+              <button type="button" class="contract-search-clear hidden" id="construction-sites-search-clear" title="검색어 초기화" aria-label="검색어 초기화">✕</button>
+            </div>
+          </div>
+        </div>
+        <div id="construction-sites-grid" class="construction-sites-grid"></div>
       </div>
     </section>
 
@@ -5149,7 +5211,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260427-11"></script>
+  <script src="js/app.js?v=20260427-12"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
