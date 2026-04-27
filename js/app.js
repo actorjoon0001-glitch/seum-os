@@ -79,6 +79,10 @@
     if (byId) return byId.id;
     var byName = SHOWROOMS.find(function (s) { return (s.name || '') === raw; });
     if (byName) return byName.id;
+    // 단축/구버전 표기 보정: '본사' → 'headquarters'
+    // (SHOWROOMS.name 이 '본사 전시장' 이라 '본사' 만 저장된 직원 데이터는
+    //  byName 매칭 실패 → headquarters 권한이 본사 사용자에게 적용되지 않음)
+    if (raw === '본사') return 'headquarters';
     return raw;
   }
 
@@ -204,7 +208,16 @@
     if (!cur) return false;
     var role = (cur.role || '').toLowerCase();
     var permission = (cur.permission || '').toLowerCase();
-    return role === 'master' || permission === 'master';
+    if (role === 'master' || permission === 'master') return true;
+    // Supabase RPC가 permission을 반환하지 않는 경우 localStorage에서 보완 조회
+    // (isAdmin 과 동일한 패턴 — 누락 시 master 가 일반 사용자처럼 본인 전시장만
+    //  보이는 사고 방지)
+    try {
+      var employees = JSON.parse(localStorage.getItem('seum_employees') || '[]');
+      var myEmp = employees.find(function (e) { return (e.name || '') === (cur.name || ''); });
+      if (myEmp && ((myEmp.permission || '').toLowerCase() === 'master' || (myEmp.role || '').toLowerCase() === 'master')) return true;
+    } catch (e) {}
+    return false;
   }
 
   function isManager() {
