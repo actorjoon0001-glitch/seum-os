@@ -2917,17 +2917,14 @@
       </header>
       <div class="card">
         <div class="card-header">
-          <h3>직원 목록</h3>
-          <span class="section-desc" style="margin:0;">직원 데이터는 Supabase 에서 자동으로 표시됩니다. 추가·수정은 관리 &gt; 직원 관리에서 합니다.</span>
+          <h3>직원 목록 <span id="hr-employees-count" class="section-desc" style="margin-left:8px;font-weight:normal;"></span></h3>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="btn btn-sm btn-secondary" id="hr-emp-expand-all">모두 펼치기</button>
+            <button type="button" class="btn btn-sm btn-secondary" id="hr-emp-collapse-all">모두 접기</button>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>이름</th><th>소속 팀</th><th>전시장</th><th>연락처</th><th>입사일</th></tr>
-            </thead>
-            <tbody id="tbody-employees"></tbody>
-          </table>
-        </div>
+        <p class="section-desc" style="margin:0 0 12px 4px;">전시장 · 팀 단위로 그룹화해 표시합니다. 입사일은 직접 입력하면 자동 저장됩니다. 추가·수정은 관리 &gt; 직원 관리에서 합니다.</p>
+        <div id="hr-employees-groups" class="admin-emp-groups"></div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -5160,7 +5157,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260427-06"></script>
+  <script src="js/app.js?v=20260427-07"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>

@@ -7709,46 +7709,115 @@
     tbody.innerHTML = rows.join('') + totalRow || '<tr><td colspan="7">이번 달 계약 데이터가 없습니다. 인센티브를 계산할 수 없습니다.</td></tr>';
   }
 
+  var _hrEmpState = { all: [], collapsed: {} };
+
+  function _hrEmpDrawGroups() {
+    var groupsEl = document.getElementById('hr-employees-groups');
+    var countEl = document.getElementById('hr-employees-count');
+    if (!groupsEl) return;
+    var list = _hrEmpState.all || [];
+    if (countEl) countEl.textContent = list.length ? '총 ' + list.length + '명' : '';
+    if (!list.length) {
+      groupsEl.innerHTML = '<div class="admin-emp-empty">표시할 직원이 없습니다.</div>';
+      return;
+    }
+    var byShowroom = {};
+    list.forEach(function (e) {
+      var sr = e.showroom || '_unassigned';
+      if (!byShowroom[sr]) byShowroom[sr] = [];
+      byShowroom[sr].push(e);
+    });
+    var showroomOrder = (typeof _adminEmpGetShowroomKeys === 'function' ? _adminEmpGetShowroomKeys(list) : Object.keys(byShowroom))
+      .filter(function (k) { return byShowroom[k] && byShowroom[k].length; });
+
+    groupsEl.innerHTML = showroomOrder.map(function (sr) {
+      var members = byShowroom[sr];
+      var byTeam = {};
+      members.forEach(function (e) {
+        var t = e.team || '_no_team';
+        if (!byTeam[t]) byTeam[t] = [];
+        byTeam[t].push(e);
+      });
+      var teamOrder = TEAM_OPTIONS.filter(function (t) { return byTeam[t]; });
+      Object.keys(byTeam).forEach(function (t) { if (teamOrder.indexOf(t) < 0) teamOrder.push(t); });
+
+      var collapsed = !!_hrEmpState.collapsed[sr];
+      var srName = (typeof _adminEmpShowroomLabel === 'function') ? _adminEmpShowroomLabel(sr) : (getShowroomName(sr) || sr);
+      var teamBlocks = collapsed ? '' : teamOrder.map(function (t) {
+        var teamName = t === '_no_team' ? '팀 미배정' : t + '팀';
+        return (
+          '<div class="admin-emp-team-block">' +
+            '<div class="admin-emp-team-header">' +
+              '<span class="admin-emp-team-name">' + escapeHtml(teamName) + '</span>' +
+              '<span class="admin-emp-team-count">' + byTeam[t].length + '명</span>' +
+            '</div>' +
+            '<div class="table-wrap">' +
+              '<table class="data-table admin-emp-table">' +
+                '<thead><tr><th style="width:18%;">이름</th><th style="width:14%;">소속 팀</th><th style="width:18%;">전시장</th><th style="width:22%;">연락처</th><th style="width:28%;">입사일</th></tr></thead>' +
+                '<tbody>' + byTeam[t].map(function (emp) {
+                  var hireVal = emp.hire_date ? String(emp.hire_date).slice(0, 10) : '';
+                  return '<tr data-id="' + escapeAttr(String(emp.id)) + '">' +
+                    '<td><strong>' + escapeHtml(emp.name || '-') + '</strong></td>' +
+                    '<td>' + escapeHtml(emp.team || '-') + '</td>' +
+                    '<td>' + escapeHtml(getShowroomName(emp.showroom)) + '</td>' +
+                    '<td>' + escapeHtml(emp.phone || '-') + '</td>' +
+                    '<td><input type="date" class="hr-hire-date" data-emp-id="' + escapeAttr(String(emp.id)) + '" value="' + escapeAttr(hireVal) + '"></td>' +
+                  '</tr>';
+                }).join('') + '</tbody>' +
+              '</table>' +
+            '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      return (
+        '<div class="admin-emp-showroom-group' + (collapsed ? ' is-collapsed' : '') + '">' +
+          '<button type="button" class="admin-emp-showroom-header" data-hr-emp-toggle="' + escapeAttr(sr) + '">' +
+            '<span class="admin-emp-showroom-toggle">' + (collapsed ? '▶' : '▼') + '</span>' +
+            '<span class="admin-emp-showroom-name">' + escapeHtml(srName) + '</span>' +
+            '<span class="admin-emp-showroom-count">' + members.length + '명</span>' +
+          '</button>' +
+          teamBlocks +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function _renderHrEmployeeGroups() {
+    var groupsEl = document.getElementById('hr-employees-groups');
+    if (!groupsEl) return;
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa) {
+      groupsEl.innerHTML = '<div class="admin-emp-empty">Supabase 연결이 필요합니다.</div>';
+      return;
+    }
+    groupsEl.innerHTML = '<div class="admin-emp-empty">불러오는 중...</div>';
+    supa.from('employees')
+      .select('id, name, team, showroom, phone, hire_date')
+      .order('showroom', { ascending: true })
+      .order('team', { ascending: true })
+      .order('name', { ascending: true })
+      .then(function (res) {
+        if (res && res.error) {
+          groupsEl.innerHTML = '<div class="admin-emp-empty">직원 목록을 불러오지 못했습니다.</div>';
+          console.error('renderHR groups load error:', res.error);
+          return;
+        }
+        _hrEmpState.all = (res && Array.isArray(res.data)) ? res.data : [];
+        _hrEmpDrawGroups();
+      })
+      .catch(function (err) {
+        groupsEl.innerHTML = '<div class="admin-emp-empty">직원 목록을 불러오지 못했습니다.</div>';
+        console.error('renderHR groups load failed:', err);
+      });
+  }
+
   function renderHR() {
     var employees = getEmployees();
     var leaves = getLeaves();
-    var tbodyEmp = document.getElementById('tbody-employees');
     var tbodyLeaves = document.getElementById('tbody-leaves');
     var leaveSelect = document.getElementById('leave-employee-id');
-    if (tbodyEmp) {
-      var supa = typeof window !== 'undefined' && window.seumSupabase;
-      if (supa) {
-        tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">불러오는 중...</td></tr>';
-        supa.from('employees')
-          .select('id, name, team, showroom, phone, hire_date')
-          .order('team', { ascending: true })
-          .order('name', { ascending: true })
-          .then(function (res) {
-            if (res && res.error) {
-              tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
-              console.error('renderHR employees load error:', res.error);
-              return;
-            }
-            var rows = (res && Array.isArray(res.data)) ? res.data : [];
-            tbodyEmp.innerHTML = rows.map(function (e) {
-              var hireVal = e.hire_date ? String(e.hire_date).slice(0, 10) : '';
-              return '<tr>' +
-                '<td>' + escapeHtml(e.name || '-') + '</td>' +
-                '<td>' + escapeHtml(e.team || '-') + '</td>' +
-                '<td>' + escapeHtml(getShowroomName(e.showroom)) + '</td>' +
-                '<td>' + escapeHtml(e.phone || '-') + '</td>' +
-                '<td><input type="date" class="hr-hire-date" data-emp-id="' + escapeAttr(String(e.id)) + '" value="' + escapeAttr(hireVal) + '"></td>' +
-              '</tr>';
-            }).join('') || '<tr><td colspan="5" style="text-align:center;color:#888;">등록된 직원이 없습니다.</td></tr>';
-          })
-          .catch(function (err) {
-            tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
-            console.error('renderHR employees load failed:', err);
-          });
-      } else {
-        tbodyEmp.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;">Supabase 연결이 필요합니다.</td></tr>';
-      }
-    }
+    _renderHrEmployeeGroups();
     if (leaveSelect) {
       leaveSelect.innerHTML = '<option value="">선택</option>' + employees.map(function (e) {
         return '<option value="' + e.id + '">' + (e.name || '-') + '</option>';
@@ -14544,10 +14613,17 @@
     }
     if (btnCancel && form) btnCancel.addEventListener('click', function () { form.classList.add('hidden'); });
 
-    var hrTbody = document.getElementById('tbody-employees');
-    if (hrTbody && !hrTbody._hireDateBound) {
-      hrTbody._hireDateBound = true;
-      hrTbody.addEventListener('change', function (e) {
+    var hrGroupsEl = document.getElementById('hr-employees-groups');
+    if (hrGroupsEl && !hrGroupsEl._hrBound) {
+      hrGroupsEl._hrBound = true;
+      hrGroupsEl.addEventListener('click', function (e) {
+        var toggleBtn = e.target.closest && e.target.closest('[data-hr-emp-toggle]');
+        if (!toggleBtn) return;
+        var key = toggleBtn.getAttribute('data-hr-emp-toggle');
+        _hrEmpState.collapsed[key] = !_hrEmpState.collapsed[key];
+        _hrEmpDrawGroups();
+      });
+      hrGroupsEl.addEventListener('change', function (e) {
         var input = e.target && e.target.classList && e.target.classList.contains('hr-hire-date') ? e.target : null;
         if (!input) return;
         var empId = input.getAttribute('data-emp-id');
@@ -14564,6 +14640,9 @@
               showToast && showToast('입사일 저장에 실패했습니다.', 'error');
               return;
             }
+            // 로컬 상태도 갱신해 다른 렌더 시 반영되도록
+            var emp = (_hrEmpState.all || []).find(function (x) { return String(x.id) === String(empId); });
+            if (emp) emp.hire_date = newVal;
             showToast && showToast('입사일이 저장되었습니다.');
           })
           .catch(function (err) {
@@ -14571,6 +14650,27 @@
             console.error('hire_date update failed:', err);
             showToast && showToast('입사일 저장에 실패했습니다.', 'error');
           });
+      });
+    }
+    var hrExpandBtn = document.getElementById('hr-emp-expand-all');
+    if (hrExpandBtn && !hrExpandBtn._bound) {
+      hrExpandBtn._bound = true;
+      hrExpandBtn.addEventListener('click', function () {
+        _hrEmpState.collapsed = {};
+        _hrEmpDrawGroups();
+      });
+    }
+    var hrCollapseBtn = document.getElementById('hr-emp-collapse-all');
+    if (hrCollapseBtn && !hrCollapseBtn._bound) {
+      hrCollapseBtn._bound = true;
+      hrCollapseBtn.addEventListener('click', function () {
+        var collapsed = {};
+        (_hrEmpState.all || []).forEach(function (e) {
+          var sr = e.showroom || '_unassigned';
+          collapsed[sr] = true;
+        });
+        _hrEmpState.collapsed = collapsed;
+        _hrEmpDrawGroups();
       });
     }
 
