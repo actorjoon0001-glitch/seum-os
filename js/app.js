@@ -13196,8 +13196,6 @@
           document.getElementById('employee-name').value = emp.name || '';
           document.getElementById('employee-team').value = emp.team || '';
           document.getElementById('employee-showroom').value = emp.showroomId || '';
-          var empPermEl = document.getElementById('employee-permission');
-          if (empPermEl) empPermEl.value = emp.permission || '';
           document.getElementById('employee-phone').value = emp.phone || '';
           document.getElementById('employee-join-date').value = emp.joinDate || '';
           document.getElementById('employee-memo').value = emp.memo || '';
@@ -14494,12 +14492,10 @@
         e.preventDefault();
         var empId = document.getElementById('employee-id').value;
         var employees = getEmployees();
-        var empPermSave = document.getElementById('employee-permission');
         var payload = {
           name: document.getElementById('employee-name').value.trim(),
           team: document.getElementById('employee-team').value,
           showroomId: document.getElementById('employee-showroom').value,
-          permission: empPermSave ? empPermSave.value : '',
           phone: document.getElementById('employee-phone').value.trim(),
           joinDate: document.getElementById('employee-join-date').value,
           memo: document.getElementById('employee-memo').value.trim()
