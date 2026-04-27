@@ -7716,9 +7716,38 @@
     var tbodyLeaves = document.getElementById('tbody-leaves');
     var leaveSelect = document.getElementById('leave-employee-id');
     if (tbodyEmp) {
-      tbodyEmp.innerHTML = employees.map(function (e) {
-        return '<tr><td>' + (e.name || '-') + '</td><td>' + (e.team || '-') + '</td><td>' + getShowroomName(e.showroomId) + '</td><td>' + (e.phone || '-') + '</td><td>' + formatDate(e.joinDate) + '</td><td>' + (e.memo || '-') + '</td><td><button type="button" class="btn btn-sm btn-secondary" data-edit-employee="' + e.id + '">수정</button> <button type="button" class="btn btn-sm btn-secondary" data-delete-employee="' + e.id + '">삭제</button></td></tr>';
-      }).join('') || '<tr><td colspan="7">등록된 직원이 없습니다.</td></tr>';
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (supa) {
+        tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">불러오는 중...</td></tr>';
+        supa.from('employees')
+          .select('id, name, team, showroom, phone, hire_date, position_name')
+          .order('team', { ascending: true })
+          .order('name', { ascending: true })
+          .then(function (res) {
+            if (res && res.error) {
+              tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
+              console.error('renderHR employees load error:', res.error);
+              return;
+            }
+            var rows = (res && Array.isArray(res.data)) ? res.data : [];
+            tbodyEmp.innerHTML = rows.map(function (e) {
+              return '<tr>' +
+                '<td>' + escapeHtml(e.name || '-') + '</td>' +
+                '<td>' + escapeHtml(e.team || '-') + '</td>' +
+                '<td>' + escapeHtml(getShowroomName(e.showroom)) + '</td>' +
+                '<td>' + escapeHtml(e.phone || '-') + '</td>' +
+                '<td>' + escapeHtml(formatDate(e.hire_date)) + '</td>' +
+                '<td>' + escapeHtml(e.position_name || '-') + '</td>' +
+              '</tr>';
+            }).join('') || '<tr><td colspan="6" style="text-align:center;color:#888;">등록된 직원이 없습니다.</td></tr>';
+          })
+          .catch(function (err) {
+            tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#c00;">직원 목록을 불러오지 못했습니다.</td></tr>';
+            console.error('renderHR employees load failed:', err);
+          });
+      } else {
+        tbodyEmp.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">Supabase 연결이 필요합니다.</td></tr>';
+      }
     }
     if (leaveSelect) {
       leaveSelect.innerHTML = '<option value="">선택</option>' + employees.map(function (e) {
