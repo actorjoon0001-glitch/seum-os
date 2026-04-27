@@ -6716,8 +6716,11 @@
   }
 
   function renderConstruction() {
+    // 설계팀 우선순위에서 '작업완료' 처리된 건은 모두 시공팀 명단에 노출.
+    // (이전엔 추가로 constructionStartOk 체크된 건만 표시 → 설계팀 우선순위의
+    //  작업완료 건수보다 적게 보이는 문제 발생)
     var contracts = getContracts().filter(function (c) {
-      return !!c.constructionStartOk;
+      return !!c.priorityDone;
     });
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
