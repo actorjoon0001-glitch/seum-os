@@ -542,8 +542,12 @@
   //  시공팀 검색 필터 헬퍼
   // ────────────────────────────────────────────────────────────
 
-  /** 시공팀 유형 필터값을 가져옴 */
+  // 시공팀 유형 탭 상태 ('' = 전체, 그 외: 컨테이너/농막 | 체류형쉼터 | 전원주택 | 기타)
+  var _constructionTypeFilter = '';
+
+  /** 시공팀 유형 필터값을 가져옴 (탭 상태 우선, 미존재 시 select fallback) */
   function getConstructionCategoryFilter() {
+    if (_constructionTypeFilter !== '') return _constructionTypeFilter;
     var el = document.getElementById('construction-category-filter');
     return el ? el.value : '';
   }
@@ -6944,12 +6948,55 @@
     }
   }
 
+  var _constructionTabsWired = false;
+
+  function getConstructionTypeKey(c) {
+    var t = (c.contractModel || '').trim();
+    if (t === '컨테이너/농막') return '컨테이너/농막';
+    if (t === '체류형쉼터') return '체류형쉼터';
+    if (t === '전원주택') return '전원주택';
+    return '기타';
+  }
+
+  function renderConstructionTypeTabs(contractsForCount) {
+    var tabsEl = document.getElementById('construction-type-tabs');
+    if (!tabsEl) return;
+    var typeCounts = { '컨테이너/농막': 0, '체류형쉼터': 0, '전원주택': 0, '기타': 0 };
+    (contractsForCount || []).forEach(function (c) { typeCounts[getConstructionTypeKey(c)]++; });
+    var totalCount = (contractsForCount || []).length;
+    var tabs = [
+      { key: '',              label: '전체',          count: totalCount },
+      { key: '컨테이너/농막',   label: '컨테이너/농막',  count: typeCounts['컨테이너/농막'] },
+      { key: '체류형쉼터',     label: '체류형쉼터',    count: typeCounts['체류형쉼터'] },
+      { key: '전원주택',       label: '전원주택',      count: typeCounts['전원주택'] },
+      { key: '기타',          label: '기타',          count: typeCounts['기타'] }
+    ];
+    tabsEl.innerHTML = tabs.map(function (t) {
+      var cls = 'design-type-tab' + (_constructionTypeFilter === t.key ? ' active' : '');
+      return '<button type="button" class="' + cls + '" data-construction-type="' + escapeAttr(t.key) + '">' + escapeHtml(t.label) + ' <span class="tab-count">' + t.count + '</span></button>';
+    }).join('');
+    if (!_constructionTabsWired) {
+      _constructionTabsWired = true;
+      tabsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-construction-type]');
+        if (!btn) return;
+        _constructionTypeFilter = btn.getAttribute('data-construction-type') || '';
+        renderConstruction();
+      });
+    }
+  }
+
   function renderConstruction() {
     var contracts = getContracts().filter(function (c) {
       return !!c.constructionStartOk;
     });
     contracts = filterByShowroom(contracts, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    // 유형 탭 카운트는 키워드 적용 후·유형 필터 적용 전 기준 (검색어 입력 시 탭 카운트도 같이 갱신)
+    var beforeTypeFilter = contracts.filter(function (c) {
+      return matchesConstructionKeyword(c, getConstructionSearchKeyword());
+    });
+    renderConstructionTypeTabs(beforeTypeFilter);
     contracts = getFilteredConstructionContracts(contracts);
     var tbody = document.getElementById('tbody-construction');
     if (!tbody) return;
