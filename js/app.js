@@ -6464,6 +6464,13 @@
         urls.splice(idx, 1);
         inputEl.value = serializeDrawingUrls(urls);
         refreshDrawingFileListForInput(inputEl, list);
+        // 모달 폼 시공도면(design-construction-drawing-list) 삭제 시 contract_drawings 동기화
+        if (list.id === 'design-construction-drawing-list' && deletedUrl) {
+          var modalContractId = (document.getElementById('design-contract-id') || {}).value || '';
+          if (modalContractId) {
+            deleteContractDrawingByUrl(modalContractId, 'construction', deletedUrl);
+          }
+        }
         // ???????? ?????? ????????, ?? ?? ??????????
         var inlineForm = list.closest('form.form-design-inline-inline');
         if (inlineForm) {
@@ -9414,8 +9421,16 @@
         var existingUrls = parseDrawingUrls(inputEl && inputEl.value ? inputEl.value : '');
         Promise.all(files.map(function (file) { return uploadConstructionDrawingAttachment(contractId, file); }))
           .then(function (results) {
-            var urls = results.filter(function (res) { return res && res.url; }).map(function (res) { return res.url; });
+            var uploaded = results.filter(function (res) { return res && res.url; });
+            var urls = uploaded.map(function (res) { return res.url; });
             if (!urls.length) { window.alert('업로드에 실패했습니다.'); return; }
+            // contract_drawings 테이블에 메타데이터 INSERT (진실의 출처)
+            var baseSort = Date.now();
+            uploaded.forEach(function (res, idx) {
+              insertContractDrawing(contractId, 'construction', {
+                url: res.url, path: res.path, name: res.name, sortOrder: baseSort + idx
+              });
+            });
             existingUrls = existingUrls.concat(urls);
             if (inputEl) {
               inputEl.value = serializeDrawingUrls(existingUrls);
