@@ -14570,3 +14570,50 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #6B7280;
   padding: 32px 12px;
 }
+
+/* ===== 현장 파악 - 지도 ===== */
+.construction-sites-map {
+  width: 100%;
+  height: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+}
+.cs-map-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9CA3AF;
+  text-align: right;
+}
+.cs-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #d1d5db;
+}
+.cs-map-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.cs-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0,0,0,0.4);
+}
+.cs-dot-normal  { background: #22c55e; }
+.cs-dot-warn    { background: #fb923c; }
+.cs-dot-pending { background: #3b82f6; }
+.cs-dot-done    { background: #9ca3af; }
+
+/* 지도 인포윈도우 (카카오맵 안에 들어가는 작은 카드) */
+.cs-info {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #111;
+  min-width: 200px;
+  max-width: 260px;
+  line-height: 1.5;
+}
+.cs-info b { color: #000; font-size: 13px; }
+.cs-info .cs-info-row { display: flex; justify-content: space-between; gap: 6px; }
+.cs-info .cs-info-row .cs-info-label { color: #6B7280; }

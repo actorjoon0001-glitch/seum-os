@@ -7088,6 +7088,136 @@
       .some(function (v) { return String(v).toLowerCase().indexOf(k) !== -1; });
   }
 
+  // 카카오맵 SDK 가 비동기 로드되므로 준비 완료 후 콜백 실행
+  function ensureKakaoMap(cb) {
+    var tries = 0;
+    function check() {
+      if (window.kakao && window.kakao.maps && window.kakao.maps.LatLng) { cb(); return; }
+      if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
+        window.kakao.maps.load(cb);
+        return;
+      }
+      if (++tries > 50) {
+        console.error('Kakao maps SDK 로드 실패');
+        return;
+      }
+      setTimeout(check, 100);
+    }
+    check();
+  }
+
+  // 지오코딩 캐시: { '주소문자열': {lat, lng} }. localStorage 영구 보관.
+  var GEOCODE_CACHE_KEY = 'seum_geocode_cache_v1';
+  function loadGeocodeCache() {
+    try { return JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function saveGeocodeCache(cache) {
+    try { localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* 용량 초과 등 */ }
+  }
+
+  // 색상별 SVG 핀 마커 이미지 (인라인 data URL)
+  function csPinSvg(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">' +
+      '<path d="M14 0C6.27 0 0 6.27 0 14c0 9.5 14 24 14 24s14-14.5 14-24c0-7.73-6.27-14-14-14z" fill="' + color + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>' +
+      '<circle cx="14" cy="14" r="5" fill="white"/>' +
+      '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+  var CS_PIN_COLORS = { normal: '#22c55e', warn: '#fb923c', pending: '#3b82f6', done: '#9ca3af' };
+
+  // 지도 + 마커 상태 (다시 그릴 때 기존 마커/인포윈도우 정리용)
+  var _csMap = null;
+  var _csMarkers = [];
+  var _csInfoWindow = null;
+
+  function renderConstructionSitesMap(list) {
+    var mapEl = document.getElementById('construction-sites-map');
+    var statusEl = document.getElementById('construction-sites-map-status');
+    if (!mapEl) return;
+    ensureKakaoMap(function () {
+      if (!_csMap) {
+        _csMap = new kakao.maps.Map(mapEl, {
+          center: new kakao.maps.LatLng(36.5, 127.8),  // 한국 중심부 기본값
+          level: 13
+        });
+        _csInfoWindow = new kakao.maps.InfoWindow({ removable: true });
+      }
+      // 기존 마커 제거
+      _csMarkers.forEach(function (m) { m.setMap(null); });
+      _csMarkers = [];
+
+      var geocoder = new kakao.maps.services.Geocoder();
+      var cache = loadGeocodeCache();
+      var bounds = new kakao.maps.LatLngBounds();
+      var hasAny = false;
+      var pending = 0;
+      var notFound = 0;
+
+      function placePin(c, latlng) {
+        var st = getSiteStatusInfo(c);
+        var color = CS_PIN_COLORS[st.key] || CS_PIN_COLORS.normal;
+        var image = new kakao.maps.MarkerImage(
+          csPinSvg(color),
+          new kakao.maps.Size(28, 38),
+          { offset: new kakao.maps.Point(14, 38) }
+        );
+        var marker = new kakao.maps.Marker({ position: latlng, image: image, map: _csMap });
+        kakao.maps.event.addListener(marker, 'click', function () {
+          var siteName = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+          var html = '<div class="cs-info">' +
+            '<b>' + escapeHtml(siteName) + '</b>' +
+            '<div class="cs-info-row"><span class="cs-info-label">상태</span><span>' + escapeHtml(st.label) + '</span></div>' +
+            '<div class="cs-info-row"><span class="cs-info-label">주소</span><span>' + escapeHtml(c.siteAddress || '-') + '</span></div>' +
+            '<div class="cs-info-row"><span class="cs-info-label">현장소장</span><span>' + escapeHtml(c.constructionManager || '-') + '</span></div>' +
+            '<div class="cs-info-row"><span class="cs-info-label">영업담당</span><span>' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
+            '<div class="cs-info-row"><span class="cs-info-label">진행</span><span>' + escapeHtml(c.constructionProgress || '착공전') + '</span></div>' +
+            '</div>';
+          _csInfoWindow.setContent(html);
+          _csInfoWindow.open(_csMap, marker);
+        });
+        _csMarkers.push(marker);
+        bounds.extend(latlng);
+        hasAny = true;
+      }
+
+      list.forEach(function (c) {
+        var addr = (c.siteAddress || '').trim();
+        if (!addr) return;
+        if (cache[addr]) {
+          placePin(c, new kakao.maps.LatLng(cache[addr].lat, cache[addr].lng));
+          return;
+        }
+        pending++;
+        geocoder.addressSearch(addr, function (result, status) {
+          pending--;
+          if (status === kakao.maps.services.Status.OK && result.length > 0) {
+            var lat = parseFloat(result[0].y);
+            var lng = parseFloat(result[0].x);
+            cache[addr] = { lat: lat, lng: lng };
+            saveGeocodeCache(cache);
+            placePin(c, new kakao.maps.LatLng(lat, lng));
+          } else {
+            notFound++;
+          }
+          if (pending === 0) {
+            if (hasAny) _csMap.setBounds(bounds);
+            if (statusEl) {
+              var msg = hasAny ? ('지도에 ' + _csMarkers.length + '건 표시') : '표시할 좌표가 없습니다.';
+              if (notFound > 0) msg += ' / 주소 변환 실패 ' + notFound + '건';
+              statusEl.textContent = msg;
+            }
+          }
+        });
+      });
+
+      // 캐시로만 모두 표시된 케이스 처리 (geocoder 콜백 안 발생)
+      if (pending === 0) {
+        if (hasAny) _csMap.setBounds(bounds);
+        if (statusEl) statusEl.textContent = hasAny ? ('지도에 ' + _csMarkers.length + '건 표시') : '표시할 좌표가 없습니다.';
+      }
+    });
+  }
+
   function renderConstructionSitesOverview() {
     var all = getContracts().filter(function (c) { return !!c.constructionStartOk; });
 
@@ -7121,6 +7251,9 @@
 
     var countEl = document.getElementById('construction-sites-count');
     if (countEl) countEl.textContent = '총 ' + list.length + '건';
+
+    // 지도 갱신 (카드와 동일 필터 적용된 list 기준)
+    renderConstructionSitesMap(list);
 
     var grid = document.getElementById('construction-sites-grid');
     if (!grid) return;
