@@ -13764,9 +13764,11 @@
         if (!row || !sid) return;
         var team = row.querySelector('.admin-emp-team') && row.querySelector('.admin-emp-team').value;
         var role = row.querySelector('.admin-emp-role') && row.querySelector('.admin-emp-role').value;
+        var permEl = row.querySelector('.admin-emp-permission');
+        var permission = permEl ? permEl.value : null;
         var showroom = row.querySelector('.admin-emp-showroom') && row.querySelector('.admin-emp-showroom').value;
         saveBtn.disabled = true;
-        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null, permission: role || null }).eq('id', sid)
+        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null, permission: permission || null }).eq('id', sid)
           .then(function (res) {
             if (res.error) throw res.error;
             renderAdminEmployees();
@@ -13867,13 +13869,16 @@
             '</div>' +
             '<div class="table-wrap">' +
               '<table class="data-table admin-emp-table">' +
-                '<thead><tr><th style="width:20%;">이름</th><th style="width:22%;">이메일</th><th style="width:12%;">팀</th><th style="width:12%;">역할</th><th style="width:14%;">전시장</th><th style="width:8%;">상태</th><th style="width:12%;">작업</th></tr></thead>' +
+                '<thead><tr><th style="width:16%;">이름</th><th style="width:20%;">이메일</th><th style="width:10%;">팀</th><th style="width:10%;">역할</th><th style="width:10%;">권한</th><th style="width:14%;">전시장</th><th style="width:8%;">상태</th><th style="width:12%;">작업</th></tr></thead>' +
                 '<tbody>' + byTeam[t].map(function (emp) {
                   var teamOpts = TEAM_OPTIONS.map(function (tt) {
                     return '<option value="' + tt + '"' + ((emp.team || '') === tt ? ' selected' : '') + '>' + tt + '</option>';
                   }).join('');
                   var roleOpts = ROLE_OPTIONS.map(function (r) {
                     return '<option value="' + r + '"' + ((emp.role || '') === r ? ' selected' : '') + '>' + r + '</option>';
+                  }).join('');
+                  var permOpts = ROLE_OPTIONS.map(function (r) {
+                    return '<option value="' + r + '"' + ((emp.permission || '') === r ? ' selected' : '') + '>' + r + '</option>';
                   }).join('');
                   var srOpts = _adminEmpGetShowroomKeys(_adminEmpState.all).filter(function (k) { return k !== '_unassigned'; }).map(function (k) {
                     return '<option value="' + escapeAttr(k) + '"' + ((emp.showroom || '') === k ? ' selected' : '') + '>' + escapeHtml(_adminEmpShowroomLabel(k)) + '</option>';
@@ -13883,6 +13888,7 @@
                     '<td>' + escapeHtml(emp.email || '-') + '</td>' +
                     '<td><select class="admin-emp-team">' + teamOpts + '</select></td>' +
                     '<td><select class="admin-emp-role">' + roleOpts + '</select></td>' +
+                    '<td><select class="admin-emp-permission">' + permOpts + '</select></td>' +
                     '<td><select class="admin-emp-showroom">' + srOpts + '</select></td>' +
                     '<td>' + escapeHtml(emp.status || '-') + '</td>' +
                     '<td>' +
@@ -13921,7 +13927,7 @@
       groupsEl.innerHTML = '<div class="admin-emp-empty">Supabase를 사용할 수 없습니다.</div>';
       return;
     }
-    supabase.from('employees').select('id, name, email, team, role, showroom, status, position_name')
+    supabase.from('employees').select('id, name, email, team, role, showroom, status, position_name, permission')
       .order('showroom', { ascending: true })
       .order('team', { ascending: true })
       .order('name', { ascending: true })
@@ -14091,9 +14097,13 @@
         if (!row || !id) return;
         var team = row.querySelector('.admin-emp-team') && row.querySelector('.admin-emp-team').value;
         var role = row.querySelector('.admin-emp-role') && row.querySelector('.admin-emp-role').value;
+        var permElLegacy = row.querySelector('.admin-emp-permission');
+        var permissionLegacy = permElLegacy ? permElLegacy.value : null;
         var showroom = row.querySelector('.admin-emp-showroom') && row.querySelector('.admin-emp-showroom').value;
         saveBtn.disabled = true;
-        supabase.from('employees').update({ team: team || null, role: role || null, showroom: showroom || null, permission: role || null }).eq('id', id)
+        var legacyUpdate = { team: team || null, role: role || null, showroom: showroom || null };
+        if (permElLegacy) legacyUpdate.permission = permissionLegacy || null;
+        supabase.from('employees').update(legacyUpdate).eq('id', id)
           .then(function (res) {
             if (res.error) throw res.error;
             renderAdminEmployees();
