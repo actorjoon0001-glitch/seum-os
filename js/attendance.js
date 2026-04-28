@@ -558,6 +558,204 @@
     setText('.attendance-my-week-days', weekSum.workedDays + '일');
   }
 
+  // ────────── 본인 월간 캘린더 (개인용) ──────────
+
+  var myCalState = {
+    inited: false,
+    year: 0,
+    month: 0,        // 1-12
+  };
+
+  function ensureMyCalState() {
+    if (myCalState.year && myCalState.month) return;
+    var now = new Date();
+    myCalState.year = now.getFullYear();
+    myCalState.month = now.getMonth() + 1;
+  }
+
+  function shiftMyCalMonth(delta) {
+    ensureMyCalState();
+    var d = new Date(myCalState.year, myCalState.month - 1 + delta, 1);
+    myCalState.year = d.getFullYear();
+    myCalState.month = d.getMonth() + 1;
+  }
+
+  function setMyCalToday() {
+    var now = new Date();
+    myCalState.year = now.getFullYear();
+    myCalState.month = now.getMonth() + 1;
+  }
+
+  /** 본인의 해당 월 승인된 leave 를 dateKey → type 맵으로 반환. */
+  async function fetchMyMonthLeaves(year, month) {
+    var emp = currentEmployee();
+    var client = supa();
+    if (!emp || !emp.authUserId || !client) return {};
+    var range = monthDateRange(year, month);
+    try {
+      var r = await client.from('leave_requests')
+        .select('type, start_date, end_date, status')
+        .eq('user_id', emp.authUserId)
+        .eq('status', 'approved')
+        .lte('start_date', range.last)
+        .gte('end_date', range.first);
+      if (r.error || !Array.isArray(r.data)) return {};
+      var map = {};
+      var first = new Date(range.first + 'T00:00:00');
+      var last = new Date(range.last + 'T00:00:00');
+      r.data.forEach(function (lv) {
+        if (!lv.start_date || !lv.end_date) return;
+        var s = new Date(lv.start_date + 'T00:00:00');
+        var e = new Date(lv.end_date + 'T00:00:00');
+        if (s < first) s = first;
+        if (e > last) e = last;
+        for (var d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+          var key = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+          var mapped = leaveTypeToStatus(lv.type);
+          if (!mapped) continue;
+          // 우선순위: sick > vacation > business_trip > outside (기존 priorityOf 활용)
+          var prev = map[key];
+          if (!prev || priorityOf(mapped) > priorityOf(prev)) map[key] = mapped;
+        }
+      });
+      return map;
+    } catch (e) { return {}; }
+  }
+
+  function buildMyRecordMap(records) {
+    var map = {};
+    (records || []).forEach(function (r) {
+      if (r && r.date) map[r.date] = r;
+    });
+    return map;
+  }
+
+  function resolveMyCellStatus(rec, leaveStatus) {
+    // 우선순위: 명시적 근무 상태(internal 아님) > leave > check_in/out 자동판정 > before
+    if (rec && rec.status) {
+      var meta = getStatusMeta(rec.status);
+      if (meta && meta.category && meta.category !== 'internal') return rec.status;
+    }
+    if (leaveStatus) return leaveStatus;
+    if (rec && rec.check_in && rec.check_out) return STATUS.FINISHED;
+    if (rec && rec.check_in) return STATUS.WORKING;
+    return STATUS.BEFORE;
+  }
+
+  function renderMyCalendar() {
+    ensureMyCalState();
+    var label = $('my-cal-label');
+    var grid = $('my-cal-grid');
+    if (!grid) return;
+    if (label) label.textContent = myCalState.year + '년 ' + myCalState.month + '월';
+
+    var emp = currentEmployee();
+    if (!emp) {
+      grid.innerHTML = '<p class="my-cal-empty">로그인 정보가 없어 캘린더를 표시할 수 없습니다.</p>';
+      setText('.my-cal-summary-total', '-');
+      setText('.my-cal-summary-days', '-');
+      setText('.my-cal-summary-late', '-');
+      setText('.my-cal-summary-avgin', '-');
+      return;
+    }
+
+    grid.innerHTML = '<p class="my-cal-empty">불러오는 중…</p>';
+
+    var year = myCalState.year;
+    var month = myCalState.month;
+    var range = monthDateRange(year, month);
+    var todayKey = toDateKey(new Date());
+
+    Promise.all([
+      fetchMyRecordsBetween(range.first, range.last),
+      fetchMyMonthLeaves(year, month)
+    ]).then(function (results) {
+      var records = results[0];
+      var leaves = results[1];
+      // race guard: 사용자가 빠르게 월을 바꿨다면 최신 상태와 다르면 폐기
+      if (myCalState.year !== year || myCalState.month !== month) return;
+
+      var recMap = buildMyRecordMap(records);
+      var summary = summarize(records);
+      setText('.my-cal-summary-total', formatDuration(summary.totalMinutes));
+      setText('.my-cal-summary-days', summary.workedDays + '일');
+      setText('.my-cal-summary-late', summary.lateCount + '회');
+      setText('.my-cal-summary-avgin', formatHHMMFromMinutes(summary.avgCheckIn));
+
+      var first = new Date(year, month - 1, 1);
+      var startDay = first.getDay(); // 0=일 ~ 6=토 (일요일 시작)
+      var totalDays = range.days;
+      var weekdayNames = ['일', '월', '화', '수', '목', '금', '토'];
+
+      var html = '';
+      // 요일 헤더
+      weekdayNames.forEach(function (w, i) {
+        var wcls = 'my-cal-weekday';
+        if (i === 0) wcls += ' sunday';
+        else if (i === 6) wcls += ' saturday';
+        html += '<div class="' + wcls + '">' + w + '</div>';
+      });
+
+      // 빈 셀 (월 시작 이전)
+      for (var b = 0; b < startDay; b++) {
+        html += '<div class="my-cal-cell my-cal-cell-empty"></div>';
+      }
+
+      for (var day = 1; day <= totalDays; day++) {
+        var dateKey = year + '-' + pad2(month) + '-' + pad2(day);
+        var rec = recMap[dateKey];
+        var leaveStatus = leaves[dateKey];
+        var status = resolveMyCellStatus(rec, leaveStatus);
+        var meta = getStatusMeta(status) || {};
+        var label = meta.label || STATUS_LABEL[status] || '';
+
+        var classes = ['my-cal-cell', 'attendance-status-' + status];
+        if (dateKey === todayKey) classes.push('today');
+        if (rec && rec.is_late) classes.push('is-late');
+
+        var inTxt = rec && rec.check_in ? toHHMM(rec.check_in) : '';
+        var outTxt = rec && rec.check_out ? toHHMM(rec.check_out) : '';
+        var workMin = recordWorkMinutes(rec);
+        var workTxt = workMin > 0 ? formatDuration(workMin) : '';
+
+        html += '<div class="' + classes.join(' ') + '" data-date="' + dateKey + '">' +
+          '<div class="my-cal-cell-head">' +
+            '<span class="my-cal-date-num">' + day + '</span>' +
+            (rec && rec.is_late ? '<span class="my-cal-late-tag">지각</span>' : '') +
+          '</div>' +
+          (label ? '<span class="my-cal-status-badge">' + label + '</span>' : '') +
+          (inTxt || outTxt ?
+            '<div class="my-cal-times">' +
+              '<span class="my-cal-time-in">' + (inTxt || '-') + '</span>' +
+              '<span class="my-cal-time-sep">~</span>' +
+              '<span class="my-cal-time-out">' + (outTxt || '-') + '</span>' +
+            '</div>' : '') +
+          (workTxt ? '<span class="my-cal-work">' + workTxt + '</span>' : '') +
+        '</div>';
+      }
+
+      // 마지막 줄 빈 셀로 채우기 (7의 배수)
+      var totalCells = startDay + totalDays;
+      var trail = (7 - (totalCells % 7)) % 7;
+      for (var t = 0; t < trail; t++) {
+        html += '<div class="my-cal-cell my-cal-cell-empty"></div>';
+      }
+
+      grid.innerHTML = html;
+    }).catch(function () {
+      grid.innerHTML = '<p class="my-cal-empty">캘린더를 불러오지 못했습니다.</p>';
+    });
+  }
+
+  function initMyCalendarEvents() {
+    var prev = $('my-cal-prev');
+    var next = $('my-cal-next');
+    var today = $('my-cal-today');
+    if (prev) prev.addEventListener('click', function () { shiftMyCalMonth(-1); renderMyCalendar(); });
+    if (next) next.addEventListener('click', function () { shiftMyCalMonth(1); renderMyCalendar(); });
+    if (today) today.addEventListener('click', function () { setMyCalToday(); renderMyCalendar(); });
+  }
+
   /** 오늘 출근했는지 여부 (sync 조회).
    *  휴가/병가 등 오늘 근무가 불필요한 leave 상태도 true 로 판정.
    *  최초 fetch 전엔 true 반환 — 로딩 레이스에서 잘못 차단하지 않도록. */
@@ -1378,6 +1576,9 @@
       if (window.seumTeamOff && typeof window.seumTeamOff.render === 'function') {
         try { window.seumTeamOff.render(); } catch (e) {}
       }
+    } else if (tab === 'my-cal') {
+      ensureMyCalState();
+      renderMyCalendar();
     }
   }
 
@@ -1503,6 +1704,7 @@
     });
 
     initCalendarEvents();
+    initMyCalendarEvents();
   }
 
   window.seumAttendance = {
