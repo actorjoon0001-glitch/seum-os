@@ -434,6 +434,7 @@
     var emp = currentEmployee();
     if (!emp) {
       renderCard(null);
+      renderMySummary(null);
       return;
     }
     var rec = await getMyTodayRecord();
@@ -442,6 +443,119 @@
     _lastLeave = leaveToday || null;
     _statusFetched = true;
     renderCard(rec, leaveToday);
+    renderMySummary(emp);
+  }
+
+  // ────────── 본인 월간/주간 요약 ──────────
+
+  function startOfWeekMon(d) {
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var dow = x.getDay();
+    var diff = (dow === 0 ? -6 : 1 - dow);
+    x.setDate(x.getDate() + diff);
+    return x;
+  }
+
+  /** 본인의 [from, to] (YYYY-MM-DD 문자열) attendance 레코드 조회. */
+  async function fetchMyRecordsBetween(fromKey, toKey) {
+    var emp = currentEmployee();
+    var client = supa();
+    if (!emp || !emp.authUserId || !client) return [];
+    try {
+      var r = await client.from(TABLE).select('*')
+        .eq('user_id', emp.authUserId)
+        .gte('date', fromKey)
+        .lte('date', toKey);
+      if (r.error || !Array.isArray(r.data)) return [];
+      return r.data;
+    } catch (e) { return []; }
+  }
+
+  /** 레코드 1건의 근무분(分) 계산. work_minutes 가 있으면 우선 사용, 없으면 check_in/check_out 으로 즉석 계산. */
+  function recordWorkMinutes(rec) {
+    if (!rec) return 0;
+    if (typeof rec.work_minutes === 'number' && rec.work_minutes > 0) return rec.work_minutes;
+    if (rec.check_in && rec.check_out) {
+      var diff = Math.floor((new Date(rec.check_out).getTime() - new Date(rec.check_in).getTime()) / 60000);
+      return diff > 0 ? diff : 0;
+    }
+    if (rec.check_in && !rec.check_out && toDateKey(new Date()) === rec.date) {
+      var live = Math.floor((Date.now() - new Date(rec.check_in).getTime()) / 60000);
+      return live > 0 ? live : 0;
+    }
+    return 0;
+  }
+
+  function summarize(records) {
+    var totalMin = 0;
+    var workedDays = 0;
+    var lateCount = 0;
+    var checkInMinSum = 0;
+    var checkInDayCount = 0;
+    (records || []).forEach(function (r) {
+      if (!r) return;
+      var m = recordWorkMinutes(r);
+      if (m > 0) {
+        totalMin += m;
+        workedDays += 1;
+      }
+      if (r.is_late) lateCount += 1;
+      if (r.check_in) {
+        var t = new Date(r.check_in);
+        if (!isNaN(t.getTime())) {
+          checkInMinSum += t.getHours() * 60 + t.getMinutes();
+          checkInDayCount += 1;
+        }
+      }
+    });
+    var avgCheckIn = checkInDayCount > 0 ? Math.round(checkInMinSum / checkInDayCount) : null;
+    return {
+      totalMinutes: totalMin,
+      workedDays: workedDays,
+      lateCount: lateCount,
+      avgCheckIn: avgCheckIn
+    };
+  }
+
+  function formatHHMMFromMinutes(mins) {
+    if (mins == null) return '-';
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    return pad2(h) + ':' + pad2(m);
+  }
+
+  async function renderMySummary(emp) {
+    var monthBox = $('attendance-my-summary-month');
+    var weekBox = $('attendance-my-summary-week');
+    if (!monthBox && !weekBox) return; // 카드가 DOM 에 없으면 무시
+    if (!emp) {
+      setText('.attendance-my-month-total', '-');
+      setText('.attendance-my-month-days', '-');
+      setText('.attendance-my-month-late', '-');
+      setText('.attendance-my-month-avgin', '-');
+      setText('.attendance-my-week-total', '-');
+      setText('.attendance-my-week-days', '-');
+      return;
+    }
+    var now = new Date();
+    var mRange = monthDateRange(now.getFullYear(), now.getMonth() + 1);
+    var weekStart = startOfWeekMon(now);
+    var weekStartKey = toDateKey(weekStart);
+    var todayKey = toDateKey(now);
+
+    var monthRecs = await fetchMyRecordsBetween(mRange.first, mRange.last);
+    var monthSum = summarize(monthRecs);
+    var weekRecs = monthRecs.filter(function (r) {
+      return r && r.date >= weekStartKey && r.date <= todayKey;
+    });
+    var weekSum = summarize(weekRecs);
+
+    setText('.attendance-my-month-total', formatDuration(monthSum.totalMinutes));
+    setText('.attendance-my-month-days', monthSum.workedDays + '일');
+    setText('.attendance-my-month-late', monthSum.lateCount + '회');
+    setText('.attendance-my-month-avgin', formatHHMMFromMinutes(monthSum.avgCheckIn));
+    setText('.attendance-my-week-total', formatDuration(weekSum.totalMinutes));
+    setText('.attendance-my-week-days', weekSum.workedDays + '일');
   }
 
   /** 오늘 출근했는지 여부 (sync 조회).
