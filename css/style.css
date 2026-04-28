@@ -2937,6 +2937,34 @@ button,
   font-variant-numeric: tabular-nums;
 }
 
+.dash-attendance-my-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+.dash-attendance-my-summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dash-attendance-my-summary-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #cbd5f5;
+  letter-spacing: 0.02em;
+}
+.dash-attendance-my-summary-cells {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+#attendance-my-summary-week .dash-attendance-my-summary-cells {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 @media (max-width: 640px) {
   .dash-attendance-card { padding: 1rem 1rem 0.9rem; }
   .dash-attendance-clock { font-size: 1.45rem; }
@@ -2950,6 +2978,7 @@ button,
     justify-content: center;
   }
   .dash-attendance-times { grid-template-columns: repeat(3, 1fr); }
+  .dash-attendance-my-summary-cells { grid-template-columns: repeat(2, 1fr); }
 }
 
 .today-message-title {
