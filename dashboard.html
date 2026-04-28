@@ -3606,12 +3606,13 @@
     <section id="section-attendance" class="content-section">
       <header class="main-header">
         <h2>근태관리</h2>
-        <p class="section-desc">팀 휴무 일정과 전 직원 월간 근무 기록을 확인합니다. 출근·퇴근은 대시보드 상단에서 바로 처리할 수 있습니다.</p>
+        <p class="section-desc">팀 휴무 일정, 전 직원 월간 근무 기록, 본인 월간 근태를 확인합니다. 출근·퇴근은 대시보드 상단에서 바로 처리할 수 있습니다.</p>
       </header>
 
       <div class="attendance-tabs" role="tablist">
         <button type="button" class="attendance-tab active" data-attendance-tab="team-off" role="tab">팀 휴무 캘린더</button>
         <button type="button" class="attendance-tab" data-attendance-tab="calendar" role="tab">월간 근무 캘린더</button>
+        <button type="button" class="attendance-tab" data-attendance-tab="my-cal" role="tab">내 캘린더</button>
       </div>
 
       <!-- 탭 1: 팀 휴무 캘린더 -->
@@ -3752,6 +3753,40 @@
             <!-- JS: 전시장/팀 그룹별 서브 테이블 렌더 -->
           </div>
           <p class="attendance-cal-empty hidden" id="attendance-cal-empty">표시할 직원이 없습니다.</p>
+        </div>
+      </div>
+
+      <!-- 탭 3: 내 캘린더 (개인 월간 그리드) -->
+      <div class="attendance-tab-panel hidden" id="attendance-panel-my-cal">
+        <div class="card my-cal-header-card">
+          <div class="my-cal-toolbar">
+            <button type="button" class="btn btn-secondary btn-sm" id="my-cal-prev">이전</button>
+            <h3 class="my-cal-label" id="my-cal-label">-</h3>
+            <button type="button" class="btn btn-secondary btn-sm" id="my-cal-next">다음</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="my-cal-today">오늘</button>
+          </div>
+          <div class="my-cal-summary" aria-label="이번 달 본인 요약">
+            <div class="my-cal-summary-cell">
+              <span class="my-cal-summary-label">누적 근무</span>
+              <strong class="my-cal-summary-total">-</strong>
+            </div>
+            <div class="my-cal-summary-cell">
+              <span class="my-cal-summary-label">근무 일수</span>
+              <strong class="my-cal-summary-days">-</strong>
+            </div>
+            <div class="my-cal-summary-cell">
+              <span class="my-cal-summary-label">지각</span>
+              <strong class="my-cal-summary-late">-</strong>
+            </div>
+            <div class="my-cal-summary-cell">
+              <span class="my-cal-summary-label">평균 출근</span>
+              <strong class="my-cal-summary-avgin">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="card my-cal-card">
+          <div class="my-cal-grid" id="my-cal-grid" aria-label="내 월간 근태 캘린더"></div>
         </div>
       </div>
 
