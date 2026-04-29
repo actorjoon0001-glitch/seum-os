@@ -15410,6 +15410,16 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
 }
 
 /* ===== LG가전 발주 목록 — 클릭 가능한 행 + 상세 모달 ===== */
+.lg-appliance-memo-hint {
+  margin: 12px 0 6px;
+  padding: 8px 12px;
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.35);
+  border-radius: 6px;
+  font-size: 13px;
+  color: #93c5fd;
+  line-height: 1.5;
+}
 .lg-appliance-row {
   cursor: pointer;
   transition: background 0.15s ease;
