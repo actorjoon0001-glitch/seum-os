@@ -14769,6 +14769,8 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
 .cs-badge-danger   { background: rgba(239,68,68,0.18);  color: #f87171;  border: 1px solid rgba(239,68,68,0.35); }
 .cs-badge-done     { background: rgba(156,163,175,0.18); color: #d1d5db; border: 1px solid rgba(156,163,175,0.35); }
 .cs-badge-pending  { background: rgba(59,130,246,0.18); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35); }
+.cs-badge-new      { background: rgba(236,72,153,0.22); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.55); font-weight: 700; }
+.cs-badge-new::before { content: 'NEW '; font-size: 10px; opacity: 0.95; }
 .cs-site-row {
   display: flex;
   justify-content: space-between;
@@ -14817,6 +14819,7 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
 .cs-dot-warn    { background: #fb923c; }
 .cs-dot-pending { background: #3b82f6; }
 .cs-dot-done    { background: #9ca3af; }
+.cs-dot-new     { background: #ec4899; box-shadow: 0 0 0 2px rgba(236,72,153,0.25); }
 
 /* 지도 인포윈도우 (카카오맵 안에 들어가는 카드) */
 .cs-info {
@@ -15227,6 +15230,8 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
 .cs-gantt-bar-done .cs-gantt-bar-fill    { background: rgba(156,163,175,0.55); }
 .cs-gantt-bar-pending { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.45); }
 .cs-gantt-bar-pending .cs-gantt-bar-fill { background: rgba(59,130,246,0.55); }
+.cs-gantt-bar-new     { background: rgba(236,72,153,0.20); border-color: rgba(236,72,153,0.55); }
+.cs-gantt-bar-new .cs-gantt-bar-fill     { background: rgba(236,72,153,0.6); }
 .cs-gantt-bar-overdue { box-shadow: 0 0 0 1.5px rgba(239,68,68,0.7), 0 1px 3px rgba(0,0,0,0.25); }
 .cs-gantt-empty {
   padding: 24px 12px;

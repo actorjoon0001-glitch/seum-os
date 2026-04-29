@@ -7731,9 +7731,25 @@
     }
   }
 
+  // "신규" 판정 기준: 계약일이 최근 14일 이내이고 아직 시공 완료되지 않은 건.
+  // 신규는 다른 상태(착공 예정/지연/정상)보다 우선해서 표시 (지도/카드 한눈에 식별).
+  var CS_NEW_DAYS = 14;
+  function isNewSite(c) {
+    if (!c) return false;
+    var progress = (c.constructionProgress || '착공전').trim();
+    if (progress === '완료') return false;
+    var dateStr = c.contractDate || '';
+    if (!dateStr) return false;
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return false;
+    var diffDays = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= CS_NEW_DAYS;
+  }
+
   function getSiteStatusInfo(c) {
     var progress = (c.constructionProgress || '착공전').trim();
     if (progress === '완료') return { key: 'done', label: '완료', cls: 'cs-badge-done' };
+    if (isNewSite(c)) return { key: 'new', label: '신규', cls: 'cs-badge-new' };
     if (progress === '착공전') return { key: 'pending', label: '착공 예정', cls: 'cs-badge-pending' };
     // 진행중·착공: 지연 우려 룰 — 착공일이 60일 이상 지났는데 아직 진행중인 경우
     var startStr = c.constructionStartDate || '';
@@ -8027,7 +8043,7 @@
       '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
-  var CS_PIN_COLORS = { normal: '#22c55e', warn: '#fb923c', pending: '#3b82f6', done: '#9ca3af' };
+  var CS_PIN_COLORS = { normal: '#22c55e', warn: '#fb923c', pending: '#3b82f6', done: '#9ca3af', new: '#ec4899' };
 
   // 지도 + 마커 상태 (다시 그릴 때 기존 마커/인포윈도우 정리용)
   var _csMap = null;
