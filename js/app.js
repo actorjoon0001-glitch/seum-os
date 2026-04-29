@@ -7608,37 +7608,40 @@
     });
   }
 
-  // 카드/인포윈도우의 [발주 넣기] → 발주 리스트 섹션으로 이동 + 폼 자동 오픈 + 현장명 자동 입력.
+  // 카드/인포윈도우의 [발주 넣기] → 발주팀(현장발주 탭) 으로 이동 + 해당 현장 행으로 스크롤·강조.
+  // 발주팀 진입 시 현장 파악 → 현장 발주 자동 동기화가 실행되므로 새 현장도 즉시 표시됨.
   function openProcurementListForSite(contractId) {
-    var contracts = getContracts();
-    var c = contracts.find(function (x) { return x.id === contractId; });
-    var siteText = '';
-    if (c) {
-      var name = (c.customerName || '').trim();
-      var model = (c.contractModelName || c.contractModel || '').trim();
-      siteText = name + (model ? ' / ' + model : '');
-    }
-    if (typeof showSection === 'function') showSection('procurement-list');
-    // 권한 차단된 경우 showSection 이 alert 후 dashboard 로 돌려보내므로 plist-form 이 없을 수 있음.
+    if (typeof showSection === 'function') showSection('procurement');
+    // 권한 차단된 경우 showSection 이 alert 후 그대로 머물므로 안전 가드.
     setTimeout(function () {
-      var section = document.getElementById('section-procurement-list');
-      if (!section || !section.classList.contains('active')) return; // 접근 권한 없음 → 조용히 종료
-      var openBtn = document.getElementById('btn-open-plist-form');
-      if (openBtn) openBtn.click();
-      setTimeout(function () {
-        var siteInput = document.getElementById('plist-site');
-        if (siteInput && siteText) {
-          siteInput.value = siteText;
-          siteInput.dispatchEvent(new Event('input', { bubbles: true }));
-          // 다음 입력란으로 포커스 이동
-          var itemInput = document.getElementById('plist-item');
-          if (itemInput) itemInput.focus();
+      var section = document.getElementById('section-procurement');
+      if (!section || !section.classList.contains('active')) return;
+      // '현장발주' 탭 활성화
+      var fieldOrderTabBtn = document.querySelector('.procurement-tab-btn[data-tab="field-order"]');
+      if (fieldOrderTabBtn && !fieldOrderTabBtn.classList.contains('active')) {
+        fieldOrderTabBtn.click();
+      }
+      // 자동 동기화는 renderFieldOrderTab() 진입 시 이미 호출됨. 행이 보장되면 강조·스크롤.
+      var attempts = 0;
+      var trySelect = function () {
+        attempts++;
+        var link = document.querySelector('#tbody-field-orders a.po-site-link[data-site-id="' + (window.CSS && CSS.escape ? CSS.escape(contractId) : contractId) + '"]');
+        var row = link ? link.closest('tr') : null;
+        if (row) {
+          // 이전 강조 해제
+          document.querySelectorAll('#tbody-field-orders tr.cs-jump-highlight').forEach(function (r) {
+            r.classList.remove('cs-jump-highlight');
+          });
+          row.classList.add('cs-jump-highlight');
+          if (row.scrollIntoView) {
+            try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+          }
+          setTimeout(function () { row.classList.remove('cs-jump-highlight'); }, 2400);
+        } else if (attempts < 8) {
+          setTimeout(trySelect, 80);
         }
-        var formWrap = document.getElementById('plist-form-wrap');
-        if (formWrap && formWrap.scrollIntoView) {
-          try { formWrap.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
-        }
-      }, 60);
+      };
+      trySelect();
     }, 120);
   }
 

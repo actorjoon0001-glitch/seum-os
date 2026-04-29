@@ -14613,6 +14613,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .cs-addr-warn-btn:hover { background: #dc2626; border-color: #dc2626; }
 
+/* 현장 파악 → 발주팀 점프 시 해당 행 강조 (2.4초 페이드) */
+@keyframes cs-jump-highlight-pulse {
+  0%   { background: rgba(59,130,246,0.40); }
+  50%  { background: rgba(59,130,246,0.22); }
+  100% { background: transparent; }
+}
+.cs-jump-highlight {
+  animation: cs-jump-highlight-pulse 2.4s ease-out;
+  outline: 2px solid rgba(59,130,246,0.55);
+  outline-offset: -2px;
+}
+
 /* ===== 현장 파악 헤더 (TV 모드 토글 버튼 포함) ===== */
 .cs-main-header {
   display: flex;
