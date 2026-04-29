@@ -14820,16 +14820,45 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
 .cs-dot-pending { background: #3b82f6; }
 .cs-dot-done    { background: #9ca3af; }
 .cs-dot-new     { background: #ec4899; box-shadow: 0 0 0 2px rgba(236,72,153,0.25); }
-/* 유형(핀 색) */
-.cs-dot-type-shelter   { background: #14b8a6; }
-.cs-dot-type-container { background: #f59e0b; }
-.cs-dot-type-house     { background: #8b5cf6; }
-.cs-dot-type-etc       { background: #64748b; }
-/* 신규 표시(분홍 링) */
-.cs-dot-ring-new {
-  background: #fff;
-  border: 2px solid #ec4899;
+
+/* 범례 - 미니 핀 (실제 지도 핀과 동일 색·글자) */
+.cs-pin-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  margin-right: 4px;
+  border: 1px solid rgba(0,0,0,0.45);
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
+.cs-pin-shelter   { background: #0891b2; }
+.cs-pin-container { background: #ca8a04; }
+.cs-pin-house     { background: #7c3aed; }
+.cs-pin-etc       { background: #475569; }
+.cs-pin-ring-new {
+  background: #475569;
+  border: 2px solid #ec4899;
+  color: rgba(255,255,255,0);
+}
+.cs-pin-ring-warn {
+  background: #475569;
+  border: 2px dashed #dc2626;
+  color: rgba(255,255,255,0);
+}
+.cs-pin-faded {
+  background: #475569;
+  opacity: 0.55;
+  color: rgba(255,255,255,0);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
 /* 범례 행 그룹 */
 .cs-map-legend { flex-direction: column; align-items: flex-start; gap: 6px; }
 .cs-map-legend-row {

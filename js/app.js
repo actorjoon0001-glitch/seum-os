@@ -8048,41 +8048,53 @@
     });
   }
 
-  // 마커 핀: 외곽 = 유형(체류형쉼터/컨테이너·농막/전원주택/기타) 색상,
-  //          가운데 작은 원 = 상태(정상/지연/예정/완료) 색상,
-  //          신규 건은 핑크색 외부 링으로 추가 강조.
-  function csPinSvg(typeColor, statusColor, isNew) {
-    var ring = isNew
-      ? '<circle cx="14" cy="14" r="12.5" fill="none" stroke="#ec4899" stroke-width="2.2" opacity="0.95"/>'
-      : '';
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">' +
-      '<path d="M14 0C6.27 0 0 6.27 0 14c0 9.5 14 24 14 24s14-14.5 14-24c0-7.73-6.27-14-14-14z" fill="' + typeColor + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>' +
+  // 마커 핀: 색상은 '유형' 만 표현, 가운데 흰 글자(쉼/농/주/기)로 유형 재확인.
+  // 특수 상태(신규/지연 우려) 는 핀 외곽에 컬러 링으로 표시 — 색·글자가 겹치지 않아 헷갈림 최소화.
+  function _csPinRingForStatus(stKey, cx, cy, r) {
+    if (stKey === 'new') {
+      return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#ec4899" stroke-width="2.4" opacity="0.95"/>';
+    }
+    if (stKey === 'warn') {
+      return '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="3,2" opacity="0.95"/>';
+    }
+    return '';
+  }
+  function csPinSvg(typeColor, typeLetter, statusKey) {
+    var ring = _csPinRingForStatus(statusKey, 15, 15, 13.5);
+    var bodyOpacity = (statusKey === 'done') ? '0.55' : '1';
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">' +
+      '<path d="M15 0C6.72 0 0 6.72 0 15c0 10.18 15 27 15 27s15-16.82 15-27c0-8.28-6.72-15-15-15z" fill="' + typeColor + '" fill-opacity="' + bodyOpacity + '" stroke="rgba(0,0,0,0.5)" stroke-width="1.5"/>' +
       ring +
-      '<circle cx="14" cy="14" r="5.5" fill="#fff"/>' +
-      '<circle cx="14" cy="14" r="3.6" fill="' + statusColor + '"/>' +
+      '<text x="15" y="20" text-anchor="middle" font-family="\'Apple SD Gothic Neo\',-apple-system,BlinkMacSystemFont,sans-serif" font-size="14" font-weight="800" fill="#ffffff">' + typeLetter + '</text>' +
       '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
-  // 카드 선택 시 강조 표시용 큰 마커 (외곽=유형 색, 흰 외곽선, 사이즈 ↑, 가운데 상태 점)
-  function csHighlightPinSvg(typeColor, statusColor, isNew) {
-    var ring = isNew
-      ? '<circle cx="21" cy="21" r="19" fill="none" stroke="#ec4899" stroke-width="3" opacity="0.95"/>'
-      : '';
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="56" viewBox="0 0 42 56">' +
-      '<path d="M21 0C9.4 0 0 9.4 0 21c0 14.2 21 35 21 35s21-20.8 21-35C42 9.4 32.6 0 21 0z" fill="' + typeColor + '" stroke="#fff" stroke-width="3"/>' +
+  // 카드 선택 시 강조 표시용 큰 마커 (흰 외곽선 + 큰 글자)
+  function csHighlightPinSvg(typeColor, typeLetter, statusKey) {
+    var ring = _csPinRingForStatus(statusKey, 22, 22, 20);
+    var bodyOpacity = (statusKey === 'done') ? '0.65' : '1';
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="60" viewBox="0 0 44 60">' +
+      '<path d="M22 0C9.85 0 0 9.85 0 22c0 14.93 22 38 22 38s22-23.07 22-38C44 9.85 34.15 0 22 0z" fill="' + typeColor + '" fill-opacity="' + bodyOpacity + '" stroke="#fff" stroke-width="3"/>' +
       ring +
-      '<circle cx="21" cy="21" r="8.5" fill="#fff"/>' +
-      '<circle cx="21" cy="21" r="5.5" fill="' + statusColor + '"/>' +
+      '<text x="22" y="29" text-anchor="middle" font-family="\'Apple SD Gothic Neo\',-apple-system,BlinkMacSystemFont,sans-serif" font-size="20" font-weight="800" fill="#ffffff">' + typeLetter + '</text>' +
       '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
+  // 상태별 인포(범례·뱃지용) 색상은 그대로 두되 핀에서는 사용하지 않는다.
   var CS_PIN_COLORS = { normal: '#22c55e', warn: '#fb923c', pending: '#3b82f6', done: '#9ca3af', new: '#ec4899' };
+  // 유형별 핀 색 — 상태 색과 색조가 충돌하지 않도록 청록(쉼) / 황토(농) / 진보라(주) / 짙은 슬레이트(기) 로 선정.
   var CS_TYPE_COLORS = {
-    '체류형쉼터':   '#14b8a6',  // teal
-    '컨테이너/농막': '#f59e0b', // amber
-    '전원주택':     '#8b5cf6',  // violet
-    '기타':         '#64748b'   // slate
+    '체류형쉼터':   '#0891b2',  // dark cyan — 정상(연두)·완료(연회색) 와 구분
+    '컨테이너/농막': '#ca8a04',  // mustard/yellow — 지연(주황) 과 구분
+    '전원주택':     '#7c3aed',  // deep violet — 신규(핑크) 와 구분
+    '기타':         '#475569'   // dark slate — 완료(연회색) 와 구분
+  };
+  var CS_TYPE_LETTERS = {
+    '체류형쉼터':   '쉼',
+    '컨테이너/농막': '농',
+    '전원주택':     '주',
+    '기타':         '기'
   };
 
   // 지도 + 마커 상태 (다시 그릴 때 기존 마커/인포윈도우 정리용)
@@ -8118,19 +8130,18 @@
 
       function placePin(c, latlng) {
         var st = getSiteStatusInfo(c);
-        var statusColor = CS_PIN_COLORS[st.key] || CS_PIN_COLORS.normal;
         var typeKey = getCsTypeKey(c);
         var typeColor = CS_TYPE_COLORS[typeKey] || CS_TYPE_COLORS['기타'];
-        var isNew = (st.key === 'new');
+        var typeLetter = CS_TYPE_LETTERS[typeKey] || '?';
         var image = new kakao.maps.MarkerImage(
-          csPinSvg(typeColor, statusColor, isNew),
-          new kakao.maps.Size(28, 38),
-          { offset: new kakao.maps.Point(14, 38) }
+          csPinSvg(typeColor, typeLetter, st.key),
+          new kakao.maps.Size(30, 42),
+          { offset: new kakao.maps.Point(15, 42) }
         );
         var highlightImage = new kakao.maps.MarkerImage(
-          csHighlightPinSvg(typeColor, statusColor, isNew),
-          new kakao.maps.Size(42, 56),
-          { offset: new kakao.maps.Point(21, 56) }
+          csHighlightPinSvg(typeColor, typeLetter, st.key),
+          new kakao.maps.Size(44, 60),
+          { offset: new kakao.maps.Point(22, 60) }
         );
         var marker = new kakao.maps.Marker({ position: latlng, image: image, map: _csMap });
         if (c.id) {
