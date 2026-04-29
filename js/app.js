@@ -7339,6 +7339,190 @@
     return { key: 'normal', label: '정상 진행', cls: 'cs-badge-normal' };
   }
 
+  // 시공 단계 (스텝퍼). 착공일~예상준공일 사이 비율로 단계 자동 계산.
+  // constructionProgress 가 '완료' 면 항상 마지막 단계.
+  var CS_STAGES = [
+    { key: 'foundation', label: '기초',  threshold: 0.00 },
+    { key: 'frame',      label: '골조',  threshold: 0.18 },
+    { key: 'exterior',   label: '외장',  threshold: 0.40 },
+    { key: 'interior',   label: '내장',  threshold: 0.60 },
+    { key: 'finish',     label: '마감',  threshold: 0.80 },
+    { key: 'complete',   label: '준공',  threshold: 1.00 }
+  ];
+
+  // 진행률(0~1, 100%+ 가능) 과 현재 스텝 인덱스 반환.
+  function getSiteRoadmap(c) {
+    var progress = (c.constructionProgress || '착공전').trim();
+    var startStr = c.constructionStartDate || '';
+    var endStr = c.expectedCompletionDate || '';
+    var start = startStr ? new Date(startStr) : null;
+    var end = endStr ? new Date(endStr) : null;
+    if (start && isNaN(start.getTime())) start = null;
+    if (end && isNaN(end.getTime())) end = null;
+    var now = Date.now();
+    var ratio = 0;
+    if (progress === '완료') ratio = 1;
+    else if (progress === '착공전') ratio = 0;
+    else if (start && end && end.getTime() > start.getTime()) {
+      ratio = (now - start.getTime()) / (end.getTime() - start.getTime());
+    } else if (start) {
+      // 예상 준공일 없으면 착공 후 90일을 100% 로 가정
+      ratio = (now - start.getTime()) / (90 * 24 * 60 * 60 * 1000);
+    }
+    if (ratio < 0) ratio = 0;
+    var clamped = Math.min(1, Math.max(0, ratio));
+    // 현재 스텝 인덱스
+    var stepIdx = 0;
+    for (var i = 0; i < CS_STAGES.length; i++) {
+      if (clamped >= CS_STAGES[i].threshold) stepIdx = i;
+    }
+    if (progress === '완료') stepIdx = CS_STAGES.length - 1;
+    if (progress === '착공전') stepIdx = -1;
+    // D-day (예상 준공까지 남은 일수)
+    var dDay = null;
+    if (end) {
+      dDay = Math.ceil((end.getTime() - now) / (1000 * 60 * 60 * 24));
+    }
+    return {
+      ratio: ratio,
+      percent: Math.min(100, Math.max(0, Math.round(clamped * 100))),
+      overdue: ratio > 1 && progress !== '완료',
+      stepIdx: stepIdx,
+      stages: CS_STAGES,
+      dDay: dDay,
+      start: start,
+      end: end,
+      progress: progress
+    };
+  }
+
+  function renderSiteStepper(c) {
+    var r = getSiteRoadmap(c);
+    var st = getSiteStatusInfo(c);
+    var barCls = 'cs-stepper-fill';
+    if (st.key === 'done') barCls += ' cs-stepper-fill-done';
+    else if (st.key === 'warn' || r.overdue) barCls += ' cs-stepper-fill-warn';
+    else if (st.key === 'pending') barCls += ' cs-stepper-fill-pending';
+    var fillPct = r.progress === '완료' ? 100 : r.percent;
+    var ddayLabel = '';
+    if (r.progress === '완료') ddayLabel = '준공 완료';
+    else if (r.dDay != null) {
+      if (r.dDay > 0) ddayLabel = '예상 준공 D-' + r.dDay;
+      else if (r.dDay === 0) ddayLabel = '예상 준공 D-DAY';
+      else ddayLabel = '예상 준공 +' + Math.abs(r.dDay) + '일 초과';
+    }
+    var dots = CS_STAGES.map(function (s, i) {
+      var cls = 'cs-stepper-dot';
+      if (r.progress === '착공전') cls += ' cs-stepper-dot-future';
+      else if (i < r.stepIdx) cls += ' cs-stepper-dot-done';
+      else if (i === r.stepIdx) cls += ' cs-stepper-dot-active';
+      else cls += ' cs-stepper-dot-future';
+      return '<div class="cs-stepper-step">' +
+        '<div class="' + cls + '"></div>' +
+        '<div class="cs-stepper-label">' + escapeHtml(s.label) + '</div>' +
+      '</div>';
+    }).join('<div class="cs-stepper-line"></div>');
+    return '<div class="cs-stepper">' +
+      '<div class="cs-stepper-bar"><div class="' + barCls + '" style="width:' + fillPct + '%"></div></div>' +
+      '<div class="cs-stepper-steps">' + dots + '</div>' +
+      (ddayLabel ? '<div class="cs-stepper-dday">' + escapeHtml(ddayLabel) + '</div>' : '') +
+    '</div>';
+  }
+
+  // ===== 일정 간트차트 =====
+  var _csGanttCollapsed = false;
+
+  function renderConstructionSitesGantt(list) {
+    var wrap = document.getElementById('cs-gantt-wrap');
+    if (!wrap) return;
+    var bodyEl = document.getElementById('cs-gantt-body');
+    var headerEl = document.getElementById('cs-gantt-header');
+    var statusEl = document.getElementById('cs-gantt-status');
+    if (!bodyEl || !headerEl) return;
+
+    // 날짜 보유 항목만 차트에 그림
+    var items = (list || []).map(function (c) {
+      var r = getSiteRoadmap(c);
+      return { c: c, r: r };
+    }).filter(function (x) { return x.r.start && x.r.end; });
+
+    if (!items.length) {
+      headerEl.innerHTML = '';
+      bodyEl.innerHTML = '<div class="cs-gantt-empty">표시할 일정이 없습니다. 착공일·예상 준공일이 입력된 현장이 있어야 차트에 표시됩니다.</div>';
+      if (statusEl) statusEl.textContent = '';
+      return;
+    }
+
+    // 범위 계산 (전체 ±10일 패딩)
+    var minStart = items.reduce(function (m, x) { return !m || x.r.start < m ? x.r.start : m; }, null);
+    var maxEnd = items.reduce(function (m, x) { return !m || x.r.end > m ? x.r.end : m; }, null);
+    var rangeStart = new Date(minStart.getTime() - 10 * 24 * 60 * 60 * 1000);
+    rangeStart.setDate(1); // 월의 1일로 정렬
+    var rangeEnd = new Date(maxEnd.getTime() + 10 * 24 * 60 * 60 * 1000);
+    rangeEnd.setMonth(rangeEnd.getMonth() + 1, 1);
+    var totalMs = rangeEnd.getTime() - rangeStart.getTime();
+    if (totalMs <= 0) {
+      bodyEl.innerHTML = '<div class="cs-gantt-empty">날짜 범위가 잘못됐습니다.</div>';
+      return;
+    }
+
+    // 월별 헤더 라벨
+    var months = [];
+    var cursor = new Date(rangeStart.getTime());
+    while (cursor < rangeEnd) {
+      var nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      var widthPct = ((nextMonth.getTime() - cursor.getTime()) / totalMs) * 100;
+      months.push({
+        label: cursor.getFullYear() + '.' + (cursor.getMonth() + 1),
+        widthPct: widthPct
+      });
+      cursor = nextMonth;
+    }
+    headerEl.innerHTML = months.map(function (m) {
+      return '<div class="cs-gantt-month" style="width:' + m.widthPct + '%">' + escapeHtml(m.label) + '</div>';
+    }).join('');
+
+    // 오늘 라인
+    var nowMs = Date.now();
+    var todayPct = null;
+    if (nowMs >= rangeStart.getTime() && nowMs <= rangeEnd.getTime()) {
+      todayPct = ((nowMs - rangeStart.getTime()) / totalMs) * 100;
+    }
+
+    // 행 렌더
+    var rowsHtml = items.map(function (x) {
+      var c = x.c;
+      var r = x.r;
+      var st = getSiteStatusInfo(c);
+      var leftPct = ((r.start.getTime() - rangeStart.getTime()) / totalMs) * 100;
+      var widthPct = ((r.end.getTime() - r.start.getTime()) / totalMs) * 100;
+      if (widthPct < 1.5) widthPct = 1.5; // 최소 가시성
+      var name = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+      var fillPct = r.progress === '완료' ? 100 : Math.min(100, r.percent);
+      var barCls = 'cs-gantt-bar cs-gantt-bar-' + st.key;
+      if (r.overdue) barCls += ' cs-gantt-bar-overdue';
+      var tooltip = name + ' · ' + st.label + ' · ' +
+        (r.start.toISOString().slice(0, 10)) + ' ~ ' + (r.end.toISOString().slice(0, 10)) +
+        (r.dDay != null && r.progress !== '완료' ? ' · D-' + r.dDay : '');
+      return '<div class="cs-gantt-row" data-cs-action="open-design" data-cs-contract="' + escapeAttr(c.id || '') + '" title="' + escapeAttr(tooltip) + '">' +
+        '<div class="cs-gantt-rowlabel"><span class="cs-gantt-rowname">' + escapeHtml(name) + '</span><span class="cs-gantt-rowstatus ' + st.cls + '">' + escapeHtml(st.label) + '</span></div>' +
+        '<div class="cs-gantt-track">' +
+          (todayPct != null ? '<div class="cs-gantt-today" style="left:' + todayPct + '%"></div>' : '') +
+          '<div class="' + barCls + '" style="left:' + leftPct + '%; width:' + widthPct + '%">' +
+            '<div class="cs-gantt-bar-fill" style="width:' + fillPct + '%"></div>' +
+            '<div class="cs-gantt-bar-label">' + escapeHtml(r.progress === '완료' ? '완료' : (r.percent + '%')) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    bodyEl.innerHTML = rowsHtml;
+    if (statusEl) {
+      var todayLabel = todayPct != null ? ' · 빨간 선 = 오늘' : '';
+      statusEl.textContent = items.length + '개 현장 표시' + todayLabel;
+    }
+  }
+
   function getCsTypeKey(c) {
     var t = (c.contractModel || '').trim();
     if (t === '컨테이너/농막') return '컨테이너/농막';
@@ -7546,6 +7730,9 @@
     // 지도 갱신 (카드와 동일 필터 적용된 list 기준)
     renderConstructionSitesMap(list);
 
+    // 일정 간트차트도 동일 필터로 갱신
+    renderConstructionSitesGantt(list);
+
     var grid = document.getElementById('construction-sites-grid');
     if (!grid) return;
     if (!list.length) {
@@ -7584,6 +7771,7 @@
           '<span class="cs-site-badge ' + st.cls + '">' + escapeHtml(st.label) + '</span>' +
         '</div>' +
         photoBlock +
+        renderSiteStepper(c) +
         '<div class="cs-site-row"><span class="cs-label">주소</span><span class="cs-value">' + escapeHtml(addr) + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">전시장</span><span class="cs-value">' + escapeHtml(getShowroomName(c.showroomId)) + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">영업 담당</span><span class="cs-value">' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
