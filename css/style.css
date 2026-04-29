@@ -15408,3 +15408,73 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
   .my-cal-times { font-size: 0.66rem; }
   .my-cal-work { font-size: 0.62rem; }
 }
+
+/* ===== LG가전 발주 목록 — 클릭 가능한 행 + 상세 모달 ===== */
+.lg-appliance-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.lg-appliance-row:hover {
+  background: rgba(59,130,246,0.08);
+}
+.lg-appliance-row:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+.lg-appliance-actions-cell {
+  white-space: nowrap;
+}
+
+.lg-appliance-detail-modal {
+  max-width: 620px;
+}
+.lg-appliance-detail-body {
+  padding: 16px 20px;
+}
+.lg-appliance-detail-list {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 10px 16px;
+  margin: 0;
+}
+.lg-appliance-detail-list dt {
+  color: #9CA3AF;
+  font-size: 13px;
+  align-self: center;
+}
+.lg-appliance-detail-list dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-body);
+  word-break: break-all;
+}
+.lg-appliance-detail-memo {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+}
+.lg-appliance-detail-memo-label {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin-bottom: 6px;
+}
+.lg-appliance-detail-memo-text {
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.lg-appliance-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 520px) {
+  .lg-appliance-detail-list { grid-template-columns: 100px 1fr; gap: 8px 12px; }
+  .lg-appliance-detail-actions { flex-wrap: wrap; }
+  .lg-appliance-detail-actions .btn { flex: 1 1 auto; min-width: 90px; }
+}
