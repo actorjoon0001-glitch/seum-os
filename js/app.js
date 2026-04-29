@@ -8048,24 +8048,42 @@
     });
   }
 
-  function csPinSvg(color) {
+  // 마커 핀: 외곽 = 유형(체류형쉼터/컨테이너·농막/전원주택/기타) 색상,
+  //          가운데 작은 원 = 상태(정상/지연/예정/완료) 색상,
+  //          신규 건은 핑크색 외부 링으로 추가 강조.
+  function csPinSvg(typeColor, statusColor, isNew) {
+    var ring = isNew
+      ? '<circle cx="14" cy="14" r="12.5" fill="none" stroke="#ec4899" stroke-width="2.2" opacity="0.95"/>'
+      : '';
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">' +
-      '<path d="M14 0C6.27 0 0 6.27 0 14c0 9.5 14 24 14 24s14-14.5 14-24c0-7.73-6.27-14-14-14z" fill="' + color + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>' +
-      '<circle cx="14" cy="14" r="5" fill="white"/>' +
+      '<path d="M14 0C6.27 0 0 6.27 0 14c0 9.5 14 24 14 24s14-14.5 14-24c0-7.73-6.27-14-14-14z" fill="' + typeColor + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>' +
+      ring +
+      '<circle cx="14" cy="14" r="5.5" fill="#fff"/>' +
+      '<circle cx="14" cy="14" r="3.6" fill="' + statusColor + '"/>' +
       '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
-  // 카드 선택 시 강조 표시용 큰 마커 (동일 색상 + 흰 외곽선 + 사이즈 ↑)
-  function csHighlightPinSvg(color) {
+  // 카드 선택 시 강조 표시용 큰 마커 (외곽=유형 색, 흰 외곽선, 사이즈 ↑, 가운데 상태 점)
+  function csHighlightPinSvg(typeColor, statusColor, isNew) {
+    var ring = isNew
+      ? '<circle cx="21" cy="21" r="19" fill="none" stroke="#ec4899" stroke-width="3" opacity="0.95"/>'
+      : '';
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="56" viewBox="0 0 42 56">' +
-      '<path d="M21 0C9.4 0 0 9.4 0 21c0 14.2 21 35 21 35s21-20.8 21-35C42 9.4 32.6 0 21 0z" fill="' + color + '" stroke="#fff" stroke-width="3"/>' +
-      '<circle cx="21" cy="21" r="8" fill="white"/>' +
-      '<circle cx="21" cy="21" r="4" fill="' + color + '"/>' +
+      '<path d="M21 0C9.4 0 0 9.4 0 21c0 14.2 21 35 21 35s21-20.8 21-35C42 9.4 32.6 0 21 0z" fill="' + typeColor + '" stroke="#fff" stroke-width="3"/>' +
+      ring +
+      '<circle cx="21" cy="21" r="8.5" fill="#fff"/>' +
+      '<circle cx="21" cy="21" r="5.5" fill="' + statusColor + '"/>' +
       '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
   var CS_PIN_COLORS = { normal: '#22c55e', warn: '#fb923c', pending: '#3b82f6', done: '#9ca3af', new: '#ec4899' };
+  var CS_TYPE_COLORS = {
+    '체류형쉼터':   '#14b8a6',  // teal
+    '컨테이너/농막': '#f59e0b', // amber
+    '전원주택':     '#8b5cf6',  // violet
+    '기타':         '#64748b'   // slate
+  };
 
   // 지도 + 마커 상태 (다시 그릴 때 기존 마커/인포윈도우 정리용)
   var _csMap = null;
@@ -8100,14 +8118,17 @@
 
       function placePin(c, latlng) {
         var st = getSiteStatusInfo(c);
-        var color = CS_PIN_COLORS[st.key] || CS_PIN_COLORS.normal;
+        var statusColor = CS_PIN_COLORS[st.key] || CS_PIN_COLORS.normal;
+        var typeKey = getCsTypeKey(c);
+        var typeColor = CS_TYPE_COLORS[typeKey] || CS_TYPE_COLORS['기타'];
+        var isNew = (st.key === 'new');
         var image = new kakao.maps.MarkerImage(
-          csPinSvg(color),
+          csPinSvg(typeColor, statusColor, isNew),
           new kakao.maps.Size(28, 38),
           { offset: new kakao.maps.Point(14, 38) }
         );
         var highlightImage = new kakao.maps.MarkerImage(
-          csHighlightPinSvg(color),
+          csHighlightPinSvg(typeColor, statusColor, isNew),
           new kakao.maps.Size(42, 56),
           { offset: new kakao.maps.Point(21, 56) }
         );

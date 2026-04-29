@@ -2093,11 +2093,21 @@
         <div class="card-header">
           <h3>현장 위치 지도</h3>
           <div class="cs-map-legend">
-            <span><i class="cs-dot cs-dot-new"></i>신규 (14일 이내)</span>
-            <span><i class="cs-dot cs-dot-normal"></i>정상 진행</span>
-            <span><i class="cs-dot cs-dot-warn"></i>지연 우려</span>
-            <span><i class="cs-dot cs-dot-pending"></i>착공 예정</span>
-            <span><i class="cs-dot cs-dot-done"></i>완료</span>
+            <div class="cs-map-legend-row">
+              <span class="cs-map-legend-label">유형(핀 색)</span>
+              <span><i class="cs-dot cs-dot-type-shelter"></i>체류형쉼터</span>
+              <span><i class="cs-dot cs-dot-type-container"></i>컨테이너/농막</span>
+              <span><i class="cs-dot cs-dot-type-house"></i>전원주택</span>
+              <span><i class="cs-dot cs-dot-type-etc"></i>기타</span>
+            </div>
+            <div class="cs-map-legend-row">
+              <span class="cs-map-legend-label">상태(가운데 점)</span>
+              <span><i class="cs-dot cs-dot-normal"></i>정상 진행</span>
+              <span><i class="cs-dot cs-dot-warn"></i>지연 우려</span>
+              <span><i class="cs-dot cs-dot-pending"></i>착공 예정</span>
+              <span><i class="cs-dot cs-dot-done"></i>완료</span>
+              <span><i class="cs-dot cs-dot-ring-new"></i>신규(분홍 링)</span>
+            </div>
           </div>
         </div>
         <div id="construction-sites-map" class="construction-sites-map"></div>
