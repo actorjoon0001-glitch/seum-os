@@ -15420,6 +15420,34 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
   color: #93c5fd;
   line-height: 1.5;
 }
+.lg-appliance-memo-hint-strong {
+  background: rgba(239,68,68,0.12);
+  border: 1.5px solid rgba(239,68,68,0.55);
+  border-left-width: 4px;
+  border-left-color: #ef4444;
+  color: #fecaca;
+  padding: 12px 14px;
+  margin: 14px 0 8px;
+}
+.lg-appliance-memo-hint-strong .lg-appliance-memo-hint-title {
+  margin: 0 0 6px;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #fca5a5;
+  letter-spacing: -0.01em;
+}
+.lg-appliance-memo-hint-strong .lg-appliance-memo-hint-body {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #fecaca;
+}
+.lg-appliance-memo-hint-strong .lg-appliance-memo-hint-body b {
+  color: #fff;
+  background: rgba(239,68,68,0.35);
+  padding: 0 4px;
+  border-radius: 3px;
+}
 .lg-appliance-row {
   cursor: pointer;
   transition: background 0.15s ease;

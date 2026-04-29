@@ -1167,7 +1167,7 @@
       ['전시장', escapeHtml(showroomName)],
       ['발주일', escapeHtml(order.orderDate || '-')],
       ['계약자명', escapeHtml(order.customerName || '-')],
-      ['연락처', escapeHtml(order.phone || '-')],
+      ['건축주 연락처', escapeHtml(order.phone || '-')],
       ['담당 영업사원', escapeHtml(order.salesPerson || '-')],
       ['품목', escapeHtml(order.product || '-')],
       ['모델명', escapeHtml(order.modelName || '-')],
