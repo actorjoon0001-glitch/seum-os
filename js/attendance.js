@@ -780,17 +780,31 @@
 
   async function handleCheckIn() {
     if (busy) return;
-    // 어제 팀 업무일지 미작성 게이트 — 어제 출근 기록이 있는데 업무일지를 작성하지 않았다면
-    // 출근하기 전에 팀 업무일지 페이지로 안내한다 (퇴근 버튼을 누르지 않은 사람들이 다음날 차단되는 케이스).
+    // 어제 기록 1회 조회 (퇴근 미처리 게이트 + 팀 업무일지 게이트 모두 사용)
+    var yesterdayKey = shiftDateKey(toDateKey(new Date()), -1);
+    var yRec = null;
+    try { yRec = await getMyRecordForDate(yesterdayKey); }
+    catch (e) { console.warn('[attendance] yesterday record fetch failed:', e); }
+
+    // 1) 퇴근 미처리 게이트 — 어제 출근 기록은 있는데 퇴근 시각이 없다면
+    //    오늘 출근을 막고 관리자에게 보정을 요청하도록 안내. 팀 업무일지 작성 여부와 무관하게
+    //    먼저 처리해야 출근 누적/근무시간 계산이 망가지지 않는다.
+    if (yRec && yRec.check_in && !yRec.check_out) {
+      var msg = '어제(' + yesterdayKey + ') 퇴근 처리가 되어 있지 않습니다.\n' +
+                '관리자에게 문의해 어제 근무 종료 시각을 보정한 뒤 다시 출근해 주세요.\n\n' +
+                '※ 어제 팀 업무일지도 미작성 상태이면 관리자 보정 후 함께 작성해야 합니다.';
+      window.alert(msg);
+      return;
+    }
+
+    // 2) 어제 팀 업무일지 미작성 게이트 — 어제 출근/퇴근이 정상이지만 일지가 비어있는 경우
     try {
       if (typeof window !== 'undefined' &&
           typeof window.seumHasFilledTeamWorklogForDate === 'function') {
-        var yesterdayKey = shiftDateKey(toDateKey(new Date()), -1);
-        var yRec = await getMyRecordForDate(yesterdayKey);
         if (yRec && yRec.check_in && !window.seumHasFilledTeamWorklogForDate(yesterdayKey)) {
-          var msg = '어제(' + yesterdayKey + ') 팀 업무일지가 아직 작성되지 않았습니다.\n' +
+          var msg2 = '어제(' + yesterdayKey + ') 팀 업무일지가 아직 작성되지 않았습니다.\n' +
                     '작성해야 출근할 수 있습니다. 어제 팀 업무일지 페이지로 이동하시겠습니까?';
-          var go = window.confirm(msg);
+          var go = window.confirm(msg2);
           if (go) {
             if (typeof window.seumOpenTeamWorklogForDate === 'function') {
               window.seumOpenTeamWorklogForDate(yesterdayKey);
