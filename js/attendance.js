@@ -208,19 +208,32 @@
 
   /** 내 오늘 레코드 조회. 없으면 null. */
   async function getMyTodayRecord() {
+    return getMyRecordForDate(toDateKey(new Date()));
+  }
+
+  /** 내 특정 날짜 레코드 조회. 없으면 null. */
+  async function getMyRecordForDate(dateKey) {
     var emp = currentEmployee();
     var client = supa();
-    if (!emp || !emp.authUserId || !client) return null;
+    if (!emp || !emp.authUserId || !client || !dateKey) return null;
     try {
       var r = await client
         .from(TABLE)
         .select('*')
         .eq('user_id', emp.authUserId)
-        .eq('date', toDateKey(new Date()))
+        .eq('date', dateKey)
         .maybeSingle();
       if (r.error) return null;
       return r.data || null;
     } catch (e) { return null; }
+  }
+
+  /** YYYY-MM-DD 에 days 일 가감한 ISO 날짜 반환. */
+  function shiftDateKey(dateKey, days) {
+    var parts = (dateKey || toDateKey(new Date())).split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    d.setDate(d.getDate() + (days | 0));
+    return toDateKey(d);
   }
 
   /** 오늘 본인 승인된 월차/연차/병가/외근 1건 조회 (없으면 null). */
@@ -767,6 +780,31 @@
 
   async function handleCheckIn() {
     if (busy) return;
+    // 어제 팀 업무일지 미작성 게이트 — 어제 출근 기록이 있는데 업무일지를 작성하지 않았다면
+    // 출근하기 전에 팀 업무일지 페이지로 안내한다 (퇴근 버튼을 누르지 않은 사람들이 다음날 차단되는 케이스).
+    try {
+      if (typeof window !== 'undefined' &&
+          typeof window.seumHasFilledTeamWorklogForDate === 'function') {
+        var yesterdayKey = shiftDateKey(toDateKey(new Date()), -1);
+        var yRec = await getMyRecordForDate(yesterdayKey);
+        if (yRec && yRec.check_in && !window.seumHasFilledTeamWorklogForDate(yesterdayKey)) {
+          var msg = '어제(' + yesterdayKey + ') 팀 업무일지가 아직 작성되지 않았습니다.\n' +
+                    '작성해야 출근할 수 있습니다. 어제 팀 업무일지 페이지로 이동하시겠습니까?';
+          var go = window.confirm(msg);
+          if (go) {
+            if (typeof window.seumOpenTeamWorklogForDate === 'function') {
+              window.seumOpenTeamWorklogForDate(yesterdayKey);
+            } else if (typeof window.showSection === 'function') {
+              window.showSection('team-worklog');
+            }
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      // 게이트 검사 실패 시에는 출근을 차단하지 않는다.
+      console.warn('[attendance] yesterday worklog gate failed:', e);
+    }
     busy = true;
     try {
       var r = await checkIn();
