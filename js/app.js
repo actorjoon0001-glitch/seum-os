@@ -7076,6 +7076,11 @@
   var _csSitePhotosWired = false;
   var _csCurrentUploadContractId = null;
 
+  // 지오코딩에 실패한 contract id 집합 ({id: true}). 카드 위에 "⚠ 주소 확인 필요" 라벨과
+  // [주소 수정] 버튼을 띄우는 데 사용. 성공 시 자동으로 항목이 제거된다.
+  var _csGeocodeFailed = {};
+  var _csGeocodeAttempted = {}; // 동일 주소 재시도 방지: 한 번 실패한 주소는 카드 재렌더 때 다시 시도하지 않음
+
   function getSiteProgressPhotos(contractId) {
     return (_csSitePhotos[contractId] || []).slice();
   }
@@ -7341,6 +7346,10 @@
         // 현장 카드 본문 클릭 → 지도 마커 강조 + 인포윈도우 오픈 + 지도로 스크롤
         if (!cid) return;
         selectSiteOnMap(cid);
+      } else if (action === 'edit-address') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (cid) promptEditSiteAddress(cid);
       }
     });
   }
@@ -7393,6 +7402,64 @@
         if (e2) focusMarkerOnMap(contractId, e2);
       }, 60);
     });
+  }
+
+  // 실패 상태에 따라 카드 위쪽에 "⚠ 주소 확인 필요" 라벨 + [주소 수정] 버튼을 토글한다.
+  function applyGeocodeFailureWarnings() {
+    var grid = document.getElementById('construction-sites-grid');
+    if (!grid) return;
+    var cards = grid.querySelectorAll('.cs-site-card[data-cs-contract]');
+    cards.forEach(function (card) {
+      var cid = card.getAttribute('data-cs-contract');
+      var existing = card.querySelector('.cs-addr-warn');
+      if (cid && _csGeocodeFailed[cid]) {
+        if (!existing) {
+          var warn = document.createElement('div');
+          warn.className = 'cs-addr-warn';
+          warn.innerHTML =
+            '<span class="cs-addr-warn-icon" aria-hidden="true">⚠</span>' +
+            '<span class="cs-addr-warn-text">주소를 지도에서 못 찾았습니다. 행정구역명·면(面)을 확인해 주세요.</span>' +
+            '<button type="button" class="cs-addr-warn-btn" data-cs-action="edit-address" data-cs-contract="' + escapeAttr(cid) + '">주소 수정</button>';
+          // 카드 헤더 바로 다음(사진 위)에 삽입
+          var header = card.querySelector('.cs-site-card-header');
+          if (header && header.nextSibling) {
+            card.insertBefore(warn, header.nextSibling);
+          } else {
+            card.appendChild(warn);
+          }
+        }
+      } else if (existing) {
+        existing.remove();
+      }
+    });
+  }
+
+  // 작은 인라인 prompt 로 시공 주소만 빠르게 수정. 실패 캐시도 함께 비워서 즉시 재시도.
+  function promptEditSiteAddress(contractId) {
+    if (!contractId) return;
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    if (!c) return;
+    var current = c.siteAddress || '';
+    var msg = '시공 주소를 정확하게 입력해 주세요.\n\n' +
+      '예시: 전라남도 장성군 동화면 안평리 1003\n' +
+      '- 행정구역명에 오타가 없는지 (장선군 → 장성군 등)\n' +
+      '- 면(面)을 빠뜨리지 않았는지 확인';
+    var next = window.prompt(msg, current);
+    if (next == null) return; // 취소
+    next = next.trim();
+    if (next === current) {
+      showToast('변경 사항이 없습니다.', 'info');
+      return;
+    }
+    c.siteAddress = next;
+    saveContracts(contracts);
+    // 실패/시도 캐시 초기화 후 다시 렌더링 → 새 주소로 재지오코딩
+    delete _csGeocodeFailed[contractId];
+    if (current) delete _csGeocodeAttempted[current];
+    if (next) delete _csGeocodeAttempted[next];
+    renderConstructionSitesOverview();
+    showToast('주소가 저장되었습니다. 지도에서 다시 검색합니다.');
   }
 
   function focusMarkerOnMap(contractId, entry) {
@@ -7809,19 +7876,33 @@
 
       list.forEach(function (c) {
         var addr = (c.siteAddress || '').trim();
-        if (!addr) return;
+        if (!addr) {
+          // 주소 자체가 없으면 실패가 아님 — 경고 표시 대상도 아님.
+          if (c.id) delete _csGeocodeFailed[c.id];
+          return;
+        }
         if (cache[addr]) {
+          if (c.id) delete _csGeocodeFailed[c.id];
           placePin(c, new kakao.maps.LatLng(cache[addr].lat, cache[addr].lng));
           return;
         }
+        // 같은 주소를 한 세션에서 또 시도하지 않음 (실패 시 무한 재시도 방지)
+        if (_csGeocodeAttempted[addr]) {
+          if (c.id) _csGeocodeFailed[c.id] = true;
+          notFound++;
+          return;
+        }
+        _csGeocodeAttempted[addr] = true;
         pending++;
         geocodeAddressWithFallback(addr, function (coord) {
           pending--;
           if (coord) {
             cache[addr] = { lat: coord.lat, lng: coord.lng };
             saveGeocodeCache(cache);
+            if (c.id) delete _csGeocodeFailed[c.id];
             placePin(c, new kakao.maps.LatLng(coord.lat, coord.lng));
           } else {
+            if (c.id) _csGeocodeFailed[c.id] = true;
             notFound++;
           }
           if (pending === 0) {
@@ -7831,9 +7912,13 @@
               if (notFound > 0) msg += ' / 주소 변환 실패 ' + notFound + '건';
               statusEl.textContent = msg;
             }
+            // 카드 DOM 이 아직 렌더 중일 수 있어 다음 tick 으로 미룸
+            setTimeout(applyGeocodeFailureWarnings, 0);
           }
         });
       });
+      // 모두 캐시/스킵된 경우 콜백이 없으므로 즉시(다음 tick) 경고 갱신
+      setTimeout(applyGeocodeFailureWarnings, 0);
 
       // 캐시로만 모두 표시된 케이스 처리 (geocoder 콜백 안 발생)
       if (pending === 0) {
