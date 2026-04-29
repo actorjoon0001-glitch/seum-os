@@ -2087,6 +2087,16 @@
         </div>
         <div id="construction-sites-grid" class="construction-sites-grid"></div>
       </div>
+
+      <!-- 현장 사진 업로드 입력 (숨김) + 라이트박스 -->
+      <input type="file" id="cs-photo-upload-input" accept="image/*" capture="environment" hidden>
+      <div id="cs-photo-lightbox" class="cs-photo-lightbox" role="dialog" aria-modal="true">
+        <div class="cs-photo-lightbox-inner">
+          <button type="button" class="cs-lightbox-close" aria-label="닫기">✕</button>
+          <img id="cs-photo-lightbox-img" alt="현장 사진">
+          <div id="cs-photo-lightbox-caption" class="cs-photo-lightbox-caption"></div>
+        </div>
+      </div>
     </section>
 
     <section id="section-construction" class="content-section">
