@@ -17146,12 +17146,15 @@
       formWrap.classList.remove('hidden');
       var reqDate = document.getElementById('plist-request-date');
       if (reqDate && !reqDate.value) reqDate.value = new Date().toISOString().slice(0, 10);
+      // 폼이 열려 있는 동안에는 [+ 발주 등록] 버튼을 숨겨 입력값 초기화 사고 방지
+      if (openBtn) openBtn.classList.add('hidden');
     }
     function closeForm() {
       if (formWrap) formWrap.classList.add('hidden');
       if (form) form.reset();
       var editId = document.getElementById('plist-edit-id');
       if (editId) editId.value = '';
+      if (openBtn) openBtn.classList.remove('hidden');
     }
     function loadIntoForm(it) {
       document.getElementById('plist-edit-id').value = it.id || '';
