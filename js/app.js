@@ -5558,6 +5558,7 @@
       '<button type="button" class="btn btn-sm btn-primary design-detail-save-top-inline">저장</button>' +
       '<button type="button" class="btn btn-sm btn-secondary design-detail-modal-btn" data-contract-id="' + escapeAttr(contractId) + '">계약 상세</button>' +
       '<button type="button" class="btn btn-sm btn-danger design-priority-goto-btn" data-contract-id="' + escapeAttr(contractId) + '" style="background:#dc2626;border-color:#dc2626;color:#fff;">설계팀 우선순위</button>' +
+      '<button type="button" class="btn btn-sm btn-danger cs-goto-from-design-btn" data-contract-id="' + escapeAttr(contractId) + '" style="background:#2563eb;border-color:#2563eb;color:#fff;">현장 파악 지도</button>' +
       priorityToggleBtnHtml +
       '</div></div>';
     var cardBasic = '<div class="design-detail-card">' +
@@ -6322,6 +6323,18 @@
         // renderDesignPriority 가 이 타겟을 읽어서 자동 펼침·스크롤·하이라이트 처리
         if (targetId) _priorityScrollTarget = targetId;
         if (typeof showSection === 'function') showSection('design-priority');
+        return;
+      }
+      // 계약 상세에서 현장 파악 지도로 이동 + 해당 마커 자동 강조
+      var csGotoBtn = e.target.closest('.cs-goto-from-design-btn');
+      if (csGotoBtn) {
+        var csTargetId = csGotoBtn.getAttribute('data-contract-id') || '';
+        if (typeof showSection === 'function') showSection('construction-sites');
+        // 섹션 전환 후 카드/지도 렌더가 끝나면 마커를 강조하고 인포윈도우를 연다.
+        // 카카오 지도 SDK 가 처음 로드되는 경우를 위해 약간 여유 있게 대기.
+        if (csTargetId && typeof selectSiteOnMap === 'function') {
+          setTimeout(function () { selectSiteOnMap(csTargetId); }, 250);
+        }
         return;
       }
       // 계약 상세 summary bar 의 '우선순위 작업완료 / 취소' 토글 버튼
