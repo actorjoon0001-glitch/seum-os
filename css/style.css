@@ -257,6 +257,36 @@ button,
   color: #D4D4D4;
 }
 
+/* 핵심 메뉴(영업 계약 목록 / 설계 우선순위 / 시공 현장 파악) 포인트 강조 */
+.sidebar .nav-subitem-key {
+  position: relative;
+  color: #fde68a;
+  font-weight: 700;
+  padding-left: 2.6rem !important;
+}
+.sidebar .nav-subitem-key::before {
+  content: '★';
+  position: absolute;
+  left: 1.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #f59e0b;
+  pointer-events: none;
+}
+.sidebar .nav-subitem-key:hover {
+  color: #fef3c7;
+  background: rgba(245,158,11,0.12);
+}
+.sidebar .nav-subitem-key.active {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(245,158,11,0.35), rgba(245,158,11,0.12));
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+.sidebar .nav-subitem-key.active::before {
+  color: #fff;
+}
+
 .sidebar a:hover,
 .nav-item:hover {
   background: var(--bg-hover);
