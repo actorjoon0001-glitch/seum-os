@@ -14560,7 +14560,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.12s ease;
 }
+.cs-site-card:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(59,130,246,0.4);
+}
+.cs-site-card:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+.cs-site-card-selected {
+  background: rgba(59,130,246,0.08);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.25), 0 6px 18px rgba(59,130,246,0.18);
+}
+.cs-site-card-selected .cs-site-name { color: #93c5fd; }
 .cs-site-card-header {
   display: flex;
   justify-content: space-between;
