@@ -7628,7 +7628,9 @@
     }
     var addr = c ? (c.siteAddress || '').trim() : '';
     if (!addr) {
-      // 주소 자체가 비어 있으면 토스트 없이 카드 강조만 유지 (카드에 이미 모든 정보 표시됨)
+      // 주소 미입력 — 토스트로 안내하고 카드의 [주소 등록] 워닝 라벨 갱신
+      showToast('시공 주소가 비어 있어 지도에 표시할 수 없습니다. 카드의 [주소 등록] 버튼으로 입력해 주세요.', 'info');
+      applyGeocodeFailureWarnings();
       return;
     }
     if (!_csMap || !window.kakao || !kakao.maps) {
@@ -7655,22 +7657,42 @@
   }
 
   // 실패 상태에 따라 카드 위쪽에 "⚠ 주소 확인 필요" 라벨 + [주소 수정] 버튼을 토글한다.
+  // 두 가지 케이스를 함께 처리:
+  //   1) 시공 주소 자체가 비어 있는 경우 → "시공 주소가 입력되지 않았습니다." + [주소 등록]
+  //   2) 주소는 있지만 카카오 지오코딩 실패 → "주소를 지도에서 못 찾았습니다." + [주소 수정]
   function applyGeocodeFailureWarnings() {
     var grid = document.getElementById('construction-sites-grid');
     if (!grid) return;
+    var contracts = getContracts();
+    var byId = {};
+    contracts.forEach(function (c) { if (c && c.id) byId[c.id] = c; });
     var cards = grid.querySelectorAll('.cs-site-card[data-cs-contract]');
     cards.forEach(function (card) {
       var cid = card.getAttribute('data-cs-contract');
       var existing = card.querySelector('.cs-addr-warn');
-      if (cid && _csGeocodeFailed[cid]) {
-        if (!existing) {
+      var c = cid ? byId[cid] : null;
+      var hasAddr = !!(c && (c.siteAddress || '').trim());
+      var failed = !!(cid && _csGeocodeFailed[cid]);
+      var needs = !hasAddr || failed;
+      if (needs) {
+        var msg, btnLabel;
+        if (!hasAddr) {
+          msg = '시공 주소가 입력되지 않아 지도에 표시할 수 없습니다.';
+          btnLabel = '주소 등록';
+        } else {
+          msg = '주소를 지도에서 못 찾았습니다. 행정구역명·면(面)을 확인해 주세요.';
+          btnLabel = '주소 수정';
+        }
+        var html =
+          '<span class="cs-addr-warn-icon" aria-hidden="true">⚠</span>' +
+          '<span class="cs-addr-warn-text">' + escapeHtml(msg) + '</span>' +
+          '<button type="button" class="cs-addr-warn-btn" data-cs-action="edit-address" data-cs-contract="' + escapeAttr(cid) + '">' + escapeHtml(btnLabel) + '</button>';
+        if (existing) {
+          existing.innerHTML = html;
+        } else {
           var warn = document.createElement('div');
           warn.className = 'cs-addr-warn';
-          warn.innerHTML =
-            '<span class="cs-addr-warn-icon" aria-hidden="true">⚠</span>' +
-            '<span class="cs-addr-warn-text">주소를 지도에서 못 찾았습니다. 행정구역명·면(面)을 확인해 주세요.</span>' +
-            '<button type="button" class="cs-addr-warn-btn" data-cs-action="edit-address" data-cs-contract="' + escapeAttr(cid) + '">주소 수정</button>';
-          // 카드 헤더 바로 다음(사진 위)에 삽입
+          warn.innerHTML = html;
           var header = card.querySelector('.cs-site-card-header');
           if (header && header.nextSibling) {
             card.insertBefore(warn, header.nextSibling);
