@@ -354,12 +354,59 @@
   }
 
   // --------------------------------------------------
+  // 17:30 퇴근 30분 전 — 팀 업무일지 작성 리마인더
+  // 매분 검사하여 17:30~17:35 평일에 한 번만 발송 (사용자별 localStorage 로 중복 방지).
+  // 모든 로그인 직원이 동일 시간에 자동으로 받음.
+  // --------------------------------------------------
+  var CLOCKOUT_REMINDER_KEY = 'seum_last_clockout_reminder';
+  function _todayKeyKst() {
+    var d = new Date();
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function fireClockOutReminderIfDue() {
+    try {
+      var emp = window.seumAuth && window.seumAuth.currentEmployee;
+      if (!emp) return; // 로그인 상태에서만 발송
+      var now = new Date();
+      var hh = now.getHours();
+      var mm = now.getMinutes();
+      // 17:30 ~ 17:35 윈도우 (브라우저를 17:30 직전~직후에 열어도 안전 발송)
+      if (hh !== 17) return;
+      if (mm < 30 || mm > 35) return;
+      // 평일만 (0=일, 6=토)
+      var dow = now.getDay();
+      if (dow === 0 || dow === 6) return;
+      var key = _todayKeyKst();
+      if (localStorage.getItem(CLOCKOUT_REMINDER_KEY) === key) return;
+      localStorage.setItem(CLOCKOUT_REMINDER_KEY, key);
+
+      var title = '⏰ 퇴근 30분 전 알림';
+      var body = '오후 5시 30분, 퇴근 30분 전 입니다.\n퇴근 전 팀 업무일지를 작성해주세요.';
+      // 인앱 토스트 (계약 알림과 동일 스타일)
+      try { showInAppPopup(title, body, null); } catch (_) {}
+      // OS 브라우저 알림 (다른 탭/최소화 상태에서도 표시)
+      try { showBrowserNotification(title, body); } catch (_) {}
+      // 알림 사운드
+      try { playNotifSound(); } catch (_) {}
+    } catch (e) {
+      console.warn('[clockout-reminder] failed:', e);
+    }
+  }
+  function startClockOutReminderScheduler() {
+    // 페이지 진입 직후 1회 + 매분 검사
+    setTimeout(fireClockOutReminderIfDue, 5000);
+    setInterval(fireClockOutReminderIfDue, 60 * 1000);
+  }
+
+  // --------------------------------------------------
   // 외부 공개
   // --------------------------------------------------
   window.seumNotifications = {
     init: initNotifications,
     send: sendContractNotification,
-    showPopup: showInAppPopup
+    showPopup: showInAppPopup,
+    triggerClockOutReminder: fireClockOutReminderIfDue  // 디버그/테스트용
   };
 
   // DOM 준비되면 컨테이너 주입 + 초기화
@@ -371,9 +418,10 @@
     injectNotifContainer();
   }
 
-  // auth 준비 후 구독 시작
+  // auth 준비 후 구독 시작 + 퇴근 리마인더 스케줄러 가동
   (window.seumAuth && window.seumAuth.authReady || Promise.resolve()).then(function () {
     initNotifications();
+    startClockOutReminderScheduler();
   }).catch(function () {});
 
 })();
