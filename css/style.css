@@ -14625,6 +14625,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -2px;
 }
 
+/* 발주팀 현장 발주 목록 - 현장명 링크 가독성 개선 (기본 보라색 너무 어두움) */
+.po-site-link,
+.po-site-link:link,
+.po-site-link:visited {
+  color: #60a5fa;
+  text-decoration: underline;
+  text-decoration-color: rgba(96,165,250,0.45);
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+.po-site-link:hover,
+.po-site-link:focus {
+  color: #93c5fd;
+  text-decoration-color: #93c5fd;
+}
+
 /* ===== 현장 파악 헤더 (TV 모드 토글 버튼 포함) ===== */
 .cs-main-header {
   display: flex;
