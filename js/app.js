@@ -8542,7 +8542,54 @@
   // =====================================================================
   // 발주팀 - Tab: 현장발주
   // =====================================================================
+  // 현장 파악(시공 가능 체크된 계약) 을 발주팀의 현장 발주 목록에 자동 등록.
+  // - contract.id 를 procurement-site.id 로 매핑해 중복 생성 방지
+  // - 자동 생성 항목은 autoSynced=true 로 표시, 사용자 수동 등록 항목과 구분
+  // - 자동 항목은 매번 source(계약) 의 최신 값으로 동기화 (사용자가 수정해도 다음 동기화에 덮어쓰일 수 있음)
+  // - 사용자가 직접 만든 항목은 절대 건드리지 않음
+  function syncProcurementSitesFromConstruction() {
+    var contracts = (typeof getContracts === 'function' ? getContracts() : [])
+      .filter(function (c) { return c && c.id && c.constructionStartOk; });
+    if (!contracts.length) return;
+    var sites = getProcurementSites();
+    var byId = {};
+    sites.forEach(function (s) { if (s && s.id) byId[s.id] = s; });
+    var changed = false;
+    contracts.forEach(function (c) {
+      var modelName = c.contractModelName || c.contractModel || '';
+      var siteName = (c.customerName || '').trim();
+      if (modelName) siteName = siteName ? siteName + ' / ' + modelName : modelName;
+      if (!siteName) siteName = c.id;
+      var derived = {
+        siteName: siteName,
+        modelName: modelName,
+        pyeong: (c.housePyeong != null && c.housePyeong !== '') ? Number(c.housePyeong) : null,
+        siteAddress: c.siteAddress || '',
+        foremanName: c.constructionManager || '',
+        foremanPhone: c.constructionManagerPhone || c.foremanPhone || '',
+        manager: c.salesPerson || '',
+        orderDate: c.constructionStartDate || ''
+      };
+      var existing = byId[c.id];
+      if (!existing) {
+        sites.push(Object.assign({ id: c.id, autoSynced: true }, derived));
+        changed = true;
+      } else if (existing.autoSynced) {
+        // 자동 동기화 항목은 source 의 변화에 맞춰 갱신
+        Object.keys(derived).forEach(function (k) {
+          if (existing[k] !== derived[k]) {
+            existing[k] = derived[k];
+            changed = true;
+          }
+        });
+      }
+      // 사용자가 직접 만든 항목(autoSynced 가 falsy) 은 건드리지 않음
+    });
+    if (changed) saveProcurementSites(sites);
+  }
+
   function renderFieldOrderTab() {
+    syncProcurementSitesFromConstruction();
     var sites = getProcurementSites();
     var tbody = document.getElementById('tbody-field-orders');
     if (!tbody) return;
