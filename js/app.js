@@ -13270,6 +13270,16 @@
     document.querySelectorAll('.nav-item').forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-section') === sectionId);
     });
+    // TV 모드는 현장 파악 전용 — 다른 섹션으로 이동 시 자동 해제 (CSS 가 다른 섹션을 숨겨 빈 화면처럼 보이는 사고 방지)
+    if (sectionId !== 'construction-sites' && document.body.classList.contains('cs-tv-mode')) {
+      try { document.body.classList.remove('cs-tv-mode'); localStorage.setItem('seum_cs_tv_mode', '0'); } catch (_) {}
+      var tvBtn = document.getElementById('cs-tv-mode-toggle');
+      if (tvBtn) {
+        tvBtn.classList.remove('cs-tv-mode-active');
+        var lbl = tvBtn.querySelector('.cs-tv-label');
+        if (lbl) lbl.textContent = 'TV 모드';
+      }
+    }
     if (sectionId === 'marketing-videos' && typeof window.renderMarketingVideos === 'function') window.renderMarketingVideos();
     if (sectionId === 'marketing-schedule' && typeof window.renderMarketingSchedule === 'function') window.renderMarketingSchedule();
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
