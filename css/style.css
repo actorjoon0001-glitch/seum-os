@@ -14830,6 +14830,227 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .cs-lightbox-close:hover { background: rgba(255,255,255,0.28); }
 
+/* ===== 현장 카드 - 진행 스텝퍼 ===== */
+.cs-stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 2px;
+  padding: 8px 4px 4px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+}
+.cs-stepper-bar {
+  position: relative;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.cs-stepper-fill {
+  height: 100%;
+  background: #22c55e;
+  transition: width 0.3s ease;
+}
+.cs-stepper-fill-warn    { background: #fb923c; }
+.cs-stepper-fill-pending { background: #3b82f6; }
+.cs-stepper-fill-done    { background: #9ca3af; }
+.cs-stepper-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 0 2px;
+}
+.cs-stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.cs-stepper-line {
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 0 2px;
+  align-self: center;
+  transform: translateY(-7px);
+}
+.cs-stepper-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+}
+.cs-stepper-dot-done   { background: #22c55e; border-color: #22c55e; }
+.cs-stepper-dot-active {
+  background: #fff;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+}
+.cs-stepper-dot-future { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.18); }
+.cs-stepper-label {
+  font-size: 10.5px;
+  color: #9CA3AF;
+  white-space: nowrap;
+}
+.cs-stepper-dday {
+  font-size: 11.5px;
+  color: #d1d5db;
+  text-align: right;
+  padding-right: 2px;
+}
+
+/* ===== 일정 간트차트 ===== */
+.cs-gantt-wrap {
+  width: 100%;
+}
+.cs-gantt-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+}
+.cs-gantt-headerwrap,
+.cs-gantt-row {
+  display: flex;
+  min-width: 720px;
+}
+.cs-gantt-headerwrap {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(15,23,42,0.95);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.cs-gantt-rowlabel {
+  flex: 0 0 200px;
+  padding: 8px 10px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  font-size: 12.5px;
+}
+.cs-gantt-headerlabel {
+  font-weight: 700;
+  color: #E5E7EB;
+}
+.cs-gantt-rowname {
+  color: #E5E7EB;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.cs-gantt-rowstatus {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.cs-gantt-header {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 520px;
+}
+.cs-gantt-month {
+  border-right: 1px solid rgba(255,255,255,0.06);
+  padding: 8px 6px;
+  font-size: 11px;
+  color: #9CA3AF;
+  text-align: left;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.cs-gantt-bodywrap {
+  display: flex;
+  flex-direction: column;
+}
+.cs-gantt-body {
+  display: flex;
+  flex-direction: column;
+}
+.cs-gantt-row {
+  border-top: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.cs-gantt-row:hover {
+  background: rgba(255,255,255,0.04);
+}
+.cs-gantt-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 520px;
+  height: 44px;
+  background-image: repeating-linear-gradient(to right,
+    transparent 0,
+    transparent calc(100% / 12 - 1px),
+    rgba(255,255,255,0.04) calc(100% / 12 - 1px),
+    rgba(255,255,255,0.04) calc(100% / 12)
+  );
+}
+.cs-gantt-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239,68,68,0.6);
+  z-index: 3;
+  pointer-events: none;
+}
+.cs-gantt-bar {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  background: rgba(34,197,94,0.18);
+  border: 1px solid rgba(34,197,94,0.4);
+}
+.cs-gantt-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(34,197,94,0.55);
+}
+.cs-gantt-bar-label {
+  position: relative;
+  z-index: 1;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+.cs-gantt-bar-warn    { background: rgba(251,146,60,0.18); border-color: rgba(251,146,60,0.5); }
+.cs-gantt-bar-warn .cs-gantt-bar-fill    { background: rgba(251,146,60,0.6); }
+.cs-gantt-bar-done    { background: rgba(156,163,175,0.18); border-color: rgba(156,163,175,0.45); }
+.cs-gantt-bar-done .cs-gantt-bar-fill    { background: rgba(156,163,175,0.55); }
+.cs-gantt-bar-pending { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.45); }
+.cs-gantt-bar-pending .cs-gantt-bar-fill { background: rgba(59,130,246,0.55); }
+.cs-gantt-bar-overdue { box-shadow: 0 0 0 1.5px rgba(239,68,68,0.7), 0 1px 3px rgba(0,0,0,0.25); }
+.cs-gantt-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: #6B7280;
+  font-size: 13px;
+}
+
 /* ===== 내 캘린더 (개인 월간 근태) ===== */
 .my-cal-header-card {
   display: flex;
