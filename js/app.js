@@ -7319,8 +7319,46 @@
             showToast('삭제 실패', 'error');
           }
         });
+      } else if (action === 'select-site') {
+        // 현장 카드 본문 클릭 → 지도 마커 강조 + 인포윈도우 오픈 + 지도로 스크롤
+        if (!cid) return;
+        selectSiteOnMap(cid);
       }
     });
+  }
+
+  // 카드 클릭 시 해당 마커를 강조하고 인포윈도우를 열며 지도 영역으로 스크롤한다.
+  function selectSiteOnMap(contractId) {
+    var entry = _csMarkersByContract[contractId];
+    // 카드 강조 표시 (마커가 없어도 카드 시각 표시는 유지)
+    document.querySelectorAll('.cs-site-card.cs-site-card-selected').forEach(function (el) {
+      if (el.getAttribute('data-cs-contract') !== contractId) {
+        el.classList.remove('cs-site-card-selected');
+      }
+    });
+    var card = document.querySelector('.cs-site-card[data-cs-contract="' + (window.CSS && CSS.escape ? CSS.escape(contractId) : contractId) + '"]');
+    if (card) card.classList.add('cs-site-card-selected');
+
+    if (!entry || !_csMap || !window.kakao || !kakao.maps) {
+      showToast('지도에서 위치를 표시할 수 없습니다 (주소 변환 실패).', 'info');
+      return;
+    }
+    // 이전 강조 해제
+    if (_csHighlightedContractId && _csMarkersByContract[_csHighlightedContractId] && _csHighlightedContractId !== contractId) {
+      var prev = _csMarkersByContract[_csHighlightedContractId];
+      try { prev.marker.setImage(prev.defaultImage); } catch (_) {}
+      try { prev.marker.setZIndex(0); } catch (_) {}
+    }
+    try { entry.marker.setImage(entry.highlightImage); } catch (_) {}
+    try { entry.marker.setZIndex(99); } catch (_) {}
+    _csHighlightedContractId = contractId;
+    try { _csMap.panTo(entry.marker.getPosition()); } catch (_) {}
+    try { kakao.maps.event.trigger(entry.marker, 'click'); } catch (_) {}
+    // 지도 카드 영역으로 스크롤 (현장 목록이 길어 사용자가 아래에서 카드를 클릭한 경우)
+    var mapEl = document.getElementById('construction-sites-map');
+    if (mapEl && mapEl.scrollIntoView) {
+      try { mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+    }
   }
 
   function getSiteStatusInfo(c) {
@@ -7574,11 +7612,23 @@
       '</svg>';
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
+
+  // 카드 선택 시 강조 표시용 큰 마커 (동일 색상 + 흰 외곽선 + 사이즈 ↑)
+  function csHighlightPinSvg(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="42" height="56" viewBox="0 0 42 56">' +
+      '<path d="M21 0C9.4 0 0 9.4 0 21c0 14.2 21 35 21 35s21-20.8 21-35C42 9.4 32.6 0 21 0z" fill="' + color + '" stroke="#fff" stroke-width="3"/>' +
+      '<circle cx="21" cy="21" r="8" fill="white"/>' +
+      '<circle cx="21" cy="21" r="4" fill="' + color + '"/>' +
+      '</svg>';
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
   var CS_PIN_COLORS = { normal: '#22c55e', warn: '#fb923c', pending: '#3b82f6', done: '#9ca3af' };
 
   // 지도 + 마커 상태 (다시 그릴 때 기존 마커/인포윈도우 정리용)
   var _csMap = null;
   var _csMarkers = [];
+  var _csMarkersByContract = {}; // {contractId: {marker, defaultImage, highlightImage}}
+  var _csHighlightedContractId = null;
   var _csInfoWindow = null;
 
   function renderConstructionSitesMap(list) {
@@ -7596,6 +7646,8 @@
       // 기존 마커 제거
       _csMarkers.forEach(function (m) { m.setMap(null); });
       _csMarkers = [];
+      _csMarkersByContract = {};
+      _csHighlightedContractId = null;
 
       var geocoder = new kakao.maps.services.Geocoder();
       var cache = loadGeocodeCache();
@@ -7612,7 +7664,20 @@
           new kakao.maps.Size(28, 38),
           { offset: new kakao.maps.Point(14, 38) }
         );
+        var highlightImage = new kakao.maps.MarkerImage(
+          csHighlightPinSvg(color),
+          new kakao.maps.Size(42, 56),
+          { offset: new kakao.maps.Point(21, 56) }
+        );
         var marker = new kakao.maps.Marker({ position: latlng, image: image, map: _csMap });
+        if (c.id) {
+          _csMarkersByContract[c.id] = {
+            marker: marker,
+            defaultImage: image,
+            highlightImage: highlightImage,
+            contract: c
+          };
+        }
         kakao.maps.event.addListener(marker, 'click', function () {
           var siteName = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
           var latest = getLatestSiteProgressPhoto(c.id);
@@ -7765,7 +7830,7 @@
       } else {
         photoBlock = '<div class="cs-site-photo-empty">아직 등록된 현장 사진이 없습니다.</div>';
       }
-      return '<div class="cs-site-card">' +
+      return '<div class="cs-site-card" data-cs-action="select-site" data-cs-contract="' + escapeAttr(c.id || '') + '" tabindex="0" role="button" aria-label="지도에서 ' + escapeAttr(siteName) + ' 위치 보기">' +
         '<div class="cs-site-card-header">' +
           '<div class="cs-site-name">' + escapeHtml(siteName) + '</div>' +
           '<span class="cs-site-badge ' + st.cls + '">' + escapeHtml(st.label) + '</span>' +
