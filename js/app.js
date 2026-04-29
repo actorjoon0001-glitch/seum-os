@@ -7600,8 +7600,46 @@
         e.preventDefault();
         e.stopPropagation();
         if (cid) promptEditSiteAddress(cid);
+      } else if (action === 'open-procurement') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (cid) openProcurementListForSite(cid);
       }
     });
+  }
+
+  // 카드/인포윈도우의 [발주 넣기] → 발주 리스트 섹션으로 이동 + 폼 자동 오픈 + 현장명 자동 입력.
+  function openProcurementListForSite(contractId) {
+    var contracts = getContracts();
+    var c = contracts.find(function (x) { return x.id === contractId; });
+    var siteText = '';
+    if (c) {
+      var name = (c.customerName || '').trim();
+      var model = (c.contractModelName || c.contractModel || '').trim();
+      siteText = name + (model ? ' / ' + model : '');
+    }
+    if (typeof showSection === 'function') showSection('procurement-list');
+    // 권한 차단된 경우 showSection 이 alert 후 dashboard 로 돌려보내므로 plist-form 이 없을 수 있음.
+    setTimeout(function () {
+      var section = document.getElementById('section-procurement-list');
+      if (!section || !section.classList.contains('active')) return; // 접근 권한 없음 → 조용히 종료
+      var openBtn = document.getElementById('btn-open-plist-form');
+      if (openBtn) openBtn.click();
+      setTimeout(function () {
+        var siteInput = document.getElementById('plist-site');
+        if (siteInput && siteText) {
+          siteInput.value = siteText;
+          siteInput.dispatchEvent(new Event('input', { bubbles: true }));
+          // 다음 입력란으로 포커스 이동
+          var itemInput = document.getElementById('plist-item');
+          if (itemInput) itemInput.focus();
+        }
+        var formWrap = document.getElementById('plist-form-wrap');
+        if (formWrap && formWrap.scrollIntoView) {
+          try { formWrap.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+        }
+      }, 60);
+    }, 120);
   }
 
   // 카드 클릭 시 해당 마커를 강조하고 인포윈도우를 열며 지도 영역으로 스크롤한다.
@@ -8175,6 +8213,7 @@
             '<div class="cs-info-actions">' +
               '<button type="button" class="cs-info-btn cs-info-btn-primary" data-cs-action="upload-photo" data-cs-contract="' + escapeAttr(c.id || '') + '">현장 사진 등록</button>' +
               '<button type="button" class="cs-info-btn" data-cs-action="open-design" data-cs-contract="' + escapeAttr(c.id || '') + '">설계 협의도면 →</button>' +
+              '<button type="button" class="cs-info-btn" data-cs-action="open-procurement" data-cs-contract="' + escapeAttr(c.id || '') + '">발주 넣기 →</button>' +
             '</div>';
           var html = '<div class="cs-info">' +
             '<div class="cs-info-title">' + escapeHtml(siteName) + '</div>' +
@@ -8337,6 +8376,7 @@
         '<div class="cs-site-actions">' +
           '<button type="button" class="cs-site-btn cs-site-btn-primary" data-cs-action="upload-photo" data-cs-contract="' + escapeAttr(c.id || '') + '">현장 사진 등록</button>' +
           '<button type="button" class="cs-site-btn" data-cs-action="open-design" data-cs-contract="' + escapeAttr(c.id || '') + '">설계 협의도면</button>' +
+          '<button type="button" class="cs-site-btn" data-cs-action="open-procurement" data-cs-contract="' + escapeAttr(c.id || '') + '">발주 넣기</button>' +
         '</div>' +
       '</div>';
     }).join('');
