@@ -14820,6 +14820,30 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
 .cs-dot-pending { background: #3b82f6; }
 .cs-dot-done    { background: #9ca3af; }
 .cs-dot-new     { background: #ec4899; box-shadow: 0 0 0 2px rgba(236,72,153,0.25); }
+/* 유형(핀 색) */
+.cs-dot-type-shelter   { background: #14b8a6; }
+.cs-dot-type-container { background: #f59e0b; }
+.cs-dot-type-house     { background: #8b5cf6; }
+.cs-dot-type-etc       { background: #64748b; }
+/* 신규 표시(분홍 링) */
+.cs-dot-ring-new {
+  background: #fff;
+  border: 2px solid #ec4899;
+}
+/* 범례 행 그룹 */
+.cs-map-legend { flex-direction: column; align-items: flex-start; gap: 6px; }
+.cs-map-legend-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.cs-map-legend-label {
+  font-size: 11.5px;
+  color: #9CA3AF;
+  font-weight: 600;
+  margin-right: 4px;
+}
 
 /* 지도 인포윈도우 (카카오맵 안에 들어가는 카드) */
 .cs-info {
