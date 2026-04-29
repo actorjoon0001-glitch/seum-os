@@ -1037,6 +1037,17 @@
         document.getElementById('lg-appliance-phone').value = c.phone || '';
         if (c.showroomId) document.getElementById('lg-appliance-showroom').value = c.showroomId;
         if (c.siteAddress) document.getElementById('lg-appliance-delivery-address').value = c.siteAddress;
+        // 주택 금액 자동 입력: 계약의 총액(만원 단위)을 그대로 채움.
+        // 사용자가 이미 다른 값을 입력해 둔 상태면 덮어쓰지 않음.
+        var amountInput = document.getElementById('lg-appliance-amount');
+        if (amountInput && !amountInput.value && c.totalAmount != null && c.totalAmount !== '') {
+          var amt = Number(c.totalAmount);
+          if (!isNaN(amt)) {
+            // 만원 단위 정규화 (won 단위로 저장된 옛 데이터는 /10000)
+            var inManwon = (c.amountUnit === 'manwon') ? amt : Math.round(amt / 10000);
+            amountInput.value = inManwon;
+          }
+        }
       });
     }
 
@@ -1161,8 +1172,8 @@
       ['품목', escapeHtml(order.product || '-')],
       ['모델명', escapeHtml(order.modelName || '-')],
       ['수량', escapeHtml(String(order.quantity || 1))],
-      ['금액(만원)', escapeHtml(order.amount != null && order.amount !== '' ? String(order.amount) : '-')],
-      ['예상 배송일', escapeHtml(order.deliveryDate || '-')],
+      ['주택 금액(만원)', escapeHtml(order.amount != null && order.amount !== '' ? String(order.amount) : '-')],
+      ['건축주 배송 희망일', escapeHtml(order.deliveryDate || '-')],
       ['진행 상태', '<span class="' + statusCls + '">' + escapeHtml(statusLabel) + '</span>'],
       ['배송지', escapeHtml(order.deliveryAddress || '-')]
     ];
