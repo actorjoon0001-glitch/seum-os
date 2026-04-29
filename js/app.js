@@ -7056,6 +7056,273 @@
   var _csTabsWired = false;
   var _csSearchWired = false;
 
+  // 현장 진행 사진 캐시: { [contractId]: [{id,url,path,fileName,note,uploadedBy,uploadedAt}] }
+  // 마커/카드 동기 렌더에 쓰기 위해 메모리 캐시. 변경 시 _csSitePhotosLoaded 로 재요청 트리거.
+  var _csSitePhotos = {};
+  var _csSitePhotosLoadedFor = {};   // contractId -> true (이미 1회 로드 완료)
+  var _csSitePhotosWired = false;
+  var _csCurrentUploadContractId = null;
+
+  function getSiteProgressPhotos(contractId) {
+    return (_csSitePhotos[contractId] || []).slice();
+  }
+
+  function getLatestSiteProgressPhoto(contractId) {
+    var arr = _csSitePhotos[contractId];
+    return (arr && arr.length) ? arr[0] : null;
+  }
+
+  function formatSitePhotoDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function loadSiteProgressPhotosFor(contractIds, opts) {
+    opts = opts || {};
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa) return Promise.resolve();
+    var ids = (contractIds || []).filter(function (id) {
+      return !!id && (opts.force || !_csSitePhotosLoadedFor[id]);
+    });
+    if (!ids.length) return Promise.resolve();
+    return supa.from('site_progress_photos')
+      .select('id,contract_local_id,url,path,file_name,note,uploaded_by,uploaded_at')
+      .in('contract_local_id', ids)
+      .order('uploaded_at', { ascending: false })
+      .then(function (res) {
+        if (res && res.error) {
+          console.error('site_progress_photos load error:', res.error);
+          return;
+        }
+        var byContract = {};
+        (res.data || []).forEach(function (r) {
+          var cid = r.contract_local_id;
+          if (!byContract[cid]) byContract[cid] = [];
+          byContract[cid].push({
+            id: r.id,
+            url: r.url,
+            path: r.path || '',
+            fileName: r.file_name || '',
+            note: r.note || '',
+            uploadedBy: r.uploaded_by || '',
+            uploadedAt: r.uploaded_at || ''
+          });
+        });
+        ids.forEach(function (id) {
+          _csSitePhotos[id] = byContract[id] || [];
+          _csSitePhotosLoadedFor[id] = true;
+        });
+      })
+      .catch(function (err) {
+        console.error('site_progress_photos load failed:', err);
+      });
+  }
+
+  // 이미지 다운스케일 (max 1600px, JPEG 0.82) — 업로드 용량 절감.
+  function compressSitePhoto(file) {
+    return new Promise(function (resolve) {
+      if (!file || !/^image\//.test(file.type)) { resolve(file); return; }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var maxDim = 1600;
+          var w = img.naturalWidth, h = img.naturalHeight;
+          var scale = Math.min(1, maxDim / Math.max(w, h));
+          var cw = Math.round(w * scale), ch = Math.round(h * scale);
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, cw, ch);
+          canvas.toBlob(function (blob) {
+            URL.revokeObjectURL(url);
+            if (!blob) { resolve(file); return; }
+            var name = (file.name || 'site.jpg').replace(/\.(heic|heif|png|webp|bmp|tiff?)$/i, '.jpg');
+            if (!/\.jpe?g$/i.test(name)) name = name + '.jpg';
+            var compressed = new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+            // 압축이 더 크면(원본이 이미 작은 경우) 원본 유지
+            resolve(compressed.size < file.size ? compressed : file);
+          }, 'image/jpeg', 0.82);
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          resolve(file);
+        }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
+  function uploadSiteProgressPhoto(contractId, file, note) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !contractId || !file) return Promise.resolve(null);
+    return compressSitePhoto(file).then(function (toUpload) {
+      var year = new Date().getFullYear();
+      var safeName = sanitizeNoticeFileName(toUpload.name || 'site.jpg');
+      var bucket = 'contract_files';
+      var path = 'site_progress/' + year + '/' + contractId + '/' + Date.now() + '_' + safeName;
+      return supa.storage.from(bucket).upload(path, toUpload, {
+        contentType: toUpload.type || 'image/jpeg',
+        upsert: true
+      }).then(function (res) {
+        if (res && res.error) { console.error('site photo upload error', res.error); return null; }
+        var publicUrl = supa.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+        var uploader = '';
+        try {
+          var cu = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+          if (!cu && window.seumAuth) cu = window.seumAuth.currentEmployee;
+          if (cu) uploader = cu.name || cu.employeeId || cu.email || '';
+        } catch (_) {}
+        return supa.from('site_progress_photos').insert({
+          contract_local_id: contractId,
+          url: publicUrl,
+          path: path,
+          file_name: toUpload.name || safeName,
+          note: note || '',
+          uploaded_by: uploader
+        }).select('id,url,path,file_name,note,uploaded_by,uploaded_at').then(function (ins) {
+          if (ins && ins.error) { console.error('site photo insert error', ins.error); return null; }
+          var row = (ins.data && ins.data[0]) || null;
+          if (row) {
+            if (!_csSitePhotos[contractId]) _csSitePhotos[contractId] = [];
+            _csSitePhotos[contractId].unshift({
+              id: row.id,
+              url: row.url,
+              path: row.path || '',
+              fileName: row.file_name || '',
+              note: row.note || '',
+              uploadedBy: row.uploaded_by || '',
+              uploadedAt: row.uploaded_at || new Date().toISOString()
+            });
+          }
+          return row;
+        });
+      });
+    }).catch(function (err) {
+      console.error('site photo upload failed', err);
+      return null;
+    });
+  }
+
+  function deleteSiteProgressPhoto(contractId, photoId, path) {
+    var supa = typeof window !== 'undefined' && window.seumSupabase;
+    if (!supa || !photoId) return Promise.resolve(false);
+    var p = Promise.resolve();
+    if (path) {
+      p = supa.storage.from('contract_files').remove([path]).then(function () {}).catch(function () {});
+    }
+    return p.then(function () {
+      return supa.from('site_progress_photos').delete().eq('id', photoId).then(function (res) {
+        if (res && res.error) { console.error('site photo delete error', res.error); return false; }
+        if (_csSitePhotos[contractId]) {
+          _csSitePhotos[contractId] = _csSitePhotos[contractId].filter(function (x) { return x.id !== photoId; });
+        }
+        return true;
+      });
+    });
+  }
+
+  function openSitePhotoLightbox(url, caption) {
+    var modal = document.getElementById('cs-photo-lightbox');
+    if (!modal) return;
+    var img = document.getElementById('cs-photo-lightbox-img');
+    var cap = document.getElementById('cs-photo-lightbox-caption');
+    if (img) img.src = url;
+    if (cap) cap.textContent = caption || '';
+    modal.classList.add('active');
+  }
+
+  function closeSitePhotoLightbox() {
+    var modal = document.getElementById('cs-photo-lightbox');
+    if (modal) modal.classList.remove('active');
+    var img = document.getElementById('cs-photo-lightbox-img');
+    if (img) img.src = '';
+  }
+
+  function triggerSitePhotoUpload(contractId) {
+    if (!contractId) return;
+    var input = document.getElementById('cs-photo-upload-input');
+    if (!input) return;
+    _csCurrentUploadContractId = contractId;
+    input.value = '';
+    input.click();
+  }
+
+  function wireSitePhotoUploadOnce() {
+    if (_csSitePhotosWired) return;
+    _csSitePhotosWired = true;
+    var input = document.getElementById('cs-photo-upload-input');
+    if (input) {
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        var contractId = _csCurrentUploadContractId;
+        input.value = '';
+        if (!file || !contractId) return;
+        if (file.size > 15 * 1024 * 1024) {
+          showToast('파일이 너무 큽니다(15MB 초과).', 'error');
+          return;
+        }
+        showToast('현장 사진 업로드 중...');
+        uploadSiteProgressPhoto(contractId, file).then(function (row) {
+          if (row) {
+            showToast('현장 사진이 업로드됐습니다.');
+            renderConstructionSitesOverview();
+          } else {
+            showToast('업로드에 실패했습니다.', 'error');
+          }
+        });
+      });
+    }
+    var lightbox = document.getElementById('cs-photo-lightbox');
+    if (lightbox) {
+      lightbox.addEventListener('click', function (e) {
+        if (e.target === lightbox || e.target.classList.contains('cs-lightbox-close')) {
+          closeSitePhotoLightbox();
+        }
+      });
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeSitePhotoLightbox();
+    });
+    // 카드/인포윈도우 액션 버튼 위임 처리
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-cs-action]');
+      if (!t) return;
+      var action = t.getAttribute('data-cs-action');
+      var cid = t.getAttribute('data-cs-contract');
+      if (action === 'upload-photo') {
+        e.preventDefault();
+        triggerSitePhotoUpload(cid);
+      } else if (action === 'open-design') {
+        e.preventDefault();
+        if (typeof showSection === 'function') showSection('design');
+      } else if (action === 'view-photo') {
+        e.preventDefault();
+        var url = t.getAttribute('data-cs-photo-url');
+        var cap = t.getAttribute('data-cs-photo-caption') || '';
+        if (url) openSitePhotoLightbox(url, cap);
+      } else if (action === 'delete-photo') {
+        e.preventDefault();
+        var pid = parseInt(t.getAttribute('data-cs-photo-id'), 10);
+        var ppath = t.getAttribute('data-cs-photo-path') || '';
+        if (!cid || !pid) return;
+        if (!window.confirm('이 사진을 삭제하시겠습니까?')) return;
+        deleteSiteProgressPhoto(cid, pid, ppath).then(function (ok) {
+          if (ok) {
+            showToast('사진이 삭제됐습니다.');
+            renderConstructionSitesOverview();
+          } else {
+            showToast('삭제 실패', 'error');
+          }
+        });
+      }
+    });
+  }
+
   function getSiteStatusInfo(c) {
     var progress = (c.constructionProgress || '착공전').trim();
     if (progress === '완료') return { key: 'done', label: '완료', cls: 'cs-badge-done' };
@@ -7164,14 +7431,38 @@
         var marker = new kakao.maps.Marker({ position: latlng, image: image, map: _csMap });
         kakao.maps.event.addListener(marker, 'click', function () {
           var siteName = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+          var latest = getLatestSiteProgressPhoto(c.id);
+          var photoBlock = '';
+          if (latest) {
+            var capParts = [];
+            if (latest.uploadedAt) capParts.push(formatSitePhotoDate(latest.uploadedAt));
+            if (latest.uploadedBy) capParts.push(latest.uploadedBy);
+            var caption = capParts.join(' · ');
+            photoBlock =
+              '<div class="cs-info-photo-wrap">' +
+                '<img class="cs-info-photo" src="' + escapeAttr(latest.url) + '" alt="현장 사진" ' +
+                  'data-cs-action="view-photo" data-cs-photo-url="' + escapeAttr(latest.url) + '" ' +
+                  'data-cs-photo-caption="' + escapeAttr(siteName + ' · ' + caption) + '">' +
+                '<div class="cs-info-photo-meta">최근 업로드: ' + escapeHtml(caption || '-') + '</div>' +
+              '</div>';
+          } else {
+            photoBlock = '<div class="cs-info-photo-empty">아직 등록된 현장 사진이 없습니다.</div>';
+          }
+          var actions =
+            '<div class="cs-info-actions">' +
+              '<button type="button" class="cs-info-btn cs-info-btn-primary" data-cs-action="upload-photo" data-cs-contract="' + escapeAttr(c.id || '') + '">현장 사진 등록</button>' +
+              '<button type="button" class="cs-info-btn" data-cs-action="open-design" data-cs-contract="' + escapeAttr(c.id || '') + '">설계 협의도면 →</button>' +
+            '</div>';
           var html = '<div class="cs-info">' +
-            '<b>' + escapeHtml(siteName) + '</b>' +
+            '<div class="cs-info-title">' + escapeHtml(siteName) + '</div>' +
+            photoBlock +
             '<div class="cs-info-row"><span class="cs-info-label">상태</span><span>' + escapeHtml(st.label) + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">주소</span><span>' + escapeHtml(c.siteAddress || '-') + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">현장소장</span><span>' + escapeHtml(c.constructionManager || '-') + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">영업담당</span><span>' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">진행</span><span>' + escapeHtml(c.constructionProgress || '착공전') + '</span></div>' +
-            '</div>';
+            actions +
+          '</div>';
           _csInfoWindow.setContent(html);
           _csInfoWindow.open(_csMap, marker);
         });
@@ -7266,11 +7557,33 @@
       var siteName = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
       var addr = c.siteAddress || '-';
       var stage = (c.constructionProgress || '착공전');
+      var latest = getLatestSiteProgressPhoto(c.id);
+      var photoBlock = '';
+      if (latest) {
+        var capParts = [];
+        if (latest.uploadedAt) capParts.push(formatSitePhotoDate(latest.uploadedAt));
+        if (latest.uploadedBy) capParts.push(latest.uploadedBy);
+        var caption = capParts.join(' · ');
+        photoBlock =
+          '<div class="cs-site-photo-wrap">' +
+            '<img class="cs-site-photo" src="' + escapeAttr(latest.url) + '" alt="현장 사진" ' +
+              'data-cs-action="view-photo" data-cs-photo-url="' + escapeAttr(latest.url) + '" ' +
+              'data-cs-photo-caption="' + escapeAttr(siteName + ' · ' + caption) + '">' +
+            '<button type="button" class="cs-site-photo-del" title="사진 삭제" ' +
+              'data-cs-action="delete-photo" data-cs-contract="' + escapeAttr(c.id || '') + '" ' +
+              'data-cs-photo-id="' + escapeAttr(String(latest.id)) + '" ' +
+              'data-cs-photo-path="' + escapeAttr(latest.path || '') + '">✕</button>' +
+            '<div class="cs-site-photo-meta">최근 업로드: ' + escapeHtml(caption || '-') + '</div>' +
+          '</div>';
+      } else {
+        photoBlock = '<div class="cs-site-photo-empty">아직 등록된 현장 사진이 없습니다.</div>';
+      }
       return '<div class="cs-site-card">' +
         '<div class="cs-site-card-header">' +
           '<div class="cs-site-name">' + escapeHtml(siteName) + '</div>' +
           '<span class="cs-site-badge ' + st.cls + '">' + escapeHtml(st.label) + '</span>' +
         '</div>' +
+        photoBlock +
         '<div class="cs-site-row"><span class="cs-label">주소</span><span class="cs-value">' + escapeHtml(addr) + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">전시장</span><span class="cs-value">' + escapeHtml(getShowroomName(c.showroomId)) + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">영업 담당</span><span class="cs-value">' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
@@ -7278,10 +7591,27 @@
         '<div class="cs-site-row"><span class="cs-label">착공일</span><span class="cs-value">' + escapeHtml(c.constructionStartDate || '-') + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">예상 준공</span><span class="cs-value">' + escapeHtml(c.expectedCompletionDate || '-') + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">진행 단계</span><span class="cs-value">' + escapeHtml(stage) + '</span></div>' +
+        '<div class="cs-site-actions">' +
+          '<button type="button" class="cs-site-btn cs-site-btn-primary" data-cs-action="upload-photo" data-cs-contract="' + escapeAttr(c.id || '') + '">현장 사진 등록</button>' +
+          '<button type="button" class="cs-site-btn" data-cs-action="open-design" data-cs-contract="' + escapeAttr(c.id || '') + '">설계 협의도면</button>' +
+        '</div>' +
       '</div>';
     }).join('');
 
     wireCsSearchOnce();
+    wireSitePhotoUploadOnce();
+
+    // 보이는 현장의 사진을 비동기로 로드 후 재렌더 (이미 로드된 건 스킵).
+    var idsToLoad = list.map(function (c) { return c.id; }).filter(function (id) {
+      return !!id && !_csSitePhotosLoadedFor[id];
+    });
+    if (idsToLoad.length) {
+      loadSiteProgressPhotosFor(idsToLoad).then(function () {
+        // 동일 섹션이 활성화되어 있을 때만 재렌더 (불필요한 작업 방지)
+        var sec = document.getElementById('section-construction-sites');
+        if (sec && sec.classList.contains('active')) renderConstructionSitesOverview();
+      });
+    }
   }
 
   function renderCsTypeTabs(contractsForCount) {
