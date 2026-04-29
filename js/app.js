@@ -8597,7 +8597,7 @@
     var tbody = document.getElementById('tbody-field-orders');
     if (!tbody) return;
     tbody.innerHTML = sites.map(function (s) {
-      return '<tr>' +
+      return '<tr class="po-site-row" data-site-id="' + escapeAttr(s.id) + '" tabindex="0" role="button" aria-label="' + escapeAttr(s.siteName) + ' 업체별 발주로 이동">' +
         '<td><a href="#" class="po-site-link" data-site-id="' + escapeAttr(s.id) + '">' + escapeHtml(s.siteName) + '</a></td>' +
         '<td>' + escapeHtml(s.modelName) + '</td>' +
         '<td>' + (s.pyeong || '-') + '평</td>' +
@@ -8606,7 +8606,7 @@
         '<td>' + escapeHtml(s.foremanPhone || '-') + '</td>' +
         '<td>' + escapeHtml(s.manager || '-') + '</td>' +
         '<td>' + (s.orderDate || '-') + '</td>' +
-        '<td>' +
+        '<td class="po-site-actions-cell">' +
           '<button type="button" class="btn btn-sm btn-secondary btn-edit-field-order" data-id="' + escapeAttr(s.id) + '">수정</button> ' +
           '<button type="button" class="btn btn-sm btn-danger btn-delete-field-order" data-id="' + escapeAttr(s.id) + '">삭제</button>' +
         '</td></tr>';
@@ -8948,20 +8948,36 @@
     });
 
     var tbodyFO = document.getElementById('tbody-field-orders');
+    function jumpToVendorOrderForSite(siteId) {
+      activeProcurementSiteId = siteId || '';
+      document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
+      var vBtn = document.querySelector('.procurement-tab-btn[data-tab="vendor-order"]');
+      if (vBtn) vBtn.classList.add('active');
+      var vPanel = document.getElementById('procurement-tab-vendor-order');
+      if (vPanel) { vPanel.classList.remove('hidden'); vPanel.classList.add('active'); }
+      renderVendorOrderTab();
+      if (vPanel && vPanel.scrollIntoView) {
+        try { vPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+      }
+    }
     if (tbodyFO) tbodyFO.addEventListener('click', function (e) {
       var editBtn = e.target.closest('.btn-edit-field-order');
       var delBtn = e.target.closest('.btn-delete-field-order');
-      var siteLink = e.target.closest('.po-site-link');
-      if (siteLink) {
-        e.preventDefault();
-        activeProcurementSiteId = siteLink.getAttribute('data-site-id');
-        document.querySelectorAll('.procurement-tab-btn').forEach(function (b) { b.classList.remove('active'); });
-        document.querySelectorAll('.procurement-tab-panel').forEach(function (p) { p.classList.add('hidden'); p.classList.remove('active'); });
-        var vBtn = document.querySelector('.procurement-tab-btn[data-tab="vendor-order"]');
-        if (vBtn) vBtn.classList.add('active');
-        var vPanel = document.getElementById('procurement-tab-vendor-order');
-        if (vPanel) { vPanel.classList.remove('hidden'); vPanel.classList.add('active'); }
-        renderVendorOrderTab();
+      // 수정/삭제 버튼은 행 점프와 분리
+      if (editBtn || delBtn) {
+        // 아래 분기에서 처리됨
+      } else {
+        var siteLink = e.target.closest('.po-site-link');
+        var siteRow = e.target.closest('.po-site-row');
+        var sid = siteLink ? siteLink.getAttribute('data-site-id')
+                : siteRow  ? siteRow.getAttribute('data-site-id')
+                : null;
+        if (sid) {
+          e.preventDefault();
+          jumpToVendorOrderForSite(sid);
+          return;
+        }
       }
       if (editBtn) {
         var sid = editBtn.getAttribute('data-id');
@@ -8987,6 +9003,17 @@
         renderFieldOrderTab();
         showToast('삭제됐습니다.');
       }
+    });
+    // 키보드 접근성: tr 에 포커스 후 Enter/Space 로 업체별발주 점프
+    if (tbodyFO) tbodyFO.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      // 버튼 안에서 발생한 키이벤트는 자체 처리하도록 양보
+      if (e.target.tagName === 'BUTTON') return;
+      var row = e.target.closest('.po-site-row');
+      if (!row) return;
+      e.preventDefault();
+      var sid = row.getAttribute('data-site-id');
+      if (sid) jumpToVendorOrderForSite(sid);
     });
 
     // ---- 업체별발주 ----

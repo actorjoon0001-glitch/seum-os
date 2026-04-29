@@ -14640,6 +14640,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #93c5fd;
   text-decoration-color: #93c5fd;
 }
+/* 현장 발주 행 전체 클릭 가능 */
+.po-site-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.po-site-row:hover { background: rgba(59,130,246,0.08); }
+.po-site-row:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+/* 수정/삭제 셀은 행 클릭과 분리 */
+.po-site-actions-cell { white-space: nowrap; }
 
 /* ===== 현장 파악 헤더 (TV 모드 토글 버튼 포함) ===== */
 .cs-main-header {
