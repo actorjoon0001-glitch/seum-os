@@ -948,7 +948,7 @@
     tbody.innerHTML = list.map(function (o, i) {
       var showroomName = typeof getShowroomName === 'function' ? getShowroomName(o.showroomId) : (o.showroomId || '-');
       var statusClass = 'lg-status-' + (o.status || '대기');
-      return '<tr>' +
+      return '<tr class="lg-appliance-row" data-lg-detail="' + escapeAttr(o.id) + '" tabindex="0" role="button" aria-label="발주 상세 보기">' +
         '<td>' + (i + 1) + '</td>' +
         '<td>' + escapeHtml(showroomName) + '</td>' +
         '<td>' + escapeHtml(o.orderDate || '-') + '</td>' +
@@ -962,7 +962,7 @@
         '<td><span class="' + statusClass + '">' + escapeHtml(o.status || '대기') + '</span></td>' +
         '<td>' + escapeHtml(o.deliveryAddress || '-') + '</td>' +
         '<td>' + escapeHtml(o.memo || '-') + '</td>' +
-        '<td>' +
+        '<td class="lg-appliance-actions-cell">' +
           '<button type="button" class="btn btn-sm btn-secondary" data-lg-edit="' + o.id + '">수정</button> ' +
           '<button type="button" class="btn btn-sm btn-danger" data-lg-del="' + o.id + '">삭제</button>' +
         '</td>' +
@@ -1099,12 +1099,14 @@
         var editBtn = e.target.closest('[data-lg-edit]');
         var delBtn = e.target.closest('[data-lg-del]');
         if (editBtn) {
+          e.stopPropagation();
           var eid = editBtn.getAttribute('data-lg-edit');
           var order = getLgAppliances().find(function (o) { return o.id === eid; });
           if (order) openLgApplianceForm(order);
           return;
         }
         if (delBtn) {
+          e.stopPropagation();
           var did = delBtn.getAttribute('data-lg-del');
           if (!window.confirm('이 LG가전 발주를 삭제하시겠습니까?')) return;
           var next = getLgAppliances().filter(function (o) { return o.id !== did; });
@@ -1114,9 +1116,118 @@
             logActivity({ actionType: 'delete', targetType: 'lg_appliance', targetId: did, description: 'LG가전 사은품 발주 삭제' });
           }
           renderLgAppliances();
+          return;
+        }
+        // 행 클릭 → 상세 모달 (편집/삭제 버튼 클릭은 위에서 stopPropagation 으로 분기)
+        var row = e.target.closest('[data-lg-detail]');
+        if (row) {
+          var oid = row.getAttribute('data-lg-detail');
+          if (oid) openLgApplianceDetailModal(oid);
         }
       });
+      // 키보드 접근성: tr 에 포커스 후 Enter/Space 로 모달 열기
+      tbody.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var row = e.target.closest('[data-lg-detail]');
+        if (!row) return;
+        e.preventDefault();
+        var oid = row.getAttribute('data-lg-detail');
+        if (oid) openLgApplianceDetailModal(oid);
+      });
     }
+    wireLgApplianceDetailModalOnce();
+  }
+
+  // ===== LG가전 발주 상세 모달 =====
+  var _lgDetailWired = false;
+  var _lgDetailCurrentId = null;
+
+  function openLgApplianceDetailModal(orderId) {
+    var order = getLgAppliances().find(function (o) { return o.id === orderId; });
+    if (!order) { showToast('해당 발주를 찾을 수 없습니다.', 'error'); return; }
+    _lgDetailCurrentId = orderId;
+    var modal = document.getElementById('lg-appliance-detail-modal');
+    var body = document.getElementById('lg-appliance-detail-body');
+    if (!modal || !body) return;
+    var showroomName = typeof getShowroomName === 'function' ? getShowroomName(order.showroomId) : (order.showroomId || '-');
+    var statusLabel = order.status || '대기';
+    var statusCls = 'lg-status-' + statusLabel;
+    var rows = [
+      ['전시장', escapeHtml(showroomName)],
+      ['발주일', escapeHtml(order.orderDate || '-')],
+      ['계약자명', escapeHtml(order.customerName || '-')],
+      ['연락처', escapeHtml(order.phone || '-')],
+      ['담당 영업사원', escapeHtml(order.salesPerson || '-')],
+      ['품목', escapeHtml(order.product || '-')],
+      ['모델명', escapeHtml(order.modelName || '-')],
+      ['수량', escapeHtml(String(order.quantity || 1))],
+      ['금액(만원)', escapeHtml(order.amount != null && order.amount !== '' ? String(order.amount) : '-')],
+      ['예상 배송일', escapeHtml(order.deliveryDate || '-')],
+      ['진행 상태', '<span class="' + statusCls + '">' + escapeHtml(statusLabel) + '</span>'],
+      ['배송지', escapeHtml(order.deliveryAddress || '-')]
+    ];
+    var html = '<dl class="lg-appliance-detail-list">' +
+      rows.map(function (r) {
+        return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>';
+      }).join('') +
+      '</dl>';
+    if (order.memo) {
+      html += '<div class="lg-appliance-detail-memo"><div class="lg-appliance-detail-memo-label">비고</div>' +
+              '<div class="lg-appliance-detail-memo-text">' + escapeHtml(order.memo).replace(/\n/g, '<br>') + '</div></div>';
+    }
+    body.innerHTML = html;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeLgApplianceDetailModal() {
+    var modal = document.getElementById('lg-appliance-detail-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    _lgDetailCurrentId = null;
+  }
+
+  function wireLgApplianceDetailModalOnce() {
+    if (_lgDetailWired) return;
+    var modal = document.getElementById('lg-appliance-detail-modal');
+    if (!modal) return;
+    _lgDetailWired = true;
+    var btnClose = document.getElementById('lg-appliance-detail-close');
+    var btnCancel = document.getElementById('lg-appliance-detail-cancel');
+    var btnEdit = document.getElementById('lg-appliance-detail-edit');
+    var btnDel = document.getElementById('lg-appliance-detail-delete');
+    if (btnClose) btnClose.addEventListener('click', closeLgApplianceDetailModal);
+    if (btnCancel) btnCancel.addEventListener('click', closeLgApplianceDetailModal);
+    // 배경 클릭으로 닫기
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeLgApplianceDetailModal();
+    });
+    // ESC 닫기
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeLgApplianceDetailModal();
+    });
+    if (btnEdit) btnEdit.addEventListener('click', function () {
+      var id = _lgDetailCurrentId;
+      if (!id) return;
+      var order = getLgAppliances().find(function (o) { return o.id === id; });
+      closeLgApplianceDetailModal();
+      if (order) openLgApplianceForm(order);
+    });
+    if (btnDel) btnDel.addEventListener('click', function () {
+      var id = _lgDetailCurrentId;
+      if (!id) return;
+      if (!window.confirm('이 LG가전 발주를 삭제하시겠습니까?')) return;
+      var next = getLgAppliances().filter(function (o) { return o.id !== id; });
+      saveLgAppliances(next);
+      deleteLgApplianceRemote(id);
+      if (typeof logActivity === 'function') {
+        logActivity({ actionType: 'delete', targetType: 'lg_appliance', targetId: id, description: 'LG가전 사은품 발주 삭제' });
+      }
+      closeLgApplianceDetailModal();
+      renderLgAppliances();
+      showToast('발주가 삭제됐습니다.');
+    });
   }
 
   /** 우선순위 전용 컬럼만 타깃 업데이트 (다른 사용자의 bulk upsert에 덮어쓰이지 않음) */

@@ -1554,6 +1554,24 @@
           </table>
         </div>
       </div>
+
+      <!-- LG가전 발주 상세 모달 -->
+      <div id="lg-appliance-detail-modal" class="worklog-modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="lg-appliance-detail-title">
+        <div class="worklog-modal lg-appliance-detail-modal">
+          <div class="worklog-modal-header">
+            <h3 id="lg-appliance-detail-title">LG가전 발주 상세</h3>
+            <button type="button" class="worklog-modal-close" id="lg-appliance-detail-close" aria-label="닫기">✕</button>
+          </div>
+          <div class="worklog-modal-body lg-appliance-detail-body" id="lg-appliance-detail-body">
+            <!-- 내용은 JS 에서 동적 생성 -->
+          </div>
+          <div class="worklog-modal-actions lg-appliance-detail-actions">
+            <button type="button" class="btn btn-primary" id="lg-appliance-detail-edit">수정하기</button>
+            <button type="button" class="btn btn-danger" id="lg-appliance-detail-delete">삭제하기</button>
+            <button type="button" class="btn btn-secondary" id="lg-appliance-detail-cancel">닫기</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- 우선순위 섹션 -->
