@@ -10596,18 +10596,18 @@
     return ok ? list : null;
   }
 
-  /** 로그인한 사용자가 오늘 자신의 팀 업무일지를 작성했는지 판정.
+  /** 로그인한 사용자가 특정 날짜에 자신의 팀 업무일지를 작성했는지 판정.
    *  - 관리자(admin/master/superadmin) 는 항상 true (작성 의무 면제)
    *  - 팀장 권한: leader 엔트리의 summary/progress/issues/tomorrow 중 하나라도 있으면 true
    *  - 팀원: 본인 member 엔트리의 tasks 가 있으면 true
    *  - 팀을 찾지 못하거나 예외 발생 시 true (차단하지 않음)
    */
-  function hasFilledTeamWorklogToday() {
+  function hasFilledTeamWorklogForDate(dateIso) {
     try {
       var cur = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) || null;
       if (!cur) return true;
       if (twIsAdminLike()) return true;
-      var today = twTodayIso();
+      var date = (dateIso && /^\d{4}-\d{2}-\d{2}$/.test(dateIso)) ? dateIso : twTodayIso();
       var teams = twGetTeams();
       if (!teams || !teams.length) return true;
       var myTeam = null;
@@ -10617,20 +10617,37 @@
       if (!myTeam) return true;
       var asLeader = twIsLeader(myTeam);
       if (asLeader) {
-        var leader = twGetEntry(myTeam.id, today, 'leader', null);
+        var leader = twGetEntry(myTeam.id, date, 'leader', null);
         if (!leader) return false;
         var joined = ((leader.summary || '') + (leader.progress || '') + (leader.issues || '') + (leader.tomorrow || '')).toString().trim();
         return !!joined;
       }
       var myId = cur.id || cur.authUserId || '';
       var myName = cur.name || '';
-      var entry = twGetEntry(myTeam.id, today, 'member', myId, myName);
+      var entry = twGetEntry(myTeam.id, date, 'member', myId, myName);
       if (!entry) return false;
       return !!((entry.tasks || '').toString().trim());
     } catch (e) {
       console.warn('[worklog-gate] check failed:', e);
       return true;
     }
+  }
+
+  function hasFilledTeamWorklogToday() {
+    return hasFilledTeamWorklogForDate(twTodayIso());
+  }
+
+  /** 팀 업무일지 페이지로 이동하면서 특정 날짜를 선택 상태로 만든다. */
+  function openTeamWorklogForDate(dateIso) {
+    if (dateIso && /^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
+      _twState.date = dateIso;
+      var parts = dateIso.split('-');
+      _twCalState.year = parseInt(parts[0], 10);
+      _twCalState.month = parseInt(parts[1], 10) - 1;
+      var di = document.getElementById('tw-date');
+      if (di) di.value = dateIso;
+    }
+    if (typeof showSection === 'function') showSection('team-worklog');
   }
 
   function twRemoveEntry(teamId, date, kind, authorId) {
@@ -16202,6 +16219,8 @@
 
   window.showSection = showSection;
   window.seumHasFilledTeamWorklogToday = hasFilledTeamWorklogToday;
+  window.seumHasFilledTeamWorklogForDate = hasFilledTeamWorklogForDate;
+  window.seumOpenTeamWorklogForDate = openTeamWorklogForDate;
   window.showDesignDetailPanel = showDesignDetailPanel;
   window.renderDesign = renderDesign;
   window.isAdmin = isAdmin;
