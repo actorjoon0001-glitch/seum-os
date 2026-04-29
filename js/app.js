@@ -7329,7 +7329,6 @@
 
   // 카드 클릭 시 해당 마커를 강조하고 인포윈도우를 열며 지도 영역으로 스크롤한다.
   function selectSiteOnMap(contractId) {
-    var entry = _csMarkersByContract[contractId];
     // 카드 강조 표시 (마커가 없어도 카드 시각 표시는 유지)
     document.querySelectorAll('.cs-site-card.cs-site-card-selected').forEach(function (el) {
       if (el.getAttribute('data-cs-contract') !== contractId) {
@@ -7339,10 +7338,47 @@
     var card = document.querySelector('.cs-site-card[data-cs-contract="' + (window.CSS && CSS.escape ? CSS.escape(contractId) : contractId) + '"]');
     if (card) card.classList.add('cs-site-card-selected');
 
-    if (!entry || !_csMap || !window.kakao || !kakao.maps) {
-      showToast('지도에서 위치를 표시할 수 없습니다 (주소 변환 실패).', 'info');
+    var entry = _csMarkersByContract[contractId];
+    if (entry) {
+      focusMarkerOnMap(contractId, entry);
       return;
     }
+    // 마커가 없는 경우: 주소가 있으면 즉석 지오코딩 (키워드/축약 fallback 포함) 후 재렌더 후 다시 선택.
+    var contracts = getContracts();
+    var c = null;
+    for (var i = 0; i < contracts.length; i++) {
+      if (contracts[i].id === contractId) { c = contracts[i]; break; }
+    }
+    var addr = c ? (c.siteAddress || '').trim() : '';
+    if (!addr) {
+      // 주소 자체가 비어 있으면 토스트 없이 카드 강조만 유지 (카드에 이미 모든 정보 표시됨)
+      return;
+    }
+    if (!_csMap || !window.kakao || !kakao.maps) {
+      showToast('지도가 준비되지 않았습니다.', 'info');
+      return;
+    }
+    geocodeAddressWithFallback(addr, function (coord) {
+      if (!coord) {
+        showToast('이 주소는 지도에서 찾지 못했습니다: ' + addr, 'info');
+        return;
+      }
+      // 캐시에 저장한 뒤 지도를 재렌더하여 placePin 으로 마커를 만들고, 이어서 다시 선택.
+      var cache = loadGeocodeCache();
+      cache[addr] = { lat: coord.lat, lng: coord.lng };
+      saveGeocodeCache(cache);
+      // 동일 list 로 다시 그리기 — renderConstructionSitesOverview 가 list 계산 + 지도/카드 갱신.
+      renderConstructionSitesOverview();
+      // 다음 tick 에 마커가 등록된 뒤 선택. 약간 지연 후 한 번만 재시도.
+      setTimeout(function () {
+        var e2 = _csMarkersByContract[contractId];
+        if (e2) focusMarkerOnMap(contractId, e2);
+      }, 60);
+    });
+  }
+
+  function focusMarkerOnMap(contractId, entry) {
+    if (!entry) return;
     // 이전 강조 해제
     if (_csHighlightedContractId && _csMarkersByContract[_csHighlightedContractId] && _csHighlightedContractId !== contractId) {
       var prev = _csMarkersByContract[_csHighlightedContractId];
@@ -7354,7 +7390,6 @@
     _csHighlightedContractId = contractId;
     try { _csMap.panTo(entry.marker.getPosition()); } catch (_) {}
     try { kakao.maps.event.trigger(entry.marker, 'click'); } catch (_) {}
-    // 지도 카드 영역으로 스크롤 (현장 목록이 길어 사용자가 아래에서 카드를 클릭한 경우)
     var mapEl = document.getElementById('construction-sites-map');
     if (mapEl && mapEl.scrollIntoView) {
       try { mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
@@ -7605,6 +7640,41 @@
   }
 
   // 색상별 SVG 핀 마커 이미지 (인라인 data URL)
+  // 주소를 좌표로 변환. addressSearch 실패 시 keywordSearch (장소 검색) 로 fallback.
+  // 옛주소/새주소가 섞이거나 도로명+지번이 한 줄에 있는 경우에도 좌표를 찾을 확률이 올라간다.
+  // 콜백: cb({lat, lng}) 또는 cb(null) (모든 시도 실패).
+  function geocodeAddressWithFallback(addr, cb) {
+    if (!addr || !window.kakao || !kakao.maps || !kakao.maps.services) { cb(null); return; }
+    var geocoder = new kakao.maps.services.Geocoder();
+    geocoder.addressSearch(addr, function (result, status) {
+      if (status === kakao.maps.services.Status.OK && result.length > 0) {
+        cb({ lat: parseFloat(result[0].y), lng: parseFloat(result[0].x) });
+        return;
+      }
+      // fallback 1: 키워드 검색 (장소/POI)
+      var places = new kakao.maps.services.Places();
+      places.keywordSearch(addr, function (kresult, kstatus) {
+        if (kstatus === kakao.maps.services.Status.OK && kresult.length > 0) {
+          cb({ lat: parseFloat(kresult[0].y), lng: parseFloat(kresult[0].x) });
+          return;
+        }
+        // fallback 2: 마지막 토큰을 떼고 앞 부분만으로 재시도 (잘못된 동·번지 보완)
+        var trimmed = addr.replace(/\s+\S+$/, '').trim();
+        if (trimmed && trimmed !== addr) {
+          geocoder.addressSearch(trimmed, function (r2, s2) {
+            if (s2 === kakao.maps.services.Status.OK && r2.length > 0) {
+              cb({ lat: parseFloat(r2[0].y), lng: parseFloat(r2[0].x) });
+            } else {
+              cb(null);
+            }
+          });
+        } else {
+          cb(null);
+        }
+      });
+    });
+  }
+
   function csPinSvg(color) {
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">' +
       '<path d="M14 0C6.27 0 0 6.27 0 14c0 9.5 14 24 14 24s14-14.5 14-24c0-7.73-6.27-14-14-14z" fill="' + color + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.5"/>' +
@@ -7649,7 +7719,6 @@
       _csMarkersByContract = {};
       _csHighlightedContractId = null;
 
-      var geocoder = new kakao.maps.services.Geocoder();
       var cache = loadGeocodeCache();
       var bounds = new kakao.maps.LatLngBounds();
       var hasAny = false;
@@ -7728,14 +7797,12 @@
           return;
         }
         pending++;
-        geocoder.addressSearch(addr, function (result, status) {
+        geocodeAddressWithFallback(addr, function (coord) {
           pending--;
-          if (status === kakao.maps.services.Status.OK && result.length > 0) {
-            var lat = parseFloat(result[0].y);
-            var lng = parseFloat(result[0].x);
-            cache[addr] = { lat: lat, lng: lng };
+          if (coord) {
+            cache[addr] = { lat: coord.lat, lng: coord.lng };
             saveGeocodeCache(cache);
-            placePin(c, new kakao.maps.LatLng(lat, lng));
+            placePin(c, new kakao.maps.LatLng(coord.lat, coord.lng));
           } else {
             notFound++;
           }
