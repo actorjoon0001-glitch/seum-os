@@ -7299,7 +7299,12 @@
         triggerSitePhotoUpload(cid);
       } else if (action === 'open-design') {
         e.preventDefault();
-        if (typeof showSection === 'function') showSection('design');
+        // 계약 ID 있으면 설계팀 계약 목록의 해당 행을 펼친 상태로 이동, 없으면 섹션 이동만.
+        if (cid && typeof goToDesignDetail === 'function') {
+          goToDesignDetail(cid);
+        } else if (typeof showSection === 'function') {
+          showSection('design');
+        }
       } else if (action === 'view-photo') {
         e.preventDefault();
         var url = t.getAttribute('data-cs-photo-url');
