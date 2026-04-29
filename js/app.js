@@ -887,6 +887,17 @@
     }
   }
 
+  // LG가전 발주 — 전시장 탭 / 월별 집계 상태
+  var _lgShowroomFilter = '';     // '' = 전체, 'headquarters'|'showroom1'|... = 특정 전시장
+  var _lgMonthFilter = '';        // 'YYYY-MM' (월별 집계 카드용)
+  var _lgFiltersWired = false;
+  function _lgCurrentMonthYM() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = d.getMonth() + 1;
+    return y + '-' + (m < 10 ? '0' + m : '' + m);
+  }
+
   function renderLgAppliances() {
     var tbody = document.getElementById('tbody-lg-appliances');
     if (!tbody) return;
@@ -920,20 +931,32 @@
       if (currentVal) contractSel.value = currentVal;
     }
 
-    // 목록 필터: 영업팀 일반 사용자는 소속 전시장만, 그 외 팀(설계/시공/정산/마케팅/admin)은 전체 조회
-    var list = getLgAppliances();
+    // 권한 필터: 영업팀 일반 사용자는 소속 전시장만, 그 외 팀(설계/시공/정산/마케팅/admin)은 전체 조회
+    var allList = getLgAppliances();
     var curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
     var isAdminRole2 = (typeof isAdmin === 'function' && isAdmin()) || (typeof isMaster === 'function' && isMaster()) || (typeof isSuperAdmin === 'function' && isSuperAdmin());
+    var forcedShowroom = '';
     if (curUser && !isAdminRole2) {
       var curTeam = (curUser.team || '').trim();
       var isSalesUser = (curTeam === '영업');
       if (isSalesUser) {
         var myShowroom2 = typeof resolveShowroomId === 'function' ? resolveShowroomId(curUser) : curUser.showroom;
         if (myShowroom2) {
-          list = list.filter(function (o) { return (o.showroomId || '') === myShowroom2; });
+          forcedShowroom = myShowroom2;
+          allList = allList.filter(function (o) { return (o.showroomId || '') === forcedShowroom; });
         }
       }
     }
+    // 전시장 탭 + 월별 집계 갱신 (권한 필터 적용된 allList 기준)
+    renderLgApplianceShowroomTabs(allList, forcedShowroom);
+    renderLgApplianceMonthSummary(allList);
+
+    // 사용자 선택 전시장 탭 적용
+    var list = allList.slice();
+    if (_lgShowroomFilter) {
+      list = list.filter(function (o) { return (o.showroomId || '') === _lgShowroomFilter; });
+    }
+
     list.sort(function (a, b) {
       var dA = a.orderDate || '';
       var dB = b.orderDate || '';
@@ -968,6 +991,110 @@
         '</td>' +
       '</tr>';
     }).join('');
+  }
+
+  // 전시장 탭 렌더 (allList = 권한 필터 적용된 후 전체 발주)
+  function renderLgApplianceShowroomTabs(allList, forcedShowroom) {
+    var el = document.getElementById('lg-appliance-showroom-tabs');
+    if (!el) return;
+    // 영업팀 일반 사용자는 본인 전시장만 강제 — 탭 선택 의미가 없으므로 숨김
+    if (forcedShowroom) {
+      el.classList.add('hidden');
+      _lgShowroomFilter = '';
+      return;
+    }
+    el.classList.remove('hidden');
+    var counts = {};
+    var total = (allList || []).length;
+    (allList || []).forEach(function (o) {
+      var k = o.showroomId || '';
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    var tabs = [{ key: '', label: '전체', count: total }].concat(
+      SHOWROOMS.map(function (s) {
+        return { key: s.id, label: s.name, count: counts[s.id] || 0 };
+      })
+    );
+    el.innerHTML = tabs.map(function (t) {
+      var cls = 'design-type-tab' + (_lgShowroomFilter === t.key ? ' active' : '');
+      return '<button type="button" class="' + cls + '" data-lg-showroom="' + escapeAttr(t.key) + '">' +
+        escapeHtml(t.label) + ' <span class="tab-count">' + t.count + '</span></button>';
+    }).join('');
+  }
+
+  // 월별 발주 집계 카드 (선택 월 기준 — 품목별 수량 합계)
+  function renderLgApplianceMonthSummary(allList) {
+    var wrap = document.getElementById('lg-appliance-month-summary');
+    var input = document.getElementById('lg-appliance-month-input');
+    var countsEl = document.getElementById('lg-appliance-month-counts');
+    if (!wrap || !countsEl) return;
+    if (!_lgMonthFilter) _lgMonthFilter = _lgCurrentMonthYM();
+    if (input && input.value !== _lgMonthFilter) input.value = _lgMonthFilter;
+
+    // 발주일 기준으로 선택 월에 속한 건만 집계
+    var ym = _lgMonthFilter;
+    var monthList = (allList || []).filter(function (o) {
+      return (o.orderDate || '').indexOf(ym) === 0;
+    });
+
+    if (!monthList.length) {
+      countsEl.innerHTML = '<div class="lg-appliance-month-empty">' +
+        escapeHtml(ym.replace('-', '년 ') + '월') + ' 에 등록된 발주가 없습니다.</div>';
+      return;
+    }
+    // 품목별 수량 합계 (취소 상태 제외)
+    var byProduct = {};
+    var total = 0;
+    monthList.forEach(function (o) {
+      if ((o.status || '') === '취소') return;
+      var key = (o.product || '').trim() || '미지정';
+      var qty = parseInt(o.quantity, 10);
+      if (isNaN(qty) || qty < 1) qty = 1;
+      byProduct[key] = (byProduct[key] || 0) + qty;
+      total += qty;
+    });
+    var keys = Object.keys(byProduct).sort(function (a, b) { return byProduct[b] - byProduct[a]; });
+    var label = ym.replace('-', '년 ') + '월';
+    var html = '<div class="lg-appliance-month-title">' +
+      '<span class="lg-appliance-month-title-text">' + escapeHtml(label) + ' 발주 집계</span>' +
+      '<span class="lg-appliance-month-title-total">총 ' + total + '개 (' + monthList.length + '건)</span>' +
+      '</div>' +
+      '<div class="lg-appliance-month-chips">' + keys.map(function (k) {
+        return '<span class="lg-appliance-month-chip">' + escapeHtml(k) +
+          ' <strong>' + byProduct[k] + '개</strong></span>';
+      }).join('') + '</div>';
+    countsEl.innerHTML = html;
+  }
+
+  // 탭/월 입력 위임 wiring (한 번만)
+  function wireLgApplianceFiltersOnce() {
+    if (_lgFiltersWired) return;
+    var tabsEl = document.getElementById('lg-appliance-showroom-tabs');
+    var monthInput = document.getElementById('lg-appliance-month-input');
+    var monthReset = document.getElementById('lg-appliance-month-reset');
+    if (!tabsEl && !monthInput && !monthReset) return;
+    _lgFiltersWired = true;
+    if (tabsEl) {
+      tabsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-lg-showroom]');
+        if (!btn) return;
+        _lgShowroomFilter = btn.getAttribute('data-lg-showroom') || '';
+        renderLgAppliances();
+      });
+    }
+    if (monthInput) {
+      monthInput.addEventListener('change', function () {
+        _lgMonthFilter = monthInput.value || _lgCurrentMonthYM();
+        renderLgAppliances();
+      });
+    }
+    if (monthReset) {
+      monthReset.addEventListener('click', function () {
+        _lgMonthFilter = _lgCurrentMonthYM();
+        if (monthInput) monthInput.value = _lgMonthFilter;
+        renderLgAppliances();
+      });
+    }
   }
 
   function openLgApplianceForm(order) {
@@ -1147,6 +1274,7 @@
       });
     }
     wireLgApplianceDetailModalOnce();
+    wireLgApplianceFiltersOnce();
   }
 
   // ===== LG가전 발주 상세 모달 =====
