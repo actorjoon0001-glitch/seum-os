@@ -8023,6 +8023,7 @@
 
     wireCsSearchOnce();
     wireSitePhotoUploadOnce();
+    wireCsTvModeOnce();
 
     // 보이는 현장의 사진을 비동기로 로드 후 재렌더 (이미 로드된 건 스킵).
     var idsToLoad = list.map(function (c) { return c.id; }).filter(function (id) {
@@ -8084,6 +8085,50 @@
         renderConstructionSitesOverview();
       });
     }
+  }
+
+  // ===== TV 모드 (대형 모니터 / 키오스크용) =====
+  // 사이드바를 숨기고 본문 글자·카드·지도를 키워서 멀리서도 잘 보이게 한다.
+  // localStorage 와 ?tv=1 URL 파라미터로 자동 진입 가능 (TV 부팅 후 자동 로드용).
+  var _csTvWired = false;
+  var CS_TV_STORAGE_KEY = 'seum_cs_tv_mode';
+  function isCsTvMode() {
+    return document.body.classList.contains('cs-tv-mode');
+  }
+  function setCsTvMode(on) {
+    var body = document.body;
+    if (on) body.classList.add('cs-tv-mode');
+    else body.classList.remove('cs-tv-mode');
+    var btn = document.getElementById('cs-tv-mode-toggle');
+    if (btn) {
+      var lbl = btn.querySelector('.cs-tv-label');
+      if (lbl) lbl.textContent = on ? 'TV 모드 끄기' : 'TV 모드';
+      btn.classList.toggle('cs-tv-mode-active', !!on);
+    }
+    try { localStorage.setItem(CS_TV_STORAGE_KEY, on ? '1' : '0'); } catch (_) {}
+    // 지도 사이즈가 바뀌므로 카카오 지도에 relayout 신호
+    try { if (_csMap && window.kakao && kakao.maps) _csMap.relayout(); } catch (_) {}
+    // 카드/간트 폭이 변하므로 재렌더
+    if (typeof renderConstructionSitesOverview === 'function') renderConstructionSitesOverview();
+  }
+  function wireCsTvModeOnce() {
+    if (_csTvWired) return;
+    var btn = document.getElementById('cs-tv-mode-toggle');
+    if (!btn) return;
+    _csTvWired = true;
+    btn.addEventListener('click', function () { setCsTvMode(!isCsTvMode()); });
+    // ESC 로 빠져나가기 (실수 진입 방지용)
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isCsTvMode()) setCsTvMode(false);
+    });
+    // 자동 진입: ?tv=1 또는 localStorage 저장값
+    var auto = false;
+    try {
+      var qs = (window.location.search || '').toLowerCase();
+      if (qs.indexOf('tv=1') !== -1 || qs.indexOf('tv=true') !== -1) auto = true;
+      if (!auto && localStorage.getItem(CS_TV_STORAGE_KEY) === '1') auto = true;
+    } catch (_) {}
+    if (auto) setCsTvMode(true);
   }
 
   // =====================================================================
