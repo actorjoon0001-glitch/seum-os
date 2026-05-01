@@ -13311,8 +13311,10 @@
   }
 
   function showSection(sectionId) {
-    // 출근 전이면 대시보드 외 섹션 접근 차단 — 대시보드에서 출근하기 버튼부터 누르도록 유도
+    // 출근 전이면 대시보드 외 섹션 접근 차단 — 대시보드에서 출근하기 버튼부터 누르도록 유도.
+    // 단, team-worklog 는 어제 팀 업무일지 미작성 시 출근 전에 작성하러 들어가야 하므로 예외.
     if (sectionId !== 'dashboard' &&
+        sectionId !== 'team-worklog' &&
         typeof window !== 'undefined' &&
         window.seumAttendance &&
         typeof window.seumAttendance.hasCheckedInToday === 'function' &&
