@@ -87,18 +87,17 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.0/dist/umd/supabase.js"></script>
   <!-- 카카오맵 SDK (현장 파악 화면에서 사용). autoload=false 로 두고 kakao.maps.load() 로 명시 초기화 -->
   <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=73d4ca9fd045f55e57e32b6a09db5ceb&libraries=services&autoload=false"></script>
+  <!-- Web Push 발송에 사용할 VAPID 공개키. 배포 시 실제 값으로 교체. -->
+  <meta name="seum-vapid-public-key" content="REPLACE_WITH_VAPID_PUBLIC_KEY">
   <script>
-    // 이전에 등록됐던 stale Service Worker 가 오래된 자원을 서빙하는 문제가
-    // 반복적으로 발생해, 등록된 SW 를 모두 해제하고 관련 캐시를 비운다.
+    // Service Worker 등록 — Web Push 수신용. 등록만 해두고 실제 푸시 구독은
+    // 로그인 후 notifications.js 가 처리한다.
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister().catch(function () {}); });
-      }).catch(function () {});
-      if (window.caches && caches.keys) {
-        caches.keys().then(function (names) {
-          names.forEach(function (n) { caches.delete(n).catch(function () {}); });
-        }).catch(function () {});
-      }
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function (e) {
+          console.warn('[sw] register failed:', e);
+        });
+      });
     }
   </script>
 </head>

@@ -246,11 +246,82 @@
   }
 
   // --------------------------------------------------
+  // Web Push 구독 — Service Worker + push_subscriptions 테이블에 저장
+  // --------------------------------------------------
+  function getVapidPublicKey() {
+    var meta = document.querySelector('meta[name="seum-vapid-public-key"]');
+    var key = meta && meta.getAttribute('content');
+    if (!key || key === 'REPLACE_WITH_VAPID_PUBLIC_KEY') return null;
+    return key;
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = window.atob(base64);
+    var output = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; ++i) output[i] = raw.charCodeAt(i);
+    return output;
+  }
+
+  function arrayBufferToBase64(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var binary = '';
+    for (var i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return window.btoa(binary);
+  }
+
+  async function subscribePushIfPossible() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      var vapid = getVapidPublicKey();
+      if (!vapid) return; // 키 미설정이면 푸시 비활성 (인앱 알림은 그대로 동작)
+
+      var perm = Notification.permission;
+      if (perm === 'denied') return;
+      if (perm === 'default') {
+        perm = await Notification.requestPermission();
+        if (perm !== 'granted') return;
+      }
+
+      var reg = await navigator.serviceWorker.ready;
+      var sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapid)
+        });
+      }
+
+      var supabase = window.seumSupabase || null;
+      if (!supabase) return;
+      var emp = (window.seumAuth && window.seumAuth.currentEmployee) || null;
+
+      var p256dh = sub.getKey ? arrayBufferToBase64(sub.getKey('p256dh')) : '';
+      var auth = sub.getKey ? arrayBufferToBase64(sub.getKey('auth')) : '';
+
+      await supabase.from('push_subscriptions').upsert({
+        endpoint: sub.endpoint,
+        p256dh: p256dh,
+        auth: auth,
+        employee_id: emp ? (emp.id || emp.authUserId || null) : null,
+        employee_name: emp ? (emp.name || null) : null,
+        team: emp ? (emp.team || null) : null,
+        user_agent: (navigator.userAgent || '').slice(0, 255),
+        last_seen_at: new Date().toISOString()
+      }, { onConflict: 'endpoint' });
+    } catch (e) {
+      console.warn('[push] subscribe failed:', e);
+    }
+  }
+
+  // --------------------------------------------------
   // 초기화 (로그인 완료 후 호출)
   // --------------------------------------------------
   function initNotifications() {
     requestBrowserNotifPermission();
     subscribeNotifications();
+    subscribePushIfPossible();
   }
 
   // --------------------------------------------------
