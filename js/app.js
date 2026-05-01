@@ -1216,6 +1216,25 @@
         }
         saveLgAppliances(list);
 
+        // 신규 발주 시 LG가전 담당자(이윤상/강양순)에게 알림 전송
+        if (!orderId && window.seumNotifications && typeof window.seumNotifications.send === 'function') {
+          var lgNotifTitle = '🧊 새 LG가전 발주가 등록되었습니다';
+          var lgNotifBody = '고객명: ' + (payload.customerName || '-') +
+            ' · 품목: ' + (payload.product || '-') +
+            (payload.modelName ? ' (' + payload.modelName + ')' : '') +
+            ' · 영업: ' + (payload.salesPerson || '-');
+          ['이윤상', '강양순'].forEach(function (recipient) {
+            window.seumNotifications.send({
+              contractId: payload.contractId || null,
+              customerName: payload.customerName || '',
+              salesPerson: payload.salesPerson || '',
+              recipientName: recipient,
+              title: lgNotifTitle,
+              body: lgNotifBody
+            });
+          });
+        }
+
         if (typeof logActivity === 'function') {
           logActivity({
             actionType: orderId ? 'update' : 'create',
