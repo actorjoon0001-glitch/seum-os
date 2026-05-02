@@ -12227,8 +12227,23 @@
 
     var entry = team ? twGetEntry(team.id, _twState.date, 'leader', null) : null;
     var canEdit = !!team && twIsLeader(team);
+    var summaryText = entry ? String(entry.summary || '') : '';
+    var isEmpty = !summaryText.trim();
 
-    taEl.value = entry ? (entry.summary || '') : '';
+    // 팀원 작성 수 집계 — 팀장 코멘트 미작성인데 팀원이 이미 쓰기 시작한 상태면 경고
+    var memberWrittenCount = 0;
+    if (team && isEmpty && typeof twGetTeamMembers === 'function') {
+      var members = twGetTeamMembers(team) || [];
+      members.forEach(function (m) {
+        var mEntry = twGetEntry(team.id, _twState.date, 'member', m.id, m.name);
+        if (mEntry && mEntry.tasks && String(mEntry.tasks).trim()) memberWrittenCount++;
+      });
+    }
+    var showAlert = isEmpty && memberWrittenCount > 0;
+
+    if (card) card.classList.toggle('tw-leader-comment-card--alert', showAlert);
+
+    taEl.value = summaryText;
     taEl.disabled = !canEdit;
     taEl.placeholder = canEdit
       ? '팀 전체 요약 · 지시사항 · 내일 계획을 입력하세요 (팀장 전용)'
@@ -12242,10 +12257,18 @@
     if (saveBtn) saveBtn.classList.toggle('hidden', !canEdit);
     if (savedEl) savedEl.textContent = '';
     if (metaEl) {
-      metaEl.innerHTML = entry
-        ? '작성자 <b>' + escapeHtml(entry.authorName || '-') + '</b> · 최종 수정 ' +
-          escapeHtml((entry.updatedAt || entry.createdAt || '').slice(0, 16).replace('T', ' '))
-        : '<span style="color:#64748b;">아직 작성되지 않았습니다.</span>';
+      if (showAlert) {
+        // 팀원이 썼는데 팀장 코멘트가 비어있음 — 팀장에겐 작성 촉구, 그 외엔 대기 상태로 노출
+        var leaderMsg = canEdit
+          ? '팀원 ' + memberWrittenCount + '명 작성 완료 — 팀장 코멘트를 작성해주세요'
+          : '팀원 ' + memberWrittenCount + '명 작성 완료 — 팀장 코멘트 대기 중';
+        metaEl.innerHTML = '<span class="tw-leader-comment-alert">⚠️ ' + escapeHtml(leaderMsg) + '</span>';
+      } else if (entry && !isEmpty) {
+        metaEl.innerHTML = '작성자 <b>' + escapeHtml(entry.authorName || '-') + '</b> · 최종 수정 ' +
+          escapeHtml((entry.updatedAt || entry.createdAt || '').slice(0, 16).replace('T', ' '));
+      } else {
+        metaEl.innerHTML = '<span style="color:#64748b;">아직 작성되지 않았습니다.</span>';
+      }
     }
   }
 
@@ -17829,7 +17852,8 @@
       if (!dateStr) return '';
       if (typeof twGetTeams !== 'function' || typeof twGetWorklogs !== 'function') return '';
       var esc = escapeHtml;
-      var logs = twGetWorklogs().filter(function (w) { return (w.date || '') === dateStr && w.kind === 'member'; });
+      var allLogs = twGetWorklogs().filter(function (w) { return (w.date || '') === dateStr; });
+      var memberLogs = allLogs.filter(function (w) { return w.kind === 'member'; });
 
       // 작성자 키: authorId / authorAuthUserId / authorName 중 하나라도 매칭되면 작성 처리
       function hasWritten(team, member) {
@@ -17837,13 +17861,22 @@
         if (member.id != null) memberKeys.push(String(member.id));
         if (member.authUserId) memberKeys.push(String(member.authUserId));
         if (member.name) memberKeys.push(String(member.name));
-        return logs.some(function (w) {
+        return memberLogs.some(function (w) {
           if (w.teamId !== team.id) return false;
           if (!w.tasks || !String(w.tasks).trim()) return false;
           if (memberKeys.indexOf(String(w.authorId || '')) >= 0) return true;
           if (w.authorAuthUserId && memberKeys.indexOf(String(w.authorAuthUserId)) >= 0) return true;
           if (w.authorName && memberKeys.indexOf(String(w.authorName)) >= 0) return true;
           return false;
+        });
+      }
+
+      // 팀 코멘트(leader 엔트리) 작성 여부 — summary/progress/issues/tomorrow 중 하나라도 내용 있으면 작성
+      function hasLeaderComment(team) {
+        return allLogs.some(function (w) {
+          if (w.teamId !== team.id || w.kind !== 'leader') return false;
+          var content = String((w.summary || '') + (w.progress || '') + (w.issues || '') + (w.tomorrow || ''));
+          return content.trim().length > 0;
         });
       }
 
@@ -17856,18 +17889,31 @@
           if (hasWritten(team, m)) written.push(m.name || '-');
           else missing.push(m.name || '-');
         });
-        return { team: team.name, total: members.length, written: written, missing: missing };
+        return {
+          team: team.name,
+          total: members.length,
+          written: written,
+          missing: missing,
+          hasLeader: hasLeaderComment(team)
+        };
       }).filter(Boolean);
 
       if (!sections.length) return '';
 
       var totalWritten = sections.reduce(function (a, s) { return a + s.written.length; }, 0);
       var totalAll = sections.reduce(function (a, s) { return a + s.total; }, 0);
+      var leaderDone = sections.filter(function (s) { return s.hasLeader; }).length;
+      var leaderTotal = sections.length;
 
       var rowsHtml = sections.map(function (s) {
         var rate = s.total ? Math.round((s.written.length / s.total) * 100) : 0;
-        return '<tr>' +
+        var rowCls = !s.hasLeader ? ' class="wl-status-row-leader-missing"' : '';
+        var leaderCell = s.hasLeader
+          ? '<td class="wl-status-leader-ok">✅ 작성</td>'
+          : '<td class="wl-status-leader-missing">❌ 미작성</td>';
+        return '<tr' + rowCls + '>' +
           '<td class="wl-status-team">' + esc(s.team) + '</td>' +
+          leaderCell +
           '<td class="wl-status-count">' + s.written.length + '/' + s.total + ' (' + rate + '%)</td>' +
           '<td class="wl-status-written">' + (s.written.length ? s.written.map(esc).join(', ') : '—') + '</td>' +
           '<td class="wl-status-missing">' + (s.missing.length ? s.missing.map(esc).join(', ') : '—') + '</td>' +
@@ -17877,14 +17923,15 @@
       return '<div class="wl-combined-pagebreak"></div>' +
         '<div class="wl-combined-header">' +
           '<h2>' + esc(dateStr) + ' 업무일지 작성 현황</h2>' +
-          '<div class="wl-combined-sub">전체 ' + totalWritten + ' / ' + totalAll + '명 작성 (팀별 내역)</div>' +
+          '<div class="wl-combined-sub">팀장 코멘트 ' + leaderDone + ' / ' + leaderTotal + '팀 · 팀원 ' + totalWritten + ' / ' + totalAll + '명 작성</div>' +
         '</div>' +
         '<table class="wl-status-table">' +
           '<thead><tr>' +
-            '<th style="width:18%">팀</th>' +
-            '<th style="width:14%">작성률</th>' +
-            '<th style="width:34%">작성자</th>' +
-            '<th style="width:34%">미작성</th>' +
+            '<th style="width:16%">팀</th>' +
+            '<th style="width:14%">팀장 코멘트</th>' +
+            '<th style="width:14%">팀원 작성률</th>' +
+            '<th style="width:28%">작성자</th>' +
+            '<th style="width:28%">미작성</th>' +
           '</tr></thead>' +
           '<tbody>' + rowsHtml + '</tbody>' +
         '</table>';
@@ -17952,7 +17999,10 @@
         '.wl-status-team{font-weight:700;color:#000}' +
         '.wl-status-count{font-weight:700;color:#000;white-space:nowrap}' +
         '.wl-status-written{color:#065f46}' +
-        '.wl-status-missing{color:#991b1b;font-weight:600}';
+        '.wl-status-missing{color:#991b1b;font-weight:600}' +
+        '.wl-status-leader-ok{color:#065f46;font-weight:700;white-space:nowrap}' +
+        '.wl-status-leader-missing{color:#991b1b;font-weight:700;white-space:nowrap}' +
+        '.wl-status-row-leader-missing td{background:#fef2f2}';
     }
 
     var ceoDailyCombinedPrintBtn = document.getElementById('btn-ceo-daily-print-with-worklog');
