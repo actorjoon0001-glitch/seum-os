@@ -11798,7 +11798,6 @@
     var logs = twGetWorklogs().filter(function (w) {
       return w.teamId === teamId && w.date === date && w.kind === kind;
     });
-    if (kind === 'leader') return logs[0];
     // 1) authorId 직접 일치 (정수 또는 UUID)
     var hit = logs.find(function (w) { return String(w.authorId) === key; });
     if (hit) return hit;
@@ -11814,7 +11813,7 @@
     var list = twGetWorklogs();
     var idx = list.findIndex(function (w) {
       return w.teamId === entry.teamId && w.date === entry.date && w.kind === entry.kind &&
-        (entry.kind === 'leader' ? true : w.authorId === entry.authorId);
+        w.authorId === entry.authorId;
     });
     var now = new Date().toISOString();
     if (idx >= 0) {
@@ -11833,8 +11832,7 @@
 
   /** 로그인한 사용자가 특정 날짜에 자신의 팀 업무일지를 작성했는지 판정.
    *  - 관리자(admin/master/superadmin) 는 항상 true (작성 의무 면제)
-   *  - 팀장 권한: leader 엔트리의 summary/progress/issues/tomorrow 중 하나라도 있으면 true
-   *  - 팀원: 본인 member 엔트리의 tasks 가 있으면 true
+   *  - 본인 member 엔트리의 tasks 가 있으면 true
    *  - 팀을 찾지 못하거나 예외 발생 시 true (차단하지 않음)
    */
   function hasFilledTeamWorklogForDate(dateIso) {
@@ -11850,13 +11848,6 @@
         if (twIsTeamMember(teams[i])) { myTeam = teams[i]; break; }
       }
       if (!myTeam) return true;
-      var asLeader = twIsLeader(myTeam);
-      if (asLeader) {
-        var leader = twGetEntry(myTeam.id, date, 'leader', null);
-        if (!leader) return false;
-        var joined = ((leader.summary || '') + (leader.progress || '') + (leader.issues || '') + (leader.tomorrow || '')).toString().trim();
-        return !!joined;
-      }
       var myId = cur.id || cur.authUserId || '';
       var myName = cur.name || '';
       var entry = twGetEntry(myTeam.id, date, 'member', myId, myName);
@@ -11888,7 +11879,6 @@
   function twRemoveEntry(teamId, date, kind, authorId) {
     var list = twGetWorklogs().filter(function (w) {
       if (w.teamId !== teamId || w.date !== date || w.kind !== kind) return true;
-      if (kind === 'leader') return false;
       return w.authorId !== authorId;
     });
     if (!twSaveWorklogs(list)) return false;
@@ -11901,16 +11891,8 @@
   // ─────────────────────────────────────────────────────────────
   // 팀 업무일지 Supabase 어댑터 (team_reports + team_report_items)
   //
-  // 현재 UI 는 기존 localStorage 기반 (twGetWorklogs/twUpsertEntry) 함수를 통해
-  // leader/member 엔트리 배열로 렌더함. 어댑터는 UI 변경 없이 그 밑에
-  // Supabase 를 소스 오브 트루스로 연결:
-  //
-  //   - 앱 진입 시 twRemoteSyncAll() 이 전체 팀 리포트를 로컬 캐시에 주입
-  //   - twUpsertEntry / twRemoveEntry 호출 시 로컬 즉시 반영 + Supabase 비동기 upsert
-  //   - 네트워크 실패/테이블 부재/RLS 거부 시 조용히 fallback (로컬만 동작)
-  //
   // 컬럼 맵핑
-  //   team_reports.team_id / report_date / leader_comment
+  //   team_reports.team_id / report_date
   //   team_report_items.report_id / user_id / author_name / role_type /
   //                      position / content / status
   // ─────────────────────────────────────────────────────────────
@@ -11966,37 +11948,25 @@
     try {
       twRemoteEnsureReport(entry.teamId, entry.date).then(function (reportId) {
         if (!reportId) { console.warn('[tw remote] no reportId — ensureReport returned empty'); return; }
-        if (entry.kind === 'leader') {
-          // 팀장 코멘트 → team_reports.leader_comment
-          supabase.from('team_reports')
-            .update({ leader_comment: entry.summary || '' })
-            .eq('id', reportId)
-            .then(function (r) {
-              if (r && r.error) console.warn('[tw remote] leader update failed:', r.error);
-              else console.log('[tw remote] leader saved');
-            });
-        } else {
-          // 팀원 업무 → team_report_items upsert (user_id 는 auth.users UUID)
-          var authUserId = _twResolveAuthUserId(entry);
-          if (!authUserId) {
-            console.warn('[tw remote] cannot resolve auth_user_id for entry:', entry.authorName, entry.authorId);
-            return;
-          }
-          var content = entry.tasks || '';
-          var done = content && content.trim();
-          supabase.from('team_report_items').upsert({
-            report_id: reportId,
-            user_id: authUserId,
-            author_name: entry.authorName || '',
-            role_type: entry.roleType || '팀원',
-            position: entry.position || '',
-            content: content,
-            status: done ? '작성완료' : '미작성'
-          }, { onConflict: 'report_id,user_id' }).then(function (r) {
-            if (r && r.error) console.warn('[tw remote] item upsert failed:', r.error);
-            else console.log('[tw remote] item saved for', entry.authorName);
-          });
+        var authUserId = _twResolveAuthUserId(entry);
+        if (!authUserId) {
+          console.warn('[tw remote] cannot resolve auth_user_id for entry:', entry.authorName, entry.authorId);
+          return;
         }
+        var content = entry.tasks || '';
+        var done = content && content.trim();
+        supabase.from('team_report_items').upsert({
+          report_id: reportId,
+          user_id: authUserId,
+          author_name: entry.authorName || '',
+          role_type: entry.roleType || '팀원',
+          position: entry.position || '',
+          content: content,
+          status: done ? '작성완료' : '미작성'
+        }, { onConflict: 'report_id,user_id' }).then(function (r) {
+          if (r && r.error) console.warn('[tw remote] item upsert failed:', r.error);
+          else console.log('[tw remote] item saved for', entry.authorName);
+        });
       }, function (err) { console.warn('[tw remote] ensureReport rejected:', err); });
     } catch (e) { console.warn('[tw remote] throw:', e); }
   }
@@ -12013,20 +11983,13 @@
         .then(function (res) {
           if (!res || !res.data) return;
           var reportId = res.data.id;
-          if (kind === 'leader') {
-            supabase.from('team_reports')
-              .update({ leader_comment: null })
-              .eq('id', reportId)
-              .then(function (r) { if (r && r.error) console.warn('[tw remote] leader clear failed:', r.error); });
-          } else {
-            var authUserId = _twResolveAuthUserId({ authorId: authorId });
-            if (!authUserId) { console.warn('[tw remote] cannot resolve auth_user_id for delete:', authorId); return; }
-            supabase.from('team_report_items')
-              .delete()
-              .eq('report_id', reportId)
-              .eq('user_id', authUserId)
-              .then(function (r) { if (r && r.error) console.warn('[tw remote] item delete failed:', r.error); });
-          }
+          var authUserId = _twResolveAuthUserId({ authorId: authorId });
+          if (!authUserId) { console.warn('[tw remote] cannot resolve auth_user_id for delete:', authorId); return; }
+          supabase.from('team_report_items')
+            .delete()
+            .eq('report_id', reportId)
+            .eq('user_id', authUserId)
+            .then(function (r) { if (r && r.error) console.warn('[tw remote] item delete failed:', r.error); });
         });
     } catch (e) { console.warn('[tw remote] delete throw:', e); }
   }
@@ -12038,7 +12001,7 @@
     if (!supabase) return;
     try {
       supabase.from('team_reports')
-        .select('id, team_id, report_date, leader_comment, updated_at, created_at, team_report_items(id, user_id, author_name, role_type, position, content, status, updated_at, created_at)')
+        .select('id, team_id, report_date, updated_at, created_at, team_report_items(id, user_id, author_name, role_type, position, content, status, updated_at, created_at)')
         .then(function (res) {
           if (!res || res.error) {
             if (res && res.error) console.warn('[tw remote] sync failed:', res.error);
@@ -12047,20 +12010,6 @@
           if (!Array.isArray(res.data)) return;
           var remoteRows = [];
           res.data.forEach(function (rep) {
-            if (rep.leader_comment && rep.leader_comment.trim()) {
-              remoteRows.push({
-                id: 'tw-leader-' + rep.id,
-                teamId: rep.team_id,
-                date: rep.report_date,
-                kind: 'leader',
-                authorId: null,
-                authorName: '',
-                summary: rep.leader_comment || '',
-                progress: '', issues: '', tomorrow: '',
-                createdAt: rep.created_at,
-                updatedAt: rep.updated_at
-              });
-            }
             (rep.team_report_items || []).forEach(function (it) {
               remoteRows.push({
                 id: 'tw-item-' + (it.id || (rep.id + '-' + (it.user_id || ''))),
@@ -12087,14 +12036,13 @@
           //  이 시점에 remoteRows 가 비어있는 상태로 로컬을 통째로 지울 수 있음.
           var keyOf = function (w) {
             return (w.teamId || '') + '|' + (w.date || '') + '|' + (w.kind || '') +
-                   '|' + (w.kind === 'leader' ? '' : (w.authorId || ''));
+                   '|' + (w.authorId || '');
           };
           var remoteKeys = {};
           remoteRows.forEach(function (r) { remoteKeys[keyOf(r)] = true; });
           var localKept = twGetWorklogs().filter(function (w) {
             // 내용이 있는 로컬 엔트리 중 원격에 없는 것은 유지
             if (remoteKeys[keyOf(w)]) return false;
-            if (w.kind === 'leader' && w.summary && w.summary.trim()) return true;
             if (w.kind === 'member' && w.tasks && w.tasks.trim()) return true;
             return false;
           });
@@ -12129,13 +12077,12 @@
   }
 
   // (teamId, date) 업무일지 상태를 팀 이벤트(캘린더)에 동기화.
-  // 팀장 + 팀원 모두 비면 이벤트 제거. 하나라도 있으면 요약 이벤트 생성/업데이트.
+  // 팀원 작성이 모두 비면 이벤트 제거. 하나라도 있으면 요약 이벤트 생성/업데이트.
   function twSyncCalendarEvent(teamId, date) {
     if (typeof getTeamEvents !== 'function' || typeof saveTeamEvents !== 'function') return;
     var team = twGetTeams().find(function (t) { return t.id === teamId; });
     if (!team) return;
     var logs = twGetWorklogs().filter(function (w) { return w.teamId === teamId && w.date === date; });
-    var leaderLog  = logs.find(function (w) { return w.kind === 'leader'; });
     var memberLogs = logs.filter(function (w) { return w.kind === 'member' && w.tasks && w.tasks.trim(); });
     var totalMembers = twGetTeamMembers(team).length;
 
@@ -12143,8 +12090,7 @@
     var events = getTeamEvents();
     var idx = events.findIndex(function (ev) { return ev.id === evId; });
 
-    // 아무 내용 없으면 이벤트 제거
-    if (!leaderLog && !memberLogs.length) {
+    if (!memberLogs.length) {
       if (idx >= 0) {
         events.splice(idx, 1);
         saveTeamEvents(events);
@@ -12152,10 +12098,8 @@
       return;
     }
 
-    var title = team.name + ' 업무일지 (' + memberLogs.length + '/' + totalMembers + '명 작성' +
-      (leaderLog ? ', 팀 일지 ✓' : '') + ')';
+    var title = team.name + ' 업무일지 (' + memberLogs.length + '/' + totalMembers + '명 작성)';
     var descParts = [];
-    if (leaderLog && leaderLog.summary) descParts.push('[팀 요약] ' + leaderLog.summary);
     memberLogs.slice(0, 5).forEach(function (m) {
       if (m.tasks) descParts.push('· ' + (m.authorName || '팀원') + ': ' + m.tasks.split('\n')[0].slice(0, 60));
     });
@@ -12176,7 +12120,7 @@
       is_all_day: true,
       status: 'done',
       description: descParts.join('\n'),
-      assignee_name: leaderLog ? (leaderLog.authorName || '') : '',
+      assignee_name: '',
       note: '팀별 업무일지 자동 연동',
       teamWorklogTeamId: teamId
     };
@@ -12212,41 +12156,6 @@
   function _twCurrentTeam() {
     var teams = twGetTeams();
     return teams.find(function (t) { return t.id === _twState.teamId; }) || teams[0] || null;
-  }
-
-  // 팀장 코멘트 카드 렌더 — 팀장/관리자만 textarea 활성, 그 외 읽기 전용
-  // 저장 필드는 기존 leader 엔트리의 summary 컬럼을 재사용
-  function _twRenderLeader(team) {
-    var card = document.getElementById('tw-leader-comment-card');
-    var taEl = document.getElementById('tw-leader-comment');
-    var subEl = document.getElementById('tw-leader-comment-sub');
-    var metaEl = document.getElementById('tw-leader-comment-meta');
-    var saveBtn = document.getElementById('tw-leader-comment-save');
-    var savedEl = document.getElementById('tw-leader-comment-saved');
-    if (!taEl) return;
-
-    var entry = team ? twGetEntry(team.id, _twState.date, 'leader', null) : null;
-    var canEdit = !!team && twIsLeader(team);
-
-    taEl.value = entry ? (entry.summary || '') : '';
-    taEl.disabled = !canEdit;
-    taEl.placeholder = canEdit
-      ? '팀 전체 요약 · 지시사항 · 내일 계획을 입력하세요 (팀장 전용)'
-      : '팀장이 코멘트를 남기면 여기에 표시됩니다.';
-
-    if (subEl) {
-      subEl.textContent = canEdit
-        ? '팀 전체 요약·지시사항·내일 계획을 작성합니다. (팀장 전용)'
-        : '팀장이 작성하는 전체 요약·지시사항입니다. (읽기 전용)';
-    }
-    if (saveBtn) saveBtn.classList.toggle('hidden', !canEdit);
-    if (savedEl) savedEl.textContent = '';
-    if (metaEl) {
-      metaEl.innerHTML = entry
-        ? '작성자 <b>' + escapeHtml(entry.authorName || '-') + '</b> · 최종 수정 ' +
-          escapeHtml((entry.updatedAt || entry.createdAt || '').slice(0, 16).replace('T', ' '))
-        : '<span style="color:#64748b;">아직 작성되지 않았습니다.</span>';
-    }
   }
 
   // 작성 폼 상단 "소속 확인" 정보 채우기
@@ -12516,7 +12425,6 @@
     _twPopulateTeamSelect();
     var team = _twCurrentTeam();
     _twRenderCalendar(team);
-    _twRenderLeader(team);
     _twRenderMembers(team);
     _twRenderHistory();
 
@@ -12566,8 +12474,7 @@
     var byDate = {};
     logs.forEach(function (w) {
       if (!w.date) return;
-      if (!byDate[w.date]) byDate[w.date] = { leader: false, memberCount: 0 };
-      if (w.kind === 'leader' && w.summary && w.summary.trim()) byDate[w.date].leader = true;
+      if (!byDate[w.date]) byDate[w.date] = { memberCount: 0 };
       if (w.kind === 'member' && w.tasks && w.tasks.trim()) byDate[w.date].memberCount++;
     });
 
@@ -12591,7 +12498,6 @@
       var badgeHtml = '';
       if (rec) {
         var parts = [];
-        if (rec.leader) parts.push('<span class="tw-cal-badge tw-cal-badge-leader">팀 일지</span>');
         if (rec.memberCount > 0) parts.push('<span class="tw-cal-badge tw-cal-badge-member">팀원 ' + rec.memberCount + '</span>');
         if (parts.length) badgeHtml = '<div class="tw-cal-badges">' + parts.join('') + '</div>';
       }
@@ -12631,9 +12537,8 @@
     var groups = {};
     logs.forEach(function (w) {
       var k = w.teamId + '|' + w.date;
-      if (!groups[k]) groups[k] = { teamId: w.teamId, date: w.date, leader: null, members: [], updatedAt: '' };
-      if (w.kind === 'leader') groups[k].leader = w;
-      else if (w.kind === 'member') groups[k].members.push(w);
+      if (!groups[k]) groups[k] = { teamId: w.teamId, date: w.date, members: [], updatedAt: '' };
+      if (w.kind === 'member') groups[k].members.push(w);
       if ((w.updatedAt || '') > groups[k].updatedAt) groups[k].updatedAt = w.updatedAt || '';
     });
 
@@ -12655,24 +12560,21 @@
       var team = teamById[g.teamId];
       var totalMembers = twGetTeamMembers(team).length;
       var writtenMembers = g.members.filter(function (m) { return m.tasks && m.tasks.trim(); }).length;
-      var summary = g.leader && g.leader.summary ? g.leader.summary : '';
-      if (!summary && g.members.length) {
+      var summary = '';
+      if (g.members.length) {
         var firstMember = g.members.find(function (m) { return m.tasks && m.tasks.trim(); });
-        if (firstMember) summary = '(팀 일지 미작성) ' + firstMember.tasks;
+        if (firstMember) summary = firstMember.tasks;
       }
       summary = (summary || '').replace(/\n/g, ' ').trim();
       if (summary.length > 60) summary = summary.slice(0, 59) + '…';
 
-      var leaderBadge = g.leader
-        ? '<span class="tw-hist-badge tw-hist-badge-done">팀 일지 ✓</span>'
-        : '<span class="tw-hist-badge tw-hist-badge-pending">팀 일지 미작성</span>';
       var memberBadge = '<span class="tw-hist-badge' + (writtenMembers >= totalMembers && totalMembers > 0 ? ' tw-hist-badge-done' : ' tw-hist-badge-partial') + '">팀원 ' + writtenMembers + '/' + totalMembers + '</span>';
 
       return '<tr data-tw-hist-team="' + escapeAttr(g.teamId) + '" data-tw-hist-date="' + escapeAttr(g.date) + '">' +
         '<td>' + escapeHtml(g.date) + '</td>' +
         '<td>' + escapeHtml(team.name) + '</td>' +
         '<td class="tw-hist-summary">' + (summary ? escapeHtml(summary) : '<span style="color:#6b7280;">-</span>') + '</td>' +
-        '<td>' + leaderBadge + ' ' + memberBadge + '</td>' +
+        '<td>' + memberBadge + '</td>' +
         '<td>' + escapeHtml((g.updatedAt || '').slice(0, 16).replace('T', ' ')) + '</td>' +
         '<td><button type="button" class="btn btn-sm btn-secondary" data-tw-hist-open="1">열기</button></td>' +
         '</tr>';
@@ -12704,7 +12606,6 @@
     var frame = document.getElementById('tw-print-frame');
     if (!frame) return;
 
-    var leader = twGetEntry(team.id, _twState.date, 'leader', null);
     var members = twGetTeamMembers(team);
     var memberRows = members.map(function (m) {
       var e = twGetEntry(team.id, _twState.date, 'member', m.id, m.name);
@@ -12722,23 +12623,6 @@
         '</tr>';
     }).join('');
 
-    var leaderBlocks = function () {
-      var block = function (label, text, wide) {
-        var content = (text && text.trim())
-          ? escapeHtml(text)
-          : '<span style="color:#888;font-style:italic;">미작성</span>';
-        return '<div class="tw-print-block' + (wide ? ' tw-print-block-wide' : '') + '">' +
-          '<div class="tw-print-block-label">' + label + '</div>' +
-          '<div class="tw-print-block-content">' + content + '</div></div>';
-      };
-      return '<div class="tw-print-grid">' +
-        block('팀 전체 업무 요약', leader && leader.summary,  true) +
-        block('진행 상황',         leader && leader.progress, false) +
-        block('이슈 사항',         leader && leader.issues,   false) +
-        block('내일 계획',         leader && leader.tomorrow, true) +
-        '</div>';
-    }();
-
     var totalCount = members.length;
     var doneCount = members.filter(function (m) {
       var e = twGetEntry(team.id, _twState.date, 'member', m.id, m.name);
@@ -12749,12 +12633,6 @@
       '<div class="tw-print-head">' +
         '<h1>' + escapeHtml(team.name) + ' 업무일지</h1>' +
         '<p>기준일: ' + escapeHtml(_twState.date) + ' · 작성 ' + doneCount + '/' + totalCount + '명</p>' +
-      '</div>' +
-      '<div class="tw-print-section">' +
-        '<h2>팀 업무일지</h2>' +
-        '<div style="font-size:10pt;margin:2px 0 4px;">작성자: ' +
-          escapeHtml((leader && leader.authorName) || '미작성') + '</div>' +
-        leaderBlocks +
       '</div>' +
       '<div class="tw-print-section">' +
         '<h2>팀원 업무</h2>' +
@@ -12776,7 +12654,7 @@
     setTimeout(function () { window.print(); }, 80);
   }
 
-  // 업무일지 보관함 상세 모달 열기 — 특정 (팀, 날짜) 의 팀장 코멘트 + 팀원 기록 전체를 읽기 전용으로 노출
+  // 업무일지 보관함 상세 모달 열기 — 특정 (팀, 날짜) 의 팀원 기록 전체를 읽기 전용으로 노출
   function _twOpenHistoryDetail(teamId, date) {
     var modal = document.getElementById('tw-history-detail-modal');
     var titleEl = document.getElementById('tw-history-detail-title');
@@ -12791,7 +12669,6 @@
     if (subEl) subEl.textContent = date;
 
     var logs = twGetWorklogs().filter(function (w) { return w.teamId === teamId && w.date === date; });
-    var leader = logs.find(function (w) { return w.kind === 'leader'; });
     // 같은 사람 중복(정수 authorId vs UUID authorId) 제거 — 이름 기준, 최신 updatedAt 우선
     var seen = {};
     var members = [];
@@ -12804,13 +12681,6 @@
         if ((m.updatedAt || '') > (members[idx].updatedAt || '')) members[idx] = m;
       });
     members.sort(function (a, b) { return (a.authorName || '').localeCompare(b.authorName || '', 'ko'); });
-
-    var leaderSection = '<div class="tw-hd-section">' +
-      '<h4 class="tw-hd-section-title">📣 팀장 코멘트</h4>' +
-      '<div class="tw-hd-content' + (leader && leader.summary && leader.summary.trim() ? '' : ' tw-hd-empty') + '">' +
-        (leader && leader.summary && leader.summary.trim() ? escapeHtml(leader.summary) : '(작성되지 않음)') +
-      '</div>' +
-      '</div>';
 
     var memberSection;
     if (!members.length) {
@@ -12841,7 +12711,7 @@
         '</div>';
     }
 
-    bodyEl.innerHTML = leaderSection + memberSection;
+    bodyEl.innerHTML = memberSection;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
   }
@@ -12877,36 +12747,6 @@
     // 인쇄
     var btnPrint = document.getElementById('tw-btn-print');
     if (btnPrint) btnPrint.addEventListener('click', _twPrintAll);
-
-    // 팀장 코멘트 저장 — 팀장/관리자만 가능
-    var leaderCommentSave = document.getElementById('tw-leader-comment-save');
-    if (leaderCommentSave) leaderCommentSave.addEventListener('click', function () {
-      var team = _twCurrentTeam();
-      if (!team) { showToast('팀을 선택해 주세요.', 'error'); return; }
-      if (!twIsLeader(team)) { showToast('팀장만 작성할 수 있습니다.', 'error'); return; }
-      var cur = window.seumAuth && window.seumAuth.currentEmployee;
-      var ta = document.getElementById('tw-leader-comment');
-      var comment = (ta ? ta.value : '').trim();
-      var entry = {
-        teamId: team.id,
-        date: _twState.date,
-        kind: 'leader',
-        authorId: cur ? (cur.id || cur.authUserId || '') : '',
-        authorName: cur ? (cur.name || '팀장') : '팀장',
-        summary: comment,
-        progress: '',
-        issues: '',
-        tomorrow: ''
-      };
-      if (!twUpsertEntry(entry)) return;
-      var savedEl = document.getElementById('tw-leader-comment-saved');
-      if (savedEl) {
-        savedEl.textContent = '저장 완료 · ' + new Date().toLocaleTimeString('ko-KR');
-        setTimeout(function () { savedEl.textContent = ''; }, 3000);
-      }
-      renderTeamWorklog();
-      showToast('팀장 코멘트가 저장됐습니다.');
-    });
 
     // 캘린더 네비게이션
     var btnCalPrev = document.getElementById('tw-cal-prev');
@@ -12986,8 +12826,6 @@
       if (di) di.value = date;
       _twCloseHistoryDetail();
       renderTeamWorklog();
-      var card = document.getElementById('tw-leader-comment-card');
-      if (card && card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     var histDetailModal = document.getElementById('tw-history-detail-modal');
     if (histDetailModal) histDetailModal.addEventListener('click', function (e) {
@@ -17739,12 +17577,11 @@
       var allLogs = twGetWorklogs().filter(function (w) { return (w.date || '') === dateStr; });
       var teams = twGetTeams();
 
-      // (팀 ID 기준) 그룹화 — 팀장 + 팀원
+      // (팀 ID 기준) 그룹화 — 팀원
       var groups = {};
       allLogs.forEach(function (w) {
-        if (!groups[w.teamId]) groups[w.teamId] = { leader: null, members: [] };
-        if (w.kind === 'leader') groups[w.teamId].leader = w;
-        else if (w.kind === 'member') groups[w.teamId].members.push(w);
+        if (!groups[w.teamId]) groups[w.teamId] = { members: [] };
+        if (w.kind === 'member') groups[w.teamId].members.push(w);
       });
 
       var usedTeamIds = Object.keys(groups);
@@ -17753,7 +17590,7 @@
       var headerHtml =
         '<div class="wl-combined-header">' +
           '<h2>' + escapeHtml(dateStr) + ' 팀별 업무일지</h2>' +
-          '<div class="wl-combined-sub">팀 일지 + 팀원 업무 (' + orderedTeams.length + '개 팀)</div>' +
+          '<div class="wl-combined-sub">팀원 업무 (' + orderedTeams.length + '개 팀)</div>' +
         '</div>';
 
       if (!orderedTeams.length) {
@@ -17766,30 +17603,8 @@
         var g = groups[team.id];
         var totalMembers = (typeof twGetTeamMembers === 'function') ? twGetTeamMembers(team).length : g.members.length;
         var writtenMembers = g.members.filter(function (m) { return m.tasks && m.tasks.trim(); }).length;
-        var stats = '팀 일지 ' + (g.leader ? '✓' : '—') + ' · 팀원 ' + writtenMembers + '/' + totalMembers;
+        var stats = '팀원 ' + writtenMembers + '/' + totalMembers;
 
-        // 팀 공동 일지 블록
-        var leaderHtml = '';
-        if (g.leader) {
-          var cell = function (label, text) {
-            var body = text && text.trim() ? esc(text) : '<span style="color:#888;font-style:italic;">미작성</span>';
-            return '<div class="wl-team-cell"><div class="wl-team-cell-label">' + label + '</div><div class="wl-team-cell-body">' + body + '</div></div>';
-          };
-          leaderHtml =
-            '<div class="wl-team-leader">' +
-              '<h4>팀 업무일지' + (g.leader.authorName ? ' — ' + esc(g.leader.authorName) : '') + '</h4>' +
-              '<div class="wl-team-grid">' +
-                cell('팀 전체 요약', g.leader.summary) +
-                cell('진행 상황', g.leader.progress) +
-                cell('이슈 사항', g.leader.issues) +
-                cell('내일 계획', g.leader.tomorrow) +
-              '</div>' +
-            '</div>';
-        } else {
-          leaderHtml = '<div class="wl-team-leader wl-team-leader-empty">팀 업무일지 미작성</div>';
-        }
-
-        // 팀원 블록
         var membersHtml = '';
         if (g.members.length) {
           membersHtml = '<div class="wl-team-members">' +
@@ -17815,7 +17630,7 @@
             '<h3>' + esc(team.name) + '</h3>' +
             '<span class="wl-team-stat">' + esc(stats) + '</span>' +
           '</header>' +
-          leaderHtml + membersHtml +
+          membersHtml +
           '</section>';
       }).join('');
 
@@ -17932,13 +17747,6 @@
         '.wl-team-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #111;padding-bottom:1.5mm;margin-bottom:2mm}' +
         '.wl-team-head h3{margin:0;font-size:1.05rem;color:#000}' +
         '.wl-team-stat{font-size:0.8rem;color:#333}' +
-        '.wl-team-leader{border:1px solid #bbb;border-left:3px solid #111;padding:2mm 3mm;margin-bottom:3mm;background:#fafafa}' +
-        '.wl-team-leader h4{margin:0 0 1.5mm;font-size:0.9rem;color:#000}' +
-        '.wl-team-leader-empty{color:#777;font-style:italic;text-align:center;padding:3mm 0}' +
-        '.wl-team-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5mm 3mm}' +
-        '.wl-team-cell{border:1px solid #ddd;padding:1.5mm 2mm;background:#fff}' +
-        '.wl-team-cell-label{font-weight:700;font-size:0.75rem;color:#555;margin-bottom:0.8mm;text-transform:uppercase;letter-spacing:0.02em}' +
-        '.wl-team-cell-body{font-size:0.82rem;color:#222;white-space:pre-wrap;line-height:1.35}' +
         '.wl-team-members{display:grid;grid-template-columns:1fr 1fr;gap:2mm 3mm}' +
         '.wl-member-entry{border:1px solid #ccc;border-radius:3px;padding:2mm 3mm;break-inside:avoid;page-break-inside:avoid;background:#fff}' +
         '.wl-member-entry h5{margin:0 0 1mm;font-size:0.9rem;color:#000;border-bottom:1px dashed #bbb;padding-bottom:0.8mm}' +
