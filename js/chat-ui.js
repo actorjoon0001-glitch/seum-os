@@ -104,7 +104,22 @@
     });
     listEl.innerHTML = html;
     var wrapScroll = listEl.closest('.contract-chat-messages-wrap') || listEl.closest('.design-contract-chat-messages-wrap') || listEl.closest('.chat-messages-wrap');
-    if (wrapScroll) wrapScroll.scrollTop = wrapScroll.scrollHeight;
+    scrollChatToBottom(wrapScroll);
+  }
+
+  // 패널이 막 열려 scrollHeight 가 아직 0 일 수 있어 즉시 + rAF + setTimeout 으로
+  // 레이아웃이 잡힌 시점에 다시 한 번 바닥으로 이동시켜 "최신 메시지부터 노출" 보장.
+  function scrollChatToBottom(wrap) {
+    if (!wrap) return;
+    var go = function () { wrap.scrollTop = wrap.scrollHeight; };
+    go();
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function () {
+        go();
+        requestAnimationFrame(go);
+      });
+    }
+    setTimeout(go, 60);
   }
 
   function getContractChatParticipantNames(contractId) {
@@ -255,6 +270,9 @@
       panel.classList.add('chat-conversation-open');
       document.body.classList.add('chat-conversation-open');
     }
+    // 대화창 표시 직후 메시지 영역을 최신(맨 아래)으로 이동
+    var wrap = document.querySelector('.chat-conversation .chat-messages-wrap');
+    scrollChatToBottom(wrap);
   }
 
   /** 대화창 닫기 (클래스 제거) */
@@ -624,7 +642,7 @@
         '</div></li>';
     });
     list.innerHTML = html;
-    if (wrap) wrap.scrollTop = wrap.scrollHeight;
+    scrollChatToBottom(wrap);
     updateChatHeader(channel);
   }
 
