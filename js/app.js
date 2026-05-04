@@ -421,6 +421,47 @@
   //  계약 목록 검색 필터 헬퍼
   // ────────────────────────────────────────────────────────────
 
+  // 영업팀 계약 목록 주택유형 탭 필터 — all | 컨테이너/농막 | 체류형쉼터 | 전원주택(인허가) | 기타
+  var _contractTypeFilter = 'all';
+  var _contractTypeTabsWired = false;
+
+  function getContractTypeKey(c) {
+    var t = ((c && (c.contractModel || c.projectType)) || '').trim();
+    if (t === '컨테이너/농막') return '컨테이너/농막';
+    if (t === '체류형쉼터') return '체류형쉼터';
+    if (t === '전원주택') return '전원주택(인허가)';
+    return '기타';
+  }
+
+  // 영업팀 계약 목록 상단 주택유형 탭 렌더 (설계팀 우선순위 탭과 동일한 마크업)
+  function _renderContractTypeTabs(baseContracts) {
+    var tabsEl = document.getElementById('contract-type-tabs');
+    if (!tabsEl) return;
+    var counts = { '컨테이너/농막': 0, '체류형쉼터': 0, '전원주택(인허가)': 0, '기타': 0 };
+    (baseContracts || []).forEach(function (c) { counts[getContractTypeKey(c)]++; });
+    var tabs = [
+      { key: 'all',                 label: '전체',             count: (baseContracts || []).length },
+      { key: '컨테이너/농막',       label: '컨테이너/농막',    count: counts['컨테이너/농막'] },
+      { key: '체류형쉼터',          label: '체류형쉼터',       count: counts['체류형쉼터'] },
+      { key: '전원주택(인허가)',    label: '전원주택(인허가)', count: counts['전원주택(인허가)'] },
+      { key: '기타',                label: '기타',             count: counts['기타'] }
+    ];
+    tabsEl.innerHTML = tabs.map(function (t) {
+      var cls = 'design-type-tab' + (_contractTypeFilter === t.key ? ' active' : '');
+      return '<button type="button" class="' + cls + '" data-contract-type="' + escapeAttr(t.key) + '">' +
+        escapeHtml(t.label) + ' <span class="tab-count">' + t.count + '</span></button>';
+    }).join('');
+    if (!_contractTypeTabsWired) {
+      tabsEl.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-contract-type]');
+        if (!btn) return;
+        _contractTypeFilter = btn.getAttribute('data-contract-type') || 'all';
+        if (typeof renderSales === 'function') renderSales();
+      });
+      _contractTypeTabsWired = true;
+    }
+  }
+
   /** 검색 입력창에서 키워드를 가져옴 */
   function getContractSearchKeyword() {
     var el = document.getElementById('contract-search-input');
@@ -4489,6 +4530,12 @@
     visits = filterByYearMonth(visits, 'visitDate');
     var contracts = filterByShowroom(contractsAll, 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    // 주택유형 탭(전체/컨테이너·농막/체류형쉼터/전원주택(인허가)/기타) 카운트는
+    // 검색 키워드 적용 전 기준 — 키워드를 바꿔도 탭별 전체 건수가 안정적으로 보이도록.
+    _renderContractTypeTabs(contracts);
+    if (_contractTypeFilter !== 'all') {
+      contracts = contracts.filter(function (c) { return getContractTypeKey(c) === _contractTypeFilter; });
+    }
     contracts = getFilteredContracts(contracts);
     // 기본 정렬: 계약일 오래된 순 (오름차순)
     contracts.sort(function (a, b) {
