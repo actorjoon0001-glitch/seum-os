@@ -103,15 +103,27 @@
         '</div></li>';
     });
     listEl.innerHTML = html;
-    var wrapScroll = listEl.closest('.contract-chat-messages-wrap') || listEl.closest('.design-contract-chat-messages-wrap') || listEl.closest('.chat-messages-wrap');
-    scrollChatToBottom(wrapScroll);
+    // .chat-messages-wrap 은 overflow:hidden 이라 scrollTop 이 무시되므로 listEl(ul) 자체를 스크롤
+    scrollChatToBottom(listEl);
   }
 
-  // 패널이 막 열려 scrollHeight 가 아직 0 일 수 있어 즉시 + rAF + setTimeout 으로
-  // 레이아웃이 잡힌 시점에 다시 한 번 바닥으로 이동시켜 "최신 메시지부터 노출" 보장.
-  function scrollChatToBottom(wrap) {
-    if (!wrap) return;
-    var go = function () { wrap.scrollTop = wrap.scrollHeight; };
+  // 채팅 패널이 열리거나 메시지가 추가된 직후, 실제 스크롤 가능한 요소(ul.chat-message-list /
+  // .contract-chat-messages-wrap)를 바닥으로 이동. 패널이 막 열린 시점엔 scrollHeight 가 0 일
+  // 수 있어 즉시 + rAF x2 + setTimeout 으로 레이아웃이 잡힌 뒤 한 번 더 보정.
+  function scrollChatToBottom(target) {
+    if (!target) return;
+    var resolve = function () {
+      if (!target) return null;
+      // ul 자체가 스크롤되는 경우 우선, 아니면 wrap 요소를 사용
+      if (target.scrollHeight > target.clientHeight) return target;
+      var inner = target.querySelector && (target.querySelector('.chat-message-list') || target.querySelector('ul'));
+      if (inner && inner.scrollHeight > inner.clientHeight) return inner;
+      return target;
+    };
+    var go = function () {
+      var el = resolve();
+      if (el) el.scrollTop = el.scrollHeight;
+    };
     go();
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(function () {
@@ -120,6 +132,7 @@
       });
     }
     setTimeout(go, 60);
+    setTimeout(go, 200);
   }
 
   function getContractChatParticipantNames(contractId) {
@@ -271,8 +284,8 @@
       document.body.classList.add('chat-conversation-open');
     }
     // 대화창 표시 직후 메시지 영역을 최신(맨 아래)으로 이동
-    var wrap = document.querySelector('.chat-conversation .chat-messages-wrap');
-    scrollChatToBottom(wrap);
+    var list = document.querySelector('.chat-conversation #chat-message-list');
+    scrollChatToBottom(list);
   }
 
   /** 대화창 닫기 (클래스 제거) */
@@ -642,7 +655,8 @@
         '</div></li>';
     });
     list.innerHTML = html;
-    scrollChatToBottom(wrap);
+    // 실제 스크롤 컨테이너는 .chat-message-list (ul) — wrap 은 overflow:hidden
+    scrollChatToBottom(list);
     updateChatHeader(channel);
   }
 
