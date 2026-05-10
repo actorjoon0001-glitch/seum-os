@@ -14533,6 +14533,18 @@
           }
         }
         if (!showroomId) return;
+        if (!depositAmount || String(depositAmount).trim() === '' || Number(depositAmount) <= 0) {
+          window.alert('계약금 금액을 입력해 주세요.');
+          var _depAmtEl = document.getElementById('contract-deposit-amount');
+          if (_depAmtEl) _depAmtEl.focus();
+          return;
+        }
+        if (!depositDate) {
+          window.alert('계약금 수령일을 입력해 주세요.\n계약금 수령일이 없으면 설계팀 목록에 표시되지 않습니다.');
+          var _depDateEl = document.getElementById('contract-deposit-date');
+          if (_depDateEl) _depDateEl.focus();
+          return;
+        }
         var contracts = getContracts();
         contracts.push({
           id: id(),

@@ -15678,3 +15678,5 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
   .lg-appliance-detail-actions { flex-wrap: wrap; }
   .lg-appliance-detail-actions .btn { flex: 1 1 auto; min-width: 90px; }
 }
+
+.required-mark { color: #ef4444; font-weight: 700; margin-left: 2px; }
