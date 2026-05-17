@@ -496,9 +496,20 @@
       });
     }
 
-    // 일반 직원: 본인 팀만
+    // 일반 직원: 본인 팀만 — 단, 본인이 다른 팀/전시장으로 이동한 경우 이전
+    // 소속으로 저장된 본인의 휴무 기록은 캘린더에서 사라져 버리므로(예: 강화
+    // 전시장 → 본사 영업팀), 본인 소유 레코드는 team/showroom 미스매치여도
+    // 항상 노출되도록 OR 조건으로 통과시킨다.
+    var myId = String((cur && (cur.id || cur.authUserId)) || '');
+    var myAuthId = String((cur && cur.authUserId) || '');
+    var myName = String((cur && cur.name) || '').trim();
     return all.filter(function (o) {
       if (!o) return false;
+      var isMine =
+        (myId && String(o.employeeId || '') === myId) ||
+        (myAuthId && String(o.authUserId || '') === myAuthId) ||
+        (myName && String(o.employeeName || '').trim() === myName);
+      if (isMine) return true;
       if (cur.team && o.team && o.team !== cur.team) return false;
       if (cur.showroom && o.showroom && o.showroom !== cur.showroom) return false;
       return true;
