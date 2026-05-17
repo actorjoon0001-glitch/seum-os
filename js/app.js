@@ -87,13 +87,26 @@
   }
 
   // 직원이 전시장을 이동한 경우(예: 강화전시장 → 본사 영업팀) 이전 전시장에서
-  // 본인이 작성한 계약이 보이지 않는 문제를 막기 위해, salesPerson 이름이 일치하면
-  // 본인 계약으로 간주해 노출한다.
+  // 본인이 작성한 계약이 보이지 않는 문제를 막기 위해, 기록의 이름 필드에 본인
+  // 이름이 포함되어 있으면 본인 계약으로 간주해 노출한다.
+  // - 공동 영업("황진호/김철수", "김철수, 황진호 외 1명")처럼 여러 이름이 같이
+  //   적힌 경우도 토큰 단위로 일치하면 본인 건으로 인정.
   function isOwnRecordBySalesPerson(record, employee) {
     if (!record || !employee) return false;
     var myName = String(employee.name || '').trim();
     if (!myName) return false;
-    return String(record.salesPerson || '').trim() === myName;
+    var candidates = [record.salesPerson, record.salesConfirmedBy];
+    for (var i = 0; i < candidates.length; i++) {
+      var raw = String(candidates[i] || '').trim();
+      if (!raw) continue;
+      if (raw === myName) return true;
+      // 구분자(쉼표/슬래시/공백/·/및/와/과 등)로 분리해 토큰 일치 검사
+      var tokens = raw.split(/[\s,\/·・&]+|및|와|과/);
+      for (var j = 0; j < tokens.length; j++) {
+        if (tokens[j].trim() === myName) return true;
+      }
+    }
+    return false;
   }
 
   var SUPER_ADMIN_EMAIL = 'harold0001@naver.com';
