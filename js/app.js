@@ -86,6 +86,16 @@
     return raw;
   }
 
+  // 직원이 전시장을 이동한 경우(예: 강화전시장 → 본사 영업팀) 이전 전시장에서
+  // 본인이 작성한 계약이 보이지 않는 문제를 막기 위해, salesPerson 이름이 일치하면
+  // 본인 계약으로 간주해 노출한다.
+  function isOwnRecordBySalesPerson(record, employee) {
+    if (!record || !employee) return false;
+    var myName = String(employee.name || '').trim();
+    if (!myName) return false;
+    return String(record.salesPerson || '').trim() === myName;
+  }
+
   var SUPER_ADMIN_EMAIL = 'harold0001@naver.com';
 
   var TODAY_MESSAGES = [
@@ -954,7 +964,9 @@
         if (empTeam === '영업') {
           var myShowroomId = typeof resolveShowroomId === 'function' ? resolveShowroomId(curEmp) : curEmp.showroom;
           if (myShowroomId) {
-            contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+            contractsAll = contractsAll.filter(function (c) {
+              return (c.showroomId || '') === myShowroomId || isOwnRecordBySalesPerson(c, curEmp);
+            });
           }
         }
       }
@@ -2517,7 +2529,10 @@
     var _allContracts = getContracts();
     var _allVisits = getVisits();
     if (!_dashIsPrivileged && _dashMyShowroom) {
-      _allContracts = _allContracts.filter(function (c) { return (c.showroomId || '') === _dashMyShowroom; });
+      var _dashCurEmp = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+      _allContracts = _allContracts.filter(function (c) {
+        return (c.showroomId || '') === _dashMyShowroom || isOwnRecordBySalesPerson(c, _dashCurEmp);
+      });
       _allVisits = _allVisits.filter(function (v) { return (v.showroomId || '') === _dashMyShowroom; });
     }
     var contracts = filterByShowroom(_allContracts, 'showroomId');
@@ -4523,7 +4538,9 @@
       var _isDesignTeamSales = (team === '설계');
       if (myShowroomId && !_isAdminHere && !_isDesignTeamSales) {
         visitsAll = visitsAll.filter(function (v) { return (v.showroomId || '') === myShowroomId; });
-        contractsAll = contractsAll.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+        contractsAll = contractsAll.filter(function (c) {
+          return (c.showroomId || '') === myShowroomId || isOwnRecordBySalesPerson(c, cur);
+        });
       }
     }
     var visits = filterByShowroom(visitsAll, 'showroomId');
@@ -4564,7 +4581,9 @@
         var myShowroomId = resolveShowroomId(curUser);
         var _isDesignContracts = (userTeam === '설계');
         if (myShowroomId && !_isDesignContracts) {
-          contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomId; });
+          contracts = contracts.filter(function (c) {
+            return (c.showroomId || '') === myShowroomId || isOwnRecordBySalesPerson(c, curUser);
+          });
         }
       }
       // contract-detail-panel이 tbody 안으로 이동된 경우, innerHTML 초기화로 소멸되는 것을 방지
@@ -4629,7 +4648,9 @@
       var myShowroom = (cur.showroom || '').trim();
       // ????? ?????? ?? ?????? ?? ??????????? ???????
       if (team === '영업' && myShowroom) {
-        customers = customers.filter(function (o) { return (o.showroomId || '') === myShowroom; });
+        customers = customers.filter(function (o) {
+          return (o.showroomId || '') === myShowroom || isOwnRecordBySalesPerson(o, cur);
+        });
       }
     }
     customers = filterByShowroom(customers, 'showroomId');
@@ -5553,7 +5574,9 @@
       var _isHeadquartersDesign = (myShowroomDesign === 'headquarters');
       var _isDesignTeam = (cur.team || '').trim() === '설계';
       if (myShowroomDesign && !_isAdminDesign && !_isHeadquartersDesign && !_isDesignTeam) {
-        contracts = contracts.filter(function (c) { return (c.showroomId || '') === myShowroomDesign; });
+        contracts = contracts.filter(function (c) {
+          return (c.showroomId || '') === myShowroomDesign || isOwnRecordBySalesPerson(c, cur);
+        });
       }
     }
     contracts = filterByShowroom(contracts, 'showroomId');
