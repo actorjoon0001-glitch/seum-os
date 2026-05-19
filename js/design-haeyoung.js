@@ -21,10 +21,18 @@
   }
   function escapeAttr(s) { return escapeHtml(s); }
   function sanitizeFileName(name) {
-    var base = String(name || 'drawing').trim();
-    base = base.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_');
-    if (!base) base = 'drawing';
-    return base;
+    // 기존 sanitizeNoticeFileName 과 동일한 규칙으로 정렬:
+    // ASCII 영숫자/._- 만 남기고 한글·괄호·공백·특수기호는 모두 '_' 로 치환.
+    // Supabase Storage 가 일부 비-ASCII 경로(괄호·한글 포함)를 거부하는 사례 회피.
+    var s = String(name || '').trim();
+    if (!s) return 'drawing';
+    var lastDot = s.lastIndexOf('.');
+    var ext = lastDot >= 0 ? s.slice(lastDot + 1).toLowerCase() : '';
+    var base = lastDot >= 0 ? s.slice(0, lastDot) : s;
+    var safeBase = base.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'drawing';
+    var safeExt = (ext || '').replace(/[^a-zA-Z0-9]/g, '');
+    var combined = safeExt ? (safeBase.slice(0, 180) + '.' + safeExt) : safeBase.slice(0, 180);
+    return combined.slice(0, 200);
   }
   function formatBytes(n) {
     if (!n || n < 0) return '';
@@ -112,13 +120,11 @@
     }).then(function (res) {
       if (res && res.error) {
         console.error('[해영] 파일 업로드 실패:', res.error);
-        return null;
+        // 사용자 폼에 정확한 사유가 뜨도록 throw — uploadFile() 호출부 catch 가 메시지 표시
+        throw new Error('파일 업로드 실패: ' + (res.error.message || res.error.statusCode || '알 수 없는 Storage 오류'));
       }
       var publicUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
       return { url: publicUrl, path: path, name: file.name, size: file.size, type: file.type };
-    }).catch(function (err) {
-      console.error('[해영] 파일 업로드 예외:', err);
-      return null;
     });
   }
 
