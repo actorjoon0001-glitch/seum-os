@@ -15678,3 +15678,59 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
   .lg-appliance-detail-actions { flex-wrap: wrap; }
   .lg-appliance-detail-actions .btn { flex: 1 1 auto; min-width: 90px; }
 }
+
+/* ====== 해영 건축사(외부 협력) 도면 업로드 섹션 ====== */
+.hy-form { display: flex; flex-direction: column; gap: 16px; }
+.hy-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
+}
+.hy-form-field { display: flex; flex-direction: column; gap: 6px; }
+.hy-form-field-wide { grid-column: 1 / -1; }
+.hy-form-field label { font-size: 13px; font-weight: 600; color: #cbd5e1; }
+.hy-form-field input[type="text"],
+.hy-form-field textarea,
+.hy-form-field select {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.hy-form-field textarea { resize: vertical; }
+.hy-file-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hy-file-info { color: #94a3b8; font-size: 12px; }
+.hy-file-hint { color: #64748b; font-size: 12px; margin: 2px 0 0; }
+.hy-form-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.hy-submit-msg { font-size: 13px; color: #94a3b8; }
+.hy-submit-msg.hy-ok { color: #34d399; }
+.hy-submit-msg.hy-err { color: #f87171; }
+
+.hy-list { display: flex; flex-direction: column; gap: 10px; }
+.hy-empty { color: #64748b; font-size: 13px; padding: 18px 4px; text-align: center; }
+.hy-item {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-left: 3px solid #6366f1;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.hy-item-icon { font-size: 22px; text-align: center; }
+.hy-item-body { min-width: 0; }
+.hy-item-title { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 2px; word-break: break-word; }
+.hy-item-desc { font-size: 12px; color: #94a3b8; margin: 2px 0 4px; word-break: break-word; }
+.hy-item-meta { font-size: 11px; color: #64748b; display: flex; gap: 10px; flex-wrap: wrap; }
+.hy-item-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.hy-item-actions .btn { padding: 6px 10px; font-size: 12px; }
+
+@media (max-width: 720px) {
+  .hy-form-grid { grid-template-columns: 1fr; }
+  .hy-item { grid-template-columns: 32px 1fr; }
+  .hy-item-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}

@@ -326,6 +326,12 @@
       return isDesign || isSales;
     }
 
+    // 해영 건축사(외부 협력) 업로드함: 설계팀 + 시공팀 + master/admin
+    // 해영 건축사 본인 계정은 별도 권한 부여 시 추가 예정 (현재는 사내 팀원이 대리 업로드 가능)
+    if (sectionId === 'design-haeyoung') {
+      return isDesign || isConstruction;
+    }
+
     // 우선순위: 설계팀 + 영업팀 + 시공팀 + 정산팀 + master/admin 접근 (시공팀·정산팀은 조회 전용)
     if (sectionId === 'design-priority') {
       return isDesign || isSales || isConstruction || isSettlement;
@@ -13259,7 +13265,7 @@
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' || sectionId === 'sales-lg-appliance' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard' ||
       sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-drawings' || sectionId === 'design-schedule' ||
-      sectionId === 'design-priority' || sectionId === 'construction-worklog') &&
+      sectionId === 'design-priority' || sectionId === 'design-haeyoung' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
       return;
@@ -13291,6 +13297,7 @@
     if (sectionId === 'design-drawings') renderDesignDrawings();
     if (sectionId === 'design-schedule') renderDesignSchedule();
     if (sectionId === 'design-priority') renderDesignPriority();
+    if (sectionId === 'design-haeyoung' && typeof window.renderHaeyoungSubmissions === 'function') window.renderHaeyoungSubmissions();
     if (sectionId === 'construction-sites') renderConstructionSitesOverview();
     if (sectionId === 'announcements') renderAnnouncementsPage();
     if (sectionId === 'admin-approval') renderAdminApproval();
@@ -13344,7 +13351,7 @@
         if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'design' || sectionId === 'design-drawings' || sectionId === 'design-schedule' || sectionId === 'design-priority') {
+    if (sectionId === 'design' || sectionId === 'design-drawings' || sectionId === 'design-schedule' || sectionId === 'design-priority' || sectionId === 'design-haeyoung') {
       var desSub = document.getElementById('nav-design-sub');
       var desGroup = document.getElementById('sidebar-group-design');
       if (desSub && desGroup) {
