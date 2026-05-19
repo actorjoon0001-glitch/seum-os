@@ -15753,3 +15753,7 @@ body.external-architect-mode #sidebar-announcement-badge { display: none !import
 
 /* 사이드바 로고 서브 텍스트 '직원 전용 내부 운영 시스템' 도 외부인에게는 부적절 */
 body.external-architect-mode .sidebar-logo-sub { display: none; }
+
+/* 시공팀 > 현장 파악 — 주소 오류 필터/복사 도구 */
+.cs-addr-error-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+#cs-filter-addr-error[aria-pressed="true"] { background: #ef4444; border-color: #ef4444; color: #fff; }

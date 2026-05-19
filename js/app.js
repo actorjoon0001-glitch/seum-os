@@ -7416,6 +7416,8 @@
   // =====================================================================
   var _csTypeFilter = '';   // '' | 컨테이너/농막 | 체류형쉼터 | 전원주택 | 기타
   var _csSearch = '';
+  // "주소 오류만 보기" 토글 (시공팀 > 현장 파악)
+  var _csAddrErrorOnly = false;
   var _csTabsWired = false;
   var _csSearchWired = false;
 
@@ -8420,9 +8422,13 @@
     if (_csTypeFilter) {
       list = list.filter(function (c) { return getCsTypeKey(c) === _csTypeFilter; });
     }
+    // "주소 오류만 보기" 필터 — 주소 미입력 또는 카카오 지오코딩 실패한 건만 추출
+    if (_csAddrErrorOnly) {
+      list = list.filter(hasAddrError);
+    }
 
     var countEl = document.getElementById('construction-sites-count');
-    if (countEl) countEl.textContent = '총 ' + list.length + '건';
+    if (countEl) countEl.textContent = '총 ' + list.length + '건' + (_csAddrErrorOnly ? ' (주소 오류만)' : '');
 
     // 지도 갱신 (카드와 동일 필터 적용된 list 기준)
     renderConstructionSitesMap(list);
@@ -8547,6 +8553,127 @@
         clearBtn.classList.add('hidden');
         renderConstructionSitesOverview();
       });
+    }
+    // "⚠ 오류만 보기" 토글
+    var errBtn = document.getElementById('cs-filter-addr-error');
+    if (errBtn) {
+      errBtn.addEventListener('click', function () {
+        _csAddrErrorOnly = !_csAddrErrorOnly;
+        errBtn.setAttribute('aria-pressed', _csAddrErrorOnly ? 'true' : 'false');
+        errBtn.classList.toggle('btn-primary', _csAddrErrorOnly);
+        errBtn.classList.toggle('btn-secondary', !_csAddrErrorOnly);
+        renderConstructionSitesOverview();
+      });
+    }
+    // "📋 오류 리스트 복사" 클릭
+    var copyBtn = document.getElementById('cs-copy-addr-errors');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', copyAddrErrorList);
+    }
+  }
+
+  // 주소 오류 판정 — renderConstructionSites 와 applyGeocodeFailureWarnings 와 동일 로직
+  function hasAddrError(c) {
+    if (!c) return false;
+    var hasAddr = !!((c.siteAddress || '').trim());
+    if (!hasAddr) return true;
+    if (c.id && _csGeocodeFailed && _csGeocodeFailed[c.id]) return true;
+    return false;
+  }
+
+  // 주소 오류 카드 목록을 텍스트로 정리해서 클립보드에 복사.
+  // 영업담당별로 그룹핑하여 카톡으로 바로 전달 가능한 형태로 출력.
+  function copyAddrErrorList() {
+    var all = getContracts().filter(function (c) { return !!c.constructionStartOk; });
+    // 검색/유형 필터는 적용하지 않음 — 전체 시공팀 현장에서 주소 오류 전부 추출
+    var errors = all.filter(hasAddrError);
+    if (!errors.length) {
+      showToast('주소 오류가 있는 현장이 없습니다.', 'info');
+      return;
+    }
+
+    // 두 가지 케이스로 분류
+    var missing = [];      // 주소 자체 비어있음
+    var unrecognized = []; // 주소는 있지만 지오코딩 실패
+    errors.forEach(function (c) {
+      var hasAddr = !!((c.siteAddress || '').trim());
+      if (!hasAddr) missing.push(c);
+      else unrecognized.push(c);
+    });
+
+    // 영업담당별 통계
+    var bySales = {};
+    errors.forEach(function (c) {
+      var s = (c.salesPerson || '').trim() || '(담당자 미지정)';
+      bySales[s] = (bySales[s] || 0) + 1;
+    });
+
+    var lines = [];
+    lines.push('🚨 시공팀 현장 주소 오류 리스트 (총 ' + errors.length + '건)');
+    lines.push('');
+
+    if (missing.length) {
+      lines.push('■ 주소 미입력 — "주소 등록" 필요 (' + missing.length + '건)');
+      missing.forEach(function (c, i) {
+        var name = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+        var sp = (c.salesPerson || '').trim() || '(담당자 미지정)';
+        lines.push('  ' + (i + 1) + '. ' + name + '  ·  영업: ' + sp);
+      });
+      lines.push('');
+    }
+
+    if (unrecognized.length) {
+      lines.push('■ 주소 인식 실패 — 행정구역명·면(面) 확인 필요 (' + unrecognized.length + '건)');
+      unrecognized.forEach(function (c, i) {
+        var name = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+        var sp = (c.salesPerson || '').trim() || '(담당자 미지정)';
+        var addr = (c.siteAddress || '').trim() || '-';
+        lines.push('  ' + (i + 1) + '. ' + name + '  ·  영업: ' + sp + '  ·  현재 주소: ' + addr);
+      });
+      lines.push('');
+    }
+
+    // 영업담당별 카운트
+    var salesEntries = Object.keys(bySales).sort(function (a, b) { return bySales[b] - bySales[a]; });
+    if (salesEntries.length) {
+      lines.push('📊 영업담당별 처리 건수');
+      salesEntries.forEach(function (s) {
+        lines.push('  · ' + s + ': ' + bySales[s] + '건');
+      });
+    }
+
+    var text = lines.join('\n');
+
+    // 클립보드 복사
+    var done = function () {
+      showToast('주소 오류 리스트가 클립보드에 복사되었습니다 (' + errors.length + '건).');
+    };
+    var fail = function () {
+      // 폴백 — 새 창에 텍스트 표시
+      var w = window.open('', '_blank');
+      if (w && w.document) {
+        w.document.write('<pre style="font-family:monospace;white-space:pre-wrap;padding:24px;">' +
+          text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>');
+        w.document.close();
+      } else {
+        window.prompt('아래 텍스트를 복사하세요:', text);
+      }
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fail);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        if (ok) done(); else fail();
+      }
+    } catch (e) {
+      fail();
     }
   }
 
