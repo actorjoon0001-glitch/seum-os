@@ -337,10 +337,10 @@
       return isDesign || isSales;
     }
 
-    // 해영 건축사(외부 협력) 업로드함: 설계팀 + 시공팀 + master/admin
+    // 해영 건축사(외부 협력) 업로드함: 설계팀 + 시공팀 + 영업팀 + master/admin
     // 해영 건축사 본인 계정은 별도 권한 부여 시 추가 예정 (현재는 사내 팀원이 대리 업로드 가능)
     if (sectionId === 'design-haeyoung') {
-      return isDesign || isConstruction;
+      return isDesign || isConstruction || isSales;
     }
 
     // 우선순위: 설계팀 + 영업팀 + 시공팀 + 정산팀 + master/admin 접근 (시공팀·정산팀은 조회 전용)
