@@ -283,9 +283,20 @@
     return team === '마케팅';
   }
 
+  // 외부 협력 건축사 — 사이드바·다른 페이지를 일체 못 보고 본인 업로드 페이지만 접근
+  function isExternalArchitect() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var permission = (cur.permission || '').toLowerCase();
+    var role = (cur.role || '').toLowerCase();
+    return permission === 'external_architect' || role === 'external_architect';
+  }
+
   function canAccessTeamSection(sectionId) {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur) return false;
+    // 외부 협력 건축사는 '해영 건축사' 단일 페이지만 허용. admin/master 권한이 같이 박혀도 무시.
+    if (isExternalArchitect()) return sectionId === 'design-haeyoung';
     var role = (cur.role || '').toLowerCase();
     var permission = (cur.permission || '').toLowerCase();
     if (role === 'admin' || role === 'master' || permission === 'admin' || isSuperAdmin()) return true;
@@ -13238,10 +13249,18 @@
   }
 
   function showSection(sectionId) {
+    // 외부 협력 건축사는 '해영 건축사' 페이지 외에는 어떤 섹션도 진입 불가.
+    // 사이드바를 CSS 로 숨겨도 코드 경로(예: 출근 후 자동 redirect 등)로 다른 섹션이
+    // 호출될 수 있어서 입구에서 한 번 더 차단한다.
+    if (isExternalArchitect() && sectionId !== 'design-haeyoung') {
+      sectionId = 'design-haeyoung';
+    }
     // 출근 전이면 대시보드 외 섹션 접근 차단 — 대시보드에서 출근하기 버튼부터 누르도록 유도.
     // 단, team-worklog 는 어제 팀 업무일지 미작성 시 출근 전에 작성하러 들어가야 하므로 예외.
+    // 외부 협력 건축사는 출근/근태 시스템 자체가 무관하므로 건너뜀.
     if (sectionId !== 'dashboard' &&
         sectionId !== 'team-worklog' &&
+        !isExternalArchitect() &&
         typeof window !== 'undefined' &&
         window.seumAttendance &&
         typeof window.seumAttendance.hasCheckedInToday === 'function' &&
@@ -15540,7 +15559,7 @@
   }
 
   var TEAM_OPTIONS = ['마케팅', '영업', '설계', '시공', '정산', '경영', '사무', '본사'];
-  var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master'];
+  var ROLE_OPTIONS = ['staff', 'manager', 'admin', 'master', 'external_architect'];
 
   // 직원 관리 — 전시장 → 팀 그룹 구조
   var _adminEmpState = {
@@ -18015,6 +18034,57 @@
     renderTeamWorklog();
     renderKPI();
     console.log('???????? OS ??? ??');
+
+    // 외부 협력 건축사(해영 건축사) 단일 페이지 모드 — auth 로드 후에 적용
+    var authReady = (window.seumAuth && window.seumAuth.authReady) || Promise.resolve();
+    authReady.then(applyExternalArchitectMode).catch(function () { applyExternalArchitectMode(); });
+  }
+
+  // 외부 협력 건축사 전용 UI 차단:
+  //  - 사이드바의 모든 nav-section 숨김 (단, 사용자/로그아웃 영역은 유지)
+  //  - 부서별 업무 > 설계팀 그룹 안의 '해영 건축사' 링크만 클론하여 상단에 단독 노출
+  //  - 상단 필터바·모바일 헤더·인앱 알림 컨테이너 등 무관한 UI 차단
+  //  - 기본 진입 섹션을 'design-haeyoung' 으로 강제
+  //  - 다른 섹션 활성 상태 모두 해제
+  function applyExternalArchitectMode() {
+    if (!isExternalArchitect()) return;
+    document.body.classList.add('external-architect-mode');
+
+    // 1) 사이드바: 단일 진입 메뉴를 상단에 주입 (원본 nav-section 들은 CSS 로 숨겨짐)
+    var sidebarNav = document.querySelector('.sidebar-nav');
+    if (sidebarNav && !document.getElementById('nav-section-ea-only')) {
+      var eaSection = document.createElement('div');
+      eaSection.className = 'nav-section nav-section-ea-only';
+      eaSection.id = 'nav-section-ea-only';
+      eaSection.innerHTML =
+        '<div class="nav-section-title">설계</div>' +
+        '<a href="#" class="nav-item active" data-section="design-haeyoung">' +
+          '<svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+            '<path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/>' +
+          '</svg>' +
+          '<span class="nav-item-text">해영 건축사</span>' +
+        '</a>';
+      sidebarNav.insertBefore(eaSection, sidebarNav.firstChild);
+      // initNav 는 페이지 init 시점에 이미 한 번 돌아 .nav-item 들에 핸들러를 박은 뒤이므로,
+      // 새로 주입한 링크에는 별도로 클릭 핸들러를 부착해야 한다.
+      var eaLink = eaSection.querySelector('[data-section="design-haeyoung"]');
+      if (eaLink) {
+        eaLink.addEventListener('click', function (e) {
+          e.preventDefault();
+          showSection('design-haeyoung');
+        });
+      }
+    }
+
+    // 2) 다른 섹션은 모두 비활성화
+    document.querySelectorAll('.content-section').forEach(function (el) {
+      el.classList.toggle('active', el.id === 'section-design-haeyoung');
+    });
+
+    // 3) 기본 섹션을 design-haeyoung 으로 전환 (필터바 자동 숨김 처리 포함)
+    if (typeof showSection === 'function') {
+      try { showSection('design-haeyoung'); } catch (e) { /* ignore */ }
+    }
   }
 
   if (document.readyState === 'loading') {

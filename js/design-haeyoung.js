@@ -53,9 +53,24 @@
   // --------------------------------------------------
   // 계약 옵션 채우기 — 기존 localStorage 의 contracts 활용
   // --------------------------------------------------
+  function isExternalArchitectUser() {
+    var emp = getCurrentEmployee();
+    if (!emp) return false;
+    var p = String(emp.permission || '').toLowerCase();
+    var r = String(emp.role || '').toLowerCase();
+    return p === 'external_architect' || r === 'external_architect';
+  }
+
   function loadContractOptions() {
     var sel = $('hy-contract');
     if (!sel) return;
+    // 외부 협력 건축사에게는 고객 계약명 노출 안 함 — 드롭다운 자체를 숨김 (계약 연결 옵션 제거)
+    if (isExternalArchitectUser()) {
+      var field = sel.closest('.hy-form-field');
+      if (field) field.style.display = 'none';
+      sel.innerHTML = '<option value="">선택 안 함</option>';
+      return;
+    }
     var contracts = [];
     try {
       var raw = localStorage.getItem('seum_contracts');
