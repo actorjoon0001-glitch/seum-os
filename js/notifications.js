@@ -159,6 +159,27 @@
   // --------------------------------------------------
   // 알림 표시 메인 함수
   // --------------------------------------------------
+  // 동일 이벤트(같은 title+body+contract_id)가 여러 행으로 들어와도 한 번만 띄우기.
+  // 예: 해영 건축사 업로드 1건 = 설계/시공 두 팀에 각각 행이 들어가는데,
+  //     관리자/master 권한은 두 행 모두 매칭되어 팝업이 두 번 떴음.
+  //     이 dedup 로직으로 5초 이내 동일 알림은 1회만 표시.
+  var _recentNotifKeys = {};
+  function _shouldDedup(row) {
+    try {
+      var key = String(row.title || '') + '|' + String(row.body || '') + '|' + String(row.contract_id || '');
+      var now = Date.now();
+      var last = _recentNotifKeys[key] || 0;
+      _recentNotifKeys[key] = now;
+      // 메모리 누수 방지: 100개 넘으면 오래된 것부터 정리
+      var keys = Object.keys(_recentNotifKeys);
+      if (keys.length > 100) {
+        keys.sort(function (a, b) { return _recentNotifKeys[a] - _recentNotifKeys[b]; });
+        for (var i = 0; i < keys.length - 50; i++) delete _recentNotifKeys[keys[i]];
+      }
+      return (now - last) < 5000;
+    } catch (e) { return false; }
+  }
+
   function handleIncomingNotification(row) {
     var myTeam = '';
     var myRole = '';
@@ -186,6 +207,9 @@
     var isRecipientName = myName && row.recipient_name && row.recipient_name === myName;
 
     if (!isMasterOrAdmin && !isRecipientTeam && !isRecipientName) return;
+
+    // 같은 이벤트가 여러 팀 행으로 들어와 중복 팝업이 뜨는 것 차단 (관리자가 주 대상)
+    if (_shouldDedup(row)) return;
 
     var title = row.title || '새 알림';
     var body = row.body || '';
