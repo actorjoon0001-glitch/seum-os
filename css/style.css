@@ -15734,3 +15734,22 @@ body.cs-tv-mode .content-section:not(#section-construction-sites) { display: non
   .hy-item { grid-template-columns: 32px 1fr; }
   .hy-item-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+/* ====== 외부 협력 건축사(해영 건축사) 전용 단일 페이지 모드 ====== */
+/* 사이드바: 원본 nav-section 전부 숨기고, JS 가 주입한 단일 nav-section-ea-only 와
+   하단 사용자/로그아웃 영역만 노출 */
+body.external-architect-mode .sidebar-nav > .nav-section { display: none; }
+body.external-architect-mode .sidebar-nav > .nav-section.nav-section-ea-only,
+body.external-architect-mode .sidebar-nav > .nav-section.nav-section-user { display: block; }
+
+/* 상단 글로벌 필터바·모바일 헤더 숨김 (대시보드 전용 UI) */
+body.external-architect-mode .filter-bar.dashboard-filter-bar { display: none !important; }
+body.external-architect-mode .mobile-header { display: none !important; }
+
+/* 인앱 알림 컨테이너·채팅 패널 등 외부인에게 무관한 UI 차단 */
+body.external-architect-mode #seum-notif-container,
+body.external-architect-mode #chat-panel,
+body.external-architect-mode #sidebar-announcement-badge { display: none !important; }
+
+/* 사이드바 로고 서브 텍스트 '직원 전용 내부 운영 시스템' 도 외부인에게는 부적절 */
+body.external-architect-mode .sidebar-logo-sub { display: none; }
