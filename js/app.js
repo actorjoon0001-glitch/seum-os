@@ -264,6 +264,17 @@
     return String(cur.email).toLowerCase() === SUPER_ADMIN_EMAIL;
   }
 
+  // 본인이 매니저이면서, 인자로 받은 전시장 id와 본인 소속 전시장 id가 같은지 확인.
+  // 예: 1전시장 매니저 김태진은 showroomId === 'showroom1' 인 계약에 대해 true.
+  function isShowroomManagerOf(showroomId) {
+    if (!showroomId) return false;
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    if (!isManager()) return false;
+    var mine = resolveShowroomId(cur);
+    return !!mine && mine === String(showroomId || '').trim();
+  }
+
   function canSeeManageSection() {
     var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
     if (!cur) return false;
@@ -15307,7 +15318,10 @@
               canSalesDeleteOwn = true;
             }
           }
-          if (!isAdminRole && !canSalesDeleteOwn) {
+          // 전시장 매니저는 본인 소속 전시장에서 작성된 모든 계약을 삭제할 수 있음
+          // (예: 1전시장 매니저 김태진 → 1전시장 영업사원들이 작성한 계약 전부)
+          var canManagerDelete = isShowroomManagerOf(c.showroomId);
+          if (!isAdminRole && !canSalesDeleteOwn && !canManagerDelete) {
             window.alert('계약 삭제 권한이 없습니다. 관리자에게 문의하세요.');
             return;
           }
