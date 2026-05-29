@@ -181,32 +181,9 @@
   }
 
   function handleIncomingNotification(row) {
-    var myTeam = '';
-    var myRole = '';
-    var myName = '';
-    var myPermission = '';
-    // auth.js 의 현재 직원 팀/역할/이름 정보 가져오기
-    if (window.seumAuth && window.seumAuth.currentEmployee) {
-      var emp = window.seumAuth.currentEmployee;
-      myTeam = emp.team || '';
-      myRole = emp.role || '';
-      myName = emp.name || '';
-      myPermission = emp.permission || '';
-    } else if (window.seumAuth && typeof window.seumAuth.getCurrentEmployee === 'function') {
-      var emp = window.seumAuth.getCurrentEmployee();
-      myTeam = emp ? (emp.team || '') : '';
-      myRole = emp ? (emp.role || '') : '';
-      myName = emp ? (emp.name || '') : '';
-      myPermission = emp ? (emp.permission || '') : '';
-    }
+    var me = _getMyIdentity();
 
-    var isMasterOrAdmin = (myRole === 'master' || myRole === 'admin'
-                           || myPermission === 'master' || myPermission === 'admin' || myPermission === 'superadmin');
-    var isRecipientTeam = myTeam && row.recipient_team === myTeam;
-    // 개인 지정 수신자(row.recipient_name) 가 내 이름과 일치하면 알림 수신
-    var isRecipientName = myName && row.recipient_name && row.recipient_name === myName;
-
-    if (!isMasterOrAdmin && !isRecipientTeam && !isRecipientName) return;
+    if (!_notifMatchesMe(row, me)) return;
 
     // 같은 이벤트가 여러 팀 행으로 들어와 중복 팝업이 뜨는 것 차단 (관리자가 주 대상)
     if (_shouldDedup(row)) return;
@@ -217,6 +194,35 @@
     showInAppPopup(title, body, row.contract_id);
     showBrowserNotification(title, body);
     playNotifSound();
+  }
+
+  // 현재 로그인 직원의 팀/역할/이름/권한/식별자 조회
+  function _getMyIdentity() {
+    var emp = null;
+    if (window.seumAuth && window.seumAuth.currentEmployee) {
+      emp = window.seumAuth.currentEmployee;
+    } else if (window.seumAuth && typeof window.seumAuth.getCurrentEmployee === 'function') {
+      emp = window.seumAuth.getCurrentEmployee();
+    }
+    return {
+      team: emp ? (emp.team || '') : '',
+      role: emp ? (emp.role || '') : '',
+      name: emp ? (emp.name || '') : '',
+      permission: emp ? (emp.permission || '') : '',
+      authUserId: emp ? (emp.authUserId || emp.auth_user_id || '') : ''
+    };
+  }
+
+  // 알림 행(row)이 현재 사용자에게 오는 것인지 판정
+  //  - master/admin: 모든 알림 수신
+  //  - 팀원: recipient_team 이 내 팀과 일치하면 수신 (예: '설계', '시공')
+  //  - 개인 지정: recipient_name 이 내 이름과 일치하면 수신
+  function _notifMatchesMe(row, me) {
+    var isMasterOrAdmin = (me.role === 'master' || me.role === 'admin'
+                           || me.permission === 'master' || me.permission === 'admin' || me.permission === 'superadmin');
+    var isRecipientTeam = me.team && row.recipient_team === me.team;
+    var isRecipientName = me.name && row.recipient_name && row.recipient_name === me.name;
+    return !!(isMasterOrAdmin || isRecipientTeam || isRecipientName);
   }
 
   // --------------------------------------------------
@@ -270,11 +276,63 @@
   }
 
   // --------------------------------------------------
+  // 놓친 알림 캐치업 (로그인/접속 시 1회)
+  // 실시간 팝업은 "그 순간 접속해 있는 사람"에게만 떠서, 설계/시공 팀원이
+  // 자리를 비운 사이 올라온 도면 알림을 놓치는 문제가 있었음.
+  // 접속 시 내게 온(팀/이름/관리자) 최근 알림 중 아직 못 본 것을 불러와 팝업으로 보여준다.
+  // --------------------------------------------------
+  var NOTIF_LASTSEEN_PREFIX = 'seum_notif_last_seen_';
+  var NOTIF_CATCHUP_MAX = 15;            // 한 번에 표시할 최대 개수 (도배 방지)
+  var NOTIF_CATCHUP_LOOKBACK_MS = 2 * 24 * 60 * 60 * 1000; // 최초 실행 시 되돌아볼 기간 (2일)
+
+  function _lastSeenKey(me) {
+    return NOTIF_LASTSEEN_PREFIX + (me.authUserId || me.name || 'anon');
+  }
+
+  function fetchMissedNotifications() {
+    var supabase = window.seumSupabase || null;
+    if (!supabase) return;
+    var me = _getMyIdentity();
+    // 로그인 정보가 아직 없으면 건너뜀
+    if (!me.name && !me.team && !me.authUserId) return;
+
+    var key = _lastSeenKey(me);
+    var lastSeen = null;
+    try { lastSeen = localStorage.getItem(key); } catch (e) {}
+    // 최초 실행이면 과도한 백로그 방지를 위해 최근 일정 기간만 조회
+    var sinceIso = lastSeen || new Date(Date.now() - NOTIF_CATCHUP_LOOKBACK_MS).toISOString();
+    var runAt = new Date().toISOString();
+
+    supabase.from('notifications')
+      .select('*')
+      .gt('created_at', sinceIso)
+      .order('created_at', { ascending: true })
+      .limit(50)
+      .then(function (res) {
+        if (res.error) { console.warn('[알림] 누락 알림 조회 실패:', res.error.message); return; }
+        var rows = res.data || [];
+        var mine = rows.filter(function (row) { return _notifMatchesMe(row, me); });
+        // 너무 많으면 최신 N개만 표시
+        if (mine.length > NOTIF_CATCHUP_MAX) mine = mine.slice(mine.length - NOTIF_CATCHUP_MAX);
+        mine.forEach(function (row) {
+          if (_shouldDedup(row)) return; // 실시간으로 막 받은 것과 중복 방지
+          // 캐치업은 소리 없이 팝업만 (여러 개가 한꺼번에 울리는 것 방지)
+          showInAppPopup(row.title || '새 알림', row.body || '', row.contract_id);
+        });
+        // 다음부터는 이번 접속 시점 이후 것만 보도록 갱신 (이후는 실시간 구독이 담당)
+        try { localStorage.setItem(key, runAt); } catch (e) {}
+      })
+      .catch(function (err) { console.warn('[알림] 누락 알림 조회 예외:', err); });
+  }
+
+  // --------------------------------------------------
   // 초기화 (로그인 완료 후 호출)
   // --------------------------------------------------
   function initNotifications() {
     requestBrowserNotifPermission();
     subscribeNotifications();
+    // 실시간 구독을 먼저 건 뒤, 접속 전 놓친 알림을 따라잡는다.
+    fetchMissedNotifications();
   }
 
   // --------------------------------------------------
