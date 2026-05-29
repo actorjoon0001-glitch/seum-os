@@ -13447,6 +13447,7 @@
     if (sectionId === 'marketing-schedule' && typeof window.renderMarketingSchedule === 'function') window.renderMarketingSchedule();
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
+    if (sectionId === 'sales-contracts') { syncContractsFromSupabase(); renderSales(); }
     if (sectionId === 'sales-lg-appliance') { syncLgAppliancesFromSupabase(); renderLgAppliances(); }
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
