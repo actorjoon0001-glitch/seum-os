@@ -2238,35 +2238,55 @@
     }
   }
 
+  function _teamEventToRow(ev) {
+    return {
+      local_id: ev.id || null,
+      title: ev.title || null,
+      team: ev.team || ev.team_name || null,
+      assignee_name: ev.assignee_name || ev.assignee || ev.manager || null,
+      showroom: ev.showroom || ev.showroomId || null,
+      event_type: ev.event_type || ev.eventType || ev.type || null,
+      status: ev.status || null,
+      priority: ev.priority || null,
+      start_date: ev.start_date || ev.startDate || ev.event_date || ev.date || null,
+      end_date: ev.end_date || ev.endDate || ev.start_date || ev.startDate || ev.event_date || ev.date || null,
+      start_time: ev.start_time || ev.startTime || ev.time || null,
+      end_time: ev.end_time || ev.endTime || null,
+      is_all_day: ev.allDay != null ? !!ev.allDay : null,
+      location: ev.location || null,
+      description: ev.description || ev.content || null,
+      repeat_type: ev.repeat_type || ev.repeat || null,
+      reminder_type: ev.reminder_type || ev.reminder || null,
+      is_private: ev.is_private != null ? !!ev.is_private : null,
+      note: ev.note || null,
+      payload: ev
+    };
+  }
+
   function saveTeamEvents(data) {
+    // localStorage 를 덮어쓰기 전에 직전 상태를 읽어 변경/신규 행만 추려낸다.
+    // 일정 1건만 바꿔도 전체 배열을 upsert 하던 것이 team_events 쓰기 과부하의 원인이었음.
+    var prevById = {};
+    try {
+      var prevRaw = localStorage.getItem(STORAGE_TEAM_EVENTS);
+      var prevArr = prevRaw ? JSON.parse(prevRaw) : [];
+      if (Array.isArray(prevArr)) {
+        prevArr.forEach(function (ev) { if (ev && ev.id) prevById[ev.id] = JSON.stringify(ev); });
+      }
+    } catch (e) { /* 이전 상태 파싱 실패 시 전체를 변경분으로 간주 */ }
+
     localStorage.setItem(STORAGE_TEAM_EVENTS, JSON.stringify(data));
     try {
       var supabase = typeof window !== 'undefined' && window.seumSupabase;
       if (!supabase || !Array.isArray(data)) return;
-      var rows = data.map(function (ev) {
-        return {
-          local_id: ev.id || null,
-          title: ev.title || null,
-          team: ev.team || ev.team_name || null,
-          assignee_name: ev.assignee_name || ev.assignee || ev.manager || null,
-          showroom: ev.showroom || ev.showroomId || null,
-          event_type: ev.event_type || ev.eventType || ev.type || null,
-          status: ev.status || null,
-          priority: ev.priority || null,
-          start_date: ev.start_date || ev.startDate || ev.event_date || ev.date || null,
-          end_date: ev.end_date || ev.endDate || ev.start_date || ev.startDate || ev.event_date || ev.date || null,
-          start_time: ev.start_time || ev.startTime || ev.time || null,
-          end_time: ev.end_time || ev.endTime || null,
-          is_all_day: ev.allDay != null ? !!ev.allDay : null,
-          location: ev.location || null,
-          description: ev.description || ev.content || null,
-          repeat_type: ev.repeat_type || ev.repeat || null,
-          reminder_type: ev.reminder_type || ev.reminder || null,
-          is_private: ev.is_private != null ? !!ev.is_private : null,
-          note: ev.note || null,
-          payload: ev
-        };
+      // 신규이거나 내용이 바뀐 이벤트만 upsert 대상으로
+      var changed = data.filter(function (ev) {
+        if (!ev || !ev.id) return false;
+        var prev = prevById[ev.id];
+        return prev === undefined || prev !== JSON.stringify(ev);
       });
+      if (!changed.length) return;
+      var rows = changed.map(_teamEventToRow);
       supabase
         .from('team_events')
         .upsert(rows, { onConflict: 'local_id' })
@@ -11401,13 +11421,23 @@
     }
   }
 
+  var _worklogSyncInflightAt = 0;
   function syncWorklogFromSupabase() {
     try {
       var supabase = typeof window !== 'undefined' && window.seumSupabase;
       if (!supabase) return;
+      // 짧은 시간 내 중복 호출 차단 (부팅 + 섹션 진입 + 재진입이 겹쳐 work_logs 를 연속 전체조회하던 문제).
+      var _now = Date.now();
+      if (_now - _worklogSyncInflightAt < 10000) return;
+      _worklogSyncInflightAt = _now;
+      // 최근 6개월치만 조회 (오래된 일지까지 매번 전량 조회하던 부하 완화).
+      var _wlSince = new Date();
+      _wlSince.setMonth(_wlSince.getMonth() - 6);
+      var _wlSinceKey = _wlSince.toISOString().slice(0, 10);
       supabase
         .from('work_logs')
         .select('local_id,work_date,author_name,author_user_id,team,showroom,title,content,plan,issues,payload,created_at,updated_at')
+        .gte('work_date', _wlSinceKey)
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
             if (res && res.error) {

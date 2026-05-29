@@ -152,9 +152,24 @@
       window.seumAuth._presenceInterval = null;
     }
     upsertUserPresence({ user_id: userId, status: 'online', last_seen: isoNow() });
+    // presence 갱신 주기: 60초 → 5분으로 완화하고, 탭이 백그라운드(document.hidden)면 건너뛴다.
+    // 모든 접속자가 1분마다 upsert 하던 것이 user_presence INSERT 과부하의 주원인이었음.
+    // 온라인 판정은 last_seen 기준 여유(예: 10분)로 보므로 5분 주기로도 충분하다.
     window.seumAuth._presenceInterval = setInterval(function () {
+      if (typeof document !== 'undefined' && document.hidden) return;
       upsertUserPresence({ user_id: userId, status: 'online', last_seen: isoNow() });
-    }, 60 * 1000);
+    }, 5 * 60 * 1000);
+    // 탭으로 돌아왔을 때 즉시 1회 갱신 (5분 주기 때문에 복귀 직후 stale 로 보이는 것 방지).
+    // 리스너 중복 등록 방지 가드.
+    if (typeof document !== 'undefined' && !window.seumAuth._presenceVisibilityBound) {
+      window.seumAuth._presenceVisibilityBound = true;
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) return;
+        var cur = window.seumAuth && window.seumAuth.currentEmployee;
+        var uid = cur && cur.id;
+        if (uid) upsertUserPresence({ user_id: uid, status: 'online', last_seen: isoNow() });
+      });
+    }
   }
 
   /**
