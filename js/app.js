@@ -670,6 +670,7 @@
       contract.salesPerson           || '',
       contract.designPermitDesigner  || '',
       contract.designContactName     || '',
+      contract.constructionTeamManager || '',
       contract.constructionManager   || ''
     ];
     return fields.some(function (f) { return f.toLowerCase().indexOf(kw) !== -1; });
@@ -14808,6 +14809,7 @@
           constructionProgress: '착공전',
           constructionStartDate: '',
           constructionEndDate: '',
+          constructionTeamManager: '',
           constructionManager: '',
           constructionStages: [],
           depositConfirmed: false,
@@ -15437,6 +15439,19 @@
             window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
           }
           renderDesign();
+        }
+        return;
+      }
+      if (e.target.classList.contains('construction-team-manager-input')) {
+        if (isSalesReadonly()) return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.constructionTeamManager = (e.target.value || '').trim();
+          saveContracts(contracts);
+          renderConstruction();
         }
         return;
       }
