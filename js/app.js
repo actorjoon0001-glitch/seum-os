@@ -7400,15 +7400,16 @@
       var stageCell = '<div class="construction-stage-inner"><span class="stage-badge ' + stageBadgeClass + '">' + stageLabel + '</span>' + progressSelect + '</div>';
       var stagesBtn = salesReadonly ? '' : '<button type="button" class="btn btn-sm btn-secondary" data-construction-stages="' + c.id + '">단계 관리</button>';
       var summary = paymentSummaryHtml(c);
-      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="담당자명"' + (salesReadonly ? ' disabled' : '') + '>';
+      var teamManagerInput = '<input type="text" class="construction-team-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionTeamManager || '') + '" placeholder="시공팀 담당자"' + (salesReadonly ? ' disabled' : '') + '>';
+      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="현장소장"' + (salesReadonly ? ' disabled' : '') + '>';
       var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">삭제</button>';
       var contractDateStr = formatDate(c.contractDate);
       var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
       var _cDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
-      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _cDivisor)) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-team-manager-cell">' + teamManagerInput + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _cDivisor)) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
     }).join('') || (getConstructionSearchKeyword()
-      ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-      : '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>');
+      ? '<tr><td colspan="17" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="17">시공 데이터가 없습니다.</td></tr>');
     updateConstructionFilterResult(contracts);
     if (expandedConstructionId) {
       var expandedRow = tbody.querySelector('.construction-row[data-contract-id="' + expandedConstructionId + '"]');
