@@ -2941,6 +2941,25 @@ button,
   border-radius: 12px;
 }
 .dash-attendance-finished-icon { font-size: 1.1rem; }
+.dash-attendance-undo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dash-attendance-undo:hover { background: rgba(148, 163, 184, 0.22); color: #f1f5f9; }
+.dash-attendance-undo:disabled { opacity: 0.5; cursor: not-allowed; }
+.dash-attendance-undo-icon { font-size: 1rem; }
 .dash-attendance-times {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
