@@ -331,6 +331,21 @@
     return { ok: true, record: rec };
   }
 
+  /** 퇴근 취소: 퇴근 기록을 지우고 다시 '근무 중'으로 되돌린다. (잘못 눌렀을 때 복구용)
+   *  check_out / work_minutes 를 비우고 status 를 working 으로 재설정한다. */
+  async function undoCheckOut() {
+    var existing = await getMyTodayRecord();
+    if (!existing || !existing.check_in) return { ok: false, reason: 'no_check_in' };
+    if (!existing.check_out) return { ok: false, reason: 'not_checked_out' };
+    var rec = await upsertMyToday({
+      check_in: existing.check_in,
+      check_out: null,
+      work_minutes: null,
+      status: STATUS.WORKING
+    });
+    return { ok: true, record: rec };
+  }
+
   // ────────── UI ──────────
 
   function $(id) { return document.getElementById(id); }
@@ -385,6 +400,7 @@
       setText('.attendance-today-hint', '오늘은 ' + leaveTypeLabelKo(leaveToday.type) + ' 사용일' +
         (blocked ? '이라 출근이 필요하지 않습니다.' : '입니다.'));
       updateActionVisibility(false, false, true);
+      updateUndoCheckOutVisibility(!!(rec && rec.check_out));
       if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
       return;
     }
@@ -414,6 +430,8 @@
 
     // 대시보드 빠른실행 카드의 버튼은 상태에 따라 한 개만 크게 보이도록 표시 제어
     updateActionVisibility(!hasIn, hasIn && !hasOut, hasOut);
+    // 퇴근 취소 버튼: 실제 퇴근 기록이 있을 때만 노출 (잘못 눌렀을 때 복구용)
+    updateUndoCheckOutVisibility(hasOut);
 
     if (!hasIn) setText('.attendance-today-hint', '');
     else if (hasIn && !hasOut) setText('.attendance-today-hint', '근무 중입니다. 퇴근 시 "퇴근하기" 버튼을 눌러주세요.');
@@ -440,6 +458,14 @@
     });
     $all('[data-attendance-finished-note]').forEach(function (el) {
       el.classList.toggle('hidden', !finished);
+    });
+  }
+
+  /** 퇴근 취소(되돌리기) 버튼 노출/활성 제어. 실제 퇴근 기록(check_out)이 있을 때만 노출. */
+  function updateUndoCheckOutVisibility(hasOut) {
+    $all('[data-attendance-action="undo-checkout"]').forEach(function (btn) {
+      btn.classList.toggle('hidden', !hasOut);
+      btn.disabled = !hasOut || busy;
     });
   }
 
@@ -859,6 +885,28 @@
       }
     } catch (e) {
       showToast('오류: ' + (e && e.message ? e.message : '퇴근 실패'), 'error');
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+
+  async function handleUndoCheckOut() {
+    if (busy) return;
+    var ok = window.confirm('퇴근 기록을 취소하고 다시 "근무 중" 상태로 되돌릴까요?');
+    if (!ok) return;
+    busy = true;
+    try {
+      var r = await undoCheckOut();
+      if (!r.ok) {
+        if (r.reason === 'no_check_in') showToast('출근 기록이 없어 되돌릴 수 없습니다.', 'error');
+        else if (r.reason === 'not_checked_out') showToast('퇴근 기록이 없습니다.', 'error');
+        else showToast('퇴근 취소에 실패했습니다.', 'error');
+      } else {
+        showToast('퇴근이 취소됐습니다. 다시 근무 중 상태입니다.');
+      }
+    } catch (e) {
+      showToast('오류: ' + (e && e.message ? e.message : '퇴근 취소 실패'), 'error');
     } finally {
       busy = false;
       render();
@@ -1717,6 +1765,9 @@
     });
     $all('[data-attendance-action="checkout"]').forEach(function (btn) {
       btn.addEventListener('click', handleCheckOut);
+    });
+    $all('[data-attendance-action="undo-checkout"]').forEach(function (btn) {
+      btn.addEventListener('click', handleUndoCheckOut);
     });
     // 하위 호환 (속성 미지정된 기존 버튼)
     var btnIn = $('btn-attendance-checkin');
