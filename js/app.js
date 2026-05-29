@@ -670,7 +670,8 @@
       contract.salesPerson           || '',
       contract.designPermitDesigner  || '',
       contract.designContactName     || '',
-      contract.constructionManager   || ''
+      contract.constructionManager   || '',
+      contract.constructionSiteManager || ''
     ];
     return fields.some(function (f) { return f.toLowerCase().indexOf(kw) !== -1; });
   }
@@ -7400,15 +7401,16 @@
       var stageCell = '<div class="construction-stage-inner"><span class="stage-badge ' + stageBadgeClass + '">' + stageLabel + '</span>' + progressSelect + '</div>';
       var stagesBtn = salesReadonly ? '' : '<button type="button" class="btn btn-sm btn-secondary" data-construction-stages="' + c.id + '">단계 관리</button>';
       var summary = paymentSummaryHtml(c);
-      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="담당자명"' + (salesReadonly ? ' disabled' : '') + '>';
+      var managerInput = '<input type="text" class="construction-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionManager || '') + '" placeholder="시공팀 담당자"' + (salesReadonly ? ' disabled' : '') + '>';
+      var siteManagerInput = '<input type="text" class="construction-site-manager-input" data-contract-id="' + escapeAttr(c.id) + '" value="' + escapeAttr(c.constructionSiteManager || '') + '" placeholder="현장소장"' + (salesReadonly ? ' disabled' : '') + '>';
       var deleteBtn = ' <button type="button" class="btn btn-sm btn-secondary btn-contract-delete" data-contract-id="' + escapeAttr(c.id) + '">삭제</button>';
       var contractDateStr = formatDate(c.contractDate);
       var shortAddrC = (function() { var a = c.siteAddress || ''; if (!a) return '-'; var p = a.trim().split(/\s+/); return p.slice(0, 2).join(' '); })();
       var _cDivisor = c.amountUnit === 'manwon' ? 1 : 10000;
-      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _cDivisor)) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
+      return '<tr class="construction-row" data-contract-id="' + c.id + '"><td>' + getShowroomName(c.showroomId) + '</td><td>' + contractDateStr + '</td><td>' + (c.customerName || '-') + '</td><td>' + shortAddrC + '</td><td>' + (c.salesPerson || '-') + '</td><td>' + (c.designPermitDesigner || c.designContactName || '-') + '</td><td class="construction-manager-cell">' + managerInput + '</td><td class="construction-site-manager-cell">' + siteManagerInput + '</td><td>' + formatMoney(Math.round(Number(c.totalAmount) / _cDivisor)) + '만원</td><td class="payment-summary-cell">' + summary + '</td><td class="payment-cell">' + deposit + '</td><td class="payment-cell">' + p1 + '</td><td class="payment-cell">' + p2 + '</td><td class="payment-cell">' + p3 + '</td><td class="payment-cell">' + balance + '</td><td class="construction-stage-cell">' + stageCell + '</td><td>' + stagesBtn + deleteBtn + '</td></tr>';
     }).join('') || (getConstructionSearchKeyword()
-      ? '<tr><td colspan="16" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
-      : '<tr><td colspan="16">시공 데이터가 없습니다.</td></tr>');
+      ? '<tr><td colspan="17" class="no-result-msg">검색 결과가 없습니다.</td></tr>'
+      : '<tr><td colspan="17">시공 데이터가 없습니다.</td></tr>');
     updateConstructionFilterResult(contracts);
     if (expandedConstructionId) {
       var expandedRow = tbody.querySelector('.construction-row[data-contract-id="' + expandedConstructionId + '"]');
@@ -8134,7 +8136,7 @@
   function matchCsKeyword(c, kw) {
     if (!kw) return true;
     var k = kw.toLowerCase();
-    return [c.customerName, c.siteAddress, c.constructionManager, c.salesPerson, c.contractModelName]
+    return [c.customerName, c.siteAddress, c.constructionManager, c.constructionSiteManager, c.salesPerson, c.contractModelName]
       .filter(Boolean)
       .some(function (v) { return String(v).toLowerCase().indexOf(k) !== -1; });
   }
@@ -8336,7 +8338,7 @@
             photoBlock +
             '<div class="cs-info-row"><span class="cs-info-label">상태</span><span>' + escapeHtml(st.label) + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">주소</span><span>' + escapeHtml(c.siteAddress || '-') + '</span></div>' +
-            '<div class="cs-info-row"><span class="cs-info-label">현장소장</span><span>' + escapeHtml(c.constructionManager || '-') + '</span></div>' +
+            '<div class="cs-info-row"><span class="cs-info-label">현장소장</span><span>' + escapeHtml(c.constructionSiteManager || '-') + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">영업담당</span><span>' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
             '<div class="cs-info-row"><span class="cs-info-label">진행</span><span>' + escapeHtml(c.constructionProgress || '착공전') + '</span></div>' +
             actions +
@@ -8489,7 +8491,7 @@
         '<div class="cs-site-row"><span class="cs-label">주소</span><span class="cs-value">' + escapeHtml(addr) + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">전시장</span><span class="cs-value">' + escapeHtml(getShowroomName(c.showroomId)) + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">영업 담당</span><span class="cs-value">' + escapeHtml(c.salesPerson || '-') + '</span></div>' +
-        '<div class="cs-site-row"><span class="cs-label">현장소장</span><span class="cs-value">' + escapeHtml(c.constructionManager || '-') + '</span></div>' +
+        '<div class="cs-site-row"><span class="cs-label">현장소장</span><span class="cs-value">' + escapeHtml(c.constructionSiteManager || '-') + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">착공일</span><span class="cs-value">' + escapeHtml(c.constructionStartDate || '-') + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">예상 준공</span><span class="cs-value">' + escapeHtml(c.expectedCompletionDate || '-') + '</span></div>' +
         '<div class="cs-site-row"><span class="cs-label">진행 단계</span><span class="cs-value">' + escapeHtml(stage) + '</span></div>' +
@@ -8806,7 +8808,7 @@
         modelName: modelName,
         pyeong: (c.housePyeong != null && c.housePyeong !== '') ? Number(c.housePyeong) : null,
         siteAddress: c.siteAddress || '',
-        foremanName: c.constructionManager || '',
+        foremanName: c.constructionSiteManager || '',
         foremanPhone: c.constructionManagerPhone || c.foremanPhone || '',
         manager: c.salesPerson || '',
         orderDate: c.constructionStartDate || ''
@@ -14808,6 +14810,7 @@
           constructionStartDate: '',
           constructionEndDate: '',
           constructionManager: '',
+          constructionSiteManager: '',
           constructionStages: [],
           depositConfirmed: false,
           progress1Confirmed: false,
@@ -15436,6 +15439,19 @@
             window.addContractInviteMessage(c.id, 'construction', c.constructionManager);
           }
           renderDesign();
+        }
+        return;
+      }
+      if (e.target.classList.contains('construction-site-manager-input')) {
+        if (isSalesReadonly()) return;
+        var contractId = e.target.getAttribute('data-contract-id');
+        if (!contractId) return;
+        var contracts = getContracts();
+        var c = contracts.find(function (x) { return x.id === contractId; });
+        if (c) {
+          c.constructionSiteManager = (e.target.value || '').trim();
+          saveContracts(contracts);
+          renderConstruction();
         }
         return;
       }
