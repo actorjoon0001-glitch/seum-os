@@ -8425,6 +8425,92 @@
     });
   }
 
+  // 작업자 현황판: 시공팀·관리자만 메모 편집 가능 (그 외 팀은 조회만)
+  function canEditCrewMemo() {
+    var cur = typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee;
+    if (!cur) return false;
+    var role = (cur.role || '').toLowerCase();
+    var permission = (cur.permission || '').toLowerCase();
+    if (role === 'admin' || role === 'master' || permission === 'admin' || isSuperAdmin()) return true;
+    var team = (cur.team || '').trim();
+    return team === '시공' || team === '시공팀';
+  }
+
+  // 지도 옆 작업자 현황판 — 진행중(착공·진행중) 현장의 배치 인력·진행상황·메모 표시.
+  // 시공팀원이 인력 배치를 점검할 수 있도록 현장소장/시공팀 담당자와 자유 메모를 함께 보여준다.
+  function renderConstructionSitesCrewPanel(list) {
+    var wrap = document.getElementById('cs-crew-list');
+    if (!wrap) return;
+    var countEl = document.getElementById('cs-crew-panel-count');
+    var canEdit = canEditCrewMemo();
+
+    // 진행중인 현장만: 착공·진행중 단계
+    var active = (list || []).filter(function (c) {
+      var p = (c.constructionProgress || '착공전').trim();
+      return p === '착공' || p === '진행중';
+    });
+
+    if (countEl) countEl.textContent = active.length ? active.length + '곳 진행중' : '';
+
+    if (!active.length) {
+      wrap.innerHTML = '<div class="cs-crew-empty">진행중인 현장이 없습니다.</div>';
+      return;
+    }
+
+    wrap.innerHTML = active.map(function (c) {
+      var siteName = (c.customerName || '-') + ' / ' + (c.contractModelName || c.contractModel || '-');
+      var addr = c.siteAddress || '';
+      var shortAddr = addr ? addr.trim().split(/\s+/).slice(0, 2).join(' ') : '-';
+      var stage = (c.constructionProgress || '착공전').trim();
+      var stageCls = getStageBadgeClass ? getStageBadgeClass(stage) : '';
+      var teamMgr = (c.constructionManager || '').trim() || '-';
+      var siteMgr = (c.constructionSiteManager || '').trim() || '-';
+      var memo = c.crewMemo || '';
+      var memoBlock = canEdit
+        ? '<textarea class="cs-crew-memo-input" data-cs-crew-memo="' + escapeAttr(c.id || '') + '" rows="2" placeholder="배치 인력·작업 메모 (예: 골조 3명, 내일 설비 투입)">' + escapeHtml(memo) + '</textarea>'
+        : '<div class="cs-crew-memo-view">' + (memo ? escapeHtml(memo) : '<span class="cs-crew-memo-empty">메모 없음</span>') + '</div>';
+      return '<div class="cs-crew-item" data-cs-action="select-site" data-cs-contract="' + escapeAttr(c.id || '') + '">' +
+          '<div class="cs-crew-item-head">' +
+            '<span class="cs-crew-site-name">' + escapeHtml(siteName) + '</span>' +
+            '<span class="stage-badge ' + stageCls + '">' + escapeHtml(stage) + '</span>' +
+          '</div>' +
+          '<div class="cs-crew-meta">📍 ' + escapeHtml(shortAddr) + '</div>' +
+          '<div class="cs-crew-meta">시공팀 담당자: <strong>' + escapeHtml(teamMgr) + '</strong> · 현장소장: <strong>' + escapeHtml(siteMgr) + '</strong></div>' +
+          memoBlock +
+        '</div>';
+    }).join('');
+
+    wireCrewMemoOnce();
+  }
+
+  var _crewMemoWired = false;
+  function wireCrewMemoOnce() {
+    if (_crewMemoWired) return;
+    var wrap = document.getElementById('cs-crew-list');
+    if (!wrap) return;
+    _crewMemoWired = true;
+    // 메모 입력 클릭이 현장 선택(지도 이동)으로 전파되지 않도록 차단
+    wrap.addEventListener('click', function (e) {
+      if (e.target.closest('.cs-crew-memo-input')) e.stopPropagation();
+    });
+    // 포커스 아웃 시 저장 (변경된 경우만)
+    wrap.addEventListener('focusout', function (e) {
+      var ta = e.target.closest('.cs-crew-memo-input');
+      if (!ta) return;
+      if (!canEditCrewMemo()) return;
+      var contractId = ta.getAttribute('data-cs-crew-memo');
+      if (!contractId) return;
+      var contracts = getContracts();
+      var c = contracts.find(function (x) { return x.id === contractId; });
+      if (!c) return;
+      var val = (ta.value || '').trim();
+      if ((c.crewMemo || '') === val) return;
+      c.crewMemo = val;
+      saveContracts(contracts);
+      showToast && showToast('작업자 메모가 저장되었습니다.');
+    });
+  }
+
   function renderConstructionSitesOverview() {
     var all = getContracts().filter(function (c) { return !!c.constructionStartOk; });
 
@@ -8465,6 +8551,9 @@
 
     // 지도 갱신 (카드와 동일 필터 적용된 list 기준)
     renderConstructionSitesMap(list);
+
+    // 지도 옆 작업자 현황판 (진행중 현장만)
+    renderConstructionSitesCrewPanel(list);
 
     // 일정 간트차트도 동일 필터로 갱신
     renderConstructionSitesGantt(list);
@@ -14841,6 +14930,7 @@
           constructionEndDate: '',
           constructionManager: '',
           constructionSiteManager: '',
+          crewMemo: '',
           constructionStages: [],
           depositConfirmed: false,
           progress1Confirmed: false,

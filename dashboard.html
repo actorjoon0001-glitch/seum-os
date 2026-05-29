@@ -2164,8 +2164,20 @@
             </div>
           </div>
         </div>
-        <div id="construction-sites-map" class="construction-sites-map"></div>
-        <div id="construction-sites-map-status" class="cs-map-status"></div>
+        <div class="cs-map-layout">
+          <div class="cs-map-col">
+            <div id="construction-sites-map" class="construction-sites-map"></div>
+            <div id="construction-sites-map-status" class="cs-map-status"></div>
+          </div>
+          <aside class="cs-crew-panel" id="cs-crew-panel" aria-label="작업자 현황판">
+            <div class="cs-crew-panel-header">
+              <h4>👷 작업자 현황판</h4>
+              <span class="cs-crew-panel-count" id="cs-crew-panel-count"></span>
+            </div>
+            <p class="cs-crew-panel-desc">진행중 현장의 배치 인력·진행상황. 메모는 인력 배치 체크용입니다.</p>
+            <div class="cs-crew-list" id="cs-crew-list"></div>
+          </aside>
+        </div>
       </div>
 
       <!-- 일정 간트차트 -->
