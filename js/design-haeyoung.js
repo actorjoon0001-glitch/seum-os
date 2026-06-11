@@ -12,6 +12,7 @@
   var realtimeSubscribed = false;
   var cachedRows = [];
   var listFetchInflight = null;
+  var lastListError = null;
 
   function $(id) { return document.getElementById(id); }
   function escapeHtml(s) {
@@ -172,14 +173,17 @@
       .then(function (res) {
         listFetchInflight = null;
         if (res.error) {
+          lastListError = res.error.message || '알 수 없는 조회 오류';
           console.warn('[해영] 목록 조회 실패:', res.error.message);
           return [];
         }
+        lastListError = null;
         cachedRows = res.data || [];
         return cachedRows;
       })
       .catch(function (err) {
         listFetchInflight = null;
+        lastListError = (err && err.message) ? err.message : '알 수 없는 조회 예외';
         console.warn('[해영] 목록 조회 예외:', err);
         return [];
       });
@@ -193,7 +197,13 @@
     var container = $('hy-list');
     if (!container) return;
     if (!rows || !rows.length) {
-      container.innerHTML = '<div class="hy-empty">아직 업로드된 도면이 없습니다.</div>';
+      if (lastListError) {
+        // 조회 실패를 빈 목록("없음")으로 위장하지 않는다 — 사라짐과 로드 실패를 구분.
+        container.innerHTML = '<div class="hy-empty hy-err">이력을 불러오지 못했습니다: ' +
+          escapeHtml(lastListError) + ' · 새로고침 후 다시 시도해 주세요.</div>';
+      } else {
+        container.innerHTML = '<div class="hy-empty">아직 업로드된 도면이 없습니다.</div>';
+      }
       return;
     }
     container.innerHTML = rows.map(function (r) {
@@ -237,15 +247,102 @@
   function deleteSubmission(id) {
     var supabase = getSupabase();
     if (!supabase || !id) return Promise.resolve();
+    var emp = getCurrentEmployee();
+    var byName = (emp && emp.name) ? emp.name : '알 수 없음';
     return supabase.from('haeyoung_submissions')
-      .update({ is_deleted: true })
+      .update({
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+        deleted_by_name: byName
+      })
       .eq('id', id)
       .then(function (res) {
         if (res.error) {
           console.warn('[해영] 삭제 실패:', res.error.message);
           window.alert('삭제 실패: ' + res.error.message);
         }
-        return refreshAndRender();
+        return refreshAll();
+      });
+  }
+
+  // --------------------------------------------------
+  // 삭제된 항목(휴지통) 조회 / 렌더 / 복구
+  // --------------------------------------------------
+  function fetchDeletedList() {
+    var supabase = getSupabase();
+    if (!supabase) return Promise.resolve([]);
+    return supabase.from('haeyoung_submissions')
+      .select('*')
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false })
+      .limit(200)
+      .then(function (res) {
+        if (res.error) {
+          console.warn('[해영] 삭제 목록 조회 실패:', res.error.message);
+          return [];
+        }
+        return res.data || [];
+      })
+      .catch(function (err) {
+        console.warn('[해영] 삭제 목록 조회 예외:', err);
+        return [];
+      });
+  }
+
+  function renderDeletedList(rows) {
+    var container = $('hy-trash-list');
+    if (!container) return;
+    if (!rows || !rows.length) {
+      container.innerHTML = '<div class="hy-empty">삭제된 항목이 없습니다.</div>';
+      return;
+    }
+    container.innerHTML = rows.map(function (r) {
+      var metaParts = [
+        r.deleted_at ? '삭제: ' + formatDateTime(r.deleted_at) : '삭제 시각 미상',
+        r.deleted_by_name ? '삭제자: ' + r.deleted_by_name : '삭제자 미상',
+        r.uploaded_by_name ? '원업로드: ' + r.uploaded_by_name : '',
+        '업로드일: ' + formatDateTime(r.uploaded_at)
+      ].filter(Boolean);
+      return '<div class="hy-item hy-item-deleted" data-id="' + escapeAttr(r.id) + '">' +
+        '<div class="hy-item-icon">🗑</div>' +
+        '<div class="hy-item-body">' +
+          '<div class="hy-item-title">' + escapeHtml(r.title || '제목 없음') + '</div>' +
+          '<div class="hy-item-meta">' + metaParts.map(escapeHtml).join(' · ') + '</div>' +
+        '</div>' +
+        '<div class="hy-item-actions">' +
+          '<button type="button" class="btn btn-sm btn-primary" data-act="hy-restore" data-id="' + escapeAttr(r.id) + '">복구</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function isTrashOpen() {
+    var box = $('hy-trash');
+    return !!(box && box.style.display !== 'none');
+  }
+
+  function refreshTrash() {
+    if (!isTrashOpen()) return Promise.resolve();
+    return fetchDeletedList().then(renderDeletedList);
+  }
+
+  // 활성 목록 + (열려있으면) 휴지통 동시 갱신
+  function refreshAll() {
+    return Promise.all([refreshAndRender(), refreshTrash()]);
+  }
+
+  function restoreSubmission(id) {
+    var supabase = getSupabase();
+    if (!supabase || !id) return Promise.resolve();
+    return supabase.from('haeyoung_submissions')
+      .update({ is_deleted: false, deleted_at: null, deleted_by_name: null })
+      .eq('id', id)
+      .then(function (res) {
+        if (res.error) {
+          console.warn('[해영] 복구 실패:', res.error.message);
+          window.alert('복구 실패: ' + res.error.message);
+        }
+        return refreshAll();
       });
   }
 
@@ -341,8 +438,38 @@
         if (!btn) return;
         var id = btn.getAttribute('data-id');
         if (!id) return;
-        if (!window.confirm('이 도면 업로드 기록을 삭제할까요?')) return;
+        if (!window.confirm('이 도면 업로드 기록을 삭제할까요?\n(삭제해도 "삭제된 항목 보기"에서 복구할 수 있습니다.)')) return;
         deleteSubmission(id);
+      });
+    }
+
+    // 휴지통(삭제된 항목) 토글
+    var trashToggle = $('hy-trash-toggle');
+    var trashBox = $('hy-trash');
+    if (trashToggle && trashBox && !trashToggle._hyBound) {
+      trashToggle._hyBound = true;
+      trashToggle.addEventListener('click', function () {
+        if (isTrashOpen()) {
+          trashBox.style.display = 'none';
+          trashToggle.textContent = '🗑 삭제된 항목 보기';
+        } else {
+          trashBox.style.display = '';
+          trashToggle.textContent = '🗑 삭제된 항목 숨기기';
+          refreshTrash();
+        }
+      });
+    }
+
+    // 복구 버튼 (위임)
+    var trashList = $('hy-trash-list');
+    if (trashList && !trashList._hyBound) {
+      trashList._hyBound = true;
+      trashList.addEventListener('click', function (e) {
+        var btn = e.target.closest && e.target.closest('[data-act="hy-restore"]');
+        if (!btn) return;
+        var id = btn.getAttribute('data-id');
+        if (!id) return;
+        restoreSubmission(id);
       });
     }
   }
@@ -360,7 +487,7 @@
           function () {
             if (document.getElementById('section-design-haeyoung')
                 && document.getElementById('section-design-haeyoung').classList.contains('active')) {
-              refreshAndRender();
+              refreshAll();
             } else {
               cachedRows = [];
             }

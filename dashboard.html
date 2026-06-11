@@ -1818,8 +1818,15 @@
       </div>
 
       <div class="card">
-        <h3>업로드 이력</h3>
+        <div class="hy-list-header">
+          <h3>업로드 이력</h3>
+          <button type="button" class="btn btn-sm btn-secondary" id="hy-trash-toggle">🗑 삭제된 항목 보기</button>
+        </div>
         <div id="hy-list" class="hy-list"></div>
+        <div id="hy-trash" class="hy-trash" style="display:none;">
+          <h4 class="hy-trash-title">삭제된 항목 (복구 가능 · 누가·언제 지웠는지 표시)</h4>
+          <div id="hy-trash-list" class="hy-list"></div>
+        </div>
       </div>
     </section>
 

@@ -15831,6 +15831,13 @@ body.cs-tv-mode #section-construction-sites .cs-crew-meta { font-size: 13.5px; }
 .hy-item-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .hy-item-actions .btn { padding: 6px 10px; font-size: 12px; }
 
+.hy-list-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hy-list-header h3 { margin: 0; }
+.hy-empty.hy-err { color: #fca5a5; }
+.hy-trash { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #334155; }
+.hy-trash-title { font-size: 13px; font-weight: 700; color: #94a3b8; margin: 0 0 10px; }
+.hy-item-deleted { border-left-color: #ef4444; opacity: 0.85; }
+
 @media (max-width: 720px) {
   .hy-form-grid { grid-template-columns: 1fr; }
   .hy-item { grid-template-columns: 32px 1fr; }
