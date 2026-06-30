@@ -223,6 +223,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem nav-subitem-key" data-section="design-priority">우선순위</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-drawings">설계도면</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-haeyoung">해영 건축사</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-pil">필건축사</a>
           </div>
         </div>
 
@@ -1820,6 +1821,53 @@
       <div class="card">
         <h3>업로드 이력</h3>
         <div id="hy-list" class="hy-list"></div>
+      </div>
+    </section>
+
+    <!-- 필건축사(외부 협력) 도면 업로드 섹션 -->
+    <section id="section-design-pil" class="content-section">
+      <header class="main-header">
+        <h2>필건축사</h2>
+        <p class="section-desc">외부 협력 건축사 <strong>필건축사</strong>가 PDF/DWG 도면을 직접 업로드합니다. 업로드 즉시 <strong>설계팀·시공팀 전원</strong>에게 알림이 발사됩니다.</p>
+      </header>
+
+      <div class="card">
+        <h3>도면 업로드</h3>
+        <form id="py-form" class="hy-form">
+          <div class="hy-form-grid">
+            <div class="hy-form-field hy-form-field-wide">
+              <label for="py-title">제목 *</label>
+              <input type="text" id="py-title" placeholder="예: ○○○ 고객님 1차 협의도면" required>
+            </div>
+            <div class="hy-form-field hy-form-field-wide">
+              <label for="py-desc">설명</label>
+              <textarea id="py-desc" rows="2" placeholder="변경사항·협의내용 등"></textarea>
+            </div>
+            <div class="hy-form-field">
+              <label for="py-contract">연결 계약 (선택)</label>
+              <select id="py-contract">
+                <option value="">선택 안 함</option>
+              </select>
+            </div>
+            <div class="hy-form-field hy-form-field-wide">
+              <label>도면 파일 *</label>
+              <div class="hy-file-row">
+                <input type="file" id="py-file" accept="application/pdf,.dwg,.dxf,image/*" required>
+                <span id="py-file-info" class="hy-file-info">선택된 파일 없음</span>
+              </div>
+              <p class="hy-file-hint">PDF, DWG, DXF, 이미지 지원 · 권장 50MB 이하</p>
+            </div>
+          </div>
+          <div class="hy-form-actions">
+            <button type="submit" class="btn btn-primary" id="py-submit">업로드 + 설계·시공팀 알림</button>
+            <span id="py-submit-msg" class="hy-submit-msg"></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>업로드 이력</h3>
+        <div id="py-list" class="hy-list"></div>
       </div>
     </section>
 
@@ -5439,11 +5487,12 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260427-14"></script>
+  <script src="js/app.js?v=20260630-01"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
   <script src="js/design-haeyoung.js"></script>
+  <script src="js/design-pil.js"></script>
   <script src="js/marketing.js"></script>
   <script src="js/attendance.js?v=20260419-04"></script>
   <script src="js/leave.js"></script>
