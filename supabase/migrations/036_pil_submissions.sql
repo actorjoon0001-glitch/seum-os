@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.pil_submissions (
   file_type text,
   contract_local_id text,
   uploaded_by_name text,
+  design_manager text,
   uploaded_at timestamptz DEFAULT now(),
   is_deleted boolean DEFAULT false
 );
@@ -25,6 +26,7 @@ COMMENT ON TABLE public.pil_submissions IS '필건축사(외부 협력) 도면 �
 COMMENT ON COLUMN public.pil_submissions.contract_local_id IS '연결된 계약 local_id (선택)';
 COMMENT ON COLUMN public.pil_submissions.file_url IS 'Supabase Storage public URL';
 COMMENT ON COLUMN public.pil_submissions.uploaded_by_name IS '업로드 주체 표시명 (필건축사 본인 또는 대리 업로드자)';
+COMMENT ON COLUMN public.pil_submissions.design_manager IS '사내 설계 담당자명 (사내 팀원이 도면별로 기입)';
 
 CREATE INDEX IF NOT EXISTS idx_pil_submissions_uploaded_at
   ON public.pil_submissions(uploaded_at DESC);

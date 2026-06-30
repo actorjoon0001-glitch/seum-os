@@ -214,13 +214,31 @@
         actions += '<a class="btn btn-sm btn-primary" href="' + escapeAttr(r.file_url) + '" target="_blank" rel="noopener">열기</a>';
         actions += '<a class="btn btn-sm btn-secondary" href="' + escapeAttr(r.file_url) + '" download="' + escapeAttr(r.file_name || '') + '">다운로드</a>';
       }
-      actions += '<button type="button" class="btn btn-sm btn-danger" data-act="hy-delete" data-id="' + escapeAttr(r.id) + '">삭제</button>';
+      // 삭제 버튼은 제거 — 실수/임의 삭제 방지를 위해 목록에서 삭제 기능을 노출하지 않는다.
+      // 설계 담당자: 사내 팀원은 도면별로 입력·저장 가능, 외부 협력 건축사 본인에게는 읽기 전용 표시.
+      var manager = r.design_manager || '';
+      var managerHtml;
+      if (isExternalArchitectUser()) {
+        managerHtml = manager
+          ? '<div class="hy-item-manager">설계 담당자: <strong>' + escapeHtml(manager) + '</strong></div>'
+          : '';
+      } else {
+        var mid = escapeAttr(r.id);
+        managerHtml =
+          '<div class="hy-manager-row">' +
+            '<label class="hy-manager-label">설계 담당자</label>' +
+            '<input type="text" class="hy-manager-input" data-id="' + mid + '" value="' + escapeAttr(manager) + '" placeholder="담당자명 입력" maxlength="40">' +
+            '<button type="button" class="btn btn-sm btn-primary" data-act="hy-save-manager" data-id="' + mid + '">저장</button>' +
+            '<span class="hy-manager-msg" data-id="' + mid + '"></span>' +
+          '</div>';
+      }
       return '<div class="hy-item" data-id="' + escapeAttr(r.id) + '">' +
         '<div class="hy-item-icon">' + icon + '</div>' +
         '<div class="hy-item-body">' +
           '<div class="hy-item-title">' + escapeHtml(r.title || '제목 없음') + '</div>' +
           (r.description ? '<div class="hy-item-desc">' + escapeHtml(r.description) + '</div>' : '') +
           '<div class="hy-item-meta">' + metaParts.map(escapeHtml).join(' · ') + '</div>' +
+          managerHtml +
         '</div>' +
         '<div class="hy-item-actions">' + actions + '</div>' +
       '</div>';
@@ -232,20 +250,25 @@
   }
 
   // --------------------------------------------------
-  // 삭제 (soft delete)
+  // 설계 담당자 저장
+  // (삭제 기능은 제거됨 — 목록에서 도면을 지울 수 없다)
   // --------------------------------------------------
-  function deleteSubmission(id) {
+  function saveManager(id, name) {
     var supabase = getSupabase();
-    if (!supabase || !id) return Promise.resolve();
+    if (!supabase || !id) return Promise.resolve(false);
     return supabase.from('haeyoung_submissions')
-      .update({ is_deleted: true })
+      .update({ design_manager: name || null })
       .eq('id', id)
       .then(function (res) {
         if (res.error) {
-          console.warn('[해영] 삭제 실패:', res.error.message);
-          window.alert('삭제 실패: ' + res.error.message);
+          console.warn('[해영] 담당자 저장 실패:', res.error.message);
+          return false;
         }
-        return refreshAndRender();
+        return true;
+      })
+      .catch(function (err) {
+        console.warn('[해영] 담당자 저장 예외:', err);
+        return false;
       });
   }
 
@@ -332,17 +355,27 @@
       });
     });
 
-    // 삭제 버튼 (위임)
+    // 설계 담당자 저장 (위임) — 삭제 기능은 제거되어 더 이상 노출하지 않는다.
     var list = $('hy-list');
     if (list && !list._hyBound) {
       list._hyBound = true;
       list.addEventListener('click', function (e) {
-        var btn = e.target.closest && e.target.closest('[data-act="hy-delete"]');
+        var btn = e.target.closest && e.target.closest('[data-act="hy-save-manager"]');
         if (!btn) return;
         var id = btn.getAttribute('data-id');
         if (!id) return;
-        if (!window.confirm('이 도면 업로드 기록을 삭제할까요?')) return;
-        deleteSubmission(id);
+        var input = list.querySelector('.hy-manager-input[data-id="' + id + '"]');
+        var msg = list.querySelector('.hy-manager-msg[data-id="' + id + '"]');
+        var name = input ? (input.value || '').trim() : '';
+        btn.disabled = true;
+        if (msg) { msg.className = 'hy-manager-msg'; msg.textContent = '저장 중…'; }
+        saveManager(id, name).then(function (ok) {
+          if (msg) {
+            msg.className = 'hy-manager-msg ' + (ok ? 'hy-ok' : 'hy-err');
+            msg.textContent = ok ? '저장됨' : '저장 실패';
+          }
+          btn.disabled = false;
+        });
       });
     }
   }
