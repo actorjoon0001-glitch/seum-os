@@ -15846,6 +15846,40 @@ body.cs-tv-mode #section-construction-sites .cs-crew-meta { font-size: 13.5px; }
 .hy-manager-msg.hy-ok { color: #34d399; }
 .hy-manager-msg.hy-err { color: #f87171; }
 
+/* 도면 미리보기 모달 (PDF·이미지) */
+.seum-preview-overlay {
+  position: fixed; inset: 0; z-index: 4000;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.seum-preview-overlay[hidden] { display: none; }
+.seum-preview-box {
+  background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+  width: min(980px, 96vw); height: min(88vh, 1040px);
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.seum-preview-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border-bottom: 1px solid #1e293b;
+}
+.seum-preview-title {
+  font-size: 14px; font-weight: 700; color: #f1f5f9;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.seum-preview-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.seum-preview-actions .btn { padding: 6px 10px; font-size: 12px; }
+.seum-preview-body {
+  flex: 1; min-height: 0; background: #0b1220;
+  display: flex; align-items: center; justify-content: center; overflow: auto;
+}
+.seum-preview-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+.seum-preview-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+@media (max-width: 720px) {
+  .seum-preview-overlay { padding: 0; }
+  .seum-preview-box { width: 100vw; height: 100vh; border-radius: 0; }
+}
+
 @media (max-width: 720px) {
   .hy-form-grid { grid-template-columns: 1fr; }
   .hy-item { grid-template-columns: 32px 1fr; }
