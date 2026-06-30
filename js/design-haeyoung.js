@@ -187,6 +187,73 @@
   }
 
   // --------------------------------------------------
+  // 도면 미리보기 모달 (PDF·이미지) — 페이지 공용, 1회만 생성
+  // 해영/필 모듈이 동일하게 정의 → 먼저 로드된 쪽이 window.seumDrawingPreview 를 세팅
+  // --------------------------------------------------
+  function isPreviewable(name, type) {
+    var ext = String(name || '').split('.').pop().toLowerCase();
+    if (ext === 'pdf') return true;
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].indexOf(ext) >= 0) return true;
+    var t = String(type || '').toLowerCase();
+    return t.indexOf('pdf') >= 0 || t.indexOf('image/') === 0;
+  }
+  function ensurePreview() {
+    if (window.seumDrawingPreview) return window.seumDrawingPreview;
+    var overlay = document.createElement('div');
+    overlay.id = 'seum-preview-overlay';
+    overlay.className = 'seum-preview-overlay';
+    overlay.setAttribute('hidden', '');
+    overlay.innerHTML =
+      '<div class="seum-preview-box" role="dialog" aria-modal="true">' +
+        '<div class="seum-preview-head">' +
+          '<span class="seum-preview-title"></span>' +
+          '<span class="seum-preview-actions">' +
+            '<a class="btn btn-sm btn-secondary seum-preview-newtab" target="_blank" rel="noopener">새 탭</a>' +
+            '<button type="button" class="btn btn-sm btn-secondary seum-preview-close">닫기 ✕</button>' +
+          '</span>' +
+        '</div>' +
+        '<div class="seum-preview-body"></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    var bodyEl = overlay.querySelector('.seum-preview-body');
+    var titleEl = overlay.querySelector('.seum-preview-title');
+    var newtabEl = overlay.querySelector('.seum-preview-newtab');
+    function close() {
+      overlay.setAttribute('hidden', '');
+      bodyEl.innerHTML = '';   // iframe/img 비워 로딩 중단·메모리 해제
+      document.removeEventListener('keydown', onKey);
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay || (e.target.closest && e.target.closest('.seum-preview-close'))) close();
+    });
+    function open(url, name, type) {
+      if (!url) return;
+      titleEl.textContent = name || '미리보기';
+      newtabEl.href = url;
+      bodyEl.innerHTML = '';
+      var ext = String(name || '').split('.').pop().toLowerCase();
+      var isPdf = ext === 'pdf' || String(type || '').toLowerCase().indexOf('pdf') >= 0;
+      var node;
+      if (isPdf) {
+        node = document.createElement('iframe');
+        node.className = 'seum-preview-frame';
+        node.title = 'PDF 미리보기';
+      } else {
+        node = document.createElement('img');
+        node.className = 'seum-preview-img';
+        node.alt = name || '';
+      }
+      node.src = url;   // 속성이 아닌 property 로 설정 → 인젝션 안전
+      bodyEl.appendChild(node);
+      overlay.removeAttribute('hidden');
+      document.addEventListener('keydown', onKey);
+    }
+    window.seumDrawingPreview = open;
+    return open;
+  }
+
+  // --------------------------------------------------
   // 목록 렌더
   // --------------------------------------------------
   function renderList(rows) {
@@ -211,7 +278,10 @@
       ].filter(Boolean);
       var actions = '';
       if (r.file_url) {
-        actions += '<a class="btn btn-sm btn-primary" href="' + escapeAttr(r.file_url) + '" target="_blank" rel="noopener">열기</a>';
+        if (isPreviewable(r.file_name, r.file_type)) {
+          actions += '<button type="button" class="btn btn-sm btn-primary" data-act="hy-preview" data-url="' + escapeAttr(r.file_url) + '" data-name="' + escapeAttr(r.file_name || '') + '" data-type="' + escapeAttr(r.file_type || '') + '">미리보기</button>';
+        }
+        actions += '<a class="btn btn-sm btn-secondary" href="' + escapeAttr(r.file_url) + '" target="_blank" rel="noopener">열기</a>';
         actions += '<a class="btn btn-sm btn-secondary" href="' + escapeAttr(r.file_url) + '" download="' + escapeAttr(r.file_name || '') + '">다운로드</a>';
       }
       // 삭제 버튼은 제거 — 실수/임의 삭제 방지를 위해 목록에서 삭제 기능을 노출하지 않는다.
@@ -360,6 +430,11 @@
     if (list && !list._hyBound) {
       list._hyBound = true;
       list.addEventListener('click', function (e) {
+        var prevBtn = e.target.closest && e.target.closest('[data-act="hy-preview"]');
+        if (prevBtn) {
+          ensurePreview()(prevBtn.getAttribute('data-url'), prevBtn.getAttribute('data-name'), prevBtn.getAttribute('data-type'));
+          return;
+        }
         var btn = e.target.closest && e.target.closest('[data-act="hy-save-manager"]');
         if (!btn) return;
         var id = btn.getAttribute('data-id');
