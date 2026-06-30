@@ -15831,6 +15831,21 @@ body.cs-tv-mode #section-construction-sites .cs-crew-meta { font-size: 13.5px; }
 .hy-item-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .hy-item-actions .btn { padding: 6px 10px; font-size: 12px; }
 
+/* 설계 담당자 기입/표시 (도면별) */
+.hy-item-manager { font-size: 12px; color: #cbd5e1; margin-top: 6px; }
+.hy-item-manager strong { color: #f1f5f9; }
+.hy-manager-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.hy-manager-label { font-size: 12px; color: #94a3b8; white-space: nowrap; }
+.hy-manager-input {
+  flex: 0 1 180px; min-width: 120px; padding: 6px 10px; font-size: 13px;
+  color: #f1f5f9; background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+}
+.hy-manager-input:focus { outline: none; border-color: #6366f1; }
+.hy-manager-row .btn { padding: 6px 12px; font-size: 12px; }
+.hy-manager-msg { font-size: 12px; color: #94a3b8; }
+.hy-manager-msg.hy-ok { color: #34d399; }
+.hy-manager-msg.hy-err { color: #f87171; }
+
 @media (max-width: 720px) {
   .hy-form-grid { grid-template-columns: 1fr; }
   .hy-item { grid-template-columns: 32px 1fr; }
