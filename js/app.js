@@ -350,6 +350,10 @@
     if (sectionId === 'sales-contracts') {
       return isSales || isDesign || isMarketing || isConstruction || isSettlement;
     }
+    // 전자 계약서 목록: 계약 목록과 동일하게 전 팀 접근
+    if (sectionId === 'sales-e-contracts') {
+      return isSales || isDesign || isMarketing || isConstruction || isSettlement;
+    }
 
     // ??? ???: ???, ???, ???, ????? ???
     if (sectionId === 'design') {
@@ -13554,7 +13558,7 @@
     if ((sectionId === 'marketing' || sectionId === 'marketing-videos' || sectionId === 'marketing-schedule' ||
       sectionId === 'marketing-files' || sectionId === 'marketing-nas' ||
       sectionId === 'design' || sectionId === 'construction' ||
-      sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' || sectionId === 'sales-lg-appliance' ||
+      sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' || sectionId === 'sales-e-contracts' || sectionId === 'sales-lg-appliance' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard' ||
       sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-drawings' || sectionId === 'design-schedule' ||
       sectionId === 'design-priority' || sectionId === 'design-haeyoung' || sectionId === 'design-pil' || sectionId === 'construction-worklog') &&
