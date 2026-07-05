@@ -2172,22 +2172,44 @@
     return ECONTRACT_PORTAL_BASE + '#/edit/' + encodeURIComponent(id);
   }
 
-  // 전자계약 상태 코드 → 한글 라벨 (알 수 없는 값은 원문 그대로 표시)
-  var ECONTRACT_STATUS_LABELS = {
-    draft: '작성중',
-    pending: '대기',
-    sent: '발송됨',
-    signed: '서명완료',
-    confirmed: '확정',
-    completed: '완료',
-    done: '완료',
+  // 전자계약 진행상태(data->>'stage') 영문 키 → 한글 라벨.
+  // Contract-OS 진행상태 드롭다운과 대응. 알 수 없는 값은 원문 그대로 표시.
+  var ECONTRACT_STAGE_LABELS = {
+    prospect: '가망건',
+    negotiating: '협의중',
+    deposit_waiting: '계약금 대기',
+    deposit_pending: '계약금 대기',
+    awaiting_deposit: '계약금 대기',
+    contracted: '계약완료',
+    completed: '계약완료',
+    drawing: '3D도면 작업중',
+    drawing_3d: '3D도면 작업중',
+    modeling: '3D도면 작업중',
+    design_3d: '3D도면 작업중',
+    manufacturing: '제작중',
+    production: '제작중',
+    producing: '제작중',
+    installing: '설치·시공중',
+    construction: '설치·시공중',
+    delivered: '납품완료',
+    delivery_completed: '납품완료',
     cancelled: '취소',
-    canceled: '취소',
-    rejected: '반려'
+    canceled: '취소'
   };
-  function _econtractStatusLabel(status) {
-    var key = String(status || '').trim().toLowerCase();
-    return ECONTRACT_STATUS_LABELS[key] || String(status || '-');
+  function _econtractStageLabel(stage) {
+    if (stage == null || String(stage).trim() === '') return '미지정';
+    var key = String(stage).trim().toLowerCase();
+    return ECONTRACT_STAGE_LABELS[key] || String(stage);
+  }
+  // 색상 그룹: 완료(초록) / 취소(빨강) / 작업진행(파랑) / 그 외 진행(회색)
+  function _econtractStageClass(stage) {
+    var key = String(stage || '').trim().toLowerCase();
+    if (key === 'completed' || key === 'contracted' || key === 'delivered' || key === 'delivery_completed') return 'econtract-stage-done';
+    if (key === 'cancelled' || key === 'canceled') return 'econtract-stage-cancel';
+    if (key === 'drawing' || key === 'drawing_3d' || key === 'modeling' || key === 'design_3d' ||
+        key === 'manufacturing' || key === 'production' || key === 'producing' ||
+        key === 'installing' || key === 'construction') return 'econtract-stage-work';
+    return 'econtract-stage-open';
   }
 
   function syncEcontractsFromSupabase() {
@@ -2196,7 +2218,7 @@
       if (!supa) return;
       supa
         .from('econtracts')
-        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at')
+        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage')
         .order('updated_at', { ascending: false })
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
@@ -2292,13 +2314,12 @@
         if (!a) return '-';
         return escapeHtml(a.split(/\s+/).slice(0, 2).join(' '));
       })();
-      var statusRaw = (r.status || 'draft');
-      var statusClass = 'econtract-status-' + statusRaw.replace(/[^a-zA-Z0-9_-]/g, '');
+      var stageClass = _econtractStageClass(r.stage);
       var viewBtn = '<a class="btn btn-sm btn-secondary" href="' + econtractViewUrl(r.id) + '" target="_blank" rel="noopener">보기</a>';
       return '<tr class="econtract-row">' +
         '<td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td>' +
         '<td>' + escapeHtml(r.contract_no || '-') + '</td>' +
-        '<td><span class="econtract-status ' + statusClass + '">' + escapeHtml(_econtractStatusLabel(statusRaw)) + '</span></td>' +
+        '<td><span class="econtract-status ' + stageClass + '">' + escapeHtml(_econtractStageLabel(r.stage)) + '</span></td>' +
         '<td>' + escapeHtml(r.client_name || '-') + '</td>' +
         '<td>' + escapeHtml(r.showroom ? getShowroomName(r.showroom) : '-') + '</td>' +
         '<td>' + escapeHtml(r.salesperson || '-') + '</td>' +
