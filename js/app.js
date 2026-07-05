@@ -2201,15 +2201,24 @@
     var key = String(stage).trim().toLowerCase();
     return ECONTRACT_STAGE_LABELS[key] || String(stage);
   }
-  // 색상 그룹: 완료(초록) / 취소(빨강) / 작업진행(파랑) / 그 외 진행(회색)
+  // 진행상태별 고유 색상 클래스 (카테고리 팔레트) — 각 단계가 한눈에 구분되도록
   function _econtractStageClass(stage) {
     var key = String(stage || '').trim().toLowerCase();
-    if (key === 'completed' || key === 'contracted' || key === 'delivered' || key === 'delivery_completed') return 'econtract-stage-done';
-    if (key === 'cancelled' || key === 'canceled') return 'econtract-stage-cancel';
-    if (key === 'drawing' || key === 'drawing_3d' || key === 'modeling' || key === 'design_3d' ||
-        key === 'manufacturing' || key === 'production' || key === 'producing' ||
-        key === 'installing' || key === 'construction') return 'econtract-stage-work';
-    return 'econtract-stage-open';
+    switch (key) {
+      case 'prospect':                                   return 'econtract-stage-prospect';     // 가망건
+      case 'negotiating':                                return 'econtract-stage-negotiating';  // 협의중
+      case 'deposit_waiting': case 'deposit_pending':
+      case 'awaiting_deposit':                           return 'econtract-stage-deposit';      // 계약금 대기
+      case 'contracted': case 'completed':               return 'econtract-stage-contracted';   // 계약완료
+      case 'drawing': case 'drawing_3d':
+      case 'modeling': case 'design_3d':                 return 'econtract-stage-drawing';       // 3D도면 작업중
+      case 'manufacturing': case 'production':
+      case 'producing':                                  return 'econtract-stage-manufacturing';// 제작중
+      case 'installing': case 'construction':            return 'econtract-stage-installing';   // 설치·시공중
+      case 'delivered': case 'delivery_completed':       return 'econtract-stage-delivered';    // 납품완료
+      case 'cancelled': case 'canceled':                 return 'econtract-stage-cancelled';    // 취소
+      default:                                           return 'econtract-stage-open';         // 미지정 등
+    }
   }
 
   // ── 원본 전자계약서 Supabase (읽기 전용) ─────────────────────────
