@@ -2218,7 +2218,7 @@
   //  → 전자계약서 앱에서 저장하는 즉시(=재조회 시점) 세움os 목록에 반영됨.
   //  ⚠️ service_role 절대 금지 — 브라우저 노출 가능한 anon 공개 키만. 원본은 select 만.
   var ECONTRACT_SRC_URL = 'https://hahcevbetqjemsedqpep.supabase.co';
-  var ECONTRACT_SRC_ANON_KEY = 'PASTE_SOURCE_ANON_KEY_HERE'; // TODO: 원본 전자계약서 Supabase anon(공개) 키를 넣어주세요
+  var ECONTRACT_SRC_ANON_KEY = 'sb_publishable_0_dmVWRyZaMNXrUP6g3aFw_0TKAbP8h'; // 원본 전자계약서 Supabase anon(공개) 키
   var _econtractSrcClient = null;
   function getEcontractSourceClient() {
     if (_econtractSrcClient) return _econtractSrcClient;
