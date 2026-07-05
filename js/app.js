@@ -2159,6 +2159,97 @@
     }
   }
 
+  // ────────────────────────────────────────────────────────────
+  //  전자 계약서(econtracts) — Contract-OS(전산 계약서 앱)에서 작성된 계약
+  //  · 세움os 는 요약 컬럼만 조회한다(신분증 등 민감정보 data 컬럼은 조회 안 함).
+  //  · RLS 가 서버측에서 "본인 계약 or 관리자"만 노출하므로, 받은 행을 그대로 렌더.
+  //  · 상세/신분증 열람은 세움os 가 아니라 Contract-OS 앱(보기 딥링크)에서 처리.
+  // ────────────────────────────────────────────────────────────
+  var _econtractsCache = [];
+  var ECONTRACT_PORTAL_BASE = 'https://seum-platform.netlify.app/portal';
+
+  function econtractViewUrl(id) {
+    return ECONTRACT_PORTAL_BASE + '#/edit/' + encodeURIComponent(id);
+  }
+
+  function syncEcontractsFromSupabase() {
+    try {
+      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      if (!supa) return;
+      supa
+        .from('econtracts')
+        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at')
+        .order('updated_at', { ascending: false })
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) {
+            if (res && res.error) console.error('Supabase econtracts load error:', res.error);
+            return;
+          }
+          _econtractsCache = res.data;
+          try { renderEcontracts(); } catch (e) { console.error('renderEcontracts failed:', e); }
+        })
+        .catch(function (err) { console.error('Supabase econtracts load failed:', err); });
+    } catch (e) {
+      console.error('Supabase econtracts sync exception:', e);
+    }
+  }
+
+  // 전시장 필터: econtracts.showroom 은 Contract-OS 가 넣은 자유 텍스트라
+  // 코드(headquarters..) 또는 한글 라벨(본사 전시장..) 어느 쪽이든 매칭.
+  function _econtractShowroomMatches(rowShowroom, filterCode) {
+    if (!filterCode) return true;
+    var val = (rowShowroom || '').trim();
+    if (!val) return false;
+    if (val === filterCode) return true;
+    var label = getShowroomName(filterCode);
+    return val === label || val.indexOf(label) !== -1;
+  }
+
+  function renderEcontracts() {
+    var tbody = document.getElementById('tbody-e-contracts');
+    if (!tbody) return;
+    var rows = (_econtractsCache || []).slice();
+
+    // 상단 공통 필터(년/월/전시장) 적용 — 기존 계약 목록과 동일 UX
+    rows = filterByYearMonth(rows, 'contract_date');
+    var showroomFilter = getFilterShowroom();
+    if (showroomFilter) {
+      rows = rows.filter(function (r) { return _econtractShowroomMatches(r.showroom, showroomFilter); });
+    }
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="econtracts-empty">아직 연동된 전자 계약서가 없습니다.<br><span class="econtracts-empty-sub">전산 계약서 앱과의 데이터 동기화가 연결되면 이곳에 목록이 표시됩니다.</span></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(function (r, i) {
+      // total_amount 는 만원 단위로 저장된다고 가정(세움os 계약 목록과 동일 표기).
+      var amount = (r.total_amount != null && String(r.total_amount).trim() !== '')
+        ? formatMoney(Math.round(Number(r.total_amount))) + '만원'
+        : '-';
+      var addr = (function () {
+        var a = (r.site_address || '').trim();
+        if (!a) return '-';
+        return escapeHtml(a.split(/\s+/).slice(0, 2).join(' '));
+      })();
+      var statusRaw = (r.status || 'draft');
+      var statusClass = 'econtract-status-' + statusRaw.replace(/[^a-zA-Z0-9_-]/g, '');
+      var viewBtn = '<a class="btn btn-sm btn-secondary" href="' + econtractViewUrl(r.id) + '" target="_blank" rel="noopener">보기</a>';
+      return '<tr class="econtract-row">' +
+        '<td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(r.contract_no || '-') + '</td>' +
+        '<td><span class="econtract-status ' + statusClass + '">' + escapeHtml(statusRaw) + '</span></td>' +
+        '<td>' + escapeHtml(r.client_name || '-') + '</td>' +
+        '<td>' + escapeHtml(r.showroom ? getShowroomName(r.showroom) : '-') + '</td>' +
+        '<td>' + escapeHtml(r.salesperson || '-') + '</td>' +
+        '<td>' + escapeHtml(r.contract_date || '-') + '</td>' +
+        '<td>' + amount + '</td>' +
+        '<td>' + addr + '</td>' +
+        '<td>' + viewBtn + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
   function getEmployees() {
     try {
       var raw = localStorage.getItem(STORAGE_EMPLOYEES);
@@ -13587,6 +13678,7 @@
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
     if (sectionId === 'sales-contracts') { syncContractsFromSupabase(); renderSales(); }
+    if (sectionId === 'sales-e-contracts') { syncEcontractsFromSupabase(); renderEcontracts(); }
     if (sectionId === 'sales-lg-appliance') { syncLgAppliancesFromSupabase(); renderLgAppliances(); }
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
@@ -17180,6 +17272,7 @@
       renderDashboard();
       renderMarketing();
       renderSales();
+      renderEcontracts();
       renderDesign();
       renderConstruction();
       renderSettlement();
