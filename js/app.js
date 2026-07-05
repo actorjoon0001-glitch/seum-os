@@ -2212,25 +2212,56 @@
     return 'econtract-stage-open';
   }
 
+  // ── 원본 전자계약서 Supabase (읽기 전용) ─────────────────────────
+  //  세움os 자기 프로젝트의 econtracts(1회 복사한 스냅샷) 대신, 원본 전자계약서
+  //  프로젝트의 contracts 테이블을 anon(공개) 키로 직접 조회한다.
+  //  → 전자계약서 앱에서 저장하는 즉시(=재조회 시점) 세움os 목록에 반영됨.
+  //  ⚠️ service_role 절대 금지 — 브라우저 노출 가능한 anon 공개 키만. 원본은 select 만.
+  var ECONTRACT_SRC_URL = 'https://hahcevbetqjemsedqpep.supabase.co';
+  var ECONTRACT_SRC_ANON_KEY = 'PASTE_SOURCE_ANON_KEY_HERE'; // TODO: 원본 전자계약서 Supabase anon(공개) 키를 넣어주세요
+  var _econtractSrcClient = null;
+  function getEcontractSourceClient() {
+    if (_econtractSrcClient) return _econtractSrcClient;
+    var lib = (typeof window !== 'undefined') && window.supabase;
+    if (!lib || typeof lib.createClient !== 'function') return null;
+    if (!ECONTRACT_SRC_ANON_KEY || ECONTRACT_SRC_ANON_KEY.indexOf('PASTE_') === 0) {
+      console.warn('전자계약서 원본 anon 키가 설정되지 않았습니다. app.js 의 ECONTRACT_SRC_ANON_KEY 를 채워주세요.');
+      return null;
+    }
+    try {
+      // persistSession:false → 세움os 로그인 세션(seumSupabase)과 저장소 충돌 방지
+      _econtractSrcClient = lib.createClient(ECONTRACT_SRC_URL, ECONTRACT_SRC_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+    } catch (e) {
+      console.error('전자계약서 원본 클라이언트 생성 실패:', e);
+      return null;
+    }
+    return _econtractSrcClient;
+  }
+
   function syncEcontractsFromSupabase() {
     try {
-      var supa = typeof window !== 'undefined' && window.seumSupabase;
+      var supa = getEcontractSourceClient();
       if (!supa) return;
+      // 원본 contracts: showroom/salesperson/stage 는 data(jsonb) 안에 있어 파싱해 가져온다.
+      // data 전체는 조회하지 않음(신분증 등 민감정보 안전) — 필요한 하위 필드만 select.
       supa
-        .from('econtracts')
-        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage')
+        .from('contracts')
+        .select('id,contract_no,status,client_name,site_address,contract_date,total_amount,updated_at,showroom:data->>showroom,salesperson:data->>salesperson,stage:data->>stage,deleted_at:data->>deletedAt')
         .order('updated_at', { ascending: false })
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
-            if (res && res.error) console.error('Supabase econtracts load error:', res.error);
+            if (res && res.error) console.error('전자계약서 원본 contracts 조회 오류:', res.error);
             return;
           }
-          _econtractsCache = res.data;
+          // 소프트 삭제(data.deletedAt) 건은 제외
+          _econtractsCache = res.data.filter(function (r) { return !r.deleted_at; });
           try { renderEcontracts(); } catch (e) { console.error('renderEcontracts failed:', e); }
         })
-        .catch(function (err) { console.error('Supabase econtracts load failed:', err); });
+        .catch(function (err) { console.error('전자계약서 원본 contracts 조회 실패:', err); });
     } catch (e) {
-      console.error('Supabase econtracts sync exception:', e);
+      console.error('전자계약서 원본 조회 예외:', e);
     }
   }
 
