@@ -2195,14 +2195,47 @@
   }
 
   // 전시장 필터: econtracts.showroom 은 Contract-OS 가 넣은 자유 텍스트라
-  // 코드(headquarters..) 또는 한글 라벨(본사 전시장..) 어느 쪽이든 매칭.
-  function _econtractShowroomMatches(rowShowroom, filterCode) {
-    if (!filterCode) return true;
-    var val = (rowShowroom || '').trim();
-    if (!val) return false;
-    if (val === filterCode) return true;
-    var label = getShowroomName(filterCode);
-    return val === label || val.indexOf(label) !== -1;
+  // ('본점', '본사 전시장', '1전시장' …) 상단 필터 코드(headquarters..)로 정규화해 매칭.
+  function _econtractShowroomCode(val) {
+    var v = String(val || '').replace(/\s+/g, '');
+    if (!v || v === '-') return '';
+    if (v.indexOf('본사') !== -1 || v.indexOf('본점') !== -1) return 'headquarters';
+    if (v.indexOf('강화') !== -1) return 'ganghwa';
+    if (v.indexOf('1전') !== -1) return 'showroom1';
+    if (v.indexOf('3전') !== -1) return 'showroom3';
+    if (v.indexOf('4전') !== -1) return 'showroom4';
+    return '';
+  }
+
+  // 검색: 계약번호·계약자·현장주소·영업담당 대상 (수기 계약 목록과 동일 UX)
+  function getEcontractSearchKeyword() {
+    var el = document.getElementById('econtracts-search-input');
+    return el ? el.value.trim() : '';
+  }
+  function _econtractMatchesKeyword(r, kw) {
+    if (!kw) return true;
+    var k = kw.toLowerCase();
+    return [r.contract_no, r.client_name, r.site_address, r.salesperson].some(function (f) {
+      return String(f || '').toLowerCase().indexOf(k) !== -1;
+    });
+  }
+
+  function updateEcontractFilterResult(count) {
+    var el = document.getElementById('econtracts-filter-result');
+    if (!el) return;
+    var showroom = getFilterShowroom();
+    var year = getFilterYear();
+    var month = getFilterMonth();
+    var keyword = getEcontractSearchKeyword();
+    var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장' };
+    var parts = [];
+    if (showroom) parts.push(names[showroom] || showroom);
+    if (year) parts.push(year + '년');
+    if (month) parts.push(month + '월');
+    if (keyword) parts.push('"' + keyword + '"');
+    el.textContent = (parts.length ? parts.join(' / ') + ' · ' : '') + '총 ' + count + '건';
+    var clearBtn = document.getElementById('econtracts-search-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !keyword);
   }
 
   function renderEcontracts() {
@@ -2210,15 +2243,24 @@
     if (!tbody) return;
     var rows = (_econtractsCache || []).slice();
 
-    // 상단 공통 필터(년/월/전시장) 적용 — 기존 계약 목록과 동일 UX
+    // 상단 공통 필터(년/월/전시장) + 검색 적용 — 기존 계약 목록과 동일 UX
     rows = filterByYearMonth(rows, 'contract_date');
     var showroomFilter = getFilterShowroom();
     if (showroomFilter) {
-      rows = rows.filter(function (r) { return _econtractShowroomMatches(r.showroom, showroomFilter); });
+      rows = rows.filter(function (r) { return _econtractShowroomCode(r.showroom) === showroomFilter; });
+    }
+    var keyword = getEcontractSearchKeyword();
+    if (keyword) {
+      rows = rows.filter(function (r) { return _econtractMatchesKeyword(r, keyword); });
     }
 
+    updateEcontractFilterResult(rows.length);
+
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="econtracts-empty">아직 연동된 전자 계약서가 없습니다.<br><span class="econtracts-empty-sub">전산 계약서 앱과의 데이터 동기화가 연결되면 이곳에 목록이 표시됩니다.</span></td></tr>';
+      var emptyMsg = (keyword || showroomFilter || getFilterYear() || getFilterMonth())
+        ? '<tr><td colspan="10" class="econtracts-empty">조건에 맞는 전자 계약서가 없습니다.</td></tr>'
+        : '<tr><td colspan="10" class="econtracts-empty">아직 연동된 전자 계약서가 없습니다.<br><span class="econtracts-empty-sub">전산 계약서 앱과의 데이터 동기화가 연결되면 이곳에 목록이 표시됩니다.</span></td></tr>';
+      tbody.innerHTML = emptyMsg;
       return;
     }
 
@@ -17300,6 +17342,22 @@
         if (searchInput) searchInput.value = '';
         renderSales();
         if (searchInput) searchInput.focus();
+      });
+    }
+    // 전자 계약서 검색창 이벤트
+    var econSearchInput = document.getElementById('econtracts-search-input');
+    if (econSearchInput) {
+      econSearchInput.addEventListener('input', function () { renderEcontracts(); });
+      econSearchInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { econSearchInput.value = ''; renderEcontracts(); }
+      });
+    }
+    var econClearBtn = document.getElementById('econtracts-search-clear');
+    if (econClearBtn) {
+      econClearBtn.addEventListener('click', function () {
+        if (econSearchInput) econSearchInput.value = '';
+        renderEcontracts();
+        if (econSearchInput) econSearchInput.focus();
       });
     }
     // 설계팀 검색창 이벤트
