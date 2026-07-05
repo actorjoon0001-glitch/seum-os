@@ -2172,6 +2172,24 @@
     return ECONTRACT_PORTAL_BASE + '#/edit/' + encodeURIComponent(id);
   }
 
+  // 전자계약 상태 코드 → 한글 라벨 (알 수 없는 값은 원문 그대로 표시)
+  var ECONTRACT_STATUS_LABELS = {
+    draft: '작성중',
+    pending: '대기',
+    sent: '발송됨',
+    signed: '서명완료',
+    confirmed: '확정',
+    completed: '완료',
+    done: '완료',
+    cancelled: '취소',
+    canceled: '취소',
+    rejected: '반려'
+  };
+  function _econtractStatusLabel(status) {
+    var key = String(status || '').trim().toLowerCase();
+    return ECONTRACT_STATUS_LABELS[key] || String(status || '-');
+  }
+
   function syncEcontractsFromSupabase() {
     try {
       var supa = typeof window !== 'undefined' && window.seumSupabase;
@@ -2280,7 +2298,7 @@
       return '<tr class="econtract-row">' +
         '<td style="text-align:center;color:#94a3b8;font-size:0.85rem;">' + (i + 1) + '</td>' +
         '<td>' + escapeHtml(r.contract_no || '-') + '</td>' +
-        '<td><span class="econtract-status ' + statusClass + '">' + escapeHtml(statusRaw) + '</span></td>' +
+        '<td><span class="econtract-status ' + statusClass + '">' + escapeHtml(_econtractStatusLabel(statusRaw)) + '</span></td>' +
         '<td>' + escapeHtml(r.client_name || '-') + '</td>' +
         '<td>' + escapeHtml(r.showroom ? getShowroomName(r.showroom) : '-') + '</td>' +
         '<td>' + escapeHtml(r.salesperson || '-') + '</td>' +
