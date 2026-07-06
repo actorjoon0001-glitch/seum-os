@@ -61,6 +61,7 @@
     { id: 'showroom3', name: '3전시장' },
     { id: 'showroom4', name: '4전시장' },
     { id: 'ganghwa', name: '강화전시장' },
+    { id: 'gwangju', name: '광주전시장' },
   ];
 
   function getShowroomName(id) {
@@ -576,7 +577,7 @@
     var month    = getFilterMonth();
     var parts    = [];
     if (showroom) {
-      var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+      var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장' };
       parts.push(names[showroom] || showroom);
     }
     if (year)  parts.push(year + '년');
@@ -641,7 +642,7 @@
     var year     = getFilterYear();
     var month    = getFilterMonth();
     var parts    = [];
-    var names    = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+    var names    = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장' };
     if (showroom) parts.push(names[showroom] || showroom);
     if (year)     parts.push(year + '년');
     if (month)    parts.push(month + '월');
@@ -717,7 +718,7 @@
     var year     = getFilterYear();
     var month    = getFilterMonth();
     var parts    = [];
-    var names    = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+    var names    = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장' };
     if (showroom) parts.push(names[showroom] || showroom);
     if (year)     parts.push(year + '년');
     if (month)    parts.push(month + '월');
@@ -2281,6 +2282,7 @@
     if (!v || v === '-') return '';
     if (v.indexOf('본사') !== -1 || v.indexOf('본점') !== -1) return 'headquarters';
     if (v.indexOf('강화') !== -1) return 'ganghwa';
+    if (v.indexOf('광주') !== -1) return 'gwangju';
     if (v.indexOf('1전') !== -1) return 'showroom1';
     if (v.indexOf('3전') !== -1) return 'showroom3';
     if (v.indexOf('4전') !== -1) return 'showroom4';
@@ -2307,7 +2309,7 @@
     var year = getFilterYear();
     var month = getFilterMonth();
     var keyword = getEcontractSearchKeyword();
-    var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장' };
+    var names = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장' };
     var parts = [];
     if (showroom) parts.push(names[showroom] || showroom);
     if (year) parts.push(year + '년');
@@ -5001,7 +5003,7 @@
     if (!wrap) return;
 
     var allContracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
-    var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장' };
+    var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장' };
     var statusMap = {
       none: '미착수', '': '미착수',
       in_progress: '설계 중',
@@ -10395,7 +10397,9 @@
       { id: 'headquarters', name: '본사' },
       { id: 'showroom1', name: '1전시장' },
       { id: 'showroom3', name: '3전시장' },
-      { id: 'showroom4', name: '4전시장' }
+      { id: 'showroom4', name: '4전시장' },
+      { id: 'ganghwa', name: '강화전시장' },
+      { id: 'gwangju', name: '광주전시장' }
     ];
     var tbody = document.getElementById('ceo-db-showroom-tbody');
     if (tbody) {
@@ -12237,6 +12241,7 @@
     { id: 'sr3-sales',       name: '3전시장 영업팀',     team: '영업', showroom: 'showroom3'    },
     { id: 'sr4-sales',       name: '4전시장 영업팀',     team: '영업', showroom: 'showroom4'    },
     { id: 'ganghwa-sales',   name: '강화전시장 영업팀',  team: '영업', showroom: 'ganghwa'      },
+    { id: 'gwangju-sales',   name: '광주전시장 영업팀',  team: '영업', showroom: 'gwangju'      },
     { id: 'andong-sales',    name: '안동전시장 영업팀',  team: '영업', showroom: 'andong'       }
   ];
 
@@ -16211,7 +16216,7 @@
       var n = getShowroomName(id);
       if (n && n !== id) return n;
     }
-    var known = { headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', andong: '안동전시장' };
+    var known = { headquarters: '본사 전시장', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장', andong: '안동전시장' };
     return known[id] || id;
   }
 
