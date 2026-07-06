@@ -365,10 +365,10 @@
       return isDesign || isSales;
     }
 
-    // 해영 건축사·필건축사(외부 협력) 업로드함: 설계팀 + 시공팀 + 영업팀 + master/admin
+    // 해영 건축사·필건축사(외부 협력) 업로드함: 설계팀 + 시공팀 + 영업팀 + 정산팀 + master/admin
     // 외부 건축사 본인 계정은 위의 isExternalArchitect() 분기에서 본인 페이지만 허용 처리됨.
     if (sectionId === 'design-haeyoung' || sectionId === 'design-pil') {
-      return isDesign || isConstruction || isSales;
+      return isDesign || isConstruction || isSales || isSettlement;
     }
 
     // 우선순위: 설계팀 + 영업팀 + 시공팀 + 정산팀 + master/admin 접근 (시공팀·정산팀은 조회 전용)
