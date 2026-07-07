@@ -2275,6 +2275,27 @@
     }
   }
 
+  // 원본 contracts 실시간 구독 — 전자계약서 앱에서 작성/수정 즉시 목록 갱신.
+  // (원본 프로젝트에서 realtime publication 에 contracts 가 추가돼 있어야 동작.
+  //  안 돼 있어도 진입 시 pull 은 그대로 동작하므로 안전.)
+  var _econtractRealtimeSub = null;
+  function subscribeEcontractsRealtime() {
+    if (_econtractRealtimeSub) return;
+    var supa = getEcontractSourceClient();
+    if (!supa || typeof supa.channel !== 'function') return;
+    try {
+      _econtractRealtimeSub = supa
+        .channel('econtracts-src-contracts')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'contracts' }, function () {
+          // 변경(작성·수정·삭제) 발생 시 최신 재조회 후 렌더
+          syncEcontractsFromSupabase();
+        })
+        .subscribe();
+    } catch (e) {
+      console.error('전자계약서 realtime 구독 실패:', e);
+    }
+  }
+
   // 전시장 필터: econtracts.showroom 은 Contract-OS 가 넣은 자유 텍스트라
   // ('본점', '본사 전시장', '1전시장' …) 상단 필터 코드(headquarters..)로 정규화해 매칭.
   function _econtractShowroomCode(val) {
@@ -13817,7 +13838,7 @@
     if (sectionId === 'marketing-files' && typeof window.renderMarketingFiles === 'function') window.renderMarketingFiles();
     if (sectionId === 'marketing-nas' && typeof window.renderMarketingNas === 'function') window.renderMarketingNas();
     if (sectionId === 'sales-contracts') { syncContractsFromSupabase(); renderSales(); }
-    if (sectionId === 'sales-e-contracts') { syncEcontractsFromSupabase(); renderEcontracts(); }
+    if (sectionId === 'sales-e-contracts') { syncEcontractsFromSupabase(); renderEcontracts(); subscribeEcontractsRealtime(); }
     if (sectionId === 'sales-lg-appliance') { syncLgAppliancesFromSupabase(); renderLgAppliances(); }
     if (sectionId === 'procurement') renderProcurement();
     if (sectionId === 'procurement-list') { renderProcurementList(); initProcurementListEvents(); }
