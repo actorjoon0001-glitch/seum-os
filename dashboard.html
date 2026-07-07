@@ -297,6 +297,7 @@
       </div>
       <div class="nav-section nav-section-user">
         <p class="sidebar-current-user" id="sidebar-current-user" aria-live="polite"></p>
+        <button type="button" class="nav-item" id="btn-change-pw">비밀번호 변경</button>
         <button type="button" class="nav-item nav-item-logout" id="btn-logout">로그아웃</button>
       </div>
     </nav>
@@ -585,6 +586,30 @@
         <!-- JS에서 렌더 -->
       </div>
     </section>
+
+    <div class="modal hidden" id="modal-change-pw" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>비밀번호 변경</h3>
+          <button type="button" class="modal-close" data-close="modal-change-pw" aria-label="닫기">&times;</button>
+        </div>
+        <form id="form-change-pw" class="form-block">
+          <div class="form-group">
+            <label for="change-pw-new">새 비밀번호 (6자 이상)</label>
+            <input type="password" id="change-pw-new" minlength="6" required autocomplete="new-password" placeholder="새 비밀번호">
+          </div>
+          <div class="form-group">
+            <label for="change-pw-confirm">새 비밀번호 확인</label>
+            <input type="password" id="change-pw-confirm" minlength="6" required autocomplete="new-password" placeholder="다시 입력">
+          </div>
+          <p id="change-pw-message" aria-live="polite" style="min-height:1.2em;font-size:0.9rem;"></p>
+          <div class="modal-actions">
+            <button type="submit" class="btn btn-primary">변경</button>
+            <button type="button" class="btn btn-secondary" data-close="modal-change-pw">취소</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <div class="modal hidden" id="modal-announcement-form" aria-hidden="true">
       <div class="modal-content modal-content-wide">

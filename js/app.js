@@ -13950,6 +13950,44 @@
     }
   }
 
+  // 로그인 직원 본인 비밀번호 변경 (임시비밀번호 000000 로그인 후 직접 변경)
+  function initChangePassword() {
+    var openBtn = document.getElementById('btn-change-pw');
+    var modal = document.getElementById('modal-change-pw');
+    if (!openBtn || !modal) return;
+    var form = document.getElementById('form-change-pw');
+    var newEl = document.getElementById('change-pw-new');
+    var confEl = document.getElementById('change-pw-confirm');
+    var msgEl = document.getElementById('change-pw-message');
+    function setMsg(t, ok) { if (msgEl) { msgEl.textContent = t || ''; msgEl.style.color = ok ? '#4ade80' : '#f87171'; } }
+    function closeModal() { modal.classList.add('hidden'); if (form) form.reset(); setMsg('', false); }
+    function openModal() { setMsg('', false); modal.classList.remove('hidden'); if (newEl) newEl.focus(); }
+    openBtn.addEventListener('click', function () { openModal(); });
+    modal.querySelectorAll('[data-close="modal-change-pw"]').forEach(function (b) { b.addEventListener('click', closeModal); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    if (form) form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var pw = (newEl && newEl.value || '').trim();
+      var pw2 = (confEl && confEl.value || '').trim();
+      if (pw.length < 6) { setMsg('비밀번호는 6자 이상 입력해 주세요.', false); return; }
+      if (pw !== pw2) { setMsg('비밀번호가 일치하지 않습니다.', false); return; }
+      var supa = window.seumSupabase;
+      if (!supa || !supa.auth) { setMsg('변경할 수 없습니다. 다시 로그인해 주세요.', false); return; }
+      var submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+      supa.auth.updateUser({ password: pw }).then(function (res) {
+        if (submitBtn) submitBtn.disabled = false;
+        if (res && res.error) { setMsg('변경 실패: ' + (res.error.message || ''), false); return; }
+        setMsg('비밀번호가 변경되었습니다.', true);
+        setTimeout(closeModal, 1200);
+      }).catch(function (err) {
+        if (submitBtn) submitBtn.disabled = false;
+        setMsg('변경 중 오류가 발생했습니다.', false);
+        console.error(err);
+      });
+    });
+  }
+
   function initNav() {
     document.querySelectorAll('.nav-item').forEach(function (el) {
       el.addEventListener('click', function (e) {
@@ -16164,6 +16202,30 @@
         _adminEmpRenderGroups();
         return;
       }
+      // 비밀번호 초기화 (000000) — 서버측 관리자 체크 RPC 호출
+      var resetPwBtn = e.target.closest('.btn-admin-emp-resetpw');
+      if (resetPwBtn) {
+        var rEmail = resetPwBtn.getAttribute('data-email') || '';
+        var rName = resetPwBtn.getAttribute('data-name') || '직원';
+        if (!rEmail) { alert('이 직원은 이메일이 없어 초기화할 수 없습니다.'); return; }
+        if (!confirm(rName + '(' + rEmail + ') 님의 비밀번호를 000000 으로 초기화할까요?\n초기화 후 직원이 000000 으로 로그인해 직접 변경하면 됩니다.')) return;
+        var supaR = window.seumSupabase;
+        if (!supaR) return;
+        resetPwBtn.disabled = true;
+        supaR.rpc('admin_reset_employee_password', { target_email: rEmail, new_password: '000000' })
+          .then(function (res) {
+            resetPwBtn.disabled = false;
+            if (res.error) { alert('초기화 실패: ' + (res.error.message || '알 수 없는 오류')); return; }
+            var data = res.data || {};
+            if (data.success) {
+              alert(rName + ' 님의 비밀번호를 000000 으로 초기화했습니다.\n직원에게 "000000 으로 로그인 후 비밀번호 변경" 을 안내해 주세요.');
+            } else {
+              alert('초기화 실패: ' + (data.error || '권한이 없거나 계정을 찾을 수 없습니다.'));
+            }
+          })
+          .catch(function (err) { resetPwBtn.disabled = false; alert('초기화 중 오류가 발생했습니다.'); console.error(err); });
+        return;
+      }
       // 저장/삭제는 기존 initAdminEmployees 의 위임으로 처리하도록 className 유지
       var saveBtn = e.target.closest('.btn-admin-emp-save');
       var delBtn = e.target.closest('.btn-admin-emp-delete');
@@ -16305,6 +16367,7 @@
                     '<td>' + escapeHtml(emp.status || '-') + '</td>' +
                     '<td>' +
                       '<button type="button" class="btn btn-primary btn-sm btn-admin-emp-save" data-id="' + escapeAttr(emp.id) + '">저장</button> ' +
+                      '<button type="button" class="btn btn-secondary btn-sm btn-admin-emp-resetpw" data-email="' + escapeAttr(emp.email || '') + '" data-name="' + escapeAttr(emp.name || '') + '">비번 초기화</button> ' +
                       '<button type="button" class="btn btn-secondary btn-sm btn-admin-emp-delete" data-id="' + escapeAttr(emp.id) + '">삭제</button>' +
                     '</td>' +
                   '</tr>';
@@ -18119,6 +18182,7 @@
     syncActivityLogsFromSupabase();
     initMobileSidebar();
     initNav();
+    initChangePassword();
     initFilter();
     initVisitDetailModal();
     initVisitAssign();
