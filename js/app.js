@@ -59,15 +59,17 @@
     { id: 'headquarters', name: '본사 전시장' },
     { id: 'showroom1', name: '1전시장' },
     { id: 'showroom3', name: '3전시장' },
-    { id: 'showroom4', name: '4전시장' },
     { id: 'ganghwa', name: '강화전시장' },
     { id: 'gwangju', name: '광주전시장' },
     { id: 'andong', name: '안동전시장' },
   ];
 
+  // 폐점된 전시장 — 신규 선택은 막되, 과거 데이터의 라벨은 유지 (예: showroom4 = 4전시장 계약 12건)
+  var LEGACY_SHOWROOM_NAMES = { showroom4: '4전시장' };
+
   function getShowroomName(id) {
     var s = SHOWROOMS.find(function (x) { return x.id === id; });
-    var raw = s ? s.name : (id || '-');
+    var raw = s ? s.name : (LEGACY_SHOWROOM_NAMES[id] || id || '-');
     if (raw === '본사' || raw === '본사 전시장') return '본사 전시장';
     return raw;
   }
@@ -10396,7 +10398,6 @@
       { id: 'headquarters', name: '본사' },
       { id: 'showroom1', name: '1전시장' },
       { id: 'showroom3', name: '3전시장' },
-      { id: 'showroom4', name: '4전시장' },
       { id: 'ganghwa', name: '강화전시장' },
       { id: 'gwangju', name: '광주전시장' },
       { id: 'andong', name: '안동전시장' }

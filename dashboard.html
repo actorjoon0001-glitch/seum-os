@@ -341,8 +341,7 @@
           <option value="headquarters">본사 전시장</option>
           <option value="showroom1">1전시장</option>
           <option value="showroom3">3전시장</option>
-          <option value="showroom4">4전시장</option>
-          <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                    <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
         </select>
       </div>
       <span class="filter-help filter-hint">※ 년·월·전시장으로 목록을 필터합니다</span>
@@ -703,7 +702,7 @@
         </div>
         <form id="form-visit" class="form-block hidden">
           <div class="form-grid form-grid-2">
-            <label>전시장 <select id="visit-showroom" required><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+            <label>전시장 <select id="visit-showroom" required><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
             <label>이름 <input type="text" id="visit-name" required></label>
             <label>연락처 <input type="tel" id="visit-phone" required></label>
             <label>방문일 <input type="date" id="visit-date" required></label>
@@ -872,7 +871,6 @@
                     <option value="본사 전시장">본사 전시장</option>
                     <option value="1전시장">1전시장</option>
                     <option value="3전시장">3전시장</option>
-                    <option value="4전시장">4전시장</option>
                     <option value="강화전시장">강화전시장</option>
                     <option value="광주전시장">광주전시장</option>
                     <option value="안동전시장">안동전시장</option>
@@ -1054,7 +1052,7 @@
             <label>연락처 <input type="tel" id="customer-phone" required placeholder="010-0000-0000"></label>
             <label>방문 예정일 <input type="date" id="customer-visit-date" placeholder="방문일"></label>
             <label>담당 영업사원 <input type="text" id="customer-sales-person" placeholder="본인 성명"></label>
-            <label>전시장 <select id="customer-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+            <label>전시장 <select id="customer-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
             <label class="form-full">메모 <input type="text" id="customer-memo" placeholder="관심 유형, 예산 등"></label>
           </div>
           <div class="form-actions">
@@ -1096,8 +1094,8 @@
           <form id="form-contract" class="form-block">
             <input type="hidden" id="contract-visit-id">
             <div class="form-grid">
-              <label>영업사원 전시장 <select id="contract-showroom" required><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
-              <label>계약 모델 전시장 <select id="contract-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+              <label>영업사원 전시장 <select id="contract-showroom" required><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+              <label>계약 모델 전시장 <select id="contract-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
               <label>주택 유형 <select id="contract-model"><option value="">선택</option><option value="컨테이너/농막">컨테이너/농막</option><option value="체류형쉼터">체류형쉼터</option><option value="전원주택">전원주택</option><option value="기타">기타</option></select></label>
               <label>모델 시리즈
                 <select id="contract-model-series">
@@ -1241,8 +1239,8 @@
                 <div class="form-section contract-form-section contract-form-card contract-card">
                   <h4 class="form-section-title contract-card-title">기본 계약 정보</h4>
               <div class="form-grid form-grid-2">
-                <label>영업사원 전시장 <select id="contract-inline-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
-                <label>계약 모델 전시장 <select id="contract-inline-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+                <label>영업사원 전시장 <select id="contract-inline-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+                <label>계약 모델 전시장 <select id="contract-inline-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
                 <label>주택 유형 <select id="contract-inline-model"><option value="">선택</option><option value="컨테이너/농막">컨테이너/농막</option><option value="체류형쉼터">체류형쉼터</option><option value="전원주택">전원주택</option><option value="기타">기타</option></select></label>
                 <label>모델 이름 <input type="text" id="contract-inline-model-name" placeholder="예: S3500, S6850"></label>
                 <label>담당 영업사원 <input type="text" id="contract-inline-sales-person" placeholder="성명"></label>
@@ -1570,8 +1568,7 @@
                   <option value="headquarters">본사 전시장</option>
                   <option value="showroom1">1전시장</option>
                   <option value="showroom3">3전시장</option>
-                  <option value="showroom4">4전시장</option>
-                  <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                                    <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
                 </select>
               </label>
               <label>연결 계약 (선택)
@@ -3062,8 +3059,7 @@
               <option value="headquarters">본사 전시장</option>
               <option value="showroom1">1전시장</option>
               <option value="showroom3">3전시장</option>
-              <option value="showroom4">4전시장</option>
-              <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                            <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
             </select>
           </label>
         </div>
@@ -3383,8 +3379,7 @@
                 <option value="headquarters">본사 전시장</option>
                 <option value="showroom1">1전시장</option>
                 <option value="showroom3">3전시장</option>
-                <option value="showroom4">4전시장</option>
-                <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                                <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
               </select>
             </label>
             <label>
@@ -3715,8 +3710,7 @@
                 <option value="headquarters">본사 전시장</option>
                 <option value="showroom1">1전시장</option>
                 <option value="showroom3">3전시장</option>
-                <option value="showroom4">4전시장</option>
-                <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                                <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
               </select>
             </label>
             <label>
@@ -3829,8 +3823,7 @@
                   <option value="headquarters">본사 전시장</option>
                   <option value="showroom1">1전시장</option>
                   <option value="showroom3">3전시장</option>
-                  <option value="showroom4">4전시장</option>
-                  <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                                    <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
                 </select>
               </label>
             </div>
@@ -3954,8 +3947,7 @@
                 <option value="headquarters">본사 전시장</option>
                 <option value="showroom1">1전시장</option>
                 <option value="showroom3">3전시장</option>
-                <option value="showroom4">4전시장</option>
-                <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                                <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
               </select>
             </label>
             <label>
@@ -5348,8 +5340,8 @@
         <div class="form-section contract-form-section">
           <h4 class="form-section-title">기본 계약 정보</h4>
           <div class="form-grid form-grid-2">
-            <label>영업사원 전시장 <select id="detail-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
-            <label>계약 모델 전시장 <select id="detail-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="showroom4">4전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+            <label>영업사원 전시장 <select id="detail-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
+            <label>계약 모델 전시장 <select id="detail-model-showroom"><option value="">선택</option><option value="headquarters">본사 전시장</option><option value="showroom1">1전시장</option><option value="showroom3">3전시장</option><option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option></select></label>
             <label>주택 유형 <select id="detail-model"><option value="">선택</option><option value="컨테이너/농막">컨테이너/농막</option><option value="체류형쉼터">체류형쉼터</option><option value="전원주택">전원주택</option><option value="기타">기타</option></select></label>
             <label>모델 이름 <input type="text" id="detail-model-name" placeholder="예: S3500, S6850"></label>
             <label>담당 영업사원 <input type="text" id="detail-sales-person" placeholder="성명"></label>
@@ -5485,8 +5477,7 @@
               <option value="headquarters">본사 전시장</option>
               <option value="showroom1">1전시장</option>
               <option value="showroom3">3전시장</option>
-              <option value="showroom4">4전시장</option>
-              <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
+                            <option value="ganghwa">강화전시장</option><option value="gwangju">광주전시장</option><option value="andong">안동전시장</option>
             </select>
           </label>
           <label>일정 유형
@@ -5569,7 +5560,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260707-07"></script>
+  <script src="js/app.js?v=20260707-08"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
