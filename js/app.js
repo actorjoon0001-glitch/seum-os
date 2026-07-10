@@ -16260,7 +16260,7 @@
     var seen = {};
     var keys = [];
     SHOWROOMS.forEach(function (s) { keys.push(s.id); seen[s.id] = true; });
-    if (!seen['andong']) keys.push('andong');
+    if (!seen['andong']) { keys.push('andong'); seen['andong'] = true; }
     list.forEach(function (e) {
       var sr = e.showroom || '_unassigned';
       if (!seen[sr]) { seen[sr] = true; keys.push(sr); }
