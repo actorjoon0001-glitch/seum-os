@@ -2320,16 +2320,18 @@
     if (!tbody) return;
     var rows = (_econtractsCache || []).slice();
 
-    // 본인이 쓴 계약만 노출 (관리자/마스터/슈퍼관리자는 전체).
-    // 원본 contracts 에 이메일 소유자 필드가 없어 salesperson(이름)으로 판별 —
-    // 기존 계약 목록과 동일한 매칭 로직(isOwnRecordBySalesPerson) 재사용.
+    // 같은 전시장 사람끼리 + 본인 건 노출 (관리자만 전체) — 수기 계약 목록과 동일 개념.
+    // 전시장 판별: econtracts.showroom(자유 텍스트)을 코드로 정규화해 본인 전시장과 비교.
+    // 소유자 판별: salesperson(이름) 매칭(isOwnRecordBySalesPerson).
     var _curUser = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
     var _isAdminRole = (typeof isAdmin === 'function' && isAdmin()) ||
                        (typeof isMaster === 'function' && isMaster()) ||
                        (typeof isSuperAdmin === 'function' && isSuperAdmin());
     if (_curUser && !_isAdminRole) {
+      var _myShowroom = (typeof resolveShowroomId === 'function') ? resolveShowroomId(_curUser) : (_curUser.showroom || '');
       rows = rows.filter(function (r) {
-        return isOwnRecordBySalesPerson({ salesPerson: r.salesperson }, _curUser);
+        return (_myShowroom && _econtractShowroomCode(r.showroom) === _myShowroom) ||
+               isOwnRecordBySalesPerson({ salesPerson: r.salesperson }, _curUser);
       });
     }
 
