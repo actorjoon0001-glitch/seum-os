@@ -17459,12 +17459,14 @@
         opt.textContent = y + '년';
         yearEl.appendChild(opt);
       }
-      yearEl.value = '';
+      // 기본값: 현재 년도로 자동 세팅 (마우스로 '전체'·다른 연도 변경 가능)
+      yearEl.value = String(new Date().getFullYear());
       yearEl.addEventListener('change', onFilterChange);
     }
     var monthEl = document.getElementById('filter-month');
     if (monthEl) {
-      monthEl.value = '';
+      // 기본값: 현재 월로 자동 세팅 (마우스로 '전체'·다른 월 변경 가능)
+      monthEl.value = String(new Date().getMonth() + 1);
       monthEl.addEventListener('change', onFilterChange);
     }
     function onFilterChange() {
