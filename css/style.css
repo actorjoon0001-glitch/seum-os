@@ -15940,6 +15940,11 @@ body.external-architect-mode #seum-notif-container,
 body.external-architect-mode #chat-panel,
 body.external-architect-mode #sidebar-announcement-badge { display: none !important; }
 
+/* ── 채팅 패널 임시 숨김 (요청: 잠시 숨김) — 다시 켜려면 이 블록만 삭제 ── */
+#chat-panel { display: none !important; }
+body.chat-panel-two-col-open .main,
+body.chat-panel-two-col-open.chat-conversation-open .main { margin-right: 0 !important; }
+
 /* 사이드바 로고 서브 텍스트 '직원 전용 내부 운영 시스템' 도 외부인에게는 부적절 */
 body.external-architect-mode .sidebar-logo-sub { display: none; }
 
