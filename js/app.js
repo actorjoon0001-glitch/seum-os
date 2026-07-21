@@ -3026,6 +3026,13 @@
             '<div class="today-showroom-row"><dt>계약총액</dt><dd>' + formatMoney(row.eTotal) + '만원</dd></div>' +
           '</dl>' +
         '</div>' +
+        '<div class="today-showroom-group today-showroom-group-total">' +
+          '<div class="today-showroom-group-label">합계 (수기 + 전자)</div>' +
+          '<dl class="today-showroom-dl">' +
+            '<div class="today-showroom-row"><dt>계약건수</dt><dd>' + (row.manualCount + row.eCount) + '건</dd></div>' +
+            '<div class="today-showroom-row"><dt>계약총액</dt><dd>' + formatMoney(row.manualTotal + row.eTotal) + '만원</dd></div>' +
+          '</dl>' +
+        '</div>' +
       '</div>';
     }).join('');
   }
