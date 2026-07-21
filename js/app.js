@@ -2246,8 +2246,8 @@
           // 소프트 삭제(data.deletedAt) 건은 제외
           _econtractsCache = res.data.filter(function (r) { return !r.deleted_at; });
           try { renderEcontracts(); } catch (e) { console.error('renderEcontracts failed:', e); }
-          // 대시보드 전시장 현황(전자계약 완료건 포함)도 갱신
-          try { if (typeof renderTodayShowroomStats === 'function') renderTodayShowroomStats(); } catch (e) {}
+          // 대시보드(KPI·차트·전시장 현황)도 전자계약 완료건 반영 위해 갱신
+          try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) {}
         })
         .catch(function (err) { console.error('econtracts 조회 실패:', err); });
     } catch (e) {
@@ -2734,6 +2734,11 @@
   function getStatsByShowroom() {
     var contracts = filterByShowroom(getContracts(), 'showroomId');
     contracts = filterByYearMonth(contracts, 'contractDate');
+    // 전자계약(완료건)도 합산 — 동일한 전시장/기간 필터 적용
+    var econ = (_econtractsCache || []).filter(function (r) { return _econtractIsContracted(r.stage); });
+    var econFilterSr = getFilterShowroom();
+    if (econFilterSr) econ = econ.filter(function (r) { return _econtractShowroomCode(r.showroom) === econFilterSr; });
+    econ = filterByYearMonth(econ, 'contract_date');
     var myShowroomId = getMyShowroomId();
     var showroomsToUse = SHOWROOMS;
     // admin, master, superAdmin은 전체 전시장 차트 표시
@@ -2742,13 +2747,18 @@
     }
     var labels = showroomsToUse.map(function (s) { return s.name; });
     var contractCounts = showroomsToUse.map(function (s) {
-      return contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
+      var m = contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
+      var e = econ.filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; }).length;
+      return m + e;
     });
     var totalSales = showroomsToUse.map(function (s) {
-      var sum = contracts
+      var mSum = contracts
         .filter(function (c) { return (c.showroomId || '') === s.id; })
         .reduce(function (acc, c) { return acc + (Number(c.totalAmount) || 0); }, 0);
-      return sum / 10000; // ?? ????? (??)
+      var eSum = econ
+        .filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; })
+        .reduce(function (acc, r) { return acc + (Number(r.total_amount) || 0); }, 0);
+      return (mSum + eSum) / 10000; // 억 단위
     });
     return { labels: labels, contractCounts: contractCounts, totalSales: totalSales };
   }
@@ -2862,11 +2872,26 @@
       return sum + toManwon(c, 'depositAmount');
     }, 0);
 
+    // 전자계약(완료건)도 KPI 계약건수/계약총액에 합산 — 대시보드 필터/권한 동일 적용.
+    // (받은 계약금은 전자계약에 수금 데이터가 없어 수기만 유지)
+    var _econDash = (_econtractsCache || []).filter(function (r) { return _econtractIsContracted(r.stage); });
+    if (!_dashIsPrivileged && _dashMyShowroom) {
+      var _dashCurEmp2 = (typeof window !== 'undefined' && window.seumAuth && window.seumAuth.currentEmployee) ? window.seumAuth.currentEmployee : null;
+      _econDash = _econDash.filter(function (r) {
+        return _econtractShowroomCode(r.showroom) === _dashMyShowroom || isOwnRecordBySalesPerson({ salesPerson: r.salesperson }, _dashCurEmp2);
+      });
+    }
+    var _econFilterSr = getFilterShowroom();
+    if (_econFilterSr) _econDash = _econDash.filter(function (r) { return _econtractShowroomCode(r.showroom) === _econFilterSr; });
+    _econDash = filterByYearMonth(_econDash, 'contract_date');
+    var econCount = _econDash.length;
+    var econAmount = _econDash.reduce(function (sum, r) { return sum + (Number(r.total_amount) || 0); }, 0);
+
     var elCount = document.getElementById('kpi-contract-count');
     var elAmount = document.getElementById('kpi-total-amount');
     var elDeposit = document.getElementById('kpi-deposit-received');
-    if (elCount) elCount.textContent = monthContracts.length;
-    if (elAmount) elAmount.textContent = totalAmount.toLocaleString();
+    if (elCount) elCount.textContent = (monthContracts.length + econCount);
+    if (elAmount) elAmount.textContent = (totalAmount + econAmount).toLocaleString();
     if (elDeposit) elDeposit.textContent = totalDeposit.toLocaleString();
     renderDashboardCharts();
 
