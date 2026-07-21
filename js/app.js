@@ -2887,12 +2887,18 @@
     var econCount = _econDash.length;
     var econAmount = _econDash.reduce(function (sum, r) { return sum + (Number(r.total_amount) || 0); }, 0);
 
+    // KPI 제목에 선택 월(없으면 연도, 그것도 없으면 미표기) 접두 표기
+    var _kpiMonth = getFilterMonth();
+    var _kpiYear = getFilterYear();
+    var _kpiPrefix = _kpiMonth ? (parseInt(_kpiMonth, 10) + '월 ') : (_kpiYear ? (_kpiYear + '년 ') : '');
+    var _tCount = document.getElementById('kpi-title-count');
+    var _tAmount = document.getElementById('kpi-title-amount');
+    if (_tCount) _tCount.textContent = _kpiPrefix + '계약건수';
+    if (_tAmount) _tAmount.textContent = _kpiPrefix + '계약총액';
     var elCount = document.getElementById('kpi-contract-count');
     var elAmount = document.getElementById('kpi-total-amount');
-    var elDeposit = document.getElementById('kpi-deposit-received');
     if (elCount) elCount.textContent = (monthContracts.length + econCount);
     if (elAmount) elAmount.textContent = (totalAmount + econAmount).toLocaleString();
-    if (elDeposit) elDeposit.textContent = totalDeposit.toLocaleString();
     renderDashboardCharts();
 
     var leadsWaiting = visits.filter(function (v) { return v.status !== '영업배정'; }).length;
