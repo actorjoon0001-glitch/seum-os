@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260707-08">
+  <link rel="stylesheet" href="./css/style.css?v=20260707-09">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -288,6 +288,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-showrooms">전시장 관리</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-customers">고객 관리</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-contracts">계약 관리</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-dup-contracts">중복 계약 점검</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-payments">정산 관리</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-reservations">방문예약 관리</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="admin-presence">직원 접속 현황</a>
@@ -3196,6 +3197,31 @@
       </div>
     </section>
 
+    <section id="section-admin-dup-contracts" class="content-section">
+      <header class="main-header">
+        <h2>중복 계약 점검</h2>
+        <p class="section-desc">수기 계약과 전자 계약에 같은 계약자가 중복 등록됐는지 대조합니다. 계약자명이 같고 금액 또는 계약일까지 일치하면 <strong>강력 의심</strong>입니다. 양쪽 담당 영업사원을 확인해 한쪽을 정리하세요.</p>
+      </header>
+      <div class="card">
+        <div class="card-header">
+          <h3>중복 의심 계약</h3>
+          <span id="dup-contracts-summary" class="contract-filter-result"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>계약자</th><th>등급</th>
+                <th>수기 영업사원</th><th>수기 금액</th><th>수기 전시장</th><th>수기 계약일</th>
+                <th>전자 영업사원</th><th>전자 금액(상태)</th><th>전자 전시장</th><th>전자 계약일</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-dup-contracts"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section id="section-admin-payments" class="content-section">
       <header class="main-header">
         <h2>정산 관리</h2>
@@ -5555,7 +5581,7 @@
       });
     })();
   </script>
-  <script src="js/app.js?v=20260707-14"></script>
+  <script src="js/app.js?v=20260707-15"></script>
   <script src="js/chat.js?v=20260419-01"></script>
   <script src="js/chat-ui.js"></script>
   <script src="js/notifications.js"></script>
