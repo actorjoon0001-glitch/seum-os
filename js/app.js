@@ -2936,21 +2936,19 @@
    * @returns {Array<{ showroom: string, showroomName: string, visitCount: number, consultCount: number, contractCount: number }>}
    */
   function getTodayShowroomStats() {
-    var today = todayStr();
-    var visits = getVisits().filter(function (v) { return (v.visitDate || '') === today; });
-    var contracts = getContracts().filter(function (c) { return (c.contractDate || '') === today; });
+    // 상단 년/월 필터 기준 전시장별 계약건수 · 계약총액(만원)
+    var contracts = filterByYearMonth(getContracts(), 'contractDate');
     return SHOWROOMS.map(function (s) {
-      var visitCount = visits.filter(function (v) { return (v.showroomId || '') === s.id; }).length;
-      var consultCount = visits.filter(function (v) {
-        return (v.showroomId || '') === s.id && (v.status || '') === '영업배정';
-      }).length;
-      var contractCount = contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
+      var srContracts = contracts.filter(function (c) { return (c.showroomId || '') === s.id; });
+      var totalAmount = srContracts.reduce(function (sum, c) {
+        var v = Number(c.totalAmount) || 0;
+        return sum + (c.amountUnit === 'manwon' ? v : Math.round(v / 10000));
+      }, 0);
       return {
         showroom: s.id,
         showroomName: s.name,
-        visitCount: visitCount,
-        consultCount: consultCount,
-        contractCount: contractCount
+        contractCount: srContracts.length,
+        totalAmount: totalAmount
       };
     });
   }
@@ -2993,9 +2991,8 @@
       return '<div class="card today-showroom-card">' +
         '<h4 class="today-showroom-name">' + escapeHtml(row.showroomName) + '</h4>' +
         '<dl class="today-showroom-dl">' +
-          '<div class="today-showroom-row"><dt>방문 건수</dt><dd>' + row.visitCount + '</dd></div>' +
-          '<div class="today-showroom-row"><dt>상담</dt><dd>' + row.consultCount + '</dd></div>' +
-          '<div class="today-showroom-row"><dt>계약</dt><dd>' + row.contractCount + '</dd></div>' +
+          '<div class="today-showroom-row"><dt>계약건수</dt><dd>' + row.contractCount + '건</dd></div>' +
+          '<div class="today-showroom-row"><dt>계약총액</dt><dd>' + formatMoney(row.totalAmount) + '만원</dd></div>' +
         '</dl></div>';
     }).join('');
   }
