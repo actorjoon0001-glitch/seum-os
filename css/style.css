@@ -3089,6 +3089,25 @@ button,
   border-bottom: 1px solid #f1f5f9;
 }
 
+.today-showroom-group {
+  margin-top: 0.5rem;
+}
+.today-showroom-group + .today-showroom-group {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed rgba(148, 163, 184, 0.35);
+}
+.today-showroom-group-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.02em;
+}
+.today-showroom-group-e .today-showroom-group-label {
+  color: #60a5fa;
+}
+
 .today-showroom-dl {
   margin: 0;
   padding: 0;

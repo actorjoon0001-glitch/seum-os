@@ -2246,6 +2246,8 @@
           // 소프트 삭제(data.deletedAt) 건은 제외
           _econtractsCache = res.data.filter(function (r) { return !r.deleted_at; });
           try { renderEcontracts(); } catch (e) { console.error('renderEcontracts failed:', e); }
+          // 대시보드 전시장 현황(전자계약 완료건 포함)도 갱신
+          try { if (typeof renderTodayShowroomStats === 'function') renderTodayShowroomStats(); } catch (e) {}
         })
         .catch(function (err) { console.error('econtracts 조회 실패:', err); });
     } catch (e) {
@@ -2935,20 +2937,40 @@
    * ??? ?????? ??? ?????(?? Supabase ??? getVisits/getContracts ?? ????? ??)
    * @returns {Array<{ showroom: string, showroomName: string, visitCount: number, consultCount: number, contractCount: number }>}
    */
+  // 전자계약 '계약완료 이상' 판별 (가망건/협의중/계약금대기/취소/미지정 제외)
+  var ECONTRACT_CONTRACTED_STAGES = {
+    contracted: 1, completed: 1,
+    drawing: 1, drawing_3d: 1, modeling: 1, design_3d: 1,
+    manufacturing: 1, production: 1, producing: 1,
+    installing: 1, construction: 1,
+    delivered: 1, delivery_completed: 1
+  };
+  function _econtractIsContracted(stage) {
+    return !!ECONTRACT_CONTRACTED_STAGES[String(stage || '').trim().toLowerCase()];
+  }
+
   function getTodayShowroomStats() {
-    // 상단 년/월 필터 기준 전시장별 계약건수 · 계약총액(만원)
-    var contracts = filterByYearMonth(getContracts(), 'contractDate');
+    // 상단 년/월 필터 기준 전시장별 — 수기 계약 / 전자계약(완료건) 분리 집계
+    var manual = filterByYearMonth(getContracts(), 'contractDate');
+    var econ = filterByYearMonth(
+      (_econtractsCache || []).filter(function (r) { return _econtractIsContracted(r.stage); }),
+      'contract_date'
+    );
     return SHOWROOMS.map(function (s) {
-      var srContracts = contracts.filter(function (c) { return (c.showroomId || '') === s.id; });
-      var totalAmount = srContracts.reduce(function (sum, c) {
+      var mList = manual.filter(function (c) { return (c.showroomId || '') === s.id; });
+      var mTotal = mList.reduce(function (sum, c) {
         var v = Number(c.totalAmount) || 0;
         return sum + (c.amountUnit === 'manwon' ? v : Math.round(v / 10000));
       }, 0);
+      var eList = econ.filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; });
+      var eTotal = eList.reduce(function (sum, r) { return sum + (Number(r.total_amount) || 0); }, 0);
       return {
         showroom: s.id,
         showroomName: s.name,
-        contractCount: srContracts.length,
-        totalAmount: totalAmount
+        manualCount: mList.length,
+        manualTotal: mTotal,
+        eCount: eList.length,
+        eTotal: eTotal
       };
     });
   }
@@ -2990,10 +3012,21 @@
     grid.innerHTML = todayStats.map(function (row) {
       return '<div class="card today-showroom-card">' +
         '<h4 class="today-showroom-name">' + escapeHtml(row.showroomName) + '</h4>' +
-        '<dl class="today-showroom-dl">' +
-          '<div class="today-showroom-row"><dt>계약건수</dt><dd>' + row.contractCount + '건</dd></div>' +
-          '<div class="today-showroom-row"><dt>계약총액</dt><dd>' + formatMoney(row.totalAmount) + '만원</dd></div>' +
-        '</dl></div>';
+        '<div class="today-showroom-group">' +
+          '<div class="today-showroom-group-label">수기 계약</div>' +
+          '<dl class="today-showroom-dl">' +
+            '<div class="today-showroom-row"><dt>계약건수</dt><dd>' + row.manualCount + '건</dd></div>' +
+            '<div class="today-showroom-row"><dt>계약총액</dt><dd>' + formatMoney(row.manualTotal) + '만원</dd></div>' +
+          '</dl>' +
+        '</div>' +
+        '<div class="today-showroom-group today-showroom-group-e">' +
+          '<div class="today-showroom-group-label">전자 계약 (완료)</div>' +
+          '<dl class="today-showroom-dl">' +
+            '<div class="today-showroom-row"><dt>계약건수</dt><dd>' + row.eCount + '건</dd></div>' +
+            '<div class="today-showroom-row"><dt>계약총액</dt><dd>' + formatMoney(row.eTotal) + '만원</dd></div>' +
+          '</dl>' +
+        '</div>' +
+      '</div>';
     }).join('');
   }
 
@@ -18160,6 +18193,8 @@
     snapshotPriorityDoneBeforeSync();
     // Supabase? ??? ??, ? ??, ?? ?? ???? ? ??? ??? ??.
     syncContractsFromSupabase();
+    // 전자계약(econtracts) 도 로드 — 대시보드 전시장 현황에 완료건 반영
+    syncEcontractsFromSupabase();
     // 기존 계약들의 영업팀 확인(sales_confirmed) 일괄 체크 (브라우저당 1회)
     backfillSalesConfirmedOnce();
     // 영업팀 확인 체크자 이름(sales_confirmed_by) 을 담당 영업사원으로 백필 (브라우저당 1회)
