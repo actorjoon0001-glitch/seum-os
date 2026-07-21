@@ -3107,6 +3107,19 @@ button,
 .today-showroom-group-e .today-showroom-group-label {
   color: #60a5fa;
 }
+.today-showroom-group-total {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.5);
+}
+.today-showroom-group-total .today-showroom-group-label {
+  color: #cbd5e1;
+}
+.today-showroom-group-total .today-showroom-row dt,
+.today-showroom-group-total .today-showroom-row dd {
+  font-weight: 700;
+  color: var(--text-primary);
+}
 
 .today-showroom-dl {
   margin: 0;
