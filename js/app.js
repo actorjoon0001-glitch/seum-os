@@ -2746,25 +2746,57 @@
       showroomsToUse = SHOWROOMS.filter(function (s) { return (s.id || '') === myShowroomId; });
     }
     var labels = showroomsToUse.map(function (s) { return s.name; });
-    var contractCounts = showroomsToUse.map(function (s) {
-      var m = contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
-      var e = econ.filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; }).length;
-      return m + e;
+    var manualCounts = showroomsToUse.map(function (s) {
+      return contracts.filter(function (c) { return (c.showroomId || '') === s.id; }).length;
     });
-    var totalSales = showroomsToUse.map(function (s) {
-      var mSum = contracts
-        .filter(function (c) { return (c.showroomId || '') === s.id; })
+    var econCounts = showroomsToUse.map(function (s) {
+      return econ.filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; }).length;
+    });
+    function toEok(sum) { return Math.round(sum / 10000 * 10) / 10; } // 억, 소수1
+    var manualSales = showroomsToUse.map(function (s) {
+      var sum = contracts.filter(function (c) { return (c.showroomId || '') === s.id; })
         .reduce(function (acc, c) { return acc + (Number(c.totalAmount) || 0); }, 0);
-      var eSum = econ
-        .filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; })
-        .reduce(function (acc, r) { return acc + (Number(r.total_amount) || 0); }, 0);
-      return (mSum + eSum) / 10000; // 억 단위
+      return toEok(sum);
     });
-    return { labels: labels, contractCounts: contractCounts, totalSales: totalSales };
+    var econSales = showroomsToUse.map(function (s) {
+      var sum = econ.filter(function (r) { return _econtractShowroomCode(r.showroom) === s.id; })
+        .reduce(function (acc, r) { return acc + (Number(r.total_amount) || 0); }, 0);
+      return toEok(sum);
+    });
+    return { labels: labels, manualCounts: manualCounts, econCounts: econCounts, manualSales: manualSales, econSales: econSales };
   }
 
   var chartContracts = null;
   var chartSales = null;
+
+  // 막대 위에 수치를 그리는 플러그인 (0/빈값은 생략)
+  var barValueLabelPlugin = {
+    id: 'barValueLabels',
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx;
+      chart.data.datasets.forEach(function (dataset, di) {
+        var meta = chart.getDatasetMeta(di);
+        if (meta.hidden) return;
+        meta.data.forEach(function (bar, idx) {
+          var val = dataset.data[idx];
+          if (val === 0 || val == null) return;
+          ctx.save();
+          ctx.fillStyle = '#e5e7eb';
+          ctx.font = '600 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(String(val), bar.x, bar.y - 2);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+  // 얇은 그룹 막대 공통 설정
+  var _thinBar = { borderWidth: 1, maxBarThickness: 16, categoryPercentage: 0.62, barPercentage: 0.9 };
+  function _ds(label, data, bg, border) {
+    return Object.assign({ label: label, data: data, backgroundColor: bg, borderColor: border }, _thinBar);
+  }
 
   function renderDashboardCharts() {
     if (typeof Chart === 'undefined') return;
@@ -2773,8 +2805,9 @@
       responsive: true,
       maintainAspectRatio: true,
       aspectRatio: 1.8,
+      layout: { padding: { top: 18 } },
       plugins: {
-        legend: { display: false }
+        legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 10, font: { size: 11 } } }
       },
       scales: {
         y: { beginAtZero: true }
@@ -2788,15 +2821,13 @@
         type: 'bar',
         data: {
           labels: stats.labels,
-          datasets: [{
-            label: '계약',
-            data: stats.contractCounts,
-            backgroundColor: 'rgba(59, 130, 246, 0.6)',
-            borderColor: 'rgb(59, 130, 246)',
-            borderWidth: 1
-          }]
+          datasets: [
+            _ds('수기', stats.manualCounts, 'rgba(59,130,246,0.75)', 'rgb(59,130,246)'),
+            _ds('전자', stats.econCounts, 'rgba(167,139,250,0.75)', 'rgb(167,139,250)')
+          ]
         },
-        options: opts
+        options: opts,
+        plugins: [barValueLabelPlugin]
       });
     }
     if (canvasSales) {
@@ -2805,15 +2836,13 @@
         type: 'bar',
         data: {
           labels: stats.labels,
-          datasets: [{
-            label: '매출(만원)',
-            data: stats.totalSales,
-            backgroundColor: 'rgba(34, 197, 94, 0.6)',
-            borderColor: 'rgb(34, 197, 94)',
-            borderWidth: 1
-          }]
+          datasets: [
+            _ds('수기', stats.manualSales, 'rgba(34,197,94,0.75)', 'rgb(34,197,94)'),
+            _ds('전자', stats.econSales, 'rgba(45,212,191,0.75)', 'rgb(45,212,191)')
+          ]
         },
-        options: opts
+        options: opts,
+        plugins: [barValueLabelPlugin]
       });
     }
   }
