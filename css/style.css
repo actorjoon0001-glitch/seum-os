@@ -15972,6 +15972,20 @@ body.external-architect-mode #seum-notif-container,
 body.external-architect-mode #chat-panel,
 body.external-architect-mode #sidebar-announcement-badge { display: none !important; }
 
+/* 중복 계약 점검 — 등급 뱃지 · 강력 의심 행 강조 */
+.dup-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.dup-badge-strong { background: rgba(248, 113, 113, 0.18); color: #f87171; }
+.dup-badge-weak { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; }
+.dup-row-strong { background: rgba(248, 113, 113, 0.07); }
+.dup-stage { color: #94a3b8; font-size: 0.85em; }
+
 /* ── 채팅 패널 임시 숨김 (요청: 잠시 숨김) — 다시 켜려면 이 블록만 삭제 ── */
 #chat-panel { display: none !important; }
 body.chat-panel-two-col-open .main,

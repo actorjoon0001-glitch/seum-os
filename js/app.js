@@ -2248,6 +2248,7 @@
           try { renderEcontracts(); } catch (e) { console.error('renderEcontracts failed:', e); }
           // 대시보드(KPI·차트·전시장 현황)도 전자계약 완료건 반영 위해 갱신
           try { if (typeof renderDashboard === 'function') renderDashboard(); } catch (e) {}
+          try { if (typeof renderDuplicateContracts === 'function') renderDuplicateContracts(); } catch (e) {}
         })
         .catch(function (err) { console.error('econtracts 조회 실패:', err); });
     } catch (e) {
@@ -13932,6 +13933,7 @@
     if (sectionId === 'admin-showrooms') renderAdminShowrooms();
     if (sectionId === 'admin-customers') renderAdminCustomers();
     if (sectionId === 'admin-contracts') renderAdminContracts();
+    if (sectionId === 'admin-dup-contracts') { syncEcontractsFromSupabase(); renderDuplicateContracts(); }
     if (sectionId === 'admin-payments') renderAdminPayments();
     if (sectionId === 'admin-reservations') renderAdminReservations();
     if (sectionId === 'admin-presence') renderAdminPresence();
@@ -16966,6 +16968,67 @@
         })
         .catch(function (err) { alert('??? ???: ' + (err.message || err)); });
     });
+  }
+
+  // 수기 계약 ↔ 전자 계약 중복 의심 대조 (계약자명 기준, 금액/계약일 일치 시 강력)
+  function renderDuplicateContracts() {
+    var tbody = document.getElementById('tbody-dup-contracts');
+    if (!tbody) return;
+    var summaryEl = document.getElementById('dup-contracts-summary');
+    var manual = getContracts().filter(function (c) { return !c.isDeleted; });
+    var econ = (_econtractsCache || []);
+    function norm(s) { return String(s || '').replace(/\s+/g, '').trim(); }
+    function toManwon(c) { var v = Number(c.totalAmount) || 0; return c.amountUnit === 'manwon' ? v : Math.round(v / 10000); }
+    var mByName = {};
+    manual.forEach(function (c) {
+      var n = norm(c.customerName);
+      if (!n || n === '-') return;
+      (mByName[n] = mByName[n] || []).push(c);
+    });
+    var rows = [];
+    econ.forEach(function (e) {
+      var n = norm(e.client_name);
+      if (!n || n === '-') return;
+      var ms = mByName[n];
+      if (!ms) return;
+      ms.forEach(function (m) {
+        var eAmt = Number(e.total_amount) || 0;
+        var mAmt = toManwon(m);
+        var amtMatch = eAmt > 0 && eAmt === mAmt;
+        var dateMatch = !!(e.contract_date && e.contract_date === m.contractDate);
+        rows.push({
+          name: e.client_name || m.customerName,
+          strong: amtMatch || dateMatch,
+          mSales: m.salesPerson || '-', mAmt: mAmt, mDate: m.contractDate || '-', mShowroom: getShowroomName(m.showroomId),
+          eSales: e.salesperson || '-', eAmt: eAmt, eDate: e.contract_date || '-',
+          eShowroom: e.showroom ? getShowroomName(e.showroom) : '-', eStage: _econtractStageLabel(e.stage)
+        });
+      });
+    });
+    rows.sort(function (a, b) { return (b.strong ? 1 : 0) - (a.strong ? 1 : 0); });
+    var strongCount = rows.filter(function (r) { return r.strong; }).length;
+    if (summaryEl) summaryEl.textContent = rows.length ? ('총 ' + rows.length + '건 의심 · 강력 ' + strongCount + '건') : '';
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:28px;color:#94a3b8;">중복 의심 계약이 없습니다.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(function (r) {
+      var badge = r.strong
+        ? '<span class="dup-badge dup-badge-strong">강력</span>'
+        : '<span class="dup-badge dup-badge-weak">이름만</span>';
+      return '<tr' + (r.strong ? ' class="dup-row-strong"' : '') + '>' +
+        '<td><strong>' + escapeHtml(r.name) + '</strong></td>' +
+        '<td>' + badge + '</td>' +
+        '<td>' + escapeHtml(r.mSales) + '</td>' +
+        '<td>' + formatMoney(r.mAmt) + '만원</td>' +
+        '<td>' + escapeHtml(r.mShowroom) + '</td>' +
+        '<td>' + escapeHtml(r.mDate) + '</td>' +
+        '<td>' + escapeHtml(r.eSales) + '</td>' +
+        '<td>' + formatMoney(r.eAmt) + '만원 <span class="dup-stage">(' + escapeHtml(r.eStage) + ')</span></td>' +
+        '<td>' + escapeHtml(r.eShowroom) + '</td>' +
+        '<td>' + escapeHtml(r.eDate) + '</td>' +
+        '</tr>';
+    }).join('');
   }
 
   function renderAdminContracts() {
