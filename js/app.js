@@ -2225,6 +2225,9 @@
     }
   }
 
+  // 전자 계약서 목록 진행상태 필터 (기본: 계약완료만 노출. '전체' 및 각 상태 선택 가능)
+  var _econtractStageFilter = '계약완료';
+
   // ── 전자 계약서 조회 (세움os 프로젝트 econtracts 테이블) ──────────────
   //  Contract-OS(전자계약서 앱)가 세움os Supabase 의 econtracts 로 저장하므로,
   //  세움os 는 자기 클라이언트(seumSupabase)로 econtracts 를 직접 읽는다.
@@ -2353,10 +2356,17 @@
       rows = rows.filter(function (r) { return _econtractMatchesKeyword(r, keyword); });
     }
 
+    // 진행상태 필터 (기본 '계약완료'). '전체'면 필터 없음. 상태 라벨 기준으로 비교.
+    var stageFilter = _econtractStageFilter || '계약완료';
+    if (stageFilter && stageFilter !== '전체') {
+      rows = rows.filter(function (r) { return _econtractStageLabel(r.stage) === stageFilter; });
+    }
+
     updateEcontractFilterResult(rows.length);
 
     if (!rows.length) {
-      var emptyMsg = (keyword || showroomFilter || getFilterYear() || getFilterMonth())
+      var _stageActive = stageFilter && stageFilter !== '전체';
+      var emptyMsg = (keyword || showroomFilter || getFilterYear() || getFilterMonth() || _stageActive)
         ? '<tr><td colspan="10" class="econtracts-empty">조건에 맞는 전자 계약서가 없습니다.</td></tr>'
         : '<tr><td colspan="10" class="econtracts-empty">아직 연동된 전자 계약서가 없습니다.<br><span class="econtracts-empty-sub">전산 계약서 앱과의 데이터 동기화가 연결되면 이곳에 목록이 표시됩니다.</span></td></tr>';
       tbody.innerHTML = emptyMsg;
@@ -17665,6 +17675,15 @@
         if (searchInput) searchInput.value = '';
         renderSales();
         if (searchInput) searchInput.focus();
+      });
+    }
+    // 전자 계약서 진행상태 드롭다운
+    var econStageSel = document.getElementById('econtracts-stage-filter');
+    if (econStageSel) {
+      econStageSel.value = _econtractStageFilter;
+      econStageSel.addEventListener('change', function () {
+        _econtractStageFilter = econStageSel.value || '계약완료';
+        renderEcontracts();
       });
     }
     // 전자 계약서 검색창 이벤트
