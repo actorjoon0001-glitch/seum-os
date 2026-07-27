@@ -317,6 +317,7 @@
     var hay = [cur.name, cur.team, cur.department, cur.email]
       .map(function (v) { return String(v == null ? '' : v); }).join(' ').toLowerCase();
     if (hay.indexOf('필') !== -1 || hay.indexOf('pil') !== -1) return 'design-pil';
+    if (hay.indexOf('토목') !== -1 || hay.indexOf('tomok') !== -1) return 'design-tomok';
     return 'design-haeyoung';
   }
 
@@ -371,7 +372,7 @@
 
     // 해영 건축사·필건축사(외부 협력) 업로드함: 설계팀 + 시공팀 + 영업팀 + 정산팀 + master/admin
     // 외부 건축사 본인 계정은 위의 isExternalArchitect() 분기에서 본인 페이지만 허용 처리됨.
-    if (sectionId === 'design-haeyoung' || sectionId === 'design-pil') {
+    if (sectionId === 'design-haeyoung' || sectionId === 'design-pil' || sectionId === 'design-tomok') {
       return isDesign || isConstruction || isSales || isSettlement;
     }
 
@@ -13900,7 +13901,7 @@
       sectionId === 'sales-leads' || sectionId === 'sales-customers' || sectionId === 'sales-contracts' || sectionId === 'sales-e-contracts' || sectionId === 'sales-lg-appliance' ||
       sectionId === 'settlement-payment' || sectionId === 'settlement-incentive' || sectionId === 'settlement-dashboard' ||
       sectionId === 'procurement' || sectionId === 'procurement-list' || sectionId === 'design-drawings' || sectionId === 'design-schedule' ||
-      sectionId === 'design-priority' || sectionId === 'design-haeyoung' || sectionId === 'design-pil' || sectionId === 'construction-worklog') &&
+      sectionId === 'design-priority' || sectionId === 'design-haeyoung' || sectionId === 'design-pil' || sectionId === 'design-tomok' || sectionId === 'construction-worklog') &&
       !canAccessTeamSection(sectionId)) {
       window.alert('접근 권한이 없습니다.');
       return;
@@ -13936,6 +13937,7 @@
     if (sectionId === 'design-priority') renderDesignPriority();
     if (sectionId === 'design-haeyoung' && typeof window.renderHaeyoungSubmissions === 'function') window.renderHaeyoungSubmissions();
     if (sectionId === 'design-pil' && typeof window.renderPilSubmissions === 'function') window.renderPilSubmissions();
+    if (sectionId === 'design-tomok' && typeof window.renderTomokSubmissions === 'function') window.renderTomokSubmissions();
     if (sectionId === 'construction-sites') renderConstructionSitesOverview();
     if (sectionId === 'announcements') renderAnnouncementsPage();
     if (sectionId === 'admin-approval') renderAdminApproval();
@@ -13990,7 +13992,7 @@
         if (adminBtn) adminBtn.setAttribute('aria-expanded', 'true');
       }
     }
-    if (sectionId === 'design' || sectionId === 'design-drawings' || sectionId === 'design-schedule' || sectionId === 'design-priority' || sectionId === 'design-haeyoung' || sectionId === 'design-pil') {
+    if (sectionId === 'design' || sectionId === 'design-drawings' || sectionId === 'design-schedule' || sectionId === 'design-priority' || sectionId === 'design-haeyoung' || sectionId === 'design-pil' || sectionId === 'design-tomok') {
       var desSub = document.getElementById('nav-design-sub');
       var desGroup = document.getElementById('sidebar-group-design');
       if (desSub && desGroup) {
@@ -18844,7 +18846,9 @@
     document.body.classList.add('external-architect-mode');
 
     var eaSectionId = externalArchitectSection() || 'design-haeyoung';
-    var eaLabel = eaSectionId === 'design-pil' ? '필건축사' : '해영 건축사';
+    var eaLabel = eaSectionId === 'design-pil' ? '필건축사'
+                : eaSectionId === 'design-tomok' ? '토목건축사'
+                : '해영 건축사';
 
     // 1) 사이드바: 단일 진입 메뉴를 상단에 주입 (원본 nav-section 들은 CSS 로 숨겨짐)
     var sidebarNav = document.querySelector('.sidebar-nav');
