@@ -2240,7 +2240,7 @@
       if (!supa) return;
       supa
         .from('econtracts')
-        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage,deleted_at:data->>deletedAt')
+        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage,deposit_amount:data->deposit->>amount,deposit_date:data->deposit->>date,deleted_at:data->>deletedAt')
         .order('updated_at', { ascending: false })
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
@@ -2368,8 +2368,8 @@
     if (!rows.length) {
       var _stageActive = stageFilter && stageFilter !== '전체';
       var emptyMsg = (keyword || showroomFilter || getFilterYear() || getFilterMonth() || _stageActive)
-        ? '<tr><td colspan="10" class="econtracts-empty">조건에 맞는 전자 계약서가 없습니다.</td></tr>'
-        : '<tr><td colspan="10" class="econtracts-empty">아직 연동된 전자 계약서가 없습니다.<br><span class="econtracts-empty-sub">전산 계약서 앱과의 데이터 동기화가 연결되면 이곳에 목록이 표시됩니다.</span></td></tr>';
+        ? '<tr><td colspan="11" class="econtracts-empty">조건에 맞는 전자 계약서가 없습니다.</td></tr>'
+        : '<tr><td colspan="11" class="econtracts-empty">아직 연동된 전자 계약서가 없습니다.<br><span class="econtracts-empty-sub">전산 계약서 앱과의 데이터 동기화가 연결되면 이곳에 목록이 표시됩니다.</span></td></tr>';
       tbody.innerHTML = emptyMsg;
       return;
     }
@@ -2378,6 +2378,9 @@
       // total_amount 는 만원 단위로 저장된다고 가정(세움os 계약 목록과 동일 표기).
       var amount = (r.total_amount != null && String(r.total_amount).trim() !== '')
         ? formatMoney(Math.round(Number(r.total_amount))) + '만원'
+        : '-';
+      var deposit = (r.deposit_amount != null && String(r.deposit_amount).trim() !== '')
+        ? formatMoney(Math.round(Number(r.deposit_amount))) + '만원'
         : '-';
       var addr = (function () {
         var a = (r.site_address || '').trim();
@@ -2395,6 +2398,7 @@
         '<td>' + escapeHtml(r.salesperson || '-') + '</td>' +
         '<td>' + escapeHtml(r.contract_date || '-') + '</td>' +
         '<td>' + amount + '</td>' +
+        '<td>' + deposit + '</td>' +
         '<td>' + addr + '</td>' +
         '<td>' + viewBtn + '</td>' +
         '</tr>';
