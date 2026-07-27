@@ -225,6 +225,7 @@
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-drawings">설계도면</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-haeyoung">해영 건축사</a>
             <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-pil">필건축사</a>
+            <a href="#" class="nav-item nav-item-sub nav-subitem" data-section="design-tomok">토목건축사</a>
           </div>
         </div>
 
@@ -1953,6 +1954,53 @@
       <div class="card">
         <h3>업로드 이력</h3>
         <div id="py-list" class="hy-list"></div>
+      </div>
+    </section>
+
+    <!-- 토목건축사(외부 협력) 도면 업로드 섹션 -->
+    <section id="section-design-tomok" class="content-section">
+      <header class="main-header">
+        <h2>토목건축사</h2>
+        <p class="section-desc">외부 협력 건축사 <strong>토목건축사</strong>가 PDF/DWG 도면을 직접 업로드합니다. 업로드 즉시 <strong>설계팀·시공팀 전원</strong>에게 알림이 발사됩니다.</p>
+      </header>
+
+      <div class="card">
+        <h3>도면 업로드</h3>
+        <form id="tm-form" class="hy-form">
+          <div class="hy-form-grid">
+            <div class="hy-form-field hy-form-field-wide">
+              <label for="tm-title">제목 *</label>
+              <input type="text" id="tm-title" placeholder="예: ○○○ 고객님 1차 협의도면" required>
+            </div>
+            <div class="hy-form-field hy-form-field-wide">
+              <label for="tm-desc">설명</label>
+              <textarea id="tm-desc" rows="2" placeholder="변경사항·협의내용 등"></textarea>
+            </div>
+            <div class="hy-form-field">
+              <label for="tm-contract">연결 계약 (선택)</label>
+              <select id="tm-contract">
+                <option value="">선택 안 함</option>
+              </select>
+            </div>
+            <div class="hy-form-field hy-form-field-wide">
+              <label>도면 파일 *</label>
+              <div class="hy-file-row">
+                <input type="file" id="tm-file" accept="application/pdf,.dwg,.dxf,image/*" required>
+                <span id="tm-file-info" class="hy-file-info">선택된 파일 없음</span>
+              </div>
+              <p class="hy-file-hint">PDF, DWG, DXF, 이미지 지원 · 권장 50MB 이하</p>
+            </div>
+          </div>
+          <div class="hy-form-actions">
+            <button type="submit" class="btn btn-primary" id="tm-submit">업로드 + 설계·시공팀 알림</button>
+            <span id="tm-submit-msg" class="hy-submit-msg"></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>업로드 이력</h3>
+        <div id="tm-list" class="hy-list"></div>
       </div>
     </section>
 
@@ -5603,6 +5651,7 @@
   <script src="js/notifications.js"></script>
   <script src="js/design-haeyoung.js?v=20260630-03"></script>
   <script src="js/design-pil.js?v=20260630-03"></script>
+  <script src="js/design-tomok.js?v=20260707-01"></script>
   <script src="js/marketing.js"></script>
   <script src="js/attendance.js?v=20260419-04"></script>
   <script src="js/leave.js"></script>
