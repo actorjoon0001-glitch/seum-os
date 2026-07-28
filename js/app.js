@@ -2171,10 +2171,11 @@
   //  · 상세/신분증 열람은 세움os 가 아니라 Contract-OS 앱(보기 딥링크)에서 처리.
   // ────────────────────────────────────────────────────────────
   var _econtractsCache = [];
-  var ECONTRACT_PORTAL_BASE = 'https://seum-platform.netlify.app/portal';
+  // 전자계약 상세는 설계os(seum-plan-os)에서 열도록 연결
+  var ECONTRACT_PORTAL_BASE = 'https://seum-plan-os.netlify.app';
 
   function econtractViewUrl(id) {
-    return ECONTRACT_PORTAL_BASE + '#/edit/' + encodeURIComponent(id);
+    return ECONTRACT_PORTAL_BASE + '/econtracts/' + encodeURIComponent(id);
   }
 
   // 전자계약 진행상태(data->>'stage') 영문 키 → 한글 라벨.
