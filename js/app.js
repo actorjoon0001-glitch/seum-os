@@ -2238,7 +2238,7 @@
     try {
       var supa = (typeof window !== 'undefined') && window.seumSupabase;
       if (!supa) return;
-      supa.from('econtract_design_state').select('econtract_id,priority_done,is_urgent,design_status,permit_cert_date')
+      supa.from('econtract_design_state').select('econtract_id,priority_done,is_urgent,design_status,permit_cert_date,design_manager')
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) return;
           var map = {};
@@ -2260,6 +2260,7 @@
       is_urgent: patch.is_urgent != null ? !!patch.is_urgent : !!cur.is_urgent,
       design_status: patch.design_status != null ? patch.design_status : (cur.design_status || 'none'),
       permit_cert_date: patch.permit_cert_date != null ? patch.permit_cert_date : (cur.permit_cert_date || null),
+      design_manager: patch.design_manager != null ? patch.design_manager : (cur.design_manager || null),
       updated_at: new Date().toISOString()
     };
     _ecDesignStateCache[econtractId] = row; // 낙관적 반영
@@ -2313,9 +2314,10 @@
           isUrgent: !!s.is_urgent,
           designStatus: s.design_status || 'none',
           permitCertDate: s.permit_cert_date || '',
+          // 설계담당은 세움os 상태 테이블에 저장(전자계약 전용 인라인 입력)
+          designPermitDesigner: s.design_manager || '', designContactName: '',
           // 전자계약엔 없는 필드(수기 전용) — 표시상 기본값
           finalApproved: false, finalApprovedBy: '',
-          designPermitDesigner: '', designContactName: '',
           designStatusMemoDesign: ''
         };
       });
@@ -5377,7 +5379,7 @@
           if (canMarkDone) actionBtns += '<button type="button" class="btn btn-sm priority-undone-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#374151;color:#d1d5db;border:none;">복원</button>';
         } else {
           if (canMarkDone) {
-            var doneDisabled = !c._isEcontract && !designerName; // 전자계약은 설계담당 없이도 완료 가능
+            var doneDisabled = !designerName; // 수기·전자 공통: 설계담당 지정 후에만 작업완료 활성화
             var doneStyle = doneDisabled
               ? 'white-space:nowrap;background:#4b5563;color:#9ca3af;border:none;cursor:not-allowed;opacity:0.65;'
               : 'white-space:nowrap;background:#059669;color:#fff;border:none;';
@@ -5396,7 +5398,9 @@
           '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
           '<td>' + escapeHtml(shortAddr) + '</td>' +
           '<td>' + escapeHtml(c.salesPerson || '-') + '</td>' +
-          '<td>' + escapeHtml(designerName || '-') + '</td>' +
+          '<td>' + (c._isEcontract
+              ? '<input type="text" class="ec-designer-input" data-ec-id="' + escapeAttr(c._econtractId) + '" value="' + escapeAttr(designerName) + '" placeholder="설계담당 입력" style="width:96px;padding:3px 6px;">'
+              : escapeHtml(designerName || '-')) + '</td>' +
           '<td><span class="design-priority-status ' + (statusCls[st] || 'status-none') + '">' + escapeHtml(statusMap[st] || st) + '</span></td>' +
           '<td class="design-priority-approval">' + approvalBadgeHtml + '</td>' +
           '<td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(c.designStatusMemoDesign || '') + '</td>' +
@@ -5482,9 +5486,19 @@
         goToDesignDetail(btn.getAttribute('data-contract-id'));
       });
     });
+    // 전자계약 설계담당 인라인 입력 저장
+    wrap.querySelectorAll('.ec-designer-input').forEach(function (inp) {
+      inp.addEventListener('click', function (e) { e.stopPropagation(); });
+      inp.addEventListener('change', function () {
+        var ecId = inp.getAttribute('data-ec-id');
+        var ecRow = (_econtractsCache || []).find(function (x) { return String(x.id) === String(ecId); });
+        saveEcontractDesignState(ecId, ecRow && ecRow.contract_no, { design_manager: (inp.value || '').trim() });
+        renderDesignPriority();
+      });
+    });
     wrap.querySelectorAll('.design-priority-row').forEach(function (tr) {
       tr.addEventListener('click', function (e) {
-        if (e.target.closest('.priority-goto-btn') || e.target.closest('.priority-done-btn') || e.target.closest('.priority-undone-btn')) return;
+        if (e.target.closest('.priority-goto-btn') || e.target.closest('.priority-done-btn') || e.target.closest('.priority-undone-btn') || e.target.closest('.ec-designer-input')) return;
         goToDesignDetail(tr.getAttribute('data-contract-id'));
       });
     });

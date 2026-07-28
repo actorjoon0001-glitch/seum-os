@@ -11,8 +11,12 @@ CREATE TABLE IF NOT EXISTS public.econtract_design_state (
   is_urgent     boolean DEFAULT false,
   design_status text DEFAULT 'none',
   permit_cert_date date,
+  design_manager text,
   updated_at timestamptz DEFAULT now()
 );
+
+-- 기존 테이블에는 컬럼만 보강 (신규 생성 시엔 위 CREATE 에 이미 포함)
+ALTER TABLE public.econtract_design_state ADD COLUMN IF NOT EXISTS design_manager text;
 
 ALTER TABLE public.econtract_design_state ENABLE ROW LEVEL SECURITY;
 
