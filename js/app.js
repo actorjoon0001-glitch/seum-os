@@ -2240,7 +2240,7 @@
       if (!supa) return;
       supa
         .from('econtracts')
-        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage,deposit_amount:data->deposit->>amount,deposit_date:data->deposit->>date,deleted_at:data->>deletedAt')
+        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage,deposit_amount:data->amounts->>downPayment,deleted_at:data->>deletedAt')
         .order('updated_at', { ascending: false })
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
@@ -2379,9 +2379,11 @@
       var amount = (r.total_amount != null && String(r.total_amount).trim() !== '')
         ? formatMoney(Math.round(Number(r.total_amount))) + '만원'
         : '-';
-      var deposit = (r.deposit_amount != null && String(r.deposit_amount).trim() !== '')
-        ? formatMoney(Math.round(Number(r.deposit_amount))) + '만원'
-        : '-';
+      var deposit = (function () {
+        // 계약금 = data.amounts.downPayment (숫자/문자/"1,000" 혼용 → 콤마 제거 후 파싱)
+        var n = Number(String(r.deposit_amount == null ? '' : r.deposit_amount).replace(/[^0-9.]/g, ''));
+        return n > 0 ? formatMoney(Math.round(n)) + '만원' : '-';
+      })();
       var addr = (function () {
         var a = (r.site_address || '').trim();
         if (!a) return '-';
