@@ -2229,6 +2229,98 @@
   // 전자 계약서 목록 진행상태 필터 (기본: 계약완료만 노출. '전체' 및 각 상태 선택 가능)
   var _econtractStageFilter = '계약완료';
 
+  // ── 전자계약 설계 상태 저장소 (econtract_design_state) ────────────────
+  //  전자계약(econtracts)은 Contract-OS 읽기전용이라, 설계팀 워크플로 값
+  //  (완료/긴급/설계상태/건축허가일)은 세움os 별도 테이블에 저장한다.
+  //  키는 econtracts.id (bigint).
+  var _ecDesignStateCache = {}; // { [econtractId]: {priority_done,is_urgent,design_status,permit_cert_date} }
+  function syncEcontractDesignState() {
+    try {
+      var supa = (typeof window !== 'undefined') && window.seumSupabase;
+      if (!supa) return;
+      supa.from('econtract_design_state').select('econtract_id,priority_done,is_urgent,design_status,permit_cert_date')
+        .then(function (res) {
+          if (!res || res.error || !Array.isArray(res.data)) return;
+          var map = {};
+          res.data.forEach(function (r) { map[r.econtract_id] = r; });
+          _ecDesignStateCache = map;
+          try { if (typeof renderDesignPriority === 'function') renderDesignPriority(); } catch (e) {}
+        })
+        .catch(function () {});
+    } catch (e) {}
+  }
+  function saveEcontractDesignState(econtractId, contractNo, patch) {
+    var supa = (typeof window !== 'undefined') && window.seumSupabase;
+    if (!supa) return Promise.resolve();
+    var cur = _ecDesignStateCache[econtractId] || {};
+    var row = {
+      econtract_id: econtractId,
+      contract_no: contractNo || cur.contract_no || null,
+      priority_done: patch.priority_done != null ? !!patch.priority_done : !!cur.priority_done,
+      is_urgent: patch.is_urgent != null ? !!patch.is_urgent : !!cur.is_urgent,
+      design_status: patch.design_status != null ? patch.design_status : (cur.design_status || 'none'),
+      permit_cert_date: patch.permit_cert_date != null ? patch.permit_cert_date : (cur.permit_cert_date || null),
+      updated_at: new Date().toISOString()
+    };
+    _ecDesignStateCache[econtractId] = row; // 낙관적 반영
+    return supa.from('econtract_design_state').upsert(row, { onConflict: 'econtract_id' })
+      .then(function (res) { if (res && res.error) console.error('econtract_design_state 저장 오류:', res.error); })
+      .catch(function (err) { console.error('econtract_design_state 저장 실패:', err); });
+  }
+
+  // 전자계약 작업완료/복원 처리 (수기 done-btn 과 동일 UX, 저장만 별도 테이블)
+  function _priorityDoneEcontract(ecId, done) {
+    var ecRow = (_econtractsCache || []).find(function (x) { return String(x.id) === String(ecId); }) || {};
+    saveEcontractDesignState(ecId, ecRow.contract_no, { priority_done: !!done });
+    try { if (typeof renderDesignPriority === 'function') renderDesignPriority(); } catch (e) {}
+    if (done) {
+      try {
+        var notif = window.seumNotifications && window.seumNotifications.send;
+        if (typeof notif === 'function') {
+          var title = '✅ 설계 작업 완료';
+          var body = '고객 ' + (ecRow.client_name || '-') + ' · 모델 ' + (ecRow.model_name || '-')
+            + (ecRow.salesperson ? ' · 담당 ' + ecRow.salesperson : '') + ' [전자계약]';
+          notif({ contractId: null, customerName: ecRow.client_name || '', salesPerson: ecRow.salesperson || '', recipientTeam: '시공', title: title, body: body });
+          if (ecRow.salesperson) notif({ contractId: null, customerName: ecRow.client_name || '', salesPerson: ecRow.salesperson || '', recipientTeam: null, recipientName: ecRow.salesperson, title: title, body: body });
+        }
+      } catch (err) { console.warn('[priority-done ec] notify failed:', err); }
+    }
+  }
+
+  // 설계 우선순위용 전자계약 항목(계약완료 이상)을 수기 계약과 동일한 형태로 정규화
+  function getPriorityEcontracts() {
+    var state = _ecDesignStateCache || {};
+    return (_econtractsCache || [])
+      .filter(function (r) { return _econtractIsContracted(r.stage); })
+      .map(function (r) {
+        var s = state[r.id] || {};
+        var pt = String(r.permit_type || '').toLowerCase();
+        var projectType = pt === 'permit' ? '전원주택' : ''; // permit→전원주택(인허가), 그 외(가설/미지정)→기타
+        return {
+          id: 'ec:' + r.id,
+          _isEcontract: true,
+          _econtractId: r.id,
+          _econtractNo: r.contract_no,
+          _permitType: pt,
+          customerName: r.client_name || '',
+          siteAddress: r.site_address || '',
+          salesPerson: r.salesperson || '',
+          contractDate: r.contract_date || '',
+          showroomId: _econtractShowroomCode(r.showroom),
+          contractModelName: r.model_name || '',
+          projectType: projectType,
+          priorityDone: !!s.priority_done,
+          isUrgent: !!s.is_urgent,
+          designStatus: s.design_status || 'none',
+          permitCertDate: s.permit_cert_date || '',
+          // 전자계약엔 없는 필드(수기 전용) — 표시상 기본값
+          finalApproved: false, finalApprovedBy: '',
+          designPermitDesigner: '', designContactName: '',
+          designStatusMemoDesign: ''
+        };
+      });
+  }
+
   // ── 전자 계약서 조회 (세움os 프로젝트 econtracts 테이블) ──────────────
   //  Contract-OS(전자계약서 앱)가 세움os Supabase 의 econtracts 로 저장하므로,
   //  세움os 는 자기 클라이언트(seumSupabase)로 econtracts 를 직접 읽는다.
@@ -2240,7 +2332,7 @@
       if (!supa) return;
       supa
         .from('econtracts')
-        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage,deposit_amount:data->amounts->>downPayment,deleted_at:data->>deletedAt')
+        .select('id,contract_no,status,client_name,site_address,showroom,salesperson,contract_date,total_amount,updated_at,stage:data->>stage,deposit_amount:data->amounts->>downPayment,model_name:data->>modelName,permit_type:data->>permitType,deleted_at:data->>deletedAt')
         .order('updated_at', { ascending: false })
         .then(function (res) {
           if (!res || res.error || !Array.isArray(res.data)) {
@@ -5119,6 +5211,8 @@
     if (!wrap) return;
 
     var allContracts = getContracts().filter(function (c) { return c.depositReceivedAt; });
+    // 전자계약(계약완료 이상 = 계약금 받음)도 동일 규칙으로 합류
+    try { allContracts = allContracts.concat(getPriorityEcontracts()); } catch (e) { console.error('getPriorityEcontracts failed:', e); }
     var showroomLabels = { headquarters: '본사', showroom1: '1전시장', showroom3: '3전시장', showroom4: '4전시장', ganghwa: '강화전시장', gwangju: '광주전시장', andong: '안동전시장' };
     var statusMap = {
       none: '미착수', '': '미착수',
@@ -5282,7 +5376,7 @@
           if (canMarkDone) actionBtns += '<button type="button" class="btn btn-sm priority-undone-btn" data-contract-id="' + escapeAttr(c.id) + '" style="white-space:nowrap;background:#374151;color:#d1d5db;border:none;">복원</button>';
         } else {
           if (canMarkDone) {
-            var doneDisabled = !designerName;
+            var doneDisabled = !c._isEcontract && !designerName; // 전자계약은 설계담당 없이도 완료 가능
             var doneStyle = doneDisabled
               ? 'white-space:nowrap;background:#4b5563;color:#9ca3af;border:none;cursor:not-allowed;opacity:0.65;'
               : 'white-space:nowrap;background:#059669;color:#fff;border:none;';
@@ -5295,7 +5389,7 @@
           '<td class="design-priority-rank">' + (i + 1) + '</td>' +
           '<td class="design-priority-date">' + escapeHtml(dateVal) + '</td>' +
           permitCell +
-          '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span></td>' +
+          '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span>' + (c._isEcontract ? ' <span class="src-badge src-badge-e">전자</span>' : '') + '</td>' +
           '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
           '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
           '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +
@@ -5319,6 +5413,7 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var cid = btn.getAttribute('data-contract-id');
+        if (cid && cid.indexOf('ec:') === 0) { _priorityDoneEcontract(cid.slice(3), true); return; }
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
         if (!c) return;
@@ -5373,6 +5468,7 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var cid = btn.getAttribute('data-contract-id');
+        if (cid && cid.indexOf('ec:') === 0) { _priorityDoneEcontract(cid.slice(3), false); return; }
         var cs = getContracts();
         var c = cs.find(function (x) { return x.id === cid; });
         if (c) { c.priorityDone = false; saveContracts(cs); savePriorityField(cid, false, !!c.isUrgent); renderDesignPriority(); }
@@ -5408,6 +5504,12 @@
 
   function goToDesignDetail(contractId) {
     if (!contractId) return;
+    // 전자계약 행은 수기 설계상세가 없으므로 전자계약 보기(새 탭)로 연결
+    if (String(contractId).indexOf('ec:') === 0) {
+      var _ecId = String(contractId).slice(3);
+      try { window.open(econtractViewUrl(_ecId), '_blank', 'noopener'); } catch (e) {}
+      return;
+    }
     // 필터 초기화 (연/월·검색어가 걸려 있으면 row가 보이지 않음)
     var yearEl = document.getElementById('filter-year');
     var monthEl = document.getElementById('filter-month');
@@ -13940,7 +14042,7 @@
     if (sectionId === 'settlement-dashboard') renderSettlementDashboard();
     if (sectionId === 'design-drawings') renderDesignDrawings();
     if (sectionId === 'design-schedule') renderDesignSchedule();
-    if (sectionId === 'design-priority') renderDesignPriority();
+    if (sectionId === 'design-priority') { syncEcontractsFromSupabase(); syncEcontractDesignState(); renderDesignPriority(); }
     if (sectionId === 'design-haeyoung' && typeof window.renderHaeyoungSubmissions === 'function') window.renderHaeyoungSubmissions();
     if (sectionId === 'design-pil' && typeof window.renderPilSubmissions === 'function') window.renderPilSubmissions();
     if (sectionId === 'design-tomok' && typeof window.renderTomokSubmissions === 'function') window.renderTomokSubmissions();
@@ -18352,6 +18454,8 @@
     syncContractsFromSupabase();
     // 전자계약(econtracts) 도 로드 — 대시보드 전시장 현황에 완료건 반영
     syncEcontractsFromSupabase();
+    // 전자계약 설계 상태(완료/긴급/설계상태) 로드 — 설계 우선순위 통합용
+    syncEcontractDesignState();
     // 기존 계약들의 영업팀 확인(sales_confirmed) 일괄 체크 (브라우저당 1회)
     backfillSalesConfirmedOnce();
     // 영업팀 확인 체크자 이름(sales_confirmed_by) 을 담당 영업사원으로 백필 (브라우저당 1회)
