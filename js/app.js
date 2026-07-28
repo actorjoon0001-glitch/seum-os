@@ -5369,6 +5369,7 @@
         var approvalTitle = approved && approverName ? ' title="승인자: ' + escapeAttr(approverName) + '"' : '';
         var approvalBadgeHtml = '<span class="approval-badge ' + (approved ? 'approved' : 'pending') + '"' + approvalTitle + '>' + (approved ? '승인됨' : '미승인') + '</span>';
         var rowCls = 'design-priority-row';
+        if (c._isEcontract) rowCls += ' design-priority-row-ec';
         if (isDoneView) rowCls += ' design-priority-done-row';
         else if (c.isUrgent) rowCls += ' design-priority-row-urgent';
         var actionBtns = '';
@@ -5389,7 +5390,7 @@
           '<td class="design-priority-rank">' + (i + 1) + '</td>' +
           '<td class="design-priority-date">' + escapeHtml(dateVal) + '</td>' +
           permitCell +
-          '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span>' + (c._isEcontract ? ' <span class="src-badge src-badge-e">전자</span>' : '') + '</td>' +
+          '<td><span class="design-type-badge ' + (TYPE_BADGE_CLS[typeLabel] || 'badge-etc') + '">' + escapeHtml(typeLabel) + '</span>' + (c._isEcontract ? ' <span class="src-badge src-badge-e">⚡ 전자계약</span>' : '') + '</td>' +
           '<td>' + escapeHtml(c.customerName || '-') + '</td>' +
           '<td>' + escapeHtml(c.contractModelName || c.contractModel || '-') + '</td>' +
           '<td>' + escapeHtml(showroomLabels[c.showroomId] || c.showroomId || '-') + '</td>' +

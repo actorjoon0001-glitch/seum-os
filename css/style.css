@@ -15986,9 +15986,18 @@ body.external-architect-mode #sidebar-announcement-badge { display: none !import
 .dup-row-strong { background: rgba(248, 113, 113, 0.07); }
 .dup-stage { color: #94a3b8; font-size: 0.85em; }
 
-/* 설계 우선순위 — 전자계약 출처 배지 */
-.src-badge { display: inline-block; padding: 1px 6px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; vertical-align: middle; }
-.src-badge-e { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+/* 설계 우선순위 — 전자계약 출처 배지 (눈에 띄게) */
+.src-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 800; vertical-align: middle; letter-spacing: 0.02em; white-space: nowrap; }
+.src-badge-e {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.5), 0 2px 6px rgba(37, 99, 235, 0.45);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+/* 전자계약 행 강조 — 좌측 파란 라인 + 옅은 배경 */
+.design-priority-row-ec { background: rgba(59, 130, 246, 0.08); }
+.design-priority-row-ec > td:first-child { box-shadow: inset 4px 0 0 0 #3b82f6; }
+.design-priority-row-ec:hover { background: rgba(59, 130, 246, 0.14); }
 
 /* ── 채팅 패널 임시 숨김 (요청: 잠시 숨김) — 다시 켜려면 이 블록만 삭제 ── */
 #chat-panel { display: none !important; }
