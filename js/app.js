@@ -14465,8 +14465,9 @@
   }
 
   function openContractForm(visitId) {
-    // 영업팀 계약서는 세움os에 올리지 않기로 함 → 전자계약서os 안내 후 폼 열지 않음
-    alert('📄 이제 계약서는 세움os에 작성하지 않습니다.\n\n전자계약서os에서 작성·업로드해 주세요. 🙏');
+    // 새 계약서는 전자계약서os 에서 작성 → 안내 후 [확인] 누르면 전자계약서os 열기
+    var _go = confirm('📄 기존 계약서는 그대로 두고, 새 계약서부터는 전자계약서os에서 작성합니다.\n\n[확인]을 누르면 전자계약서os가 열립니다.');
+    if (_go) { try { window.open('https://seum-contract-os.netlify.app/', '_blank', 'noopener'); } catch (e) {} }
     return;
     var visits = getVisits();
     var v = visits.find(function (x) { return x.id === visitId; });
