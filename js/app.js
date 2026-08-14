@@ -14465,6 +14465,9 @@
   }
 
   function openContractForm(visitId) {
+    // 영업팀 계약서는 세움os에 올리지 않기로 함 → 전자계약서os 안내 후 폼 열지 않음
+    alert('📄 이제 계약서는 세움os에 작성하지 않습니다.\n\n전자계약서os에서 작성·업로드해 주세요. 🙏');
+    return;
     var visits = getVisits();
     var v = visits.find(function (x) { return x.id === visitId; });
     var wrap = document.getElementById('contract-form-wrap');
