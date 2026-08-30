@@ -3488,7 +3488,7 @@ button,
 /* 공지사항 + 이달의 영업왕 (2컬럼) */
 .dashboard-extra {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1.5rem;
   margin-top: 1.5rem;
 }
