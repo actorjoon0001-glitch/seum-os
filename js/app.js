@@ -16583,7 +16583,7 @@
             '</div>' +
             '<div class="table-wrap">' +
               '<table class="data-table admin-emp-table">' +
-                '<thead><tr><th style="width:16%;">이름</th><th style="width:20%;">이메일</th><th style="width:10%;">팀</th><th style="width:10%;">역할</th><th style="width:10%;">권한</th><th style="width:14%;">전시장</th><th style="width:8%;">상태</th><th style="width:12%;">작업</th></tr></thead>' +
+                '<thead><tr><th style="width:14%;">이름</th><th style="width:18%;">이메일</th><th style="width:10%;">생년월일</th><th style="width:9%;">팀</th><th style="width:9%;">역할</th><th style="width:9%;">권한</th><th style="width:12%;">전시장</th><th style="width:7%;">상태</th><th style="width:12%;">작업</th></tr></thead>' +
                 '<tbody>' + byTeam[t].map(function (emp) {
                   var teamOpts = TEAM_OPTIONS.map(function (tt) {
                     return '<option value="' + tt + '"' + ((emp.team || '') === tt ? ' selected' : '') + '>' + tt + '</option>';
@@ -16600,6 +16600,7 @@
                   return '<tr data-id="' + escapeAttr(emp.id) + '">' +
                     '<td><strong>' + escapeHtml(emp.name || '-') + '</strong></td>' +
                     '<td>' + escapeHtml(emp.email || '-') + '</td>' +
+                    '<td>' + escapeHtml((emp.birth_date ? String(emp.birth_date).slice(0, 10) : '') || '-') + '</td>' +
                     '<td><select class="admin-emp-team">' + teamOpts + '</select></td>' +
                     '<td><select class="admin-emp-role">' + roleOpts + '</select></td>' +
                     '<td><select class="admin-emp-permission">' + permOpts + '</select></td>' +
@@ -16642,7 +16643,7 @@
       groupsEl.innerHTML = '<div class="admin-emp-empty">Supabase를 사용할 수 없습니다.</div>';
       return;
     }
-    supabase.from('employees').select('id, name, email, team, role, showroom, status, position_name, permission')
+    supabase.from('employees').select('id, name, email, birth_date, team, role, showroom, status, position_name, permission')
       .order('showroom', { ascending: true })
       .order('team', { ascending: true })
       .order('name', { ascending: true })
