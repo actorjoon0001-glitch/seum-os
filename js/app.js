@@ -16540,6 +16540,19 @@
     });
   }
 
+  // 생년월일 → 'YYYY-MM-DD / N세'(만 나이). 값 없으면 '-'.
+  function _birthDisplay(bd) {
+    if (!bd) return '-';
+    var s = String(bd).slice(0, 10);
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return escapeHtml(s || '-');
+    var now = new Date();
+    var age = now.getFullYear() - d.getFullYear();
+    var m = now.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+    return escapeHtml(s) + (age >= 0 ? ' / ' + age + '세' : '');
+  }
+
   function _adminEmpRenderGroups() {
     var groupsEl = document.getElementById('admin-emp-groups');
     var countEl = document.getElementById('admin-employees-count');
@@ -16600,7 +16613,7 @@
                   return '<tr data-id="' + escapeAttr(emp.id) + '">' +
                     '<td><strong>' + escapeHtml(emp.name || '-') + '</strong></td>' +
                     '<td>' + escapeHtml(emp.email || '-') + '</td>' +
-                    '<td>' + escapeHtml((emp.birth_date ? String(emp.birth_date).slice(0, 10) : '') || '-') + '</td>' +
+                    '<td style="white-space:nowrap;">' + _birthDisplay(emp.birth_date) + '</td>' +
                     '<td><select class="admin-emp-team">' + teamOpts + '</select></td>' +
                     '<td><select class="admin-emp-role">' + roleOpts + '</select></td>' +
                     '<td><select class="admin-emp-permission">' + permOpts + '</select></td>' +
