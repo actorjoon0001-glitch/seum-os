@@ -16010,3 +16010,41 @@ body.external-architect-mode .sidebar-logo-sub { display: none; }
 /* 시공팀 > 현장 파악 — 주소 오류 필터/복사 도구 */
 .cs-addr-error-tools { display: flex; gap: 8px; flex-wrap: wrap; }
 #cs-filter-addr-error[aria-pressed="true"] { background: #ef4444; border-color: #ef4444; color: #fff; }
+
+/* ── 구버전 안내 (세움 플랫폼 통합 업무 포털로 이전) ── */
+.legacy-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  background: #f59e0b;
+  color: #1f2937;
+  vertical-align: middle;
+}
+.legacy-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: linear-gradient(90deg, #b45309, #f59e0b);
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 0.9rem;
+}
+.legacy-banner-text strong { font-weight: 800; }
+.legacy-banner-btn {
+  flex-shrink: 0;
+  background: #fff;
+  color: #b45309;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.legacy-banner-btn:hover { background: #fff7ed; }
