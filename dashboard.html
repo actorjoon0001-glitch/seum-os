@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0f172a">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" href="./icons/seum-os-192.png">
-  <link rel="stylesheet" href="./css/style.css?v=20260707-12">
+  <link rel="stylesheet" href="./css/style.css?v=20260915-01">
   <style>
     /* 공지 상세 모달 - 레이아웃만 (색상은 style.css 다크 테마에서 지정) */
     .notice-detail-body-box {
@@ -106,8 +106,8 @@
   <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <h1 class="sidebar-logo">세움디자인하우징 OS</h1>
-      <p class="sidebar-logo-sub">직원 전용 내부 운영 시스템</p>
+      <h1 class="sidebar-logo">세움디자인하우징 OS <span class="legacy-badge">구버전</span></h1>
+      <p class="sidebar-logo-sub">구버전 · 통합 업무 포털로 이전 중</p>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">
@@ -221,6 +221,10 @@
       </button>
       <span class="mobile-header-title">세움디자인하우징 OS</span>
     </header>
+    <div class="legacy-banner" id="legacy-banner" role="note">
+      <span class="legacy-banner-text">⚠️ <strong>이 시스템은 구버전입니다.</strong> 새 작업은 <strong>세움 플랫폼(통합 업무 포털)</strong>에서 진행해 주세요.</span>
+      <a class="legacy-banner-btn" href="https://seum-platform.netlify.app/portal" target="_blank" rel="noopener">통합 업무 포털 바로가기 →</a>
+    </div>
     <div class="filter-bar dashboard-filter-bar">
       <div class="filter-item">
         <label for="filter-year">년도</label>
