@@ -13996,19 +13996,8 @@
       var eaSection = externalArchitectSection();
       if (eaSection && sectionId !== eaSection) sectionId = eaSection;
     }
-    // 출근 전이면 대시보드 외 섹션 접근 차단 — 대시보드에서 출근하기 버튼부터 누르도록 유도.
-    // 단, team-worklog 는 어제 팀 업무일지 미작성 시 출근 전에 작성하러 들어가야 하므로 예외.
-    // 외부 협력 건축사는 출근/근태 시스템 자체가 무관하므로 건너뜀.
-    if (sectionId !== 'dashboard' &&
-        sectionId !== 'team-worklog' &&
-        !isExternalArchitect() &&
-        typeof window !== 'undefined' &&
-        window.seumAttendance &&
-        typeof window.seumAttendance.hasCheckedInToday === 'function' &&
-        !window.seumAttendance.hasCheckedInToday()) {
-      window.alert('먼저 대시보드의 [출근하기] 버튼을 눌러 주세요.');
-      sectionId = 'dashboard';
-    }
+    // (출근하기 버튼 제거로 출근 전 섹션 접근 차단 게이트 삭제 — 근태 기능은 통합 os로 이전)
+    // 관리자 섹션: admin/master 만 접근
     // ??? ??? ???: admin/master/??????????? ???
     if (sectionId && sectionId.indexOf('admin-') === 0 && !isAdmin() && !isSuperAdmin()) {
       return;
