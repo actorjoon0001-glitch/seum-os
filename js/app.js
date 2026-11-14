@@ -56,13 +56,13 @@
   var STORAGE_WORKLOG_DELETED = 'seum_worklog_deleted';
 
   var SHOWROOMS = [
+    { id: 'magok', name: '서울마곡지사' },
     { id: 'headquarters', name: '본사 전시장' },
     { id: 'showroom1', name: '1전시장' },
     { id: 'showroom3', name: '3전시장' },
     { id: 'ganghwa', name: '강화전시장' },
     { id: 'gwangju', name: '광주전시장' },
     { id: 'andong', name: '안동전시장' },
-    { id: 'magok', name: '서울마곡지사' },
   ];
 
   // 폐점된 전시장 — 신규 선택은 막되, 과거 데이터의 라벨은 유지 (예: showroom4 = 4전시장 계약 12건)
@@ -10630,13 +10630,13 @@
 
     // 전시장별 현황 (더미 + 실데이터 혼합)
     var showrooms = [
+      { id: 'magok', name: '서울마곡지사' },
       { id: 'headquarters', name: '본사' },
       { id: 'showroom1', name: '1전시장' },
       { id: 'showroom3', name: '3전시장' },
       { id: 'ganghwa', name: '강화전시장' },
       { id: 'gwangju', name: '광주전시장' },
-      { id: 'andong', name: '안동전시장' },
-      { id: 'magok', name: '서울마곡지사' }
+      { id: 'andong', name: '안동전시장' }
     ];
     var tbody = document.getElementById('ceo-db-showroom-tbody');
     if (tbody) {
